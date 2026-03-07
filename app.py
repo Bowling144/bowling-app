@@ -1,219 +1,203 @@
-#@title 🎳 ボウリング解析システム（ブロック分割版 ＋ コントラスト調整）
-gemini_api_key = "AIzaSyC4wb00d5JW2o0RHQ4-PCR6FMgiZBbUzLw" #@param {type:"string"}
-
-# =========================================================
-# 📍 【ブロック 1】 ライブラリのインポートと初期設定
-# =========================================================
-
-
-
+import streamlit as st
 import cv2
 import numpy as np
-import glob
-import os
 import csv
 import json
 from PIL import Image
-
 from google import genai
 from google.genai import types
 
-print("🔥 ボウリング解析システム起動！")
-print("  [色分け設定]")
-print("  🔵 青色文字: 画像解析(Colab)による直接読み取り値")
-print("  🔴 赤色文字: AI(Gemini)の累計スコア読取からの逆算値\n")
+# Streamlitのページ設定
+st.set_page_config(page_title="ボウリング解析システム", page_icon="🎳", layout="wide")
 
-if not gemini_api_key:
-    print("⚠️ エラー: 上の入力欄にAPIキーが貼り付けられていません。")
-    exit()
+st.title("🎳 ボウリング解析システム")
 
-client = genai.Client(api_key=gemini_api_key)
+st.markdown("""
+**【使い方】**
+1. 左側のサイドバーにGeminiのAPIキーを入力します。
+2. 下のボタンからボウリングのスコアシート画像をアップロードします。
+3. 自動的に解析が始まり、結果が表示されます！
+""")
 
-fallback_models = [
-    'gemini-3.0-pro',
-    'gemini-2.5-pro',
-    'gemini-2.0-pro-exp-02-05',
-    'gemini-1.5-pro-latest',
-    'gemini-1.5-pro'
-]
+# --- サイドバー：APIキー入力 ---
+with st.sidebar:
+    st.header("⚙️ 設定")
+    gemini_api_key = st.text_input("Gemini APIキーを入力", type="password")
+    st.markdown("※APIキーがないと累計スコアのAI読取ができません。")
 
-folder_path = '/content/drive/MyDrive/bowling/'
-export_csv_path = '/content/drive/MyDrive/bowling/ボウリングデータ取込用.csv'
+# --- メイン画面：画像アップロード ---
+uploaded_file = st.file_uploader("スコアシートの画像を選択してください", type=['jpg', 'jpeg', 'png'])
 
-image_paths = glob.glob(folder_path + '*.[jJ][pP]*[gG]')
-image_paths = [p for p in image_paths if not os.path.basename(p).startswith(("result_", "debug_"))]
+if uploaded_file is not None:
+    if not gemini_api_key:
+        st.error("⚠️ 左側のサイドバーにAPIキーを入力してください。")
+        st.stop()
+        
+    # --- 📍 【ブロック 1】 Streamlit用の初期設定 ---
+    client = genai.Client(api_key=gemini_api_key)
+    fallback_models = [
+        'gemini-3.0-pro', 'gemini-2.5-pro', 'gemini-2.0-pro-exp-02-05',
+        'gemini-1.5-pro-latest', 'gemini-1.5-pro'
+    ]
+    
+    # 画像の読み込み (Streamlit用にメモリ上から読み込む)
+    file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
+    img = cv2.imdecode(file_bytes, 1)
+    
+    if img is None:
+        st.error("⚠️ 画像の読み込みに失敗しました。")
+        st.stop()
 
-if len(image_paths) == 0:
-    print("⚠️ 画像が見つかりません。")
-    exit()
+    st.info("⚙️ 解析を開始します...")
+    
+    # 進行状況表示用プレースホルダー
+    status_text = st.empty()
 
+    # =========================================================
+    # 📍 【ブロック 2】 AIプロンプトの定義
+    # =========================================================
+    prompt = """
+    あなたはプロのボウリングスコア記録員です。
+    画像はボウリングのスコアシートから、スコア部分だけを切り取って縦に並べたものです。
+    あらかじめ画像解析AIによって、各フレームの投球結果（1投目の倒本数、スペア「/」、ストライク「X」など）が赤色で書き込まれています。これをヒントにしてください。
+    以下の【ルール】に従って、フレームごとの「累計トータルスコア」のみを正確に読み取り、JSON形式で出力してください。
 
-# =========================================================
-# 📍 【ブロック 2】 AIプロンプトの定義
-# =========================================================
-prompt = """
-あなたはプロのボウリングスコア記録員です。
-画像はボウリングのスコアシートから、スコア部分だけを切り取って縦に並べたものです。
-あらかじめ画像解析AIによって、各フレームの投球結果（1投目の倒本数、スペア「/」、ストライク「X」など）が赤色で書き込まれています。これをヒントにしてください。
-以下の【ルール】に従って、フレームごとの「累計トータルスコア」のみを正確に読み取り、JSON形式で出力してください。
+    【ルール】
+    1. 各ゲームの行の下段には、「累計トータルスコア」が書かれています。1F〜10Fまでの10個の累計スコア数字を配列にしてください。
+    2. 小さな四角の中の投球結果（Xや/など）は不要です。累計スコアの数字のみを読んでください。
+    3. Markdownの記号(```json)などは一切含めず、純粋なJSON文字列だけを出力してください。
 
-【ルール】
-1. 各ゲームの行の下段には、「累計トータルスコア」が書かれています。1F〜10Fまでの10個の累計スコア数字を配列にしてください。
-2. 小さな四角の中の投球結果（Xや/など）は不要です。累計スコアの数字のみを読んでください。
-3. Markdownの記号(```json)などは一切含めず、純粋なJSON文字列だけを出力してください。
-
-【出力フォーマット】
-{
-  "date": "2026/02/28",
-  "time": "14:30",
-  "lane": "12",
-  "games": [
+    【出力フォーマット】
     {
-      "game_num": "GAME 1",
-      "frame_totals": [20, 47, 56, 86, 115, 135, 155, 185, 205, 225],
-      "total": "225"
+    "date": "2026/02/28",
+    "time": "14:30",
+    "lane": "12",
+    "games": [
+    {
+    "game_num": "GAME 1",
+    "frame_totals": [20, 47, 56, 86, 115, 135, 155, 185, 205, 225],
+    "total": "225"
     }
-  ]
-}
-"""
+    ]
+    }
+    """
 
+    # =========================================================
+    # 📍 【ブロック 3】 関数定義1（ピン判定、スコア計算）
+    # =========================================================
+    def get_pins_from_crop(crop_img, thresh_val_empty, thresh_val_circle):
+        total_pixels = crop_img.shape[0] * crop_img.shape[1]
+        if total_pixels == 0: return None, 0.0
+        ink_pixels = cv2.countNonZero(crop_img)
+        ink_percent = (ink_pixels / total_pixels) * 100
+        if ink_percent < thresh_val_empty: return "EMPTY", ink_percent
+        elif ink_percent < thresh_val_circle: return "CIRCLE", ink_percent
+        else: return "DOUBLE", ink_percent
 
-# =========================================================
-# 📍 【ブロック 3】 関数定義1（ピン判定、スコア計算）
-# =========================================================
-def get_pins_from_crop(crop_img, thresh_val_empty, thresh_val_circle):
-    total_pixels = crop_img.shape[0] * crop_img.shape[1]
-    if total_pixels == 0: return None, 0.0
-    ink_pixels = cv2.countNonZero(crop_img)
-    ink_percent = (ink_pixels / total_pixels) * 100
-    if ink_percent < thresh_val_empty: return "EMPTY", ink_percent
-    elif ink_percent < thresh_val_circle: return "CIRCLE", ink_percent
-    else: return "DOUBLE", ink_percent
+    def calculate_bowling_score(throws):
+        def get_val(idx):
+            if idx >= len(throws): return 0
+            v = str(throws[idx]).upper().replace("R:", "")
+            if v == 'X': return 10
+            if v == '/': return 10 - get_val(idx - 1)
+            if v in ['-', '', 'G']: return 0
+            try: return int(v)
+            except: return 0
 
-def calculate_bowling_score(throws):
-    def get_val(idx):
-        if idx >= len(throws): return 0
-        v = str(throws[idx]).upper().replace("R:", "")
-        if v == 'X': return 10
-        if v == '/': return 10 - get_val(idx - 1)
-        if v in ['-', '', 'G']: return 0
-        try: return int(v)
-        except: return 0
+        frame_totals = []
+        current_score = 0
+        t_idx = 0
 
-    frame_totals = []
-    current_score = 0
-    t_idx = 0
+        for frame in range(10):
+            if frame == 9:
+                f_score = get_val(18) + get_val(19) + get_val(20)
+                current_score += f_score
+                frame_totals.append(current_score)
+                break
 
-    for frame in range(10):
-        if frame == 9:
-            f_score = get_val(18) + get_val(19) + get_val(20)
-            current_score += f_score
-            frame_totals.append(current_score)
-            break
-
-        v1 = get_val(t_idx)
-        if str(throws[t_idx]).upper().replace("R:", "") == 'X':
-            bonus = get_val(t_idx + 2)
-            if str(throws[t_idx + 2]).upper().replace("R:", "") == 'X' and frame < 8:
-                bonus += get_val(t_idx + 4)
-            else:
-                bonus += get_val(t_idx + 3)
-            current_score += 10 + bonus
-            t_idx += 2
-        else:
-            v2 = get_val(t_idx + 1)
-            if str(throws[t_idx + 1]).replace("R:", "") == '/':
+            v1 = get_val(t_idx)
+            if str(throws[t_idx]).upper().replace("R:", "") == 'X':
                 bonus = get_val(t_idx + 2)
+                if str(throws[t_idx + 2]).upper().replace("R:", "") == 'X' and frame < 8:
+                    bonus += get_val(t_idx + 4)
+                else:
+                    bonus += get_val(t_idx + 3)
                 current_score += 10 + bonus
+                t_idx += 2
             else:
-                current_score += v1 + v2
-            t_idx += 2
+                v2 = get_val(t_idx + 1)
+                if str(throws[t_idx + 1]).replace("R:", "") == '/':
+                    bonus = get_val(t_idx + 2)
+                    current_score += 10 + bonus
+                else:
+                    current_score += v1 + v2
+                t_idx += 2
 
-        frame_totals.append(current_score)
-    return frame_totals
+            frame_totals.append(current_score)
+        return frame_totals
 
+    # =========================================================
+    # 📍 【ブロック 4】 関数定義2（座標回転、テキスト描画）
+    # =========================================================
+    def get_angled_box_pts(local_x, local_y, w, h, ref_x, ref_y, theta):
+        p1 = np.array([local_x, local_y])
+        p2 = np.array([local_x + w, local_y])
+        p3 = np.array([local_x + w, local_y + h])
+        p4 = np.array([local_x, local_y + h])
 
-# =========================================================
-# 📍 【ブロック 4】 関数定義2（座標回転、テキスト描画）
-# =========================================================
-def get_angled_box_pts(local_x, local_y, w, h, ref_x, ref_y, theta):
-    p1 = np.array([local_x, local_y])
-    p2 = np.array([local_x + w, local_y])
-    p3 = np.array([local_x + w, local_y + h])
-    p4 = np.array([local_x, local_y + h])
-    
-    cos_t = np.cos(theta)
-    sin_t = np.sin(theta)
-    R = np.array([[cos_t, -sin_t], [sin_t, cos_t]])
-    
-    pts = []
-    for p in [p1, p2, p3, p4]:
+        cos_t = np.cos(theta)
+        sin_t = np.sin(theta)
+        R = np.array([[cos_t, -sin_t], [sin_t, cos_t]])
+
+        pts = []
+        for p in [p1, p2, p3, p4]:
+            rot_p = R.dot(p) + np.array([ref_x, ref_y])
+            pts.append([int(round(rot_p[0])), int(round(rot_p[1]))])
+        return np.array(pts, np.int32).reshape((-1, 1, 2))
+
+    def put_rotated_text(img, text, local_x, local_y, ref_x, ref_y, theta, color, scale=0.7, thickness=2):
+        if not text: return
+        p = np.array([local_x, local_y])
+        cos_t = np.cos(theta)
+        sin_t = np.sin(theta)
+        R = np.array([[cos_t, -sin_t], [sin_t, cos_t]])
         rot_p = R.dot(p) + np.array([ref_x, ref_y])
-        pts.append([int(round(rot_p[0])), int(round(rot_p[1]))])
-    return np.array(pts, np.int32).reshape((-1, 1, 2))
+        cv2.putText(img, text, (int(rot_p[0]), int(rot_p[1])), cv2.FONT_HERSHEY_SIMPLEX, scale, color, thickness, cv2.LINE_AA)
 
-def put_rotated_text(img, text, local_x, local_y, ref_x, ref_y, theta, color, scale=0.7, thickness=2):
-    if not text: return
-    p = np.array([local_x, local_y])
-    cos_t = np.cos(theta)
-    sin_t = np.sin(theta)
-    R = np.array([[cos_t, -sin_t], [sin_t, cos_t]])
-    rot_p = R.dot(p) + np.array([ref_x, ref_y])
-    cv2.putText(img, text, (int(rot_p[0]), int(rot_p[1])), cv2.FONT_HERSHEY_SIMPLEX, scale, color, thickness, cv2.LINE_AA)
+    all_games_export_data = []
+    throw_cols = [7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47]
+    target_indices = [8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 46, 48]
 
-all_games_export_data = []
-throw_cols = [7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47]
-target_indices = [8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 46, 48]
+    COLOR_OPENCV = (255, 0, 0)
+    COLOR_AI = (0, 0, 220)
+    COLOR_PERCENT = (50, 50, 50)
 
-COLOR_OPENCV = (255, 0, 0)
-COLOR_AI = (0, 0, 220)
-COLOR_PERCENT = (50, 50, 50)
-
-
-
-
-
-
-
-
-# =========================================================
-# 📍 【ブロック 5】 メインループ開始と画像前処理
-# =========================================================
-for index, img_path in enumerate(image_paths):
-    filename = os.path.basename(img_path)
-    print(f"\n⚙️ 解析中 [{index+1}/{len(image_paths)}]: {filename}")
-
-    img = cv2.imread(img_path)
-    if img is None: continue
-
+    # =========================================================
+    # 📍 【ブロック 5】 メインループ開始と画像前処理
+    # =========================================================
+    status_text.text("画像の前処理を実行中...")
     target_width = 1200
     scale_img = target_width / img.shape[1]
     target_height = int(img.shape[0] * scale_img)
     img_resized = cv2.resize(img, (target_width, target_height))
 
-    # ⚠️ 【修正】強力なコントラスト補正を無効化（動的閾値の精度を上げるため、自然なまま処理します）
-    # img_resized = cv2.convertScaleAbs(img_resized, alpha=1.2, beta=30)
-    
     output_img = img_resized.copy()
-
     gray = cv2.cvtColor(img_resized, cv2.COLOR_BGR2GRAY)
-    
-    # 定数Cは「5」のまま（自然な2値化）
+
     thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 5)
 
     b_channel = img_resized[:, :, 0]
     thresh_ink = cv2.adaptiveThreshold(b_channel, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 5)
 
-
-
-# =========================================================
-# 📍 【ブロック 6】 水色線（横線）の抽出とゲーム行のグループ化
-# =========================================================
+    # =========================================================
+    # 📍 【ブロック 6】 水色線（横線）の抽出とゲーム行のグループ化
+    # =========================================================
+    status_text.text("水色線（ゲーム枠）を検出中...")
     h_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (100, 1))
     h_mask = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, h_kernel)
     h_dilate = cv2.dilate(h_mask, cv2.getStructuringElement(cv2.MORPH_RECT, (50, 1)), iterations=1)
     h_contours, _ = cv2.findContours(h_dilate, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
+
     extension_px = 50
     blue_lines = []
 
@@ -230,21 +214,23 @@ for index, img_path in enumerate(image_paths):
             y_start_ext = y0 + slope * (x_start_ext - x0)
             y_end_ext = y0 + slope * (x_end_ext - x0)
             y_center = (y_start_ext + y_end_ext) / 2
-            
+
             blue_lines.append({
                 'y_center': y_center,
                 'start': (int(x_start_ext), int(y_start_ext)),
                 'end': (int(x_end_ext), int(y_end_ext))
             })
-            
+
             cv2.line(output_img, (int(x_start_ext), int(y_start_ext)), (int(x_end_ext), int(y_end_ext)), (255, 255, 0), 3)
 
-    if not blue_lines: continue
-    
+    if not blue_lines:
+        st.error("⚠️ ゲームの行（水色線）が見つかりませんでした。")
+        st.stop()
+
     blue_lines.sort(key=lambda line: line['y_center'])
     raw_groups = []
     current_group = [blue_lines[0]]
-    
+
     for line in blue_lines[1:]:
         if abs(line['y_center'] - current_group[-1]['y_center']) <= 40:
             current_group.append(line)
@@ -253,14 +239,13 @@ for index, img_path in enumerate(image_paths):
             current_group = [line]
     if current_group:
         raw_groups.append(current_group)
-        
+
     valid_groups = [g for g in raw_groups if len(g) >= 3]
-    print(f"    📝 {len(valid_groups)} 個のゲーム行（グループ）を検出しました。")
+    st.info(f"📝 {len(valid_groups)} 個のゲーム行（グループ）を検出しました。")
 
-
-# =========================================================
-# 📍 【ブロック 7】 画像全体の回転補正
-# =========================================================
+    # =========================================================
+    # 📍 【ブロック 7】 画像全体の回転補正
+    # =========================================================
     angles = []
     group_refs = []
     group_lines_rotated_y = []
@@ -273,18 +258,18 @@ for index, img_path in enumerate(image_paths):
         group_bottom_y = max_y + 10
         min_x = min(line['start'][0] for line in group)
         max_x = max(line['end'][0] for line in group)
-        
+
         crop_y1 = max(0, group_top_y)
         crop_y2 = min(img_resized.shape[0], group_bottom_y)
         crop_x1 = max(0, int(min_x))
         crop_x2 = min(img_resized.shape[1], int(max_x))
-        
+
         if crop_y2 <= crop_y1 or crop_x2 <= crop_x1: continue
 
         v_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 30))
         v_mask = cv2.morphologyEx(thresh[crop_y1:crop_y2, crop_x1:crop_x2], cv2.MORPH_OPEN, v_kernel)
         v_contours, _ = cv2.findContours(v_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
+
         valid_vertical_xs = []
         for v_cnt in v_contours:
             vx, vy, vw, vh = cv2.boundingRect(v_cnt)
@@ -292,11 +277,11 @@ for index, img_path in enumerate(image_paths):
                 real_x = crop_x1 + vx
                 if real_x > img_resized.shape[1] * 0.03:
                     valid_vertical_xs.append(real_x)
-                
+
         if valid_vertical_xs:
             leftmost_x = min(valid_vertical_xs)
             rightmost_x = max(valid_vertical_xs)
-            
+
             x_start, y_start = top_blue_line['start']
             x_end, y_end = top_blue_line['end']
             line_slope = (y_end - y_start) / (x_end - x_start) if x_end != x_start else 0
@@ -329,7 +314,7 @@ for index, img_path in enumerate(image_paths):
         h, w = output_img.shape[:2]
         center = (w // 2, h // 2)
         M = cv2.getRotationMatrix2D(center, avg_angle, 1.0)
-        
+
         output_img = cv2.warpAffine(output_img, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(255, 255, 255))
         thresh_ink_rotated = cv2.warpAffine(thresh_ink, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
         img_color_rotated = cv2.warpAffine(img_resized, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(255, 255, 255))
@@ -340,12 +325,10 @@ for index, img_path in enumerate(image_paths):
 
     img_for_ai = img_color_rotated.copy()
 
-
-
-
-# =========================================================
-# 📍 【ブロック 8-1】 先行解析ループ（全枠のピクセル率収集）
-# =========================================================
+    # =========================================================
+    # 📍 【ブロック 8-1】 先行解析ループ（全枠のピクセル率収集）
+    # =========================================================
+    status_text.text("ピンとインクの分布を解析中...")
     L0 = 0
     scale_0 = 0
     pin_positions = [(0, 0.0), (0, 1.0), (0, 2.0), (0, 3.0), (1, 0.5), (1, 1.5), (1, 2.5), (2, 1.0), (2, 2.0), (3, 1.5)]
@@ -379,7 +362,7 @@ for index, img_path in enumerate(image_paths):
 
         offset_x = 13.7 * current_scale
         y_offset = -41
-        start_x_base = offset_x 
+        start_x_base = offset_x
         start_y_base = y_offset + dx * (16.7 / 184.5)
 
         rotated_ys = group_lines_rotated_y[group_idx]
@@ -390,15 +373,15 @@ for index, img_path in enumerate(image_paths):
         local_y0 = y0 - new_ref1[1]
         local_y1 = y1 - new_ref1[1]
         m_y = 2
-        
+
         # ⚠️ フルサイズのY座標と高さ（薄紫枠・文字描画用）
-        py1_local = local_y0 + m_y 
+        py1_local = local_y0 + m_y
         ph_full = (local_y1 - local_y0) - (m_y * 2)
 
         # ⚠️ 紫枠専用の70%縮小サイズ（下辺合わせ）
         ph_box = ph_full * 0.7
         py1_local_box = py1_local + (ph_full - ph_box)
-        
+
         gy_local = start_y_base + 0.3 * current_scale
 
         box_w = 15.17 * current_scale
@@ -408,19 +391,15 @@ for index, img_path in enumerate(image_paths):
 
         game_info = {
             'new_ref1': new_ref1, 'theta': theta, 'current_scale': current_scale,
-            'start_x_base': start_x_base,
-            'py1_local': py1_local,
-            'ph': ph_full,
+            'start_x_base': start_x_base, 'py1_local': py1_local, 'ph': ph_full,
             'gy_local': gy_local, 'box_w': box_w, 'box_h': box_h,
             'y_box_w': y_box_w, 'y_box_h': y_box_h,
             'purple_data': {}, 'light_purple_data': {}, 'pin_data': {}
         }
 
-        # --- 🟪 1投目（薄紫）＆ 2投目（紫）の収集 ---
         for f in range(10):
-            px1_light = start_x_base + f * box_w 
+            px1_light = start_x_base + f * box_w
             pw_light = 6.69 * current_scale
-            # ⚠️ 【修正】薄紫枠はフルサイズ（py1_local, ph_full）に戻す
             pts_light = get_angled_box_pts(px1_light, py1_local, pw_light, ph_full, new_ref1[0], new_ref1[1], theta)
             rx, ry, rw, rh = cv2.boundingRect(pts_light)
             m = 2
@@ -434,7 +413,6 @@ for index, img_path in enumerate(image_paths):
 
             px1_purple = start_x_base + f * box_w + 6.69 * current_scale
             pw_purple = (14.28 - 6.69) * current_scale
-            # ⚠️ 紫枠は70%サイズ（py1_local_box, ph_box）を維持
             pts_purple = get_angled_box_pts(px1_purple, py1_local_box, pw_purple, ph_box, new_ref1[0], new_ref1[1], theta)
             rx, ry, rw, rh = cv2.boundingRect(pts_purple)
             if ry+m < ry+rh-m and rx+m < rx+rw-m:
@@ -447,7 +425,6 @@ for index, img_path in enumerate(image_paths):
             if f == 9:
                 px1_3 = start_x_base + 9 * box_w + 14.28 * current_scale
                 pw_3 = (21.87 - 14.28) * current_scale
-                # ⚠️ 10フレーム3投目の紫枠も70%サイズを維持
                 pts_3 = get_angled_box_pts(px1_3, py1_local_box, pw_3, ph_box, new_ref1[0], new_ref1[1], theta)
                 rx3, ry3, rw3, rh3 = cv2.boundingRect(pts_3)
                 if ry3+m < ry3+rh3-m and rx3+m < rx3+rw3-m:
@@ -457,7 +434,6 @@ for index, img_path in enumerate(image_paths):
                 else: pct = 0
                 game_info['purple_data']['10_3'] = {'pct': pct, 'pts': pts_3, 'rx': rx3, 'ry': ry3}
 
-        # --- 🟨 黄枠（ピン）の収集 ---
         for f in range(12):
             gx_local = start_x_base + f * box_w
             for row_idx, col_offset in pin_positions:
@@ -470,22 +446,17 @@ for index, img_path in enumerate(image_paths):
                 crop_y = thresh_ink_rotated[max(0, ry):ry+rh, max(0, rx):rx+rw]
                 pixels_y = crop_y.shape[0] * crop_y.shape[1]
                 pin_pct = (cv2.countNonZero(crop_y) / pixels_y * 100) if pixels_y > 0 else 0
-                
                 game_info['pin_data'][(f, row_idx, col_offset)] = {'pct': pin_pct, 'pts': pts_y}
                 all_global_pin_pcts.append(pin_pct)
 
         games_data.append(game_info)
 
-
-
-
-# =========================================================
-# 📍 【ブロック 8-2】 動的閾値の算出と分布図(ヒストグラム)の合成
-# =========================================================
+    # =========================================================
+    # 📍 【ブロック 8-2】 動的閾値の算出（グラフ生成はStreamlitでは省略）
+    # =========================================================
     dyn_thresh_empty = 20.0
     dyn_thresh_pink = 24.0
 
-    # 📌 ① ピンの閾値を「谷」から探す
     if all_global_pin_pcts:
         hist, bin_edges = np.histogram(all_global_pin_pcts, bins=100, range=(0, 100))
         peak1_idx = np.argmax(hist[:25])
@@ -494,7 +465,6 @@ for index, img_path in enumerate(image_paths):
         if hist[peak2_idx] > 0 and peak2_idx > peak1_idx + 5:
             between_hist = hist[peak1_idx:peak2_idx+1]
             zero_indices = np.where(between_hist == 0)[0]
-
             if len(zero_indices) > 0:
                 longest_zeros = []
                 current_zeros = []
@@ -505,9 +475,6 @@ for index, img_path in enumerate(image_paths):
                         if len(current_zeros) > len(longest_zeros): longest_zeros = current_zeros
                         current_zeros = [i]
                 if len(current_zeros) > len(longest_zeros): longest_zeros = current_zeros
-
-                # ⚠️ 【修正】分布数ゼロの区間において、「ど真ん中(50%)」ではなく、
-                # 高い側（右側）に寄せた「60%（左から6、右から4の割合）」の位置を谷とする
                 valley_idx = longest_zeros[int(len(longest_zeros) * 0.6)]
                 dyn_thresh_empty = peak1_idx + valley_idx
             else:
@@ -518,7 +485,6 @@ for index, img_path in enumerate(image_paths):
 
     dyn_thresh_circle = dyn_thresh_empty + 12.0
 
-    # 📌 ② スペアの閾値を「1投目(0~9本)のデータ」から探す
     valid_1st_throw_pcts = []
     for game_info in games_data:
         for f in range(10):
@@ -527,60 +493,15 @@ for index, img_path in enumerate(image_paths):
                 pin_pct = game_info['pin_data'][(f, row_idx, col_offset)]['pct']
                 if pin_pct >= dyn_thresh_empty:
                     frame_pins.append(1)
-
             if len(frame_pins) > 0:
                 valid_1st_throw_pcts.append(game_info['light_purple_data'][f]['pct'])
 
     if valid_1st_throw_pcts:
-        # ⚠️ max(最大値)ではなく、ノイズを無視する90パーセンタイルを使用（維持）
         dyn_thresh_pink = np.percentile(valid_1st_throw_pcts, 90) + 3.0
 
-    print(f"    🌟 [全体解析完了] 自動設定された閾値 -> ピン(谷): {dyn_thresh_empty:.1f}% / スペア(1投目最大+3%): {dyn_thresh_pink:.1f}%")
-
-    # 📊 分布図の生成と合成（サイズ25%縮小 ＆ 第2軸の追加）
-    import matplotlib.pyplot as plt
-    import io
-
-    plt.style.use('dark_background')
-
-    # サイズを 6x3 から 4.5x2.25 に縮小
-    fig, ax1 = plt.subplots(figsize=(4.5, 2.25))
-
-    # 右側にスコア専用の第2軸（ax2）を作成
-    ax2 = ax1.twinx()
-
-    # それぞれの軸にデータを描画（色は維持）
-    ax1.hist(all_global_pin_pcts, bins=50, range=(0,100), color='yellow', alpha=0.6, label=f'Pins (Thresh: {dyn_thresh_empty:.1f}%)')
-    ax2.hist(all_global_light_purple_pcts, bins=50, range=(0,100), color='mediumpurple', alpha=0.6, label=f'1st Throw (Thresh: {dyn_thresh_pink:.1f}%)')
-
-    # 決定した閾値のラインを引く
-    ax1.axvline(dyn_thresh_empty, color='yellow', linestyle='dashed', linewidth=2)
-    ax1.axvline(dyn_thresh_pink, color='magenta', linestyle='dashed', linewidth=2)
-
-    # 凡例を1つにまとめて表示
-    lines_1, labels_1 = ax1.get_legend_handles_labels()
-    lines_2, labels_2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines_1 + lines_2, labels_1 + labels_2, loc='upper right', fontsize='small')
-
-    ax1.set_title("Pixel Distribution & Auto Thresholds", fontsize='small')
-    fig.tight_layout()
-
-    buf = io.BytesIO()
-    fig.savefig(buf, format='png', dpi=100)
-    buf.seek(0)
-    graph_img = cv2.imdecode(np.frombuffer(buf.getvalue(), dtype=np.uint8), 1)
-    plt.close(fig)
-
-    gh, gw, _ = graph_img.shape
-    oh, ow, _ = output_img.shape
-    if oh >= gh and ow >= gw:
-        output_img[0:gh, ow-gw:ow] = graph_img
-
-
-
-# =========================================================
-# 📍 【ブロック 8-3】 全ゲームの判定と描画ループ
-# =========================================================
+    # =========================================================
+    # 📍 【ブロック 8-3】 全ゲームの判定と描画ループ
+    # =========================================================
     for group_idx, game_info in enumerate(games_data):
         new_ref1 = game_info['new_ref1']
         theta = game_info['theta']
@@ -612,27 +533,23 @@ for index, img_path in enumerate(image_paths):
                 pin_data = game_info['pin_data'][(f, row_idx, col_offset)]
                 pin_pct = pin_data['pct']
                 pts_y = pin_data['pts']
-                
                 cv2.polylines(output_img, [pts_y], isClosed=True, color=(0, 255, 255), thickness=1)
-                
-                if pin_pct < dyn_thresh_empty:
-                    result = "EMPTY"
-                elif pin_pct < dyn_thresh_circle:
-                    result = "CIRCLE"
-                else:
-                    result = "DOUBLE"
+
+                if pin_pct < dyn_thresh_empty: result = "EMPTY"
+                elif pin_pct < dyn_thresh_circle: result = "CIRCLE"
+                else: result = "DOUBLE"
 
                 if row_idx == 0: pin_num = 7 + int(col_offset)
                 elif row_idx == 1: pin_num = 4 + int(col_offset - 0.5)
                 elif row_idx == 2: pin_num = 2 + int(col_offset - 1.0)
                 elif row_idx == 3: pin_num = 1
-                
+
                 if result in ["CIRCLE", "DOUBLE"]:
                     frame_pins.append(pin_num)
                     p_top_left = tuple(pts_y[0][0])
                     p_bottom_right = tuple(pts_y[2][0])
                     cv2.line(output_img, p_top_left, p_bottom_right, (0, 255, 255), 2)
-                
+
             frame_pins.sort()
             all_frame_pins.append(frame_pins)
 
@@ -645,7 +562,7 @@ for index, img_path in enumerate(image_paths):
                 temp_throws[f*2+1] = ""
             elif pink_inks[f] >= dyn_thresh_pink:
                 temp_throws[f*2+1] = "/"
-                
+
         p9, p10, p11 = all_frame_pins[9], all_frame_pins[10], all_frame_pins[11]
         v1_10 = 10 - len(p9)
         str1_10 = 'X' if v1_10 == 10 else ('-' if v1_10 == 0 else str(v1_10))
@@ -662,11 +579,10 @@ for index, img_path in enumerate(image_paths):
             elif pink_inks['10_3'] >= dyn_thresh_pink:
                 temp_throws[20] = "/"
         else:
-            if pink_inks[9] >= dyn_thresh_pink:
-                temp_throws[19] = "/"
-                v3_10 = 10 - len(p10)
-                str3_10 = 'X' if v3_10 == 10 else ('-' if v3_10 == 0 else str(v3_10))
-                temp_throws[20] = str3_10
+            if pink_inks[9] >= dyn_thresh_pink: temp_throws[19] = "/"
+            v3_10 = 10 - len(p10)
+            str3_10 = 'X' if v3_10 == 10 else ('-' if v3_10 == 0 else str(v3_10))
+            temp_throws[20] = str3_10
 
         for f in range(9):
             t1 = temp_throws[f*2]
@@ -683,45 +599,32 @@ for index, img_path in enumerate(image_paths):
         if t3: put_rotated_text(img_for_ai, t3, start_x_base + f * box_w + 17 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, (0, 0, 255), scale=0.7, thickness=2)
 
         parsed_games.append({
-            'pink_inks': pink_inks,
-            'all_frame_pins': all_frame_pins,
-            'p9': p9, 'p10': p10, 'p11': p11,
-            'theta': theta,
-            'current_scale': current_scale,
-            'start_x_base': start_x_base,
-            'box_w': box_w,
-            'py1_local': py1_local,
-            'new_ref1': new_ref1
+            'pink_inks': pink_inks, 'all_frame_pins': all_frame_pins,
+            'p9': p9, 'p10': p10, 'p11': p11, 'theta': theta,
+            'current_scale': current_scale, 'start_x_base': start_x_base,
+            'box_w': box_w, 'py1_local': py1_local, 'new_ref1': new_ref1
         })
 
-
-
-
-
-
-
-
-
-
-# =========================================================
-# 📍 【ブロック 9】 AI用のカンペ画像切り抜きとGemini読み取り
-# =========================================================
+    # =========================================================
+    # 📍 【ブロック 9】 AI用のカンペ画像切り抜きとGemini読み取り
+    # =========================================================
+    status_text.text("AI（Gemini）でスコアを読み取り中...")
     score_crops = []
     for group_idx, ((r1x, r1y), (r2x, r2y)) in enumerate(group_refs):
         pt1 = np.array([r1x, r1y, 1.0])
         pt2 = np.array([r2x, r2y, 1.0])
         new_ref1 = np.dot(M, pt1)
         new_ref2 = np.dot(M, pt2)
-        
+
         dx_crop = new_ref2[0] - new_ref1[0]
         scale_crop = dx_crop / 184.2
         base_y_crop = new_ref1[1] - 41 + dx_crop * (16.7 / 184.2)
-        
+
         crop_y1 = max(0, int(base_y_crop - 15 * scale_crop))
         crop_y2 = min(img_for_ai.shape[0], int(base_y_crop + 20 * scale_crop))
         crop_x1 = max(0, int(new_ref1[0] - 10))
         crop_x2 = min(img_for_ai.shape[1], int(new_ref2[0] + 10))
-        
+
         if crop_y2 > crop_y1 and crop_x2 > crop_x1:
             score_crops.append(img_for_ai[crop_y1:crop_y2, crop_x1:crop_x2])
 
@@ -732,19 +635,15 @@ for index, img_path in enumerate(image_paths):
             pad_w = max_w - crop.shape[1]
             padded = cv2.copyMakeBorder(crop, 0, 0, 0, pad_w, cv2.BORDER_CONSTANT, value=(255, 255, 255))
             padded_crops.append(padded)
-        
         stacked_scores = cv2.vconcat(padded_crops)
         img_pil = Image.fromarray(cv2.cvtColor(stacked_scores, cv2.COLOR_BGR2RGB))
-        
-        print(f"    ✂️ AI用カンペ画像を生成しました")
     else:
         img_pil = Image.fromarray(cv2.cvtColor(img_for_ai, cv2.COLOR_BGR2RGB))
 
     gemini_data = {"date": "", "time": "", "lane": "", "games": []}
     success = False
-    
+
     for attempt_model in fallback_models:
-        print(f"  ▶ 高精度モデル ({attempt_model}) でカンペ画像を読み取り中...")
         try:
             response = client.models.generate_content(
                 model=attempt_model,
@@ -756,32 +655,20 @@ for index, img_path in enumerate(image_paths):
                 lines = raw_text.split('\n')
                 raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
             gemini_data = json.loads(raw_text)
-            print(f"  ✅ ({attempt_model}) で累計スコアの読み取り成功！")
             success = True
             break
         except Exception as e:
-            error_msg = str(e)
-            if "404" not in error_msg:
-                print(f"  ⚠️ {attempt_model} でエラー発生: {e}")
+            continue
 
     if not success:
-        print("  🚨 全てのAIモデルで読み取りに失敗しました。")
+        st.warning("⚠️ AIモデルでのスコア読み取りに失敗しました。一部データが欠損する可能性があります。")
 
-
-
-
-
-
-
-# =========================================================
-# 📍 【ブロック 10】 後行ループ（AI結果の統合と最終出力、画像の保存）
-# =========================================================
-    # ⚠️ 【修正】このブロック全体を「for index, img_path...」のループ内に収めるため字下げしました
-
-    if isinstance(gemini_data, list):
-        gemini_data = {"date": "", "time": "", "lane": "", "games": gemini_data}
-    elif not isinstance(gemini_data, dict):
-        gemini_data = {"date": "", "time": "", "lane": "", "games": []}
+    # =========================================================
+    # 📍 【ブロック 10】 後行ループ（AI結果の統合と最終出力）
+    # =========================================================
+    status_text.text("最終結果を計算中...")
+    if isinstance(gemini_data, list): gemini_data = {"date": "", "time": "", "lane": "", "games": gemini_data}
+    elif not isinstance(gemini_data, dict): gemini_data = {"date": "", "time": "", "lane": "", "games": []}
 
     for group_idx, parsed_data in enumerate(parsed_games):
         pink_inks = parsed_data['pink_inks']
@@ -825,7 +712,6 @@ for index, img_path in enumerate(image_paths):
         final_throws = [""] * 21
         throw_colors = [COLOR_OPENCV] * 21
 
-        # --- 1〜9フレームの処理 ---
         for f in range(9):
             v1 = 10 - len(all_frame_pins[f])
             str1 = 'X' if v1 == 10 else ('-' if v1 == 0 else str(v1))
@@ -835,7 +721,6 @@ for index, img_path in enumerate(image_paths):
             if str1 == 'X':
                 final_throws[f*2+1] = ""
             else:
-                # ⚠️ 【修正】古い28.0の固定値を排除し、最新の動的閾値に変更
                 if pink_inks[f] >= dyn_thresh_pink:
                     final_throws[f*2+1] = "R:/"
                     throw_colors[f*2+1] = COLOR_OPENCV
@@ -843,8 +728,6 @@ for index, img_path in enumerate(image_paths):
                     curr_total = int(ai_frame_totals[f]) if str(ai_frame_totals[f]).isdigit() else 0
                     prev_total = int(ai_frame_totals[f-1]) if f > 0 and str(ai_frame_totals[f-1]).isdigit() else 0
                     diff = curr_total - prev_total
-                    
-                    # ⚠️ 【新機能】AI逆算：差分が10以上なら強制的にスペア判定
                     if diff >= 10:
                         final_throws[f*2+1] = "R:/"
                         throw_colors[f*2+1] = COLOR_AI
@@ -855,7 +738,6 @@ for index, img_path in enumerate(image_paths):
                         final_throws[f*2+1] = "R:-" if v2 == 0 else f"R:{v2}"
                         throw_colors[f*2+1] = COLOR_AI
 
-        # --- 10フレーム目の処理 ---
         curr_total_10 = int(ai_frame_totals[9]) if str(ai_frame_totals[9]).isdigit() else 0
         prev_total_10 = int(ai_frame_totals[8]) if str(ai_frame_totals[8]).isdigit() else 0
         diff_10 = curr_total_10 - prev_total_10
@@ -870,7 +752,6 @@ for index, img_path in enumerate(image_paths):
             str2_10 = 'X' if v2_10 == 10 else ('-' if v2_10 == 0 else str(v2_10))
             final_throws[19] = str2_10
             throw_colors[19] = COLOR_OPENCV
-
             if str2_10 == 'X':
                 v3_10 = 10 - len(p11)
                 str3_10 = 'X' if v3_10 == 10 else ('-' if v3_10 == 0 else str(v3_10))
@@ -934,42 +815,41 @@ for index, img_path in enumerate(image_paths):
         t3 = final_throws[20].replace("R:", "")
         put_rotated_text(output_img, t3, start_x_base + f * box_w + 17 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, throw_colors[20])
 
-        print(f"    📝 GAME {group_idx+1}  チェック結果:")
         calc_totals = calculate_bowling_score(final_throws)
-
         ai_tot_int = int(ai_total) if str(ai_total).isdigit() else int(ai_frame_totals[-1]) if ai_frame_totals else 0
         result_text_x = start_x_base + 9 * box_w + 5 * current_scale
         result_text_y = py1_local - 10 * current_scale
 
         if calc_totals and len(ai_frame_totals) > 0 and calc_totals[-1] == ai_tot_int:
-            print(f"      ✅ トータルスコア一致")
             check_str = f"MATCH ({calc_totals[-1]})"
             check_color = (0, 150, 0)
         else:
             calc_val = calc_totals[-1] if calc_totals else 0
-            print(f"      ⚠️ 不一致！ (計算値: {calc_val}  != AI読取:  {ai_tot_int})")
             check_str = f"DIFF! ({calc_val} vs {ai_tot_int})"
             check_color = COLOR_AI
 
         put_rotated_text(output_img, check_str, result_text_x, result_text_y, new_ref1[0], new_ref1[1], theta, check_color, scale=0.6, thickness=2)
 
-    # コントラスト調整後の画像をドライブに保存
-    result_img_path = os.path.join(folder_path, f"result_{filename}")
-    cv2.imwrite(result_img_path, output_img)
-    print(f"    💾 解析結果画像を保存しました: result_{filename}")
-
-
-
-
-
-
-# =========================================================
-# 📍 【ブロック 11】 CSV保存（全画像処理完了後、1回だけ実行）
-# =========================================================
-# ⚠️ 【修正】CSV保存は一番外側（字下げなし）で実行します
-with open(export_csv_path, mode='w', newline='', encoding='utf-8') as f:
-    writer = csv.writer(f)
+    # =========================================================
+    # 📍 【ブロック 11】 解析結果の表示とCSVダウンロード
+    # =========================================================
+    status_text.text("✅ 解析が完了しました！")
+    st.balloons()
+    
+    # 解析結果の画像を表示
+    st.subheader("🖼️ 解析結果画像")
+    output_rgb = cv2.cvtColor(output_img, cv2.COLOR_BGR2RGB)
+    st.image(output_rgb, use_container_width=True)
+    
+    # CSVデータの生成とダウンロードボタン
+    st.subheader("💾 データダウンロード")
+    csv_data = io.StringIO()
+    writer = csv.writer(csv_data)
     writer.writerows(all_games_export_data)
-
-print("-" * 50)
-print(f"✅ 解析完了！ファイル名:  {os.path.basename(export_csv_path)}")
+    
+    st.download_button(
+        label="📥 解析結果をCSVでダウンロード",
+        data=csv_data.getvalue(),
+        file_name="ボウリング解析結果.csv",
+        mime="text/csv"
+    )
