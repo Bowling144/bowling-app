@@ -143,41 +143,7 @@ def calculate_bowling_score(throws):
         frame_totals.append(current_score)
     return frame_totals
 
-    # =========================================================
-    # 📍 【ブロック 4】 関数定義2（座標回転、テキスト描画）
-    # =========================================================
-    def get_angled_box_pts(local_x, local_y, w, h, ref_x, ref_y, theta):
-        p1 = np.array([local_x, local_y])
-        p2 = np.array([local_x + w, local_y])
-        p3 = np.array([local_x + w, local_y + h])
-        p4 = np.array([local_x, local_y + h])
-
-        cos_t = np.cos(theta)
-        sin_t = np.sin(theta)
-        R = np.array([[cos_t, -sin_t], [sin_t, cos_t]])
-
-        pts = []
-        for p in [p1, p2, p3, p4]:
-            rot_p = R.dot(p) + np.array([ref_x, ref_y])
-            pts.append([int(round(rot_p[0])), int(round(rot_p[1]))])
-        return np.array(pts, np.int32).reshape((-1, 1, 2))
-
-    def put_rotated_text(img, text, local_x, local_y, ref_x, ref_y, theta, color, scale=0.7, thickness=2):
-        if not text: return
-        p = np.array([local_x, local_y])
-        cos_t = np.cos(theta)
-        sin_t = np.sin(theta)
-        R = np.array([[cos_t, -sin_t], [sin_t, cos_t]])
-        rot_p = R.dot(p) + np.array([ref_x, ref_y])
-        cv2.putText(img, text, (int(rot_p[0]), int(rot_p[1])), cv2.FONT_HERSHEY_SIMPLEX, scale, color, thickness, cv2.LINE_AA)
-
-    all_games_export_data = []
-    throw_cols = [7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47]
-    target_indices = [8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 46, 48]
-
-    COLOR_OPENCV = (255, 0, 0)
-    COLOR_AI = (0, 0, 220)
-    COLOR_PERCENT = (50, 50, 50)
+    
 
     # =========================================================
     # 📍 【ブロック 5】 メインループ開始と画像前処理
@@ -245,93 +211,198 @@ def calculate_bowling_score(throws):
             raw_groups.append(current_group)
             current_group = [line]
     if current_group:
-        raw_groups.append(current_group)
 
-    valid_groups = [g for g in raw_groups if len(g) >= 3]
-    st.info(f"📝 {len(valid_groups)} 個のゲーム行（グループ）を検出しました。")
+# =========================================================
+# 📍 【ブロック 4】 関数定義2（座標回転、テキスト描画）
+# =========================================================
+def get_angled_box_pts(local_x, local_y, w, h, ref_x, ref_y, theta):
+    p1 = np.array([local_x, local_y])
+    p2 = np.array([local_x + w, local_y])
+    p3 = np.array([local_x + w, local_y + h])
+    p4 = np.array([local_x, local_y + h])
 
-    # =========================================================
-    # 📍 【ブロック 7】 画像全体の回転補正
-    # =========================================================
-    angles = []
-    group_refs = []
-    group_lines_rotated_y = []
+    cos_t = np.cos(theta)
+    sin_t = np.sin(theta)
+    R = np.array([[cos_t, -sin_t], [sin_t, cos_t]])
 
-    for group_idx, group in enumerate(valid_groups):
-        top_blue_line = group[0]
-        min_y = min(line['start'][1] for line in group)
-        max_y = max(line['start'][1] for line in group)
-        group_top_y = min_y - 10
-        group_bottom_y = max_y + 10
-        min_x = min(line['start'][0] for line in group)
-        max_x = max(line['end'][0] for line in group)
+    pts = []
+    for p in [p1, p2, p3, p4]:
+        rot_p = R.dot(p) + np.array([ref_x, ref_y])
+        pts.append([int(round(rot_p[0])), int(round(rot_p[1]))])
+    return np.array(pts, np.int32).reshape((-1, 1, 2))
 
-        crop_y1 = max(0, group_top_y)
-        crop_y2 = min(img_resized.shape[0], group_bottom_y)
-        crop_x1 = max(0, int(min_x))
-        crop_x2 = min(img_resized.shape[1], int(max_x))
+def put_rotated_text(img, text, local_x, local_y, ref_x, ref_y, theta, color, scale=0.7, thickness=2):
+    if not text: return
+    p = np.array([local_x, local_y])
+    cos_t = np.cos(theta)
+    sin_t = np.sin(theta)
+    R = np.array([[cos_t, -sin_t], [sin_t, cos_t]])
+    rot_p = R.dot(p) + np.array([ref_x, ref_y])
+    cv2.putText(img, text, (int(rot_p[0]), int(rot_p[1])), cv2.FONT_HERSHEY_SIMPLEX, scale, color, thickness, cv2.LINE_AA)
 
-        if crop_y2 <= crop_y1 or crop_x2 <= crop_x1: continue
+all_games_export_data = []
+throw_cols = [7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47]
+target_indices = [8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 46, 48]
 
-        v_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 30))
-        v_mask = cv2.morphologyEx(thresh[crop_y1:crop_y2, crop_x1:crop_x2], cv2.MORPH_OPEN, v_kernel)
-        v_contours, _ = cv2.findContours(v_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+COLOR_OPENCV = (255, 0, 0)
+COLOR_AI = (0, 0, 220)
+COLOR_PERCENT = (50, 50, 50)
 
-        valid_vertical_xs = []
-        for v_cnt in v_contours:
-            vx, vy, vw, vh = cv2.boundingRect(v_cnt)
-            if vh > 20:
-                real_x = crop_x1 + vx
-                if real_x > img_resized.shape[1] * 0.03:
-                    valid_vertical_xs.append(real_x)
+# =========================================================
+# 📍 【ブロック 5】 メインループ開始と画像前処理
+# =========================================================
+status_text.text("画像の前処理を実行中...")
+target_width = 1200
+scale_img = target_width / img.shape[1]
+target_height = int(img.shape[0] * scale_img)
+img_resized = cv2.resize(img, (target_width, target_height))
 
-        if valid_vertical_xs:
-            leftmost_x = min(valid_vertical_xs)
-            rightmost_x = max(valid_vertical_xs)
+output_img = img_resized.copy()
+gray = cv2.cvtColor(img_resized, cv2.COLOR_BGR2GRAY)
 
-            x_start, y_start = top_blue_line['start']
-            x_end, y_end = top_blue_line['end']
-            line_slope = (y_end - y_start) / (x_end - x_start) if x_end != x_start else 0
+thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 5)
 
-            ref1_x = leftmost_x
-            ref1_y = int(y_start + line_slope * (ref1_x - x_start))
-            ref2_x = rightmost_x
-            ref2_y = int(y_start + line_slope * (ref2_x - x_start))
+b_channel = img_resized[:, :, 0]
+thresh_ink = cv2.adaptiveThreshold(b_channel, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 5)
 
-            group_refs.append( ((ref1_x, ref1_y), (ref2_x, ref2_y)) )
+# =========================================================
+# 📍 【ブロック 6】 水色線（横線）の抽出とゲーム行のグループ化
+# =========================================================
+status_text.text("水色線（ゲーム枠）を検出中...")
+h_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (100, 1))
+h_mask = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, h_kernel)
+h_dilate = cv2.dilate(h_mask, cv2.getStructuringElement(cv2.MORPH_RECT, (50, 1)), iterations=1)
+h_contours, _ = cv2.findContours(h_dilate, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-            dy = ref2_y - ref1_y
-            dx = ref2_x - ref1_x
-            theta_group = np.arctan2(dy, dx)
-            angles.append(np.degrees(theta_group))
+extension_px = 50
+blue_lines = []
 
-            M_temp = cv2.getRotationMatrix2D((0, 0), np.degrees(theta_group), 1.0)
-            rotated_ys = []
-            for line in group:
-                cx = (line['start'][0] + line['end'][0]) / 2.0
-                cy = line['y_center']
-                pt = np.array([cx, cy, 1.0])
-                rot_pt = np.dot(M_temp, pt)
-                rotated_ys.append(rot_pt[1])
-            rotated_ys.sort()
-            group_lines_rotated_y.append(rotated_ys)
+for cnt in h_contours:
+    x, y, w, h = cv2.boundingRect(cnt)
+    if w > target_width * 0.4 and h < 50:
+        [vx, vy, x0, y0] = cv2.fitLine(cnt, cv2.DIST_L2, 0, 0.01, 0.01)
+        vx = vx[0]; vy = vy[0]; x0 = x0[0]; y0 = y0[0]
+        x_start = float(x)
+        x_end = float(x + w)
+        x_start_ext = x_start - extension_px
+        x_end_ext = x_end + extension_px
+        slope = vy / vx if vx != 0 else 0
+        y_start_ext = y0 + slope * (x_start_ext - x0)
+        y_end_ext = y0 + slope * (x_end_ext - x0)
+        y_center = (y_start_ext + y_end_ext) / 2
 
-    if angles:
-        avg_angle = np.mean(angles)
-        h, w = output_img.shape[:2]
-        center = (w // 2, h // 2)
-        M = cv2.getRotationMatrix2D(center, avg_angle, 1.0)
+        blue_lines.append({
+            'y_center': y_center,
+            'start': (int(x_start_ext), int(y_start_ext)),
+            'end': (int(x_end_ext), int(y_end_ext))
+        })
 
-        output_img = cv2.warpAffine(output_img, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(255, 255, 255))
-        thresh_ink_rotated = cv2.warpAffine(thresh_ink, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
-        img_color_rotated = cv2.warpAffine(img_resized, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(255, 255, 255))
+        cv2.line(output_img, (int(x_start_ext), int(y_start_ext)), (int(x_end_ext), int(y_end_ext)), (255, 255, 0), 3)
+
+if not blue_lines:
+    st.error("⚠️ ゲームの行（水色線）が見つかりませんでした。")
+    st.stop()
+
+blue_lines.sort(key=lambda line: line['y_center'])
+raw_groups = []
+current_group = [blue_lines[0]]
+
+for line in blue_lines[1:]:
+    if abs(line['y_center'] - current_group[-1]['y_center']) <= 40:
+        current_group.append(line)
     else:
-        thresh_ink_rotated = thresh_ink.copy()
-        img_color_rotated = img_resized.copy()
-        M = np.array([[1, 0, 0], [0, 1, 0]], dtype=np.float32)
+        raw_groups.append(current_group)
+        current_group = [line]
+if current_group:
+    raw_groups.append(current_group)
 
-    img_for_ai = img_color_rotated.copy()
+valid_groups = [g for g in raw_groups if len(g) >= 3]
+st.info(f"📝 {len(valid_groups)} 個のゲーム行（グループ）を検出しました。")
 
+# =========================================================
+# 📍 【ブロック 7】 画像全体の回転補正
+# =========================================================
+angles = []
+group_refs = []
+group_lines_rotated_y = []
+
+for group_idx, group in enumerate(valid_groups):
+    top_blue_line = group[0]
+    min_y = min(line['start'][1] for line in group)
+    max_y = max(line['start'][1] for line in group)
+    group_top_y = min_y - 10
+    group_bottom_y = max_y + 10
+    min_x = min(line['start'][0] for line in group)
+    max_x = max(line['end'][0] for line in group)
+
+    crop_y1 = max(0, group_top_y)
+    crop_y2 = min(img_resized.shape[0], group_bottom_y)
+    crop_x1 = max(0, int(min_x))
+    crop_x2 = min(img_resized.shape[1], int(max_x))
+
+    if crop_y2 <= crop_y1 or crop_x2 <= crop_x1: continue
+
+    v_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 30))
+    v_mask = cv2.morphologyEx(thresh[crop_y1:crop_y2, crop_x1:crop_x2], cv2.MORPH_OPEN, v_kernel)
+    v_contours, _ = cv2.findContours(v_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    valid_vertical_xs = []
+    for v_cnt in v_contours:
+        vx, vy, vw, vh = cv2.boundingRect(v_cnt)
+        if vh > 20:
+            real_x = crop_x1 + vx
+            if real_x > img_resized.shape[1] * 0.03:
+                valid_vertical_xs.append(real_x)
+
+    if valid_vertical_xs:
+        leftmost_x = min(valid_vertical_xs)
+        rightmost_x = max(valid_vertical_xs)
+
+        x_start, y_start = top_blue_line['start']
+        x_end, y_end = top_blue_line['end']
+        line_slope = (y_end - y_start) / (x_end - x_start) if x_end != x_start else 0
+
+        ref1_x = leftmost_x
+        ref1_y = int(y_start + line_slope * (ref1_x - x_start))
+        ref2_x = rightmost_x
+        ref2_y = int(y_start + line_slope * (ref2_x - x_start))
+
+        group_refs.append( ((ref1_x, ref1_y), (ref2_x, ref2_y)) )
+
+        dy = ref2_y - ref1_y
+        dx = ref2_x - ref1_x
+        theta_group = np.arctan2(dy, dx)
+        angles.append(np.degrees(theta_group))
+
+        M_temp = cv2.getRotationMatrix2D((0, 0), np.degrees(theta_group), 1.0)
+        rotated_ys = []
+        for line in group:
+            cx = (line['start'][0] + line['end'][0]) / 2.0
+            cy = line['y_center']
+            pt = np.array([cx, cy, 1.0])
+            rot_pt = np.dot(M_temp, pt)
+            rotated_ys.append(rot_pt[1])
+        rotated_ys.sort()
+        group_lines_rotated_y.append(rotated_ys)
+
+if angles:
+    avg_angle = np.mean(angles)
+    h, w = output_img.shape[:2]
+    center = (w // 2, h // 2)
+    M = cv2.getRotationMatrix2D(center, avg_angle, 1.0)
+
+    output_img = cv2.warpAffine(output_img, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(255, 255, 255))
+    thresh_ink_rotated = cv2.warpAffine(thresh_ink, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+    img_color_rotated = cv2.warpAffine(img_resized, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(255, 255, 255))
+else:
+    thresh_ink_rotated = thresh_ink.copy()
+    img_color_rotated = img_resized.copy()
+    M = np.array([[1, 0, 0], [0, 1, 0]], dtype=np.float32)
+
+img_for_ai = img_color_rotated.copy()
+
+
+        
     # =========================================================
     # 📍 【ブロック 8-1】 先行解析ループ（全枠のピクセル率収集）
     # =========================================================
