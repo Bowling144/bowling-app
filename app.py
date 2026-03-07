@@ -88,61 +88,60 @@ prompt = """
   ]
 }
 """
-    # =========================================================
-    # 📍 【ブロック 3】 関数定義1（ピン判定、スコア計算）
-    # =========================================================
-    def get_pins_from_crop(crop_img, thresh_val_empty, thresh_val_circle):
-        total_pixels = crop_img.shape[0] * crop_img.shape[1]
-        if total_pixels == 0: return None, 0.0
-        ink_pixels = cv2.countNonZero(crop_img)
-        ink_percent = (ink_pixels / total_pixels) * 100
-        if ink_percent < thresh_val_empty: return "EMPTY", ink_percent
-        elif ink_percent < thresh_val_circle: return "CIRCLE", ink_percent
-        else: return "DOUBLE", ink_percent
 
-    def calculate_bowling_score(throws):
-        def get_val(idx):
-            if idx >= len(throws): return 0
-            v = str(throws[idx]).upper().replace("R:", "")
-            if v == 'X': return 10
-            if v == '/': return 10 - get_val(idx - 1)
-            if v in ['-', '', 'G']: return 0
-            try: return int(v)
-            except: return 0
+# =========================================================
+# 📍 【ブロック 3】 関数定義1（ピン判定、スコア計算）
+# =========================================================
+def get_pins_from_crop(crop_img, thresh_val_empty, thresh_val_circle):
+    total_pixels = crop_img.shape[0] * crop_img.shape[1]
+    if total_pixels == 0: return None, 0.0
+    ink_pixels = cv2.countNonZero(crop_img)
+    ink_percent = (ink_pixels / total_pixels) * 100
+    if ink_percent < thresh_val_empty: return "EMPTY", ink_percent
+    elif ink_percent < thresh_val_circle: return "CIRCLE", ink_percent
+    else: return "DOUBLE", ink_percent
 
-        frame_totals = []
-        current_score = 0
-        t_idx = 0
+def calculate_bowling_score(throws):
+    def get_val(idx):
+        if idx >= len(throws): return 0
+        v = str(throws[idx]).upper().replace("R:", "")
+        if v == 'X': return 10
+        if v == '/': return 10 - get_val(idx - 1)
+        if v in ['-', '', 'G']: return 0
+        try: return int(v)
+        except: return 0
 
-        for frame in range(10):
-            if frame == 9:
-                f_score = get_val(18) + get_val(19) + get_val(20)
-                current_score += f_score
-         
-                
-                frame_totals.append(current_score)
-                break
+    frame_totals = []
+    current_score = 0
+    t_idx = 0
 
-            v1 = get_val(t_idx)
-            if str(throws[t_idx]).upper().replace("R:", "") == 'X':
-                bonus = get_val(t_idx + 2)
-                if str(throws[t_idx + 2]).upper().replace("R:", "") == 'X' and frame < 8:
-                    bonus += get_val(t_idx + 4)
-                else:
-                    bonus += get_val(t_idx + 3)
-                current_score += 10 + bonus
-                t_idx += 2
-            else:
-                v2 = get_val(t_idx + 1)
-                if str(throws[t_idx + 1]).replace("R:", "") == '/':
-                    bonus = get_val(t_idx + 2)
-                    current_score += 10 + bonus
-                else:
-                    current_score += v1 + v2
-                t_idx += 2
-
+    for frame in range(10):
+        if frame == 9:
+            f_score = get_val(18) + get_val(19) + get_val(20)
+            current_score += f_score
             frame_totals.append(current_score)
-        return frame_totals
+            break
+
+        v1 = get_val(t_idx)
+        if str(throws[t_idx]).upper().replace("R:", "") == 'X':
+            bonus = get_val(t_idx + 2)
+            if str(throws[t_idx + 2]).upper().replace("R:", "") == 'X' and frame < 8:
+                bonus += get_val(t_idx + 4)
+            else:
+                bonus += get_val(t_idx + 3)
+            current_score += 10 + bonus
+            t_idx += 2
+        else:
+            v2 = get_val(t_idx + 1)
+            if str(throws[t_idx + 1]).replace("R:", "") == '/':
+                bonus = get_val(t_idx + 2)
+                current_score += 10 + bonus
+            else:
+                current_score += v1 + v2
+            t_idx += 2
+
+        frame_totals.append(current_score)
+    return frame_totals
 
     # =========================================================
     # 📍 【ブロック 4】 関数定義2（座標回転、テキスト描画）
@@ -462,7 +461,7 @@ prompt = """
     # =========================================================
     # 📍 【ブロック 8-2】 動的閾値の算出（グラフ生成はStreamlitでは省略）
     # =========================================================
-    dyn_thresh_empty = 20.0
+dyn_thresh_empty = 20.0
     dyn_thresh_pink = 24.0
 
     if all_global_pin_pcts:
