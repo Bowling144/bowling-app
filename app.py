@@ -885,49 +885,143 @@ dyn_thresh_empty = 20.0
             t2 = final_throws[f*2+1].replace("R:", "")
             put_rotated_text(output_img, t2, start_x_base + f * box_w + 10 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, throw_colors[f*2+1])
 
-        f = 9
-        t1 = final_throws[18].replace("R:", "")
-        put_rotated_text(output_img, t1, start_x_base + f * box_w + 3 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, throw_colors[18])
-        t2 = final_throws[19].replace("R:", "")
-        put_rotated_text(output_img, t2, start_x_base + f * box_w + 10 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, throw_colors[19])
-        t3 = final_throws[20].replace("R:", "")
-        put_rotated_text(output_img, t3, start_x_base + f * box_w + 17 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, throw_colors[20])
 
-        calc_totals = calculate_bowling_score(final_throws)
-        ai_tot_int = int(ai_total) if str(ai_total).isdigit() else int(ai_frame_totals[-1]) if ai_frame_totals else 0
-        result_text_x = start_x_base + 9 * box_w + 5 * current_scale
-        result_text_y = py1_local - 10 * current_scale
+# =========================================================
+# 📍 【ブロック 8-1】 ピンク線検出と赤点（基準点）のマーキング
+# =========================================================
+status_text.text("基準点（赤点）と投球枠を計算中...")
+hsv = cv2.cvtColor(img_resized, cv2.COLOR_BGR2HSV)
+lower_pink = np.array([140, 50, 50])
+upper_pink = np.array([170, 255, 255])
+mask_pink = cv2.inRange(hsv, lower_pink, upper_pink)
 
-        if calc_totals and len(ai_frame_totals) > 0 and calc_totals[-1] == ai_tot_int:
-            check_str = f"MATCH ({calc_totals[-1]})"
-            check_color = (0, 150, 0)
+# ★ Y座標調整（-45ピクセル）を適用
+y_offset = -45
+
+for group_idx, group in enumerate(valid_groups):
+    if len(group_lines_rotated_y[group_idx]) < 2: continue
+    
+    # ユーザー指定のロジック：1ゲーム目は一番上の青線を基準点から除外（インデックス1と2を使用）
+    if group_idx == 0 and len(group_lines_rotated_y[group_idx]) >= 3:
+        y1 = group_lines_rotated_y[group_idx][1]
+        y2 = group_lines_rotated_y[group_idx][2]
+    else:
+        y1 = group_lines_rotated_y[group_idx][0]
+        y2 = group_lines_rotated_y[group_idx][1]
+
+    ref1, ref2 = group_refs[group_idx]
+    x_start = ref1[0]
+    x_end = ref2[0]
+    line_slope = (ref2[1] - ref1[1]) / (ref2[0] - ref1[0]) if ref2[0] != ref1[0] else 0
+
+    group_pink_pts = []
+    group_red_pts = []
+
+    for idx, t_col in enumerate(throw_cols):
+        pt_x = x_start + t_col * 22
+        pt_y_base = int(y1 + line_slope * (pt_x - x_start))
+        
+        # ピンク線検出エリアの絞り込み
+        search_y1 = max(0, pt_y_base - 30)
+        search_y2 = min(img_resized.shape[0], pt_y_base + 30)
+        search_x1 = max(0, int(pt_x) - 10)
+        search_x2 = min(img_resized.shape[1], int(pt_x) + 10)
+        
+        pink_area = mask_pink[search_y1:search_y2, search_x1:search_x2]
+        pink_y_coords, pink_x_coords = np.where(pink_area > 0)
+        
+        if len(pink_y_coords) > 0:
+            avg_pink_y = int(np.mean(pink_y_coords)) + search_y1
+            pt_y = avg_pink_y + y_offset
+            group_pink_pts.append((int(pt_x), avg_pink_y))
         else:
-            calc_val = calc_totals[-1] if calc_totals else 0
-            check_str = f"DIFF! ({calc_val} vs {ai_tot_int})"
-            check_color = COLOR_AI
+            pt_y = pt_y_base + y_offset
+            
+        group_red_pts.append((int(pt_x), pt_y))
+        cv2.circle(output_img, (int(pt_x), pt_y), 5, (0, 0, 255), -1)
 
-        put_rotated_text(output_img, check_str, result_text_x, result_text_y, new_ref1[0], new_ref1[1], theta, check_color, scale=0.6, thickness=2)
+# =========================================================
+# 📍 【ブロック 9】 各投球のピン判定（スプリット・ガター等）
+# =========================================================
+    status_text.text(f"ゲーム {group_idx + 1} のピン判定を実行中...")
+    throws_data = []
+    for idx, (rx, ry) in enumerate(group_red_pts):
+        crop_y1 = max(0, ry - 15)
+        crop_y2 = min(thresh_ink_rotated.shape[0], ry + 15)
+        crop_x1 = max(0, rx - 10)
+        crop_x2 = min(thresh_ink_rotated.shape[1], rx + 10)
+        
+        crop = thresh_ink_rotated[crop_y1:crop_y2, crop_x1:crop_x2]
+        pin_result, percent = get_pins_from_crop(crop, 5.0, 30.0)
+        
+        throws_data.append(pin_result)
 
-    # =========================================================
-    # 📍 【ブロック 11】 解析結果の表示とCSVダウンロード
-    # =========================================================
-    status_text.text("✅ 解析が完了しました！")
-    st.balloons()
-    
-    # 解析結果の画像を表示
-    st.subheader("🖼️ 解析結果画像")
-    output_rgb = cv2.cvtColor(output_img, cv2.COLOR_BGR2RGB)
-    st.image(output_rgb, use_container_width=True)
-    
-    # CSVデータの生成とダウンロードボタン
-    st.subheader("💾 データダウンロード")
-    csv_data = io.StringIO()
-    writer = csv.writer(csv_data)
-    writer.writerows(all_games_export_data)
-    
-    st.download_button(
-        label="📥 解析結果をCSVでダウンロード",
-        data=csv_data.getvalue(),
-        file_name="ボウリング解析結果.csv",
-        mime="text/csv"
-    )
+# =========================================================
+# 📍 【ブロック 10】 スコア計算とデータ整形
+# =========================================================
+    frame_scores = calculate_bowling_score(throws_data)
+    all_games_export_data.append({
+        "game_num": f"GAME {group_idx + 1}",
+        "frame_totals": frame_scores,
+        "total": str(frame_scores[-1]) if frame_scores else "0"
+    })
+
+# =========================================================
+# 📍 【ブロック 11】 AI（Gemini）への送信と結果表示
+# =========================================================
+status_text.text("AIによる累計スコア読み取りを実行中...")
+
+_, buffer = cv2.imencode('.png', img_for_ai)
+img_for_genai = types.Part.from_bytes(data=buffer.tobytes(), mime_type='image/png')
+
+ai_response = None
+for model_name in fallback_models:
+    try:
+        response = client.models.generate_content(
+            model=model_name,
+            contents=[prompt, img_for_genai]
+        )
+        ai_response = response.text
+        break
+    except Exception as e:
+        continue
+
+if not ai_response:
+    st.error("⚠️ AIモデルでのスコア読み取りに失敗しました。")
+    st.stop()
+
+# JSONの抽出とパース
+json_str = ai_response.replace("```json", "").replace("```", "").strip()
+try:
+    ai_data = json.loads(json_str)
+except json.JSONDecodeError:
+    st.error("⚠️ AIの応答形式が不正でした。")
+    st.write(ai_response)
+    st.stop()
+
+status_text.empty()
+st.success("✅ 解析が完了しました！")
+
+# 画面への結果表示
+st.subheader("📊 読み取り結果")
+for game in ai_data.get("games", []):
+    st.markdown(f"**{game.get('game_num', 'GAME')}** - トータル: {game.get('total', 'N/A')}")
+    st.write(f"各フレーム累計: {game.get('frame_totals', [])}")
+
+# CSVダウンロード機能
+csv_buffer = io.StringIO()
+writer = csv.writer(csv_buffer)
+writer.writerow(["Game", "Total Score", "Frame Totals"])
+for game in ai_data.get("games", []):
+    writer.writerow([game.get("game_num"), game.get("total"), str(game.get("frame_totals"))])
+
+st.download_button(
+    label="📥 CSVをダウンロード",
+    data=csv_buffer.getvalue(),
+    file_name="bowling_scores.csv",
+    mime="text/csv"
+)
+
+# 解析済み画像の表示
+st.subheader("📸 解析画像")
+st.image(cv2.cvtColor(output_img, cv2.COLOR_BGR2RGB), use_container_width=True)
