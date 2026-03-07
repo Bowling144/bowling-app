@@ -6,7 +6,6 @@ gemini_api_key = "AIzaSyC4wb00d5JW2o0RHQ4-PCR6FMgiZBbUzLw" #@param {type:"string
 # =========================================================
 
 
-from google.colab import drive
 from google.colab.patches import cv2_imshow
 import cv2
 import numpy as np
@@ -28,7 +27,6 @@ if not gemini_api_key:
     print("⚠️ エラー: 上の入力欄にAPIキーが貼り付けられていません。")
     exit()
 
-drive.mount('/content/drive', force_remount=True)
 client = genai.Client(api_key=gemini_api_key)
 
 fallback_models = [
