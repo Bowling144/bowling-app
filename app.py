@@ -6,7 +6,7 @@ gemini_api_key = "AIzaSyC4wb00d5JW2o0RHQ4-PCR6FMgiZBbUzLw" #@param {type:"string
 # =========================================================
 
 
-from google.colab.patches import cv2_imshow
+
 import cv2
 import numpy as np
 import glob
