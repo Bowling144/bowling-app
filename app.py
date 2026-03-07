@@ -4,7 +4,7 @@ gemini_api_key = "AIzaSyC4wb00d5JW2o0RHQ4-PCR6FMgiZBbUzLw" #@param {type:"string
 # =========================================================
 # 📍 【ブロック 1】 ライブラリのインポートと初期設定
 # =========================================================
-!pip install -q -U google-genai
+
 
 from google.colab import drive
 from google.colab.patches import cv2_imshow
