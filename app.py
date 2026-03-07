@@ -9,10 +9,8 @@ from PIL import Image
 import os
 import google.generativeai as genai
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 
-# Streamlitのページ設定
+# --- ページ設定 ---
 st.set_page_config(page_title="ボウリング解析システム", page_icon="🎳", layout="wide")
 
 st.title("🎳 ボウリング解析システム")
@@ -39,11 +37,8 @@ if uploaded_file is not None:
         st.stop()
         
     # --- 📍 【ブロック 1】 Streamlit用の初期設定 ---
-    client = genai.Client(api_key=gemini_api_key)
-    fallback_models = [
-        'gemini-3.0-pro', 'gemini-2.5-pro', 'gemini-2.0-pro-exp-02-05',
-        'gemini-1.5-pro-latest', 'gemini-1.5-pro'
-    ]
+    # APIキーの設定
+    genai.configure(api_key=gemini_api_key)
     
     # 画像の読み込み (Streamlit用にメモリ上から読み込む)
     file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
@@ -53,11 +48,12 @@ if uploaded_file is not None:
         st.error("⚠️ 画像の読み込みに失敗しました。")
         st.stop()
 
-    st.info("⚙️ 解析を開始します...")
+    st.info("⚙️ 画像を読み込みました。解析ロジックの組み込み準備完了です。")
     
-    # 進行状況表示用プレースホルダー
-    status_text = st.empty()
-
+    
+    
+    
+    
     # =========================================================
     # 📍 【ブロック 2】 AIプロンプトの定義
     # =========================================================
