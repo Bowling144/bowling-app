@@ -1,11 +1,16 @@
+# --- グループ 1: ライブラリのインポート ---
 import streamlit as st
 import cv2
 import numpy as np
 import csv
 import json
+import io
 from PIL import Image
-from google import genai
-from google.genai import types
+import os
+import google.generativeai as genai
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 # Streamlitのページ設定
 st.set_page_config(page_title="ボウリング解析システム", page_icon="🎳", layout="wide")
