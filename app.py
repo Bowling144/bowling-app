@@ -1,4 +1,5 @@
-# --- グループ 1: ライブラリのインポート ---
+
+    # --- ブロック 1: ライブラリのインポート ---
 import streamlit as st
 import cv2
 import numpy as np
@@ -9,48 +10,8 @@ from PIL import Image
 import os
 import google.generativeai as genai
 import pandas as pd
-
-# --- ページ設定 ---
-st.set_page_config(page_title="ボウリング解析システム", page_icon="🎳", layout="wide")
-
-st.title("🎳 ボウリング解析システム")
-
-st.markdown("""
-**【使い方】**
-1. 左側のサイドバーにGeminiのAPIキーを入力します。
-2. 下のボタンからボウリングのスコアシート画像をアップロードします。
-3. 自動的に解析が始まり、結果が表示されます！
-""")
-
-# --- サイドバー：APIキー入力 ---
-with st.sidebar:
-    st.header("⚙️ 設定")
-    gemini_api_key = st.text_input("Gemini APIキーを入力", type="password")
-    st.markdown("※APIキーがないと累計スコアのAI読取ができません。")
-
-# --- メイン画面：画像アップロード ---
-uploaded_file = st.file_uploader("スコアシートの画像を選択してください", type=['jpg', 'jpeg', 'png'])
-
-if uploaded_file is not None:
-    if not gemini_api_key:
-        st.error("⚠️ 左側のサイドバーにAPIキーを入力してください。")
-        st.stop()
-        
-    # --- 📍 【ブロック 1】 Streamlit用の初期設定 ---
-    # APIキーの設定
-    genai.configure(api_key=gemini_api_key)
-    
-    # 画像の読み込み (Streamlit用にメモリ上から読み込む)
-    file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
-    img = cv2.imdecode(file_bytes, 1)
-    
-    if img is None:
-        st.error("⚠️ 画像の読み込みに失敗しました。")
-        st.stop()
-
-    st.info("⚙️ 画像を読み込みました。解析ロジックの組み込み準備完了です。")
-    
-    
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
     
     
     
