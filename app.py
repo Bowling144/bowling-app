@@ -18,7 +18,8 @@ import matplotlib.pyplot as plt
 
 # --- ページ設定 ---
 st.set_page_config(page_title="ボウリング解析", layout="wide")
-st.title("🎳 ボウリングスコア自動解析システム")
+# 📝 変更：タイトルを変更しました
+st.title("🎳 EagleBowlスコア管理システム")
 
 # --- サイドバー：APIキー入力 ---
 with st.sidebar:
@@ -44,7 +45,8 @@ if "raw_images_data" not in st.session_state:
 if "analyzed_results" not in st.session_state:
     st.session_state.analyzed_results = None
 
-st.markdown("### 📥 ボウリング画像の読み込み")
+# 📝 変更：見出しを変更しました
+st.markdown("### 📥 スコアシートの読み込み")
 
 if st.button("🔄 ドライブから最新の画像を取得（最大3枚）"):
     with st.spinner("Googleドライブを探索中..."):
@@ -102,6 +104,7 @@ status_text = st.empty()
 # =========================================================
 # 📍 【ブロック 3】 AIプロンプトの定義
 # =========================================================
+# 📝 追加：GAME番号の読み取りルールと法則を追記しました。
 prompt = """
 あなたはプロのボウリングスコア記録員です。
 2枚の画像をお渡しします。
@@ -112,9 +115,12 @@ prompt = """
 
 【ルール】
 1. 1枚目の全体画像から「日付(date)」と「時刻(time)」を読み取ってください。時刻については、もし各ゲームの行に「ゲームごとの開始時刻」が書かれている場合は各ゲームの "time" に、用紙全体で1つの印刷時刻しかない場合は全体の "time" に入れてください。見つからない場合は無理に推測せず、空文字 "" にしてください。
-2. 2枚目の切り抜き画像を使って、各ゲームの下段に書かれている「累計トータルスコア」を正確に読み取ってください。（1F〜10Fまでの10個の累計スコア数字を配列にしてください）
-3. ⚠️重要⚠️ 複数のゲームが写っている場合は、絶対に省略せず【写っているすべてのゲーム】のデータを配列 "games" に出力してください。
-4. Markdownの記号(```json)などは一切含めず、純粋なJSON文字列だけを出力してください。
+2. 2枚目の切り抜き画像を使って、各ゲームの下段に書かれている「累計トータルスコア」と「ゲーム番号(game_num)」を正確に読み取ってください。（1F〜10Fまでの10個の累計スコア数字を配列にしてください）
+3. ⚠️重要⚠️ ゲーム番号（"game_num"）の読み取りには以下の法則があります。これを考慮して間違いのないように出力してください。
+   - 1段目のゲームは、「GAME 1」「GAME 7」「GAME 13」というように、1から始まり6ゲームずつ増えた数になります。
+   - 2段目以降は、一段下がるごとにゲーム数が1ずつ増えます。（例：1段目が「GAME 7」の場合、2段目は「GAME 8」、3段目は「GAME 9」となります）
+4. 複数のゲームが写っている場合は、絶対に省略せず【写っているすべてのゲーム】のデータを配列 "games" に出力してください。
+5. Markdownの記号(```json)などは一切含めず、純粋なJSON文字列だけを出力してください。
 
 【出力フォーマット例】
 {
@@ -123,13 +129,13 @@ prompt = """
   "lane": "12",
   "games": [
     {
-      "game_num": "GAME 1",
+      "game_num": "GAME 7",
       "time": "14:12",
       "frame_totals": [20, 47, 56, 86, 115, 135, 155, 185, 205, 225],
       "total": "225"
     },
     {
-      "game_num": "GAME 2",
+      "game_num": "GAME 8",
       "time": "14:25",
       "frame_totals": [9, 18, 27, 36, 45, 54, 63, 72, 81, 90],
       "total": "90"
@@ -743,7 +749,7 @@ if st.session_state.analyzed_results is None:
             while len(ai_frame_totals) < 10: ai_frame_totals.append(0)
 
             ai_total = g_info.get("total") or ""
-            row_data[3] = g_info.get("game_num") or f"GAME {group_idx+1}"
+            row_data[3] = g_info.get("game_num") or ""  # 📝 変更：AIが読み取ったままのGAME名を保持
             row_data[49] = str(ai_total)
 
             for f in range(9): row_data[target_indices[f]] = ",".join(map(str, all_frame_pins[f]))
@@ -906,18 +912,18 @@ if st.session_state.analyzed_results:
         st.markdown("---")
 
         game_checkboxes = []
-        global_game_num = 1
 
-        for res in st.session_state.analyzed_results:
-            st.markdown(f"#### 📄 画像 {global_game_num}: {res['file_name']}")
+        # 📝 変更：私が追加した強制通し番号の処理を削除しました
+        for res_idx, res in enumerate(st.session_state.analyzed_results):
+            st.markdown(f"#### 📄 画像 {res_idx + 1}: {res['file_name']}")
             
-            zoom_width = st.slider(f"🔍 画像の表示サイズを調整（画像 {global_game_num}）", min_value=600, max_value=3000, value=1200, key=f"zoom_{global_game_num}")
+            zoom_width = st.slider(f"🔍 画像の表示サイズを調整（画像 {res_idx + 1}）", min_value=600, max_value=3000, value=1200, key=f"zoom_{res_idx}")
             st.image(cv2.cvtColor(res['output_img'], cv2.COLOR_BGR2RGB), width=zoom_width)
 
             for local_idx, row in enumerate(res['all_games_export_data']):
-                game_name = f"GAME {global_game_num}"
-                row[3] = game_name
-
+                # 📝 変更：AIが読み取ったGAME番号をそのまま表示（失敗時は GAME 1, GAME 2...）
+                game_name = str(row[3]) if row[3] else f"GAME {local_idx + 1}"
+                
                 date_str = row[0] if row[0] else "日付不明"
                 time_str = row[1] if row[1] else "時刻不明"
                 ai_total_str = row[49] if row[49] else "_"
@@ -941,9 +947,7 @@ if st.session_state.analyzed_results:
                     "export_row": row
                 })
 
-                global_game_num += 1
-
-        st.markdown("---")
+            st.markdown("---")
 
         submit_btn = st.form_submit_button("💾 選択したデータを確定（CSV生成）")
 
