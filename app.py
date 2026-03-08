@@ -31,10 +31,61 @@ with st.sidebar:
     gemini_api_key = st.text_input("Gemini APIキーを入力", type="password")
     st.markdown("※APIキーがないと累計スコアのAI読取ができません。")
 
-# --- メイン画面：画像アップロード ---
-uploaded_file = st.file_uploader("スコアシートの画像を選択してください", type=['jpg', 'jpeg', 'png'])
+# =========================================================
+# 📍 【ブロック 2】 Googleドライブからの画像取得
+# =========================================================
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseDownload
 
-if uploaded_file is None:
+st.markdown("### 📥 ボウリング画像の読み込み")
+
+# 画像データを保持する仕組み
+if "drive_image_bytes" not in st.session_state:
+    st.session_state.drive_image_bytes = None
+
+# ドライブから取得するボタン
+if st.button("🔄 ドライブから最新の画像を読み込む"):
+    with st.spinner("Googleドライブを探索中..."):
+        try:
+            # Secretsから鍵を取り出してドライブに接続
+            creds_info = dict(st.secrets["google_credentials"])
+            creds = service_account.Credentials.from_service_account_info(
+                creds_info, scopes=['https://www.googleapis.com/auth/drive.readonly']
+            )
+            drive_service = build('drive', 'v3', credentials=creds)
+
+            # 共有されたフォルダ内の最新の画像を1枚探す
+            results = drive_service.files().list(
+                q="mimeType contains 'image/' and trashed=false",
+                orderBy="createdTime desc",
+                pageSize=1,
+                fields="files(id, name)"
+            ).execute()
+            items = results.get('files', [])
+
+            if not items:
+                st.error("⚠️ 画像が見つかりません。共有した Bowling_App フォルダに画像が入っているか確認してください。")
+            else:
+                latest_file = items[0]
+                file_id = latest_file['id']
+                
+                # 画像のダウンロード実行
+                request = drive_service.files().get_media(fileId=file_id)
+                fh = io.BytesIO()
+                downloader = MediaIoBaseDownload(fh, request)
+                done = False
+                while not done:
+                    status, done = downloader.next_chunk()
+                
+                st.session_state.drive_image_bytes = fh.getvalue()
+                st.success(f"✅ 最新の画像「{latest_file['name']}」をセットしました！")
+        except Exception as e:
+            st.error(f"⚠️ 読み込みエラー: {e}")
+
+# 画像がセットされるまではここで待機
+if st.session_state.drive_image_bytes is None:
+    st.info("👆 上のボタンを押して、最新のスコアシートを読み込んでください。")
     st.stop()
 
 if not gemini_api_key:
@@ -42,13 +93,16 @@ if not gemini_api_key:
     st.stop()
 
 client = genai.Client(api_key=gemini_api_key)
-fallback_models = [
-    'gemini-3.0-pro', 'gemini-2.5-pro', 'gemini-2.0-pro-exp-02-05',
-    'gemini-1.5-pro-latest', 'gemini-1.5-pro'
-]
 
-file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
-img = cv2.imdecode(file_bytes, 1)
+# 取得した画像をOpenCV形式に変換
+image_bytes = np.frombuffer(st.session_state.drive_image_bytes, np.uint8)
+img = cv2.imdecode(image_bytes, cv2.IMREAD_COLOR)
+
+if img is None:
+    st.error("⚠️ 画像データの変換に失敗しました。")
+    st.stop()
+
+status_text = st.empty()
 
 if img is None:
     st.error("⚠️ 画像の読み込みに失敗しました。")
