@@ -210,7 +210,6 @@ def calculate_bowling_score(throws):
         else:
             raw_groups.append(current_group)
             current_group = [line]
-    if current_group:
 
 # =========================================================
 # 📍 【ブロック 4】 関数定義2（座標回転、テキスト描画）
