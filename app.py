@@ -400,135 +400,553 @@ else:
 
 img_for_ai = img_color_rotated.copy()
 
-
 # =========================================================
-# 📍 【ブロック 8-1】 ピンク線検出と赤点（基準点）のマーキング
+# 📍 【ブロック 8-1】 先行解析ループ（全枠のピクセル率収集）
 # =========================================================
-status_text.text("基準点（赤点）と投球枠を計算中...")
-hsv = cv2.cvtColor(img_resized, cv2.COLOR_BGR2HSV)
-lower_pink = np.array([140, 50, 50])
-upper_pink = np.array([170, 255, 255])
-mask_pink = cv2.inRange(hsv, lower_pink, upper_pink)
+status_text.text("ピンとインクの分布を解析中...")
+L0 = 0
+scale_0 = 0
+pin_positions = [(0, 0.0), (0, 1.0), (0, 2.0), (0, 3.0), (1, 0.5), (1, 1.5), (1, 2.5), (2, 1.0), (2, 2.0), (3, 1.5)]
+parsed_games = []
 
-# ★ Y座標調整（-45ピクセル）を適用
-y_offset = -45
+games_data = []
+all_global_pin_pcts = []
+all_global_light_purple_pcts = []
 
-for group_idx, group in enumerate(valid_groups):
-    if len(group_lines_rotated_y[group_idx]) < 2: continue
-    
-    # ユーザー指定のロジック：1ゲーム目は一番上の青線を基準点から除外（インデックス1と2を使用）
-    if group_idx == 0 and len(group_lines_rotated_y[group_idx]) >= 3:
-        y1 = group_lines_rotated_y[group_idx][1]
-        y2 = group_lines_rotated_y[group_idx][2]
+for group_idx, ((r1x, r1y), (r2x, r2y)) in enumerate(group_refs):
+    pt1 = np.array([r1x, r1y, 1.0])
+    pt2 = np.array([r2x, r2y, 1.0])
+    new_ref1 = np.dot(M, pt1)
+    new_ref2 = np.dot(M, pt2)
+
+    cv2.circle(output_img, (int(new_ref1[0]), int(new_ref1[1])), 6, (0, 0, 255), -1)
+
+    dx = new_ref2[0] - new_ref1[0]
+    dy = new_ref2[1] - new_ref1[1]
+
+    if group_idx == 0:
+        L0 = dx
+        scale_0 = L0 / 184.5
+        ratio = 1.0
+        theta = 0.0
     else:
-        y1 = group_lines_rotated_y[group_idx][0]
-        y2 = group_lines_rotated_y[group_idx][1]
+        ratio = dx / L0
+        theta = np.arctan2(dy, dx)
 
-    ref1, ref2 = group_refs[group_idx]
-    x_start = ref1[0]
-    x_end = ref2[0]
-    line_slope = (ref2[1] - ref1[1]) / (ref2[0] - ref1[0]) if ref2[0] != ref1[0] else 0
+    current_scale = scale_0 * ratio
 
-    group_pink_pts = []
-    group_red_pts = []
+    offset_x = 13.7 * current_scale
+    y_offset = -41
+    start_x_base = offset_x
+    start_y_base = y_offset + dx * (16.7 / 184.5)
 
-    for idx, t_col in enumerate(throw_cols):
-        pt_x = x_start + t_col * 22
-        pt_y_base = int(y1 + line_slope * (pt_x - x_start))
-        
-        # ピンク線検出エリアの絞り込み
-        search_y1 = max(0, pt_y_base - 30)
-        search_y2 = min(img_resized.shape[0], pt_y_base + 30)
-        search_x1 = max(0, int(pt_x) - 10)
-        search_x2 = min(img_resized.shape[1], int(pt_x) + 10)
-        
-        pink_area = mask_pink[search_y1:search_y2, search_x1:search_x2]
-        pink_y_coords, pink_x_coords = np.where(pink_area > 0)
-        
-        if len(pink_y_coords) > 0:
-            avg_pink_y = int(np.mean(pink_y_coords)) + search_y1
-            pt_y = avg_pink_y + y_offset
-            group_pink_pts.append((int(pt_x), avg_pink_y))
+    rotated_ys = group_lines_rotated_y[group_idx]
+    y0 = rotated_ys[0]
+    y1 = rotated_ys[1] if len(rotated_ys) > 1 else y0 + 10 * current_scale
+    y2 = rotated_ys[2] if len(rotated_ys) > 2 else y1 + 10 * current_scale
+
+    local_y0 = y0 - new_ref1[1]
+    local_y1 = y1 - new_ref1[1]
+    m_y = 2
+
+    py1_local = local_y0 + m_y
+    ph_full = (local_y1 - local_y0) - (m_y * 2)
+
+    ph_box = ph_full * 0.7
+    py1_local_box = py1_local + (ph_full - ph_box)
+
+    gy_local = start_y_base + 0.3 * current_scale
+
+    box_w = 15.17 * current_scale
+    box_h = 17.2 * current_scale
+    y_box_w = box_w / 4.0
+    y_box_h = box_h / 4.0
+
+    game_info = {
+        'new_ref1': new_ref1, 'theta': theta, 'current_scale': current_scale,
+        'start_x_base': start_x_base, 'py1_local': py1_local, 'ph': ph_full,
+        'gy_local': gy_local, 'box_w': box_w, 'box_h': box_h,
+        'y_box_w': y_box_w, 'y_box_h': y_box_h,
+        'purple_data': {}, 'light_purple_data': {}, 'pin_data': {}
+    }
+
+    for f in range(10):
+        px1_light = start_x_base + f * box_w
+        pw_light = 6.69 * current_scale
+        pts_light = get_angled_box_pts(px1_light, py1_local, pw_light, ph_full, new_ref1[0], new_ref1[1], theta)
+        rx, ry, rw, rh = cv2.boundingRect(pts_light)
+        m = 2
+        if ry+m < ry+rh-m and rx+m < rx+rw-m:
+            crop = thresh_ink_rotated[max(0, ry+m):ry+rh-m, max(0, rx+m):rx+rw-m]
+            pixels = crop.shape[0] * crop.shape[1]
+            pct = (cv2.countNonZero(crop) / pixels * 100) if pixels > 0 else 0
+        else: pct = 0
+        game_info['light_purple_data'][f] = {'pct': pct, 'pts': pts_light, 'rx': rx, 'ry': ry}
+        all_global_light_purple_pcts.append(pct)
+
+        px1_purple = start_x_base + f * box_w + 6.69 * current_scale
+        pw_purple = (14.28 - 6.69) * current_scale
+        pts_purple = get_angled_box_pts(px1_purple, py1_local_box, pw_purple, ph_box, new_ref1[0], new_ref1[1], theta)
+        rx, ry, rw, rh = cv2.boundingRect(pts_purple)
+        if ry+m < ry+rh-m and rx+m < rx+rw-m:
+            crop = thresh_ink_rotated[max(0, ry+m):ry+rh-m, max(0, rx+m):rx+rw-m]
+            pixels = crop.shape[0] * crop.shape[1]
+            pct = (cv2.countNonZero(crop) / pixels * 100) if pixels > 0 else 0
+        else: pct = 0
+        game_info['purple_data'][f] = {'pct': pct, 'pts': pts_purple, 'rx': rx, 'ry': ry}
+
+        if f == 9:
+            px1_3 = start_x_base + 9 * box_w + 14.28 * current_scale
+            pw_3 = (21.87 - 14.28) * current_scale
+            pts_3 = get_angled_box_pts(px1_3, py1_local_box, pw_3, ph_box, new_ref1[0], new_ref1[1], theta)
+            rx3, ry3, rw3, rh3 = cv2.boundingRect(pts_3)
+            if ry3+m < ry3+rh3-m and rx3+m < rx3+rw3-m:
+                crop = thresh_ink_rotated[max(0, ry3+m):ry3+rh3-m, max(0, rx3+m):rx3+rw3-m]
+                pixels = crop.shape[0] * crop.shape[1]
+                pct = (cv2.countNonZero(crop) / pixels * 100) if pixels > 0 else 0
+            else: pct = 0
+            game_info['purple_data']['10_3'] = {'pct': pct, 'pts': pts_3, 'rx': rx3, 'ry': ry3}
+
+    for f in range(12):
+        gx_local = start_x_base + f * box_w
+        for row_idx, col_offset in pin_positions:
+            yx1_local = gx_local + col_offset * y_box_w + 1
+            yy1_local = gy_local + row_idx * y_box_h + 1
+            yw = y_box_w - 2
+            yh = y_box_h - 3
+            pts_y = get_angled_box_pts(yx1_local, yy1_local, yw, yh, new_ref1[0], new_ref1[1], theta)
+            rx, ry, rw, rh = cv2.boundingRect(pts_y)
+            crop_y = thresh_ink_rotated[max(0, ry):ry+rh, max(0, rx):rx+rw]
+            pixels_y = crop_y.shape[0] * crop_y.shape[1]
+            pin_pct = (cv2.countNonZero(crop_y) / pixels_y * 100) if pixels_y > 0 else 0
+            game_info['pin_data'][(f, row_idx, col_offset)] = {'pct': pin_pct, 'pts': pts_y}
+            all_global_pin_pcts.append(pin_pct)
+
+    games_data.append(game_info)
+
+# =========================================================
+# 📍 【ブロック 8-2】 動的閾値の算出と分布図(ヒストグラム)の合成
+# =========================================================
+dyn_thresh_empty = 20.0
+dyn_thresh_pink = 24.0
+
+if all_global_pin_pcts:
+    hist, bin_edges = np.histogram(all_global_pin_pcts, bins=100, range=(0, 100))
+    peak1_idx = np.argmax(hist[:25])
+    peak2_idx = 25 + np.argmax(hist[25:])
+
+    if hist[peak2_idx] > 0 and peak2_idx > peak1_idx + 5:
+        between_hist = hist[peak1_idx:peak2_idx+1]
+        zero_indices = np.where(between_hist == 0)[0]
+        if len(zero_indices) > 0:
+            longest_zeros = []
+            current_zeros = []
+            for i in zero_indices:
+                if not current_zeros or i == current_zeros[-1] + 1:
+                    current_zeros.append(i)
+                else:
+                    if len(current_zeros) > len(longest_zeros): longest_zeros = current_zeros
+                    current_zeros = [i]
+            if len(current_zeros) > len(longest_zeros): longest_zeros = current_zeros
+            valley_idx = longest_zeros[int(len(longest_zeros) * 0.6)]
+            dyn_thresh_empty = peak1_idx + valley_idx
         else:
-            pt_y = pt_y_base + y_offset
-            
-        group_red_pts.append((int(pt_x), pt_y))
-        cv2.circle(output_img, (int(pt_x), pt_y), 5, (0, 0, 255), -1)
+            valley_idx = np.argmin(between_hist)
+            dyn_thresh_empty = peak1_idx + valley_idx
+    else:
+        dyn_thresh_empty = np.max(all_global_pin_pcts) + 5.0
+
+dyn_thresh_circle = dyn_thresh_empty + 12.0
+
+valid_1st_throw_pcts = []
+for game_info in games_data:
+    for f in range(10):
+        frame_pins = []
+        for row_idx, col_offset in pin_positions:
+            pin_pct = game_info['pin_data'][(f, row_idx, col_offset)]['pct']
+            if pin_pct >= dyn_thresh_empty:
+                frame_pins.append(1)
+        if len(frame_pins) > 0:
+            valid_1st_throw_pcts.append(game_info['light_purple_data'][f]['pct'])
+
+if valid_1st_throw_pcts:
+    dyn_thresh_pink = np.percentile(valid_1st_throw_pcts, 90) + 3.0
+
+plt.style.use('dark_background')
+fig, ax1 = plt.subplots(figsize=(4.5, 2.25))
+ax2 = ax1.twinx()
+ax1.hist(all_global_pin_pcts, bins=50, range=(0,100), color='yellow', alpha=0.6, label=f'Pins (Thresh: {dyn_thresh_empty:.1f}%)')
+ax2.hist(all_global_light_purple_pcts, bins=50, range=(0,100), color='mediumpurple', alpha=0.6, label=f'1st Throw (Thresh: {dyn_thresh_pink:.1f}%)')
+ax1.axvline(dyn_thresh_empty, color='yellow', linestyle='dashed', linewidth=2)
+ax1.axvline(dyn_thresh_pink, color='magenta', linestyle='dashed', linewidth=2)
+lines_1, labels_1 = ax1.get_legend_handles_labels()
+lines_2, labels_2 = ax2.get_legend_handles_labels()
+ax1.legend(lines_1 + lines_2, labels_1 + labels_2, loc='upper right', fontsize='small')
+ax1.set_title("Pixel Distribution & Auto Thresholds", fontsize='small')
+fig.tight_layout()
+
+buf = io.BytesIO()
+fig.savefig(buf, format='png', dpi=100)
+buf.seek(0)
+graph_img = cv2.imdecode(np.frombuffer(buf.getvalue(), dtype=np.uint8), 1)
+plt.close(fig)
+
+gh, gw, _ = graph_img.shape
+oh, ow, _ = output_img.shape
+if oh >= gh and ow >= gw:
+    output_img[0:gh, ow-gw:ow] = graph_img
 
 # =========================================================
-# 📍 【ブロック 9】 各投球のピン判定（スプリット・ガター等）
+# 📍 【ブロック 8-3】 全ゲームの判定と描画ループ
 # =========================================================
-    status_text.text(f"ゲーム {group_idx + 1} のピン判定を実行中...")
-    throws_data = []
-    for idx, (rx, ry) in enumerate(group_red_pts):
-        crop_y1 = max(0, ry - 15)
-        crop_y2 = min(thresh_ink_rotated.shape[0], ry + 15)
-        crop_x1 = max(0, rx - 10)
-        crop_x2 = min(thresh_ink_rotated.shape[1], rx + 10)
-        
-        crop = thresh_ink_rotated[crop_y1:crop_y2, crop_x1:crop_x2]
-        pin_result, percent = get_pins_from_crop(crop, 5.0, 30.0)
-        
-        throws_data.append(pin_result)
+for group_idx, game_info in enumerate(games_data):
+    new_ref1 = game_info['new_ref1']
+    theta = game_info['theta']
+    start_x_base = game_info['start_x_base']
+    py1_local = game_info['py1_local']
+    current_scale = game_info['current_scale']
+    box_w = game_info['box_w']
 
-# =========================================================
-# 📍 【ブロック 10】 スコア計算とデータ整形
-# =========================================================
-    frame_scores = calculate_bowling_score(throws_data)
-    all_games_export_data.append({
-        "game_num": f"GAME {group_idx + 1}",
-        "frame_totals": frame_scores,
-        "total": str(frame_scores[-1]) if frame_scores else "0"
+    pink_inks = {}
+    for f in range(10):
+        l_data = game_info['light_purple_data'][f]
+        cv2.polylines(output_img, [l_data['pts']], isClosed=True, color=(216, 191, 216), thickness=1)
+        p_data = game_info['purple_data'][f]
+        cv2.polylines(output_img, [p_data['pts']], isClosed=True, color=(255, 105, 180), thickness=2)
+        pink_inks[f] = p_data['pct']
+        put_rotated_text(output_img, f"{p_data['pct']:.0f}%", p_data['rx'], p_data['ry'] - 5, 0, 0, 0, COLOR_PERCENT, scale=0.4, thickness=1)
+
+    if f == 9:
+        p_data_3 = game_info['purple_data']['10_3']
+        cv2.polylines(output_img, [p_data_3['pts']], isClosed=True, color=(255, 105, 180), thickness=2)
+        pink_inks['10_3'] = p_data_3['pct']
+        put_rotated_text(output_img, f"{p_data_3['pct']:.0f}%", p_data_3['rx'], p_data_3['ry'] - 5, 0, 0, 0, COLOR_PERCENT, scale=0.4, thickness=1)
+
+    all_frame_pins = []
+    for f in range(12):
+        frame_pins = []
+        for row_idx, col_offset in pin_positions:
+            pin_data = game_info['pin_data'][(f, row_idx, col_offset)]
+            pin_pct = pin_data['pct']
+            pts_y = pin_data['pts']
+            cv2.polylines(output_img, [pts_y], isClosed=True, color=(0, 255, 255), thickness=1)
+
+            if pin_pct < dyn_thresh_empty: result = "EMPTY"
+            elif pin_pct < dyn_thresh_circle: result = "CIRCLE"
+            else: result = "DOUBLE"
+
+            if row_idx == 0: pin_num = 7 + int(col_offset)
+            elif row_idx == 1: pin_num = 4 + int(col_offset - 0.5)
+            elif row_idx == 2: pin_num = 2 + int(col_offset - 1.0)
+            elif row_idx == 3: pin_num = 1
+
+            if result in ["CIRCLE", "DOUBLE"]:
+                frame_pins.append(pin_num)
+                p_top_left = tuple(pts_y[0][0])
+                p_bottom_right = tuple(pts_y[2][0])
+                cv2.line(output_img, p_top_left, p_bottom_right, (0, 255, 255), 2)
+        frame_pins.sort()
+        all_frame_pins.append(frame_pins)
+
+    temp_throws = [""] * 21
+    for f in range(9):
+        v1 = 10 - len(all_frame_pins[f])
+        str1 = 'X' if v1 == 10 else ('-' if v1 == 0 else str(v1))
+        temp_throws[f*2] = str1
+        if str1 == 'X':
+            temp_throws[f*2+1] = ""
+        elif pink_inks[f] >= dyn_thresh_pink:
+            temp_throws[f*2+1] = "/"
+
+    p9, p10, p11 = all_frame_pins[9], all_frame_pins[10], all_frame_pins[11]
+    v1_10 = 10 - len(p9)
+    str1_10 = 'X' if v1_10 == 10 else ('-' if v1_10 == 0 else str(v1_10))
+    temp_throws[18] = str1_10
+
+    if str1_10 == 'X':
+        v2_10 = 10 - len(p10)
+        str2_10 = 'X' if v2_10 == 10 else ('-' if v2_10 == 0 else str(v2_10))
+        temp_throws[19] = str2_10
+        if str2_10 == 'X':
+            v3_10 = 10 - len(p11)
+            str3_10 = 'X' if v3_10 == 10 else ('-' if v3_10 == 0 else str(v3_10))
+            temp_throws[20] = str3_10
+        elif pink_inks['10_3'] >= dyn_thresh_pink:
+            temp_throws[20] = "/"
+    else:
+        if pink_inks[9] >= dyn_thresh_pink: temp_throws[19] = "/"
+        v3_10 = 10 - len(p10)
+        str3_10 = 'X' if v3_10 == 10 else ('-' if v3_10 == 0 else str(v3_10))
+        temp_throws[20] = str3_10
+
+    for f in range(9):
+        t1 = temp_throws[f*2]
+        if t1: put_rotated_text(img_for_ai, t1, start_x_base + f * box_w + 3 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, (0, 0, 255), scale=0.7, thickness=2)
+        t2 = temp_throws[f*2+1]
+        if t2: put_rotated_text(img_for_ai, t2, start_x_base + f * box_w + 10 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, (0, 0, 255), scale=0.7, thickness=2)
+
+    f = 9
+    t1 = temp_throws[18]
+    if t1: put_rotated_text(img_for_ai, t1, start_x_base + f * box_w + 3 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, (0, 0, 255), scale=0.7, thickness=2)
+    t2 = temp_throws[19]
+    if t2: put_rotated_text(img_for_ai, t2, start_x_base + f * box_w + 10 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, (0, 0, 255), scale=0.7, thickness=2)
+    t3 = temp_throws[20]
+    if t3: put_rotated_text(img_for_ai, t3, start_x_base + f * box_w + 17 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, (0, 0, 255), scale=0.7, thickness=2)
+
+    parsed_games.append({
+        'pink_inks': pink_inks, 'all_frame_pins': all_frame_pins,
+        'p9': p9, 'p10': p10, 'p11': p11, 'theta': theta,
+        'current_scale': current_scale, 'start_x_base': start_x_base,
+        'box_w': box_w, 'py1_local': py1_local, 'new_ref1': new_ref1
     })
 
 # =========================================================
-# 📍 【ブロック 11】 AI（Gemini）への送信と結果表示
+# 📍 【ブロック 9】 AI用のカンペ画像切り抜きとGemini読み取り
 # =========================================================
 status_text.text("AIによる累計スコア読み取りを実行中...")
+score_crops = []
+for group_idx, ((r1x, r1y), (r2x, r2y)) in enumerate(group_refs):
+    pt1 = np.array([r1x, r1y, 1.0])
+    pt2 = np.array([r2x, r2y, 1.0])
+    new_ref1 = np.dot(M, pt1)
+    new_ref2 = np.dot(M, pt2)
 
-_, buffer = cv2.imencode('.png', img_for_ai)
-img_for_genai = types.Part.from_bytes(data=buffer.tobytes(), mime_type='image/png')
+    dx_crop = new_ref2[0] - new_ref1[0]
+    scale_crop = dx_crop / 184.2
+    base_y_crop = new_ref1[1] - 41 + dx_crop * (16.7 / 184.2)
 
-ai_response = None
-for model_name in fallback_models:
+    crop_y1 = max(0, int(base_y_crop - 15 * scale_crop))
+    crop_y2 = min(img_for_ai.shape[0], int(base_y_crop + 20 * scale_crop))
+    crop_x1 = max(0, int(new_ref1[0] - 10))
+    crop_x2 = min(img_for_ai.shape[1], int(new_ref2[0] + 10))
+
+    if crop_y2 > crop_y1 and crop_x2 > crop_x1:
+        score_crops.append(img_for_ai[crop_y1:crop_y2, crop_x1:crop_x2])
+
+if score_crops:
+    max_w = max(crop.shape[1] for crop in score_crops)
+    padded_crops = []
+    for crop in score_crops:
+        pad_w = max_w - crop.shape[1]
+        padded = cv2.copyMakeBorder(crop, 0, 0, 0, pad_w, cv2.BORDER_CONSTANT, value=(255, 255, 255))
+        padded_crops.append(padded)
+    stacked_scores = cv2.vconcat(padded_crops)
+    img_pil = Image.fromarray(cv2.cvtColor(stacked_scores, cv2.COLOR_BGR2RGB))
+else:
+    img_pil = Image.fromarray(cv2.cvtColor(img_for_ai, cv2.COLOR_BGR2RGB))
+
+gemini_data = {"date": "", "time": "", "lane": "", "games": []}
+success = False
+
+for attempt_model in fallback_models:
     try:
         response = client.models.generate_content(
-            model=model_name,
-            contents=[prompt, img_for_genai]
+            model=attempt_model,
+            contents=[prompt, img_pil],
+            config=types.GenerateContentConfig(response_mime_type="application/json")
         )
-        ai_response = response.text
+        raw_text = response.text.strip()
+        if raw_text.startswith("```"):
+            lines = raw_text.split('\n')
+            raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
+        gemini_data = json.loads(raw_text)
+        success = True
         break
     except Exception as e:
         continue
 
-if not ai_response:
+if not success:
     st.error("⚠️ AIモデルでのスコア読み取りに失敗しました。")
     st.stop()
 
-# JSONの抽出とパース
-json_str = ai_response.replace("```json", "").replace("```", "").strip()
-try:
-    ai_data = json.loads(json_str)
-except json.JSONDecodeError:
-    st.error("⚠️ AIの応答形式が不正でした。")
-    st.write(ai_response)
-    st.stop()
+# =========================================================
+# 📍 【ブロック 10】 後行ループ（AI結果の統合と最終出力）
+# =========================================================
+status_text.text("解析結果を統合しています...")
 
+if isinstance(gemini_data, list):
+    gemini_data = {"date": "", "time": "", "lane": "", "games": gemini_data}
+elif not isinstance(gemini_data, dict):
+    gemini_data = {"date": "", "time": "", "lane": "", "games": []}
+
+for group_idx, parsed_data in enumerate(parsed_games):
+    pink_inks = parsed_data['pink_inks']
+    all_frame_pins = parsed_data['all_frame_pins']
+    p9 = parsed_data['p9']
+    p10 = parsed_data['p10']
+    p11 = parsed_data['p11']
+    theta = parsed_data['theta']
+    current_scale = parsed_data['current_scale']
+    start_x_base = parsed_data['start_x_base']
+    box_w = parsed_data['box_w']
+    py1_local = parsed_data['py1_local']
+    new_ref1 = parsed_data['new_ref1']
+
+    row_data = [""] * 50
+    row_data[0] = str(gemini_data.get("date") or "").replace("-", "/")
+    row_data[1] = str(gemini_data.get("time") or "")
+    row_data[2] = str(gemini_data.get("lane") or "")
+
+    games_list = gemini_data.get("games") or []
+    g_info = games_list[group_idx] if group_idx < len(games_list) else {}
+
+    ai_frame_totals = g_info.get("frame_totals") or []
+    if not isinstance(ai_frame_totals, list): ai_frame_totals = []
+    while len(ai_frame_totals) < 10: ai_frame_totals.append(0)
+
+    ai_total = g_info.get("total") or ""
+    row_data[3] = g_info.get("game_num") or f"GAME {group_idx+1}"
+    row_data[49] = str(ai_total)
+
+    for f in range(9): row_data[target_indices[f]] = ",".join(map(str, all_frame_pins[f]))
+    row_data[target_indices[9]] = ",".join(map(str, p9))
+
+    if len(p9) == 0:
+        row_data[target_indices[10]] = ",".join(map(str, p10))
+        row_data[target_indices[11]] = ",".join(map(str, p11))
+    else:
+        row_data[target_indices[10]] = ""
+        row_data[target_indices[11]] = ",".join(map(str, p10))
+
+    final_throws = [""] * 21
+    throw_colors = [COLOR_OPENCV] * 21
+
+    for f in range(9):
+        v1 = 10 - len(all_frame_pins[f])
+        str1 = 'X' if v1 == 10 else ('-' if v1 == 0 else str(v1))
+        final_throws[f*2] = str1
+        throw_colors[f*2] = COLOR_OPENCV
+
+        if str1 == 'X':
+            final_throws[f*2+1] = ""
+        else:
+            if pink_inks[f] >= dyn_thresh_pink:
+                final_throws[f*2+1] = "R:/"
+                throw_colors[f*2+1] = COLOR_OPENCV
+            else:
+                curr_total = int(ai_frame_totals[f]) if str(ai_frame_totals[f]).isdigit() else 0
+                prev_total = int(ai_frame_totals[f-1]) if f > 0 and str(ai_frame_totals[f-1]).isdigit() else 0
+                diff = curr_total - prev_total
+
+                if diff >= 10:
+                    final_throws[f*2+1] = "R:/"
+                    throw_colors[f*2+1] = COLOR_AI
+                else:
+                    v2 = diff - v1
+                    if v2 < 0: v2 = 0
+                    if v2 + v1 > 9: v2 = 9 - v1
+                    final_throws[f*2+1] = "R:-" if v2 == 0 else f"R:{v2}"
+                    throw_colors[f*2+1] = COLOR_AI
+
+    curr_total_10 = int(ai_frame_totals[9]) if str(ai_frame_totals[9]).isdigit() else 0
+    prev_total_10 = int(ai_frame_totals[8]) if str(ai_frame_totals[8]).isdigit() else 0
+    diff_10 = curr_total_10 - prev_total_10
+
+    v1_10 = 10 - len(p9)
+    str1_10 = 'X' if v1_10 == 10 else ('-' if v1_10 == 0 else str(v1_10))
+    final_throws[18] = str1_10
+    throw_colors[18] = COLOR_OPENCV
+
+    if str1_10 == 'X':
+        v2_10 = 10 - len(p10)
+        str2_10 = 'X' if v2_10 == 10 else ('-' if v2_10 == 0 else str(v2_10))
+        final_throws[19] = str2_10
+        throw_colors[19] = COLOR_OPENCV
+
+        if str2_10 == 'X':
+            v3_10 = 10 - len(p11)
+            str3_10 = 'X' if v3_10 == 10 else ('-' if v3_10 == 0 else str(v3_10))
+            final_throws[20] = str3_10
+            throw_colors[20] = COLOR_OPENCV
+        else:
+            if pink_inks['10_3'] >= dyn_thresh_pink:
+                final_throws[20] = "R:/"
+                throw_colors[20] = COLOR_OPENCV
+            else:
+                if (diff_10 - 10) >= 10:
+                    final_throws[20] = "R:/"
+                    throw_colors[20] = COLOR_AI
+                else:
+                    v3_10 = diff_10 - 10 - v2_10
+                    if v3_10 < 0: v3_10 = 0
+                    if v3_10 + v2_10 > 9: v3_10 = 9 - v2_10
+                    final_throws[20] = "R:-" if v3_10 == 0 else f"R:{v3_10}"
+                    throw_colors[20] = COLOR_AI
+    else:
+        if pink_inks[9] >= dyn_thresh_pink:
+            final_throws[19] = "R:/"
+            throw_colors[19] = COLOR_OPENCV
+            v3_10 = 10 - len(p10)
+            str3_10 = 'X' if v3_10 == 10 else ('-' if v3_10 == 0 else str(v3_10))
+            final_throws[20] = str3_10
+            throw_colors[20] = COLOR_OPENCV
+        else:
+            if diff_10 >= 10:
+                final_throws[19] = "R:/"
+                throw_colors[19] = COLOR_AI
+                v3_10 = diff_10 - 10
+                if v3_10 < 0: v3_10 = 0
+                if v3_10 > 10: v3_10 = 10
+                str3_10 = 'X' if v3_10 == 10 else ('-' if v3_10 == 0 else str(v3_10))
+                final_throws[20] = f"R:{str3_10}" if str3_10 != 'X' else "R:X"
+                throw_colors[20] = COLOR_AI
+            else:
+                v2_10 = diff_10 - v1_10
+                if v2_10 < 0: v2_10 = 0
+                if v2_10 + v1_10 > 9: v2_10 = 9 - v1_10
+                final_throws[19] = "R:-" if v2_10 == 0 else f"R:{v2_10}"
+                throw_colors[19] = COLOR_AI
+                final_throws[20] = ""
+
+    for t_idx, col_idx in enumerate(throw_cols):
+        row_data[col_idx] = final_throws[t_idx]
+    all_games_export_data.append(row_data)
+
+    for f in range(9):
+        t1 = final_throws[f*2].replace("R:", "")
+        put_rotated_text(output_img, t1, start_x_base + f * box_w + 3 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, throw_colors[f*2])
+        t2 = final_throws[f*2+1].replace("R:", "")
+        put_rotated_text(output_img, t2, start_x_base + f * box_w + 10 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, throw_colors[f*2+1])
+
+    f = 9
+    t1 = final_throws[18].replace("R:", "")
+    put_rotated_text(output_img, t1, start_x_base + f * box_w + 3 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, throw_colors[18])
+    t2 = final_throws[19].replace("R:", "")
+    put_rotated_text(output_img, t2, start_x_base + f * box_w + 10 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, throw_colors[19])
+    t3 = final_throws[20].replace("R:", "")
+    put_rotated_text(output_img, t3, start_x_base + f * box_w + 17 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, throw_colors[20])
+
+    calc_totals = calculate_bowling_score(final_throws)
+    ai_tot_int = int(ai_total) if str(ai_total).isdigit() else int(ai_frame_totals[-1]) if ai_frame_totals else 0
+    result_text_x = start_x_base + 9 * box_w + 5 * current_scale
+    result_text_y = py1_local - 10 * current_scale
+
+    if calc_totals and len(ai_frame_totals) > 0 and calc_totals[-1] == ai_tot_int:
+        check_str = f"MATCH ({calc_totals[-1]})"
+        check_color = (0, 150, 0)
+    else:
+        calc_val = calc_totals[-1] if calc_totals else 0
+        check_str = f"DIFF! ({calc_val} vs {ai_tot_int})"
+        check_color = COLOR_AI
+
+    put_rotated_text(output_img, check_str, result_text_x, result_text_y, new_ref1[0], new_ref1[1], theta, check_color, scale=0.6, thickness=2)
+
+# =========================================================
+# 📍 【ブロック 11】 CSV保存と画面表示
+# =========================================================
 status_text.empty()
 st.success("✅ 解析が完了しました！")
 
-# 画面への結果表示
 st.subheader("📊 読み取り結果")
-for game in ai_data.get("games", []):
-    st.markdown(f"**{game.get('game_num', 'GAME')}** - トータル: {game.get('total', 'N/A')}")
+for group_idx, game in enumerate(gemini_data.get("games", [])):
+    st.markdown(f"**{game.get('game_num', f'GAME {group_idx+1}')}** - トータル: {game.get('total', 'N/A')}")
     st.write(f"各フレーム累計: {game.get('frame_totals', [])}")
 
-# CSVダウンロード機能
 csv_buffer = io.StringIO()
 writer = csv.writer(csv_buffer)
 writer.writerow(["Game", "Total Score", "Frame Totals"])
-for game in ai_data.get("games", []):
-    writer.writerow([game.get("game_num"), game.get("total"), str(game.get("frame_totals"))])
+for row in all_games_export_data:
+    writer.writerow(row)
 
 st.download_button(
     label="📥 CSVをダウンロード",
@@ -537,6 +955,5 @@ st.download_button(
     mime="text/csv"
 )
 
-# 解析済み画像の表示
 st.subheader("📸 解析画像")
 st.image(cv2.cvtColor(output_img, cv2.COLOR_BGR2RGB), use_container_width=True)
