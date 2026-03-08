@@ -2,28 +2,19 @@
 import streamlit as st
 import cv2
 import numpy as np
+import io
 import csv
 import json
-import io
 from PIL import Image
-import os
 from google import genai
 from google.genai import types
-import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseDownload
 
-# Streamlitのページ設定
-st.set_page_config(page_title="ボウリング解析システム", page_icon="🎳", layout="wide")
-
-st.title("🎳 ボウリング解析システム")
-
-st.markdown("""
-**【使い方】**
-1. 左側のサイドバーにGeminiのAPIキーを入力します。
-2. 下のボタンからボウリングのスコアシート画像をアップロードします。
-3. 自動的に解析が始まり、結果が表示されます！
-""")
+# --- ページ設定 ---
+st.set_page_config(page_title="ボウリング解析", layout="wide")
+st.title("🎳 ボウリングスコア自動解析システム")
 
 # --- サイドバー：APIキー入力 ---
 with st.sidebar:
@@ -42,11 +33,6 @@ fallback_models = [
 # =========================================================
 # 📍 【ブロック 2】 状態管理とGoogleドライブからの画像取得
 # =========================================================
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseDownload
-import json
-
 # アプリの状態を記憶する「セッションステート」の初期化
 if "app_state" not in st.session_state:
     st.session_state.app_state = "init"  # init, processing, done の3段階
@@ -116,13 +102,13 @@ client = genai.Client(api_key=gemini_api_key)
 prompt = """
 あなたはプロのボウリングスコア記録員です。
 画像はボウリングのスコアシートから、スコア部分だけを切り取って縦に並べたものです。
-あらかじめ画像解析AIによって、各フレームの投球結果（1投目の倒本数、スペア「/」、ストライク「X」など）が赤色で書き込まれています。これをヒントにしてください。
+あらかじめ画像解析AIによって、各フレームの投球結果が赤色で書き込まれています。これをヒントにしてください。
 以下の【ルール】に従って、フレームごとの「累計トータルスコア」のみを正確に読み取り、JSON形式で出力してください。
 
 【ルール】
 1. 各ゲームの行の下段には、「累計トータルスコア」が書かれています。1F〜10Fまでの10個の累計スコア数字を配列にしてください。
-2. ⚠️重要⚠️ 画像に複数のゲーム（GAME 1, GAME 2...など）が写っている場合は、絶対に省略せず【写っているすべてのゲーム】のデータを配列 "games" に出力してください。
-3. Markdownの記号(```json)などは一切含めず、純粋なJSON文字列だけを出力してください。
+2. ⚠️重要⚠️ 画像に複数のゲームが写っている場合は、絶対に省略せず【写っているすべてのゲーム】のデータを配列 "games" に出力してください。
+3. Markdownの記号などは一切含めず、純粋なJSON文字列だけを出力してください。
 
 【出力フォーマット例】
 {
@@ -147,15 +133,6 @@ prompt = """
 # =========================================================
 # 📍 【ブロック 4】 共通関数・定数定義
 # =========================================================
-def get_pins_from_crop(crop_img, thresh_val_empty, thresh_val_circle):
-    total_pixels = crop_img.shape[0] * crop_img.shape[1]
-    if total_pixels == 0: return None, 0.0
-    ink_pixels = cv2.countNonZero(crop_img)
-    ink_percent = (ink_pixels / total_pixels) * 100
-    if ink_percent < thresh_val_empty: return "EMPTY", ink_percent
-    elif ink_percent < thresh_val_circle: return "CIRCLE", ink_percent
-    else: return "DOUBLE", ink_percent
-
 def calculate_bowling_score(throws):
     def get_val(idx):
         if idx >= len(throws): return 0
@@ -223,7 +200,6 @@ throw_cols = [7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 
 target_indices = [8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 46, 48]
 COLOR_OPENCV = (255, 0, 0)
 COLOR_AI = (0, 0, 220)
-COLOR_PERCENT = (50, 50, 50)
 
 # =========================================================
 # 📍 【ブロック 5〜10】 解析処理ループ（複数枚を裏側で記憶）
@@ -509,10 +485,159 @@ if st.session_state.app_state == "processing":
                     config=types.GenerateContentConfig(response_mime_type="application/json")
                 )
                 raw_text = response.text.strip()
-                if raw_text.startswith("
-http://googleusercontent.com/immersive_entry_chip/0
+                # ⚠️ バッククオートのバグ回避のため、文字を連結して判定
+                backticks = "`" * 3
+                if raw_text.startswith(backticks):
+                    raw_text = "\n".join(raw_text.split('\n')[1:-1]).strip()
+                gemini_data = json.loads(raw_text)
+                break
+            except Exception: continue
 
-上書き保存後、アプリをリロードしてボタンを押していただくと、**「フォルダに入れた画像を最大3枚まで一気に読み込み」「1〜3枚目まですべてのゲーム行を解析」「連続したGAME番号（GAME 1〜GAME 9など）として1つのフォームにまとめる」**という動作をするようになります。
+        games_list = gemini_data.get("games", [])
+        all_games_export_data = []
 
-これにてフェーズ3の下準備（大掛かりな改修）は終了です！無事に3枚分通して表示されるかご確認のうえ、成功したら次はいよいよ本命の「フレームごとのスコア修正画面」の作成に進みましょう！
+        for group_idx, parsed_data in enumerate(parsed_games):
+            g_info = games_list[group_idx] if group_idx < len(games_list) else {}
+            ai_frame_totals = g_info.get("frame_totals", [])
+            while len(ai_frame_totals) < 10: ai_frame_totals.append(0)
+            
+            row_data = [""] * 50
+            row_data[0] = str(gemini_data.get("date") or "").replace("-", "/")
+            row_data[1] = str(gemini_data.get("time") or "")
+            row_data[2] = str(gemini_data.get("lane") or "")
+            row_data[49] = str(g_info.get("total") or "")
+
+            for f in range(9): row_data[target_indices[f]] = ",".join(map(str, parsed_data['all_frame_pins'][f]))
+            row_data[target_indices[9]] = ",".join(map(str, parsed_data['p9']))
+            if len(parsed_data['p9']) == 0:
+                row_data[target_indices[10]] = ",".join(map(str, parsed_data['p10']))
+                row_data[target_indices[11]] = ",".join(map(str, parsed_data['p11']))
+            else:
+                row_data[target_indices[10]] = ""
+                row_data[target_indices[11]] = ",".join(map(str, parsed_data['p10']))
+
+            final_throws, throw_colors = [""] * 21, [COLOR_OPENCV] * 21
+            for f in range(9):
+                v1 = 10 - len(parsed_data['all_frame_pins'][f])
+                str1 = 'X' if v1 == 10 else ('-' if v1 == 0 else str(v1))
+                final_throws[f*2] = str1
+                if str1 != 'X':
+                    if parsed_data['pink_inks'][f] >= dyn_thresh_pink: final_throws[f*2+1] = "R:/"
+                    else:
+                        diff = int(ai_frame_totals[f] if str(ai_frame_totals[f]).isdigit() else 0) - int(ai_frame_totals[f-1] if f > 0 and str(ai_frame_totals[f-1]).isdigit() else 0)
+                        if diff >= 10: final_throws[f*2+1], throw_colors[f*2+1] = "R:/", COLOR_AI
+                        else: final_throws[f*2+1], throw_colors[f*2+1] = ("R:-" if max(0, min(9-v1, diff-v1)) == 0 else f"R:{max(0, min(9-v1, diff-v1))}"), COLOR_AI
+
+            diff_10 = int(ai_frame_totals[9] if str(ai_frame_totals[9]).isdigit() else 0) - int(ai_frame_totals[8] if str(ai_frame_totals[8]).isdigit() else 0)
+            v1_10 = 10 - len(parsed_data['p9'])
+            final_throws[18] = 'X' if v1_10 == 10 else ('-' if v1_10 == 0 else str(v1_10))
+            if final_throws[18] == 'X':
+                v2_10 = 10 - len(parsed_data['p10'])
+                final_throws[19] = 'X' if v2_10 == 10 else ('-' if v2_10 == 0 else str(v2_10))
+                if final_throws[19] == 'X':
+                    v3_10 = 10 - len(parsed_data['p11'])
+                    final_throws[20] = 'X' if v3_10 == 10 else ('-' if v3_10 == 0 else str(v3_10))
+                else:
+                    if parsed_data['pink_inks']['10_3'] >= dyn_thresh_pink: final_throws[20] = "R:/"
+                    elif diff_10 - 10 >= 10: final_throws[20], throw_colors[20] = "R:/", COLOR_AI
+                    else: final_throws[20], throw_colors[20] = ("R:-" if max(0, min(9-v2_10, diff_10-10-v2_10)) == 0 else f"R:{max(0, min(9-v2_10, diff_10-10-v2_10))}"), COLOR_AI
+            else:
+                if parsed_data['pink_inks'][9] >= dyn_thresh_pink:
+                    final_throws[19] = "R:/"
+                    v3_10 = 10 - len(parsed_data['p10'])
+                    final_throws[20] = 'X' if v3_10 == 10 else ('-' if v3_10 == 0 else str(v3_10))
+                else:
+                    if diff_10 >= 10:
+                        final_throws[19], throw_colors[19] = "R:/", COLOR_AI
+                        v3_10 = max(0, min(10, diff_10 - 10))
+                        final_throws[20], throw_colors[20] = ("R:X" if v3_10 == 10 else ("R:-" if v3_10 == 0 else f"R:{v3_10}")), COLOR_AI
+                    else:
+                        final_throws[19], throw_colors[19] = ("R:-" if max(0, min(9-v1_10, diff_10-v1_10)) == 0 else f"R:{max(0, min(9-v1_10, diff_10-v1_10))}"), COLOR_AI
+
+            for t_idx, col_idx in enumerate(throw_cols): row_data[col_idx] = final_throws[t_idx]
+            all_games_export_data.append(row_data)
+
+            for f in range(9):
+                put_rotated_text(output_img, final_throws[f*2].replace("R:", ""), parsed_data['start_x_base'] + f * parsed_data['box_w'] + 3 * parsed_data['current_scale'], parsed_data['py1_local'] - 2 * parsed_data['current_scale'], parsed_data['new_ref1'][0], parsed_data['new_ref1'][1], parsed_data['theta'], throw_colors[f*2])
+                put_rotated_text(output_img, final_throws[f*2+1].replace("R:", ""), parsed_data['start_x_base'] + f * parsed_data['box_w'] + 10 * parsed_data['current_scale'], parsed_data['py1_local'] - 2 * parsed_data['current_scale'], parsed_data['new_ref1'][0], parsed_data['new_ref1'][1], parsed_data['theta'], throw_colors[f*2+1])
+            put_rotated_text(output_img, final_throws[18].replace("R:", ""), parsed_data['start_x_base'] + 9 * parsed_data['box_w'] + 3 * parsed_data['current_scale'], parsed_data['py1_local'] - 2 * parsed_data['current_scale'], parsed_data['new_ref1'][0], parsed_data['new_ref1'][1], parsed_data['theta'], throw_colors[18])
+            put_rotated_text(output_img, final_throws[19].replace("R:", ""), parsed_data['start_x_base'] + 9 * parsed_data['box_w'] + 10 * parsed_data['current_scale'], parsed_data['py1_local'] - 2 * parsed_data['current_scale'], parsed_data['new_ref1'][0], parsed_data['new_ref1'][1], parsed_data['theta'], throw_colors[19])
+            put_rotated_text(output_img, final_throws[20].replace("R:", ""), parsed_data['start_x_base'] + 9 * parsed_data['box_w'] + 17 * parsed_data['current_scale'], parsed_data['py1_local'] - 2 * parsed_data['current_scale'], parsed_data['new_ref1'][0], parsed_data['new_ref1'][1], parsed_data['theta'], throw_colors[20])
+
+        # 解析結果をメモリ（セッションステート）に保存
+        all_analyzed_results.append({
+            "filename": img_info['name'],
+            "output_img": output_img,
+            "export_data": all_games_export_data
+        })
+        progress_bar.progress((idx + 1) / total_images)
+
+    st.session_state.analyzed_data = all_analyzed_results
+    st.session_state.app_state = "done"
+    st.rerun()
+
+# =========================================================
+# 📍 【ブロック 11】 統合結果画面・登録フォーム
+# =========================================================
+if st.session_state.app_state == "done":
+    st.success("✅ 全ての画像の解析が完了しました！")
+    
+    with st.form("register_form"):
+        st.markdown("### 👤 プレイヤー選択")
+        player_list = ["001_田中一吉", "002_田中佳恵", "003_田中蒼之助", "004_田中柾吉", "005_米田稔", "999_ゲスト"]
+        selected_player = st.selectbox("このスコアを誰のデータとして登録しますか？", player_list)
+        
+        st.markdown("---")
+        register_all = st.checkbox("✅ 全てのゲームをマスターに登録する", value=True)
+        st.markdown("---")
+        
+        game_checkboxes = []
+        global_game_num = 1  # 全画像を通しての連番（GAME 1, GAME 2...）
+        
+        for data_idx, data in enumerate(st.session_state.analyzed_data):
+            st.markdown(f"#### 📄 画像 {data_idx+1}: {data['filename']}")
+            st.image(cv2.cvtColor(data['output_img'], cv2.COLOR_BGR2RGB), use_container_width=True)
+            
+            for local_idx, row in enumerate(data['export_data']):
+                game_name = f"GAME {global_game_num}"
+                # 内部データのGAME番号も書き換えておく
+                st.session_state.analyzed_data[data_idx]['export_data'][local_idx][3] = game_name
+                
+                ai_total = row[49]
+                col1, col2 = st.columns([1, 3])
+                with col1:
+                    is_checked = st.checkbox(f"登録 ({game_name})", value=True, key=f"check_{data_idx}_{local_idx}")
+                    game_checkboxes.append((data_idx, local_idx, is_checked))
+                with col2:
+                    st.markdown(f"**{game_name}** - トータルスコア: **{ai_total}**")
+                st.markdown("---")
+                global_game_num += 1
+
+        submit_btn = st.form_submit_button("💾 選択したデータを確定（CSV生成）")
+
+    if submit_btn:
+        csv_buffer = io.StringIO()
+        writer = csv.writer(csv_buffer)
+        export_count = 0
+        
+        check_idx = 0
+        for data_idx, data in enumerate(st.session_state.analyzed_data):
+            for local_idx, row in enumerate(data['export_data']):
+                is_target = True if register_all else game_checkboxes[check_idx][2]
+                if is_target:
+                    export_row = [selected_player] + row
+                    writer.writerow(export_row)
+                    export_count += 1
+                check_idx += 1
+                
+        if export_count > 0:
+            st.success(f"✅ {selected_player} のデータを {export_count} 件確定しました！下のボタンから保存できます。")
+            st.download_button(
+                label="📥 確定済みデータをダウンロード",
+                data=csv_buffer.getvalue(),
+                file_name=f"{selected_player}_bowling.csv",
+                mime="text/csv"
+            )
+        else:
+            st.warning("⚠️ 登録対象のゲームが選択されていません。")
 
