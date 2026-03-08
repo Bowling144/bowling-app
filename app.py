@@ -37,6 +37,7 @@ with st.sidebar:
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
+import json
 
 st.markdown("### 📥 ボウリング画像の読み込み")
 
@@ -48,8 +49,10 @@ if "drive_image_bytes" not in st.session_state:
 if st.button("🔄 ドライブから最新の画像を読み込む"):
     with st.spinner("Googleドライブを探索中..."):
         try:
-            # Secretsから鍵を取り出してドライブに接続
-            creds_info = dict(st.secrets["google_credentials"])
+            # Secretsの文字列をJSONデータとして読み込む（★ここを修正しました）
+            creds_json_str = st.secrets["google_credentials"]
+            creds_info = json.loads(creds_json_str)
+            
             creds = service_account.Credentials.from_service_account_info(
                 creds_info, scopes=['https://www.googleapis.com/auth/drive.readonly']
             )
@@ -104,12 +107,6 @@ if img is None:
 
 status_text = st.empty()
 
-if img is None:
-    st.error("⚠️ 画像の読み込みに失敗しました。")
-    st.stop()
-
-st.info("⚙️ 解析を開始します...")
-status_text = st.empty()
     
     
     
