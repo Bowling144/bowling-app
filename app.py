@@ -18,8 +18,7 @@ import matplotlib.pyplot as plt
 
 # --- ページ設定 ---
 st.set_page_config(page_title="ボウリング解析", layout="wide")
-# 📝 変更：タイトルを変更しました
-st.title("🎳 EagleBowlスコア管理システム")
+st.title("🎳 ボウリングスコア自動解析システム")
 
 # --- サイドバー：APIキー入力 ---
 with st.sidebar:
@@ -27,12 +26,13 @@ with st.sidebar:
     gemini_api_key = st.text_input("Gemini APIキーを入力", type="password")
     st.markdown("※APIキーがないと累計スコアのAI読取ができません。")
 
-# 📝 ご要望通り、精度の低いFlashモデルを削除し、最新のProモデルのみに限定しました。
+# ⚠️ API制限回避のため、制限が緩いFlashモデルも追加
 fallback_models = [
-    'gemini-3.0-pro',
     'gemini-2.5-pro',
     'gemini-2.0-pro-exp-02-05',
-    'gemini-1.5-pro-latest'
+    'gemini-1.5-pro-latest',
+    'gemini-2.5-flash',
+    'gemini-1.5-flash'
 ]
 
 # =========================================================
@@ -45,8 +45,7 @@ if "raw_images_data" not in st.session_state:
 if "analyzed_results" not in st.session_state:
     st.session_state.analyzed_results = None
 
-# 📝 変更：見出しを変更しました
-st.markdown("### 📥 スコアシートの読み込み")
+st.markdown("### 📥 ボウリング画像の読み込み")
 
 if st.button("🔄 ドライブから最新の画像を取得（最大3枚）"):
     with st.spinner("Googleドライブを探索中..."):
@@ -102,41 +101,51 @@ client = genai.Client(api_key=gemini_api_key)
 status_text = st.empty()
 
 # =========================================================
-# 📍 【ブロック 3】 AIプロンプトの定義
+# 📍 【ブロック 3】 AIプロンプトの定義（2分割方式）
 # =========================================================
-# 📝 追加：GAME番号の読み取りルールと法則を追記しました。
-prompt = """
-あなたはプロのボウリングスコア記録員です。
-2枚の画像をお渡しします。
-・1枚目：スコアシートの全体画像
-・2枚目：スコア部分だけを切り取って縦に並べた画像（画像解析AIによる赤文字の投球結果ヒント付き）
-
-以下の【ルール】に従って、JSON形式で出力してください。
+# ① 日付と時刻だけを読むためのプロンプト
+prompt_time = """
+画像はボウリングのスコアシートの全体写真です。
+この画像から「日付」と「印字されているすべての時刻」を探し出し、以下のJSON形式で出力してください。
 
 【ルール】
-1. 1枚目の全体画像から「日付(date)」と「時刻(time)」を読み取ってください。時刻については、もし各ゲームの行に「ゲームごとの開始時刻」が書かれている場合は各ゲームの "time" に、用紙全体で1つの印刷時刻しかない場合は全体の "time" に入れてください。見つからない場合は無理に推測せず、空文字 "" にしてください。
-2. 2枚目の切り抜き画像を使って、各ゲームの下段に書かれている「累計トータルスコア」と「ゲーム番号(game_num)」を正確に読み取ってください。（1F〜10Fまでの10個の累計スコア数字を配列にしてください）
-3. ⚠️重要⚠️ ゲーム番号（"game_num"）の読み取りには以下の法則があります。これを考慮して間違いのないように出力してください。
-   - 1段目のゲームは、「GAME 1」「GAME 7」「GAME 13」というように、1から始まり6ゲームずつ増えた数になります。
-   - 2段目以降は、一段下がるごとにゲーム数が1ずつ増えます。（例：1段目が「GAME 7」の場合、2段目は「GAME 8」、3段目は「GAME 9」となります）
-4. 複数のゲームが写っている場合は、絶対に省略せず【写っているすべてのゲーム】のデータを配列 "games" に出力してください。
-5. Markdownの記号(```json)などは一切含めず、純粋なJSON文字列だけを出力してください。
+1. 日付は "YYYY/MM/DD" の形式で "date" に入れてください。
+2. 時刻は、各ゲームの行などに複数書かれている場合は、上から順に配列として "times" にすべて入れてください。
+3. 全体で1つの時刻しか見当たらない場合は、配列の中にその1つの時刻だけを入れてください。
+4. 見つからない場合は無理に推測せず、空にしてください。
+5. Markdownの記号などは一切含めず、純粋なJSON文字列だけを出力してください。
 
 【出力フォーマット例】
 {
   "date": "2026/02/28",
-  "time": "14:30",
+  "times": ["14:12", "14:25", "14:38"]
+}
+"""
+
+# ② スコアだけを集中して読むためのプロンプト（カンペ画像用）
+prompt_score = """
+あなたはプロのボウリングスコア記録員です。
+画像はボウリングのスコアシートから、スコア部分だけを切り取って縦に並べたものです。
+あらかじめ画像解析AIによって、各フレームの投球結果が赤色で書き込まれています。これをヒントにしてください。
+以下の【ルール】に従って、フレームごとの「累計トータルスコア」を正確に読み取り、JSON形式で出力してください。
+
+【ルール】
+1. 各ゲームの行の下段には、「累計トータルスコア」が書かれています。1F〜10Fまでの10個の累計スコア数字を配列にしてください。
+2. ⚠️重要⚠️ 複数のゲームが写っている場合は、絶対に省略せず【写っているすべてのゲーム】のデータを配列 "games" に出力してください。
+3. 日付や時間は読まなくて構いません。スコアの数字だけに集中してください。
+4. Markdownの記号などは一切含めず、純粋なJSON文字列だけを出力してください。
+
+【出力フォーマット例】
+{
   "lane": "12",
   "games": [
     {
-      "game_num": "GAME 7",
-      "time": "14:12",
+      "game_num": "GAME 1",
       "frame_totals": [20, 47, 56, 86, 115, 135, 155, 185, 205, 225],
       "total": "225"
     },
     {
-      "game_num": "GAME 8",
-      "time": "14:25",
+      "game_num": "GAME 2",
       "frame_totals": [9, 18, 27, 36, 45, 54, 63, 72, 81, 90],
       "total": "90"
     }
@@ -655,7 +664,6 @@ if st.session_state.analyzed_results is None:
                 'box_w': box_w, 'py1_local': py1_local, 'new_ref1': new_ref1
             })
 
-        # --- ブロック9: Geminiに【全体画像】と【カンペ画像】の2枚を渡す ---
         score_crops = []
         for group_idx, ((r1x, r1y), (r2x, r2y)) in enumerate(group_refs):
             pt1 = np.array([r1x, r1y, 1.0])
@@ -683,44 +691,71 @@ if st.session_state.analyzed_results is None:
                 padded = cv2.copyMakeBorder(crop, 0, 0, 0, pad_w, cv2.BORDER_CONSTANT, value=(255, 255, 255))
                 padded_crops.append(padded)
             stacked_scores = cv2.vconcat(padded_crops)
-            img_pil = Image.fromarray(cv2.cvtColor(stacked_scores, cv2.COLOR_BGR2RGB))
+            img_pil_scores = Image.fromarray(cv2.cvtColor(stacked_scores, cv2.COLOR_BGR2RGB))
         else:
-            img_pil = Image.fromarray(cv2.cvtColor(img_for_ai, cv2.COLOR_BGR2RGB))
+            img_pil_scores = Image.fromarray(cv2.cvtColor(img_for_ai, cv2.COLOR_BGR2RGB))
 
-        img_full_pil = Image.fromarray(cv2.cvtColor(output_img, cv2.COLOR_BGR2RGB))
+        img_pil_full = Image.fromarray(cv2.cvtColor(output_img, cv2.COLOR_BGR2RGB))
 
-        gemini_data = {"date": "", "time": "", "lane": "", "games": []}
-        success = False
-        last_error = ""
-
+        # ---------------------------------------------------------
+        # ⚠️ 【変更】AI通信を2回（日時用とスコア用）に分ける
+        # ---------------------------------------------------------
+        status_text.info(f"⚙️ 画像 {img_idx+1}: AIで日時と時間を読み取っています...")
+        ai_time_data = {"date": "", "times": []}
         for attempt_model in fallback_models:
             try:
                 response = client.models.generate_content(
                     model=attempt_model,
-                    contents=[prompt, img_full_pil, img_pil],
+                    contents=[prompt_time, img_pil_full], # 全体画像だけ渡す
                     config=types.GenerateContentConfig(response_mime_type="application/json")
                 )
                 raw_text = response.text.strip()
                 if raw_text.startswith("```"):
                     lines = raw_text.split('\n')
                     raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
-                gemini_data = json.loads(raw_text)
-                success = True
+                ai_time_data = json.loads(raw_text)
+                break
+            except Exception:
+                continue
+
+        status_text.info(f"⚙️ 画像 {img_idx+1}: AIでスコアの数字を読み取っています...")
+        ai_score_data = {"lane": "", "games": []}
+        success_score = False
+        last_error = ""
+        used_model = "FAILED"
+        for attempt_model in fallback_models:
+            try:
+                response = client.models.generate_content(
+                    model=attempt_model,
+                    contents=[prompt_score, img_pil_scores], # 切り抜き画像だけ渡す
+                    config=types.GenerateContentConfig(response_mime_type="application/json")
+                )
+                raw_text = response.text.strip()
+                if raw_text.startswith("```"):
+                    lines = raw_text.split('\n')
+                    raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
+                ai_score_data = json.loads(raw_text)
+                success_score = True
+                used_model = attempt_model.upper()
                 break
             except Exception as e:
                 last_error = str(e)
                 continue
 
-        if not success:
-            st.warning(f"⚠️ {file_name}: AI読み取りに失敗しました。理由: {last_error}")
+        if not success_score:
+            st.warning(f"⚠️ {file_name}: AIのスコア読み取りに失敗しました。理由: {last_error}")
 
-        used_model = attempt_model.upper() if success else "AI_FAILED"
         cv2.putText(output_img, f"AI Ver: {used_model}", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 0, 0), 3, cv2.LINE_AA)
 
-        if isinstance(gemini_data, list):
-            gemini_data = {"date": "", "time": "", "lane": "", "games": gemini_data}
-        elif not isinstance(gemini_data, dict):
-            gemini_data = {"date": "", "time": "", "lane": "", "games": []}
+        if isinstance(ai_score_data, list):
+            ai_score_data = {"games": ai_score_data}
+        elif not isinstance(ai_score_data, dict):
+            ai_score_data = {"games": []}
+
+        # 読み取った日時データとスコアデータを結合
+        global_date = str(ai_time_data.get("date") or "").replace("-", "/")
+        time_list = ai_time_data.get("times") or []
+        if not isinstance(time_list, list): time_list = [time_list]
 
         for group_idx, parsed_data in enumerate(parsed_games):
             pink_inks = parsed_data['pink_inks']
@@ -736,20 +771,26 @@ if st.session_state.analyzed_results is None:
             new_ref1 = parsed_data['new_ref1']
 
             row_data = [""] * 50
-            row_data[0] = str(gemini_data.get("date") or "").replace("-", "/")
+            row_data[0] = global_date
 
-            games_list = gemini_data.get("games") or []
+            games_list = ai_score_data.get("games") or []
             g_info = games_list[group_idx] if group_idx < len(games_list) else {}
 
-            row_data[1] = str(g_info.get("time") or gemini_data.get("time") or "")
-            row_data[2] = str(gemini_data.get("lane") or "")
+            # 時刻は、配列の上から順番に割り当てる（足りなければ最後の時刻を使う、無ければ空）
+            game_time = ""
+            if time_list:
+                time_idx = min(group_idx, len(time_list) - 1)
+                game_time = str(time_list[time_idx])
+            row_data[1] = game_time
+            
+            row_data[2] = str(ai_score_data.get("lane") or "")
 
             ai_frame_totals = g_info.get("frame_totals") or []
             if not isinstance(ai_frame_totals, list): ai_frame_totals = []
             while len(ai_frame_totals) < 10: ai_frame_totals.append(0)
 
             ai_total = g_info.get("total") or ""
-            row_data[3] = g_info.get("game_num") or ""  # 📝 変更：AIが読み取ったままのGAME名を保持
+            row_data[3] = g_info.get("game_num") or f"GAME {group_idx+1}"
             row_data[49] = str(ai_total)
 
             for f in range(9): row_data[target_indices[f]] = ",".join(map(str, all_frame_pins[f]))
@@ -888,7 +929,6 @@ if st.session_state.analyzed_results is None:
         analyzed_results.append({
             "file_name": file_name,
             "output_img": output_img,
-            "gemini_data": gemini_data,
             "all_games_export_data": all_games_export_data
         })
 
@@ -912,18 +952,18 @@ if st.session_state.analyzed_results:
         st.markdown("---")
 
         game_checkboxes = []
+        global_game_num = 1
 
-        # 📝 変更：私が追加した強制通し番号の処理を削除しました
-        for res_idx, res in enumerate(st.session_state.analyzed_results):
-            st.markdown(f"#### 📄 画像 {res_idx + 1}: {res['file_name']}")
+        for res in st.session_state.analyzed_results:
+            st.markdown(f"#### 📄 画像 {global_game_num}: {res['file_name']}")
             
-            zoom_width = st.slider(f"🔍 画像の表示サイズを調整（画像 {res_idx + 1}）", min_value=600, max_value=3000, value=1200, key=f"zoom_{res_idx}")
+            zoom_width = st.slider(f"🔍 画像の表示サイズを調整（画像 {global_game_num}）", min_value=600, max_value=3000, value=1200, key=f"zoom_{global_game_num}")
             st.image(cv2.cvtColor(res['output_img'], cv2.COLOR_BGR2RGB), width=zoom_width)
 
             for local_idx, row in enumerate(res['all_games_export_data']):
-                # 📝 変更：AIが読み取ったGAME番号をそのまま表示（失敗時は GAME 1, GAME 2...）
-                game_name = str(row[3]) if row[3] else f"GAME {local_idx + 1}"
-                
+                game_name = f"GAME {global_game_num}"
+                row[3] = game_name
+
                 date_str = row[0] if row[0] else "日付不明"
                 time_str = row[1] if row[1] else "時刻不明"
                 ai_total_str = row[49] if row[49] else "_"
@@ -947,7 +987,9 @@ if st.session_state.analyzed_results:
                     "export_row": row
                 })
 
-            st.markdown("---")
+                global_game_num += 1
+
+        st.markdown("---")
 
         submit_btn = st.form_submit_button("💾 選択したデータを確定（CSV生成）")
 
