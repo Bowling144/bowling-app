@@ -1,4 +1,3 @@
-# --- ブロック 1: ライブラリのインポートと初期設定 ---
 import streamlit as st
 import cv2
 import numpy as np
@@ -11,6 +10,11 @@ from google.genai import types
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
+
+# ⚠️ グラフ描画用の設定
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 # --- ページ設定 ---
 st.set_page_config(page_title="ボウリング解析", layout="wide")
@@ -33,9 +37,8 @@ fallback_models = [
 # =========================================================
 # 📍 【ブロック 2】 状態管理とGoogleドライブからの画像取得
 # =========================================================
-# アプリの状態を記憶する「セッションステート」の初期化
 if "app_state" not in st.session_state:
-    st.session_state.app_state = "init"  # init, processing, done の3段階
+    st.session_state.app_state = "init"
 if "drive_images" not in st.session_state:
     st.session_state.drive_images = []
 if "analyzed_data" not in st.session_state:
@@ -43,7 +46,6 @@ if "analyzed_data" not in st.session_state:
 
 st.markdown("### 📥 ボウリング画像の読み込み")
 
-# ドライブから取得するボタン（ここで最大3枚指定します）
 if st.button("🔄 ドライブから最新の画像を読み込む（最大3枚）"):
     with st.spinner("Googleドライブを探索中..."):
         try:
@@ -57,7 +59,6 @@ if st.button("🔄 ドライブから最新の画像を読み込む（最大3枚
             )
             drive_service = build('drive', 'v3', credentials=creds)
 
-            # ⚠️ ここで取得枚数を3枚に変更
             results = drive_service.files().list(
                 q="mimeType contains 'image/' and trashed=false",
                 orderBy="createdTime desc",
@@ -79,10 +80,9 @@ if st.button("🔄 ドライブから最新の画像を読み込む（最大3枚
                         _, done = downloader.next_chunk()
                     downloaded_images.append({'name': item['name'], 'bytes': fh.getvalue()})
                 
-                # 画像データを記憶させて、処理フェーズへ移行
                 st.session_state.drive_images = downloaded_images
                 st.session_state.app_state = "processing"
-                st.rerun() # 画面をリフレッシュ
+                st.rerun()
         except Exception as e:
             st.error(f"⚠️ 読み込みエラー: {e}")
 
@@ -97,32 +97,35 @@ if not gemini_api_key:
 client = genai.Client(api_key=gemini_api_key)
 
 # =========================================================
-# 📍 【ブロック 3】 AIプロンプトの定義（複数ゲーム対応版）
+# 📍 【ブロック 3】 AIプロンプトの定義
 # =========================================================
+# 📝 ロジック変更：各ゲームごとにtimeを出力するように指示を変更
 prompt = """
 あなたはプロのボウリングスコア記録員です。
 画像はボウリングのスコアシートから、スコア部分だけを切り取って縦に並べたものです。
 あらかじめ画像解析AIによって、各フレームの投球結果が赤色で書き込まれています。これをヒントにしてください。
-以下の【ルール】に従って、フレームごとの「累計トータルスコア」のみを正確に読み取り、JSON形式で出力してください。
+以下の【ルール】に従って、フレームごとの「累計トータルスコア」と「各ゲームの開始時刻」を正確に読み取り、JSON形式で出力してください。
 
 【ルール】
 1. 各ゲームの行の下段には、「累計トータルスコア」が書かれています。1F〜10Fまでの10個の累計スコア数字を配列にしてください。
 2. ⚠️重要⚠️ 画像に複数のゲームが写っている場合は、絶対に省略せず【写っているすべてのゲーム】のデータを配列 "games" に出力してください。
-3. Markdownの記号などは一切含めず、純粋なJSON文字列だけを出力してください。
+3. 各ゲームの行の左側などに「ゲーム開始時刻」が書かれている場合は、それぞれのゲームごとの時刻を読み取ってください。
+4. Markdownの記号などは一切含めず、純粋なJSON文字列だけを出力してください。
 
 【出力フォーマット例】
 {
   "date": "2026/02/28",
-  "time": "14:30",
   "lane": "12",
   "games": [
     {
       "game_num": "GAME 1",
+      "time": "14:30",
       "frame_totals": [20, 47, 56, 86, 115, 135, 155, 185, 205, 225],
       "total": "225"
     },
     {
       "game_num": "GAME 2",
+      "time": "14:45",
       "frame_totals": [9, 18, 27, 36, 45, 54, 63, 72, 81, 90],
       "total": "90"
     }
@@ -200,9 +203,10 @@ throw_cols = [7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 
 target_indices = [8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 46, 48]
 COLOR_OPENCV = (255, 0, 0)
 COLOR_AI = (0, 0, 220)
+COLOR_PERCENT = (50, 50, 50)
 
 # =========================================================
-# 📍 【ブロック 5〜10】 解析処理ループ（複数枚を裏側で記憶）
+# 📍 【ブロック 5〜10】 解析処理ループ
 # =========================================================
 if st.session_state.app_state == "processing":
     status_text = st.empty()
@@ -412,17 +416,62 @@ if st.session_state.app_state == "processing":
         valid_1st_throw_pcts = [game_info['light_purple_data'][f]['pct'] for game_info in games_data for f in range(10) if sum(1 for row_idx, col_offset in pin_positions if game_info['pin_data'][(f, row_idx, col_offset)]['pct'] >= dyn_thresh_empty) > 0]
         if valid_1st_throw_pcts: dyn_thresh_pink = np.percentile(valid_1st_throw_pcts, 90) + 3.0
 
+        if all_global_pin_pcts:
+            plt.style.use('dark_background')
+            fig, ax1 = plt.subplots(figsize=(4.5, 2.25))
+            ax2 = ax1.twinx()
+            ax1.hist(all_global_pin_pcts, bins=50, range=(0,100), color='yellow', alpha=0.6, label=f'Pins (Thresh: {dyn_thresh_empty:.1f}%)')
+            ax2.hist(all_global_light_purple_pcts, bins=50, range=(0,100), color='mediumpurple', alpha=0.6, label=f'1st Throw (Thresh: {dyn_thresh_pink:.1f}%)')
+            ax1.axvline(dyn_thresh_empty, color='yellow', linestyle='dashed', linewidth=2)
+            ax1.axvline(dyn_thresh_pink, color='magenta', linestyle='dashed', linewidth=2)
+            lines_1, labels_1 = ax1.get_legend_handles_labels()
+            lines_2, labels_2 = ax2.get_legend_handles_labels()
+            ax1.legend(lines_1 + lines_2, labels_1 + labels_2, loc='upper right', fontsize='small')
+            ax1.set_title("Pixel Distribution & Auto Thresholds", fontsize='small')
+            fig.tight_layout()
+
+            buf = io.BytesIO()
+            fig.savefig(buf, format='png', dpi=100)
+            buf.seek(0)
+            graph_img = cv2.imdecode(np.frombuffer(buf.getvalue(), dtype=np.uint8), 1)
+            plt.close(fig)
+
+            gh, gw, _ = graph_img.shape
+            oh, ow, _ = output_img.shape
+            if oh >= gh and ow >= gw:
+                output_img[0:gh, ow-gw:ow] = graph_img
+
         for group_idx, game_info in enumerate(games_data):
             pink_inks = {f: game_info['purple_data'][f]['pct'] for f in range(10)}
             pink_inks['10_3'] = game_info['purple_data']['10_3']['pct']
             
+            for f in range(10):
+                l_data = game_info['light_purple_data'][f]
+                cv2.polylines(output_img, [l_data['pts']], isClosed=True, color=(216, 191, 216), thickness=1)
+                p_data = game_info['purple_data'][f]
+                cv2.polylines(output_img, [p_data['pts']], isClosed=True, color=(255, 105, 180), thickness=2)
+                put_rotated_text(output_img, f"{p_data['pct']:.0f}%", p_data['rx'], p_data['ry'] - 5, 0, 0, 0, COLOR_PERCENT, scale=0.4, thickness=1)
+            p_data_3 = game_info['purple_data']['10_3']
+            cv2.polylines(output_img, [p_data_3['pts']], isClosed=True, color=(255, 105, 180), thickness=2)
+            put_rotated_text(output_img, f"{p_data_3['pct']:.0f}%", p_data_3['rx'], p_data_3['ry'] - 5, 0, 0, 0, COLOR_PERCENT, scale=0.4, thickness=1)
+
             all_frame_pins = []
             for f in range(12):
                 frame_pins = []
                 for row_idx, col_offset in pin_positions:
-                    if game_info['pin_data'][(f, row_idx, col_offset)]['pct'] >= dyn_thresh_circle:
+                    pin_data = game_info['pin_data'][(f, row_idx, col_offset)]
+                    pts_y = pin_data['pts']
+                    
+                    cv2.polylines(output_img, [pts_y], isClosed=True, color=(0, 255, 255), thickness=1)
+
+                    if pin_data['pct'] >= dyn_thresh_circle:
                         pin_num = {0: 7+int(col_offset), 1: 4+int(col_offset-0.5), 2: 2+int(col_offset-1.0), 3: 1}[row_idx]
                         frame_pins.append(pin_num)
+                        
+                        p_top_left = tuple(pts_y[0][0])
+                        p_bottom_right = tuple(pts_y[2][0])
+                        cv2.line(output_img, p_top_left, p_bottom_right, (0, 255, 255), 2)
+                        
                 all_frame_pins.append(sorted(frame_pins))
 
             temp_throws = [""] * 21
@@ -485,7 +534,6 @@ if st.session_state.app_state == "processing":
                     config=types.GenerateContentConfig(response_mime_type="application/json")
                 )
                 raw_text = response.text.strip()
-                # ⚠️ バッククオートのバグ回避のため、文字を連結して判定
                 backticks = "`" * 3
                 if raw_text.startswith(backticks):
                     raw_text = "\n".join(raw_text.split('\n')[1:-1]).strip()
@@ -503,7 +551,8 @@ if st.session_state.app_state == "processing":
             
             row_data = [""] * 50
             row_data[0] = str(gemini_data.get("date") or "").replace("-", "/")
-            row_data[1] = str(gemini_data.get("time") or "")
+            # 📝 ロジック変更：ゲームごとのtimeを取得（無い場合は全体のtime、それでも無ければ空文字）
+            row_data[1] = str(g_info.get("time") or gemini_data.get("time") or "")
             row_data[2] = str(gemini_data.get("lane") or "")
             row_data[49] = str(g_info.get("total") or "")
 
@@ -564,7 +613,21 @@ if st.session_state.app_state == "processing":
             put_rotated_text(output_img, final_throws[19].replace("R:", ""), parsed_data['start_x_base'] + 9 * parsed_data['box_w'] + 10 * parsed_data['current_scale'], parsed_data['py1_local'] - 2 * parsed_data['current_scale'], parsed_data['new_ref1'][0], parsed_data['new_ref1'][1], parsed_data['theta'], throw_colors[19])
             put_rotated_text(output_img, final_throws[20].replace("R:", ""), parsed_data['start_x_base'] + 9 * parsed_data['box_w'] + 17 * parsed_data['current_scale'], parsed_data['py1_local'] - 2 * parsed_data['current_scale'], parsed_data['new_ref1'][0], parsed_data['new_ref1'][1], parsed_data['theta'], throw_colors[20])
 
-        # 解析結果をメモリ（セッションステート）に保存
+            calc_totals = calculate_bowling_score(final_throws)
+            ai_tot_int = int(g_info.get("total", 0)) if str(g_info.get("total", "")).isdigit() else int(ai_frame_totals[-1]) if ai_frame_totals else 0
+            result_text_x = parsed_data['start_x_base'] + 9 * parsed_data['box_w'] + 5 * parsed_data['current_scale']
+            result_text_y = parsed_data['py1_local'] - 10 * parsed_data['current_scale']
+
+            if calc_totals and len(ai_frame_totals) > 0 and calc_totals[-1] == ai_tot_int:
+                check_str = f"MATCH ({calc_totals[-1]})"
+                check_color = (0, 150, 0)
+            else:
+                calc_val = calc_totals[-1] if calc_totals else 0
+                check_str = f"DIFF! ({calc_val} vs {ai_tot_int})"
+                check_color = COLOR_AI
+
+            put_rotated_text(output_img, check_str, result_text_x, result_text_y, parsed_data['new_ref1'][0], parsed_data['new_ref1'][1], parsed_data['theta'], check_color, scale=0.6, thickness=2)
+
         all_analyzed_results.append({
             "filename": img_info['name'],
             "output_img": output_img,
@@ -588,11 +651,11 @@ if st.session_state.app_state == "done":
         selected_player = st.selectbox("このスコアを誰のデータとして登録しますか？", player_list)
         
         st.markdown("---")
-        register_all = st.checkbox("✅ 全てのゲームをマスターに登録する", value=True)
+        register_all = st.checkbox("全てのゲームをマスターに登録する", value=True)
         st.markdown("---")
         
         game_checkboxes = []
-        global_game_num = 1  # 全画像を通しての連番（GAME 1, GAME 2...）
+        global_game_num = 1
         
         for data_idx, data in enumerate(st.session_state.analyzed_data):
             st.markdown(f"#### 📄 画像 {data_idx+1}: {data['filename']}")
@@ -600,18 +663,30 @@ if st.session_state.app_state == "done":
             
             for local_idx, row in enumerate(data['export_data']):
                 game_name = f"GAME {global_game_num}"
-                # 内部データのGAME番号も書き換えておく
                 st.session_state.analyzed_data[data_idx]['export_data'][local_idx][3] = game_name
                 
-                ai_total = row[49]
-                col1, col2 = st.columns([1, 3])
-                with col1:
-                    is_checked = st.checkbox(f"登録 ({game_name})", value=True, key=f"check_{data_idx}_{local_idx}")
-                    game_checkboxes.append((data_idx, local_idx, is_checked))
-                with col2:
-                    st.markdown(f"**{game_name}** - トータルスコア: **{ai_total}**")
-                st.markdown("---")
+                date_str = row[0] if row[0] else "日付不明"
+                time_str = row[1] if row[1] else "時刻不明"
+                ai_total_str = row[49]
+                ai_total_int = int(ai_total_str) if str(ai_total_str).isdigit() else 0
+                
+                throws_for_calc = [row[i] for i in throw_cols]
+                calc_totals = calculate_bowling_score(throws_for_calc)
+                calc_val = calc_totals[-1] if calc_totals else 0
+
+                if calc_totals and calc_val == ai_total_int:
+                    match_status = "✅AI一致"
+                else:
+                    match_status = "⚠️AI不一致"
+                
+                display_text = f"{date_str} {game_name}_{time_str} ｜ スコア: {ai_total_str}_{match_status}"
+                
+                is_checked = st.checkbox(display_text, value=True, key=f"check_{data_idx}_{local_idx}")
+                game_checkboxes.append((data_idx, local_idx, is_checked))
+                
                 global_game_num += 1
+            
+            st.markdown("---")
 
         submit_btn = st.form_submit_button("💾 選択したデータを確定（CSV生成）")
 
