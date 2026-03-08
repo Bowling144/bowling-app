@@ -932,28 +932,70 @@ for group_idx, parsed_data in enumerate(parsed_games):
     put_rotated_text(output_img, check_str, result_text_x, result_text_y, new_ref1[0], new_ref1[1], theta, check_color, scale=0.6, thickness=2)
 
 # =========================================================
-# 📍 【ブロック 11】 CSV保存と画面表示
+# 📍 【ブロック 11】 結果画面・登録フォームとCSV保存
 # =========================================================
 status_text.empty()
 st.success("✅ 解析が完了しました！")
 
-st.subheader("📊 読み取り結果")
-for group_idx, game in enumerate(gemini_data.get("games", [])):
-    st.markdown(f"**{game.get('game_num', f'GAME {group_idx+1}')}** - トータル: {game.get('total', 'N/A')}")
-    st.write(f"各フレーム累計: {game.get('frame_totals', [])}")
-
-csv_buffer = io.StringIO()
-writer = csv.writer(csv_buffer)
-writer.writerow(["Game", "Total Score", "Frame Totals"])
-for row in all_games_export_data:
-    writer.writerow(row)
-
-st.download_button(
-    label="📥 CSVをダウンロード",
-    data=csv_buffer.getvalue(),
-    file_name="bowling_scores.csv",
-    mime="text/csv"
-)
-
 st.subheader("📸 解析画像")
 st.image(cv2.cvtColor(output_img, cv2.COLOR_BGR2RGB), use_container_width=True)
+
+st.subheader("📝 データの確認とマスター登録")
+
+# フォーム開始（チェックボックスを操作しても毎回AIが再実行されるのを防ぎます）
+with st.form("register_form"):
+    st.markdown("### 👤 プレイヤー選択")
+    player_list = ["001_田中一吉", "002_田中佳恵", "003_田中蒼之助", "004_田中柾吉", "005_米田稔", "999_ゲスト"]
+    selected_player = st.selectbox("このスコアを誰のデータとして登録しますか？", player_list)
+    
+    st.markdown("---")
+    st.markdown("### ⚙️ 登録対象の選択")
+    # 一括チェックボックス
+    register_all = st.checkbox("✅ 全てのゲームをマスターに登録する", value=True)
+    st.caption("※個別に除外したい場合は、上のチェックを外して下のリストで選択してください。")
+    
+    st.markdown("---")
+    
+    game_checkboxes = []
+    for group_idx, game in enumerate(gemini_data.get("games", [])):
+        game_name = game.get('game_num', f'GAME {group_idx+1}')
+        
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            is_checked = st.checkbox(f"登録 ({game_name})", value=True, key=f"check_{group_idx}")
+            game_checkboxes.append(is_checked)
+        with col2:
+            st.markdown(f"**{game_name}** - トータルスコア: **{game.get('total', 'N/A')}**")
+            st.write(f"各フレーム累計: {game.get('frame_totals', [])}")
+            st.info("※次フェーズで、ここに「スコア・ピンの修正ボタン」が追加されます。")
+        st.markdown("---")
+
+    # 確定ボタン
+    submit_btn = st.form_submit_button("💾 選択したデータを確定（CSV生成）")
+
+# フォームが送信（確定ボタンが押）された後の処理
+if submit_btn:
+    csv_buffer = io.StringIO()
+    writer = csv.writer(csv_buffer)
+    
+    export_count = 0
+    for group_idx, row in enumerate(all_games_export_data):
+        # 一括チェックがONなら全て対象、OFFなら個別チェックのON/OFFに従う
+        is_target = True if register_all else game_checkboxes[group_idx]
+        
+        if is_target:
+            export_row = [selected_player] + row
+            writer.writerow(export_row)
+            export_count += 1
+            
+    if export_count > 0:
+        st.success(f"✅ {selected_player} のデータを {export_count} 件確定しました！下のボタンから保存できます。")
+        st.download_button(
+            label="📥 確定済みデータをダウンロード",
+            data=csv_buffer.getvalue(),
+            file_name=f"{selected_player}_bowling.csv",
+            mime="text/csv"
+        )
+    else:
+        st.warning("⚠️ 登録対象のゲームが選択されていません。")
+
