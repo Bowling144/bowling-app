@@ -4,6 +4,7 @@ import numpy as np
 import io
 import csv
 import json
+import time  # ⏳ 3秒ルール（待機）のために追加
 from PIL import Image
 from google import genai
 from google.genai import types
@@ -26,13 +27,11 @@ with st.sidebar:
     gemini_api_key = st.text_input("Gemini APIキーを入力", type="password")
     st.markdown("※APIキーがないと累計スコアのAI読取ができません。")
 
-# ⚠️ API制限回避のため、制限が緩いFlashモデルも追加
+# ⚠️ ユーザー合意事項：Flash版を削除し、Proモデルのみに限定
 fallback_models = [
     'gemini-2.5-pro',
     'gemini-2.0-pro-exp-02-05',
-    'gemini-1.5-pro-latest',
-    'gemini-2.5-flash',
-    'gemini-1.5-flash'
+    'gemini-1.5-pro-latest'
 ]
 
 # =========================================================
@@ -701,6 +700,8 @@ if st.session_state.analyzed_results is None:
         # ⚠️ 【変更】AI通信を2回（日時用とスコア用）に分ける
         # ---------------------------------------------------------
         status_text.info(f"⚙️ 画像 {img_idx+1}: AIで日時と時間を読み取っています...")
+        time.sleep(3)  # ⏳ ユーザー合意事項：API制限回避のための3秒ルール
+
         ai_time_data = {"date": "", "times": []}
         for attempt_model in fallback_models:
             try:
@@ -719,6 +720,8 @@ if st.session_state.analyzed_results is None:
                 continue
 
         status_text.info(f"⚙️ 画像 {img_idx+1}: AIでスコアの数字を読み取っています...")
+        time.sleep(3)  # ⏳ ユーザー合意事項：API制限回避のための3秒ルール
+
         ai_score_data = {"lane": "", "games": []}
         success_score = False
         last_error = ""
