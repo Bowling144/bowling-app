@@ -14,7 +14,7 @@ from googleapiclient.http import MediaIoBaseDownload
 # ⚠️ グラフ描画用の設定
 import matplotlib
 matplotlib.use('Agg')
-import matplotlib.pyplot as plt
+import matplotlib.subplots as plt
 
 # --- ページ設定 ---
 st.set_page_config(page_title="ボウリング解析", layout="wide")
@@ -105,7 +105,7 @@ client = genai.Client(api_key=gemini_api_key)
 status_text = st.empty()
 
 # =========================================================
-# 📍 【ブロック 3】 AIプロンプトの定義（2枚の画像を処理する版に進化）
+# 📍 【ブロック 3】 AIプロンプトの定義（ゲーム数法則を追加）
 # =========================================================
 prompt = """
 あなたはプロのボウリングスコア記録員です。
@@ -119,7 +119,11 @@ prompt = """
 1. 1枚目の全体画像から「日付(date)」と「時刻(time)」を読み取ってください。時刻については、もし各ゲームの行に「ゲームごとの開始時刻」が書かれている場合は各ゲームの "time" に、用紙全体で1つの印刷時刻しかない場合は全体の "time" に入れてください。見つからない場合は無理に推測せず、空文字 "" にしてください。
 2. 2枚目の切り抜き画像を使って、各ゲームの下段に書かれている「累計トータルスコア」を正確に読み取ってください。（1F〜10Fまでの10個の累計スコア数字を配列にしてください）
 3. ⚠️重要⚠️ 複数のゲームが写っている場合は、絶対に省略せず【写っているすべてのゲーム】のデータを配列 "games" に出力してください。
-4. Markdownの記号(```json)などは一切含めず、純粋なJSON文字列だけを出力してください。
+4. ⚠️重要⚠️「ゲーム数 (game_num)」の読み取りには以下の厳密な法則があります。AIの認識間違いを防ぐため、必ずこの法則通りに出力してください。
+   - 1段目のゲーム（一番上）は、「GAME 1」「GAME 7」「GAME 13」のいずれかになります（6ゲームずつ増えた数になります）。
+   - 2段目以降（一段下がるごと）のゲーム数は、上の段のゲーム数に「+1」した数になります。（例：1段目がGAME 7なら、2段目はGAME 8、3段目はGAME 9）。
+   - 出力時は必ず "GAME 7" のように「GAME + 数字」の形式にしてください。
+5. Markdownの記号(```json)などは一切含めず、純粋なJSON文字列だけを出力してください。
 
 【出力フォーマット例】
 {
@@ -656,7 +660,6 @@ for img_idx, img_data in enumerate(st.session_state.raw_images_data):
             'box_w': box_w, 'py1_local': py1_local, 'new_ref1': new_ref1
         })
 
-    # --- ブロック9: Geminiに【全体画像】と【カンペ画像】の2枚を渡す ---
     score_crops = []
     for group_idx, ((r1x, r1y), (r2x, r2y)) in enumerate(group_refs):
         pt1 = np.array([r1x, r1y, 1.0])
@@ -688,7 +691,6 @@ for img_idx, img_data in enumerate(st.session_state.raw_images_data):
     else:
         img_pil = Image.fromarray(cv2.cvtColor(img_for_ai, cv2.COLOR_BGR2RGB))
 
-    # ★追加：全体画像をPIL形式に変換（日付・時刻読み取り用）
     img_full_pil = Image.fromarray(cv2.cvtColor(output_img, cv2.COLOR_BGR2RGB))
 
     gemini_data = {"date": "", "time": "", "lane": "", "games": []}
@@ -698,7 +700,6 @@ for img_idx, img_data in enumerate(st.session_state.raw_images_data):
         try:
             response = client.models.generate_content(
                 model=attempt_model,
-                # ★修正：AIに「全体画像」と「カンペ画像」の2枚をセットで渡す
                 contents=[prompt, img_full_pil, img_pil],
                 config=types.GenerateContentConfig(response_mime_type="application/json")
             )
@@ -715,10 +716,8 @@ for img_idx, img_data in enumerate(st.session_state.raw_images_data):
     if not success:
         st.warning(f"⚠️ {file_name}: AI読み取りに一部失敗しました（データが空になる可能性があります）。")
 
-    # === 【追加】AIバージョンを画像に書き込む ===
     used_model = attempt_model.upper() if success else "AI_FAILED"
     cv2.putText(output_img, f"AI Ver: {used_model}", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 0, 0), 3, cv2.LINE_AA)
-    # ============================================
 
     if isinstance(gemini_data, list):
         gemini_data = {"date": "", "time": "", "lane": "", "games": gemini_data}
@@ -744,7 +743,6 @@ for img_idx, img_data in enumerate(st.session_state.raw_images_data):
         games_list = gemini_data.get("games") or []
         g_info = games_list[group_idx] if group_idx < len(games_list) else {}
 
-        # 時刻は「ゲームごと」優先、無ければ「全体」、それでも無ければ「時刻不明」
         row_data[1] = str(g_info.get("time") or gemini_data.get("time") or "")
         row_data[2] = str(gemini_data.get("lane") or "")
 
@@ -896,7 +894,6 @@ for img_idx, img_data in enumerate(st.session_state.raw_images_data):
         "all_games_export_data": all_games_export_data
     })
 
-# === 【修正】インデントを左にずらしてループ外に出す ===
 st.session_state.analyzed_results = analyzed_results
 status_text.empty()
 st.rerun()
@@ -922,14 +919,14 @@ if st.session_state.analyzed_results:
         for res in st.session_state.analyzed_results:
             st.markdown(f"#### 📄 画像 {global_game_num}: {res['file_name']}")
             
-            # === 【変更】スライダーを追加し、st.imageの書き方を変更 ===
             zoom_width = st.slider(f"🔍 画像の表示サイズを調整（画像 {global_game_num}）", min_value=600, max_value=3000, value=1200, key=f"zoom_{global_game_num}")
             st.image(cv2.cvtColor(res['output_img'], cv2.COLOR_BGR2RGB), width=zoom_width)
-            # ==========================================================
 
             for local_idx, row in enumerate(res['all_games_export_data']):
-                game_name = f"GAME {global_game_num}"
-                row[3] = game_name
+                # === 変更箇所：強制的な通し番号の上書きを廃止 ===
+                # AIが読み取った本来のゲーム数（row[3]）をそのまま使う
+                game_name = row[3] 
+                # ================================================
 
                 date_str = row[0] if row[0] else "日付不明"
                 time_str = row[1] if row[1] else "時刻不明"
