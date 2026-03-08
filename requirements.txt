@@ -6,3 +6,5 @@ gspread
 google-auth
 Pillow
 matplotlib
+google-api-python-client
+google-auth
