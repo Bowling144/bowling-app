@@ -715,4 +715,3 @@ if st.session_state.app_state == "done":
             )
         else:
             st.warning("⚠️ 登録対象のゲームが選択されていません。")
-
