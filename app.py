@@ -14,7 +14,7 @@ from googleapiclient.http import MediaIoBaseDownload
 # ⚠️ グラフ描画用の設定
 import matplotlib
 matplotlib.use('Agg')
-import matplotlib.subplots as plt
+import matplotlib.pyplot as plt
 
 # --- ページ設定 ---
 st.set_page_config(page_title="ボウリング解析", layout="wide")
