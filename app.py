@@ -49,10 +49,14 @@ if "drive_image_bytes" not in st.session_state:
 if st.button("🔄 ドライブから最新の画像を読み込む"):
     with st.spinner("Googleドライブを探索中..."):
         try:
-            # Secretsの文字列をJSONデータとして読み込む（★ここを修正しました）
+            # ⚠️修正: 改行文字(コントロール文字)が原因でエラーになるのを防ぐ (strict=False)
             creds_json_str = st.secrets["google_credentials"]
-            creds_info = json.loads(creds_json_str)
+            creds_info = json.loads(creds_json_str, strict=False)
             
+            # 念のため、秘密鍵の中の改行がGoogle認証用に正しく認識されるよう補正
+            if "private_key" in creds_info:
+                creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
+
             creds = service_account.Credentials.from_service_account_info(
                 creds_info, scopes=['https://www.googleapis.com/auth/drive.readonly']
             )
@@ -105,9 +109,7 @@ if img is None:
     st.error("⚠️ 画像データの変換に失敗しました。")
     st.stop()
 
-status_text = st.empty()
-
-    
+status_text = st.empty()    
     
     
 
