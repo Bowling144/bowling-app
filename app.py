@@ -696,11 +696,11 @@ if st.session_state.analyzed_results is None:
 
         img_pil_full = Image.fromarray(cv2.cvtColor(output_img, cv2.COLOR_BGR2RGB))
 
-        # ---------------------------------------------------------
+# ---------------------------------------------------------
         # ⚠️ 【変更】AI通信を2回（日時用とスコア用）に分ける
         # ---------------------------------------------------------
         status_text.info(f"⚙️ 画像 {img_idx+1}: AIで日時と時間を読み取っています...")
-        time.sleep(3)  # ⏳ ユーザー合意事項：API制限回避のための3秒ルール
+        time.sleep(3)  # ⏳ API制限回避のための基本待機
 
         ai_time_data = {"date": "", "times": []}
         for attempt_model in fallback_models:
@@ -709,7 +709,7 @@ if st.session_state.analyzed_results is None:
                     model=attempt_model,
                     contents=[prompt_time, img_pil_full], # 全体画像だけ渡す
                     config=types.GenerateContentConfig(
-                        temperature=0.0, # 👈 追加: ブレを完全に封印
+                        temperature=0.0, # 👈 ブレを完全に封印
                         response_mime_type="application/json"
                     )
                 )
@@ -719,11 +719,12 @@ if st.session_state.analyzed_results is None:
                     raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
                 ai_time_data = json.loads(raw_text)
                 break
-            except Exception:
+            except Exception as e:
+                time.sleep(2) # 👈 修正: 連続エラーによるAPI制限（429）を防ぐための待機
                 continue
 
         status_text.info(f"⚙️ 画像 {img_idx+1}: AIでスコアの数字を読み取っています...")
-        time.sleep(3)  # ⏳ ユーザー合意事項：API制限回避のための3秒ルール
+        time.sleep(3)  # ⏳ API制限回避のための基本待機
 
         ai_score_data = {"lane": "", "games": []}
         success_score = False
@@ -735,7 +736,7 @@ if st.session_state.analyzed_results is None:
                     model=attempt_model,
                     contents=[prompt_score, img_pil_scores], # 切り抜き画像だけ渡す
                     config=types.GenerateContentConfig(
-                        temperature=0.0, # 👈 追加: ブレを完全に封印
+                        temperature=0.0, # 👈 ブレを完全に封印
                         response_mime_type="application/json"
                     )
                 )
@@ -749,6 +750,7 @@ if st.session_state.analyzed_results is None:
                 break
             except Exception as e:
                 last_error = str(e)
+                time.sleep(2) # 👈 修正: 連続エラーによるAPI制限（429）を防ぐための待機
                 continue
 
         if not success_score:
@@ -756,12 +758,13 @@ if st.session_state.analyzed_results is None:
 
         cv2.putText(output_img, f"AI Ver: {used_model}", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 0, 0), 3, cv2.LINE_AA)
 
+        
         if isinstance(ai_score_data, list):
             ai_score_data = {"games": ai_score_data}
         elif not isinstance(ai_score_data, dict):
             ai_score_data = {"games": []}
 
-# =========================================================
+        # =========================================================
         # 📍 【ブロック 10内】 時刻とゲーム数の割り当て修正
         # =========================================================
         # 読み取った日時データとスコアデータを結合
