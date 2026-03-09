@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 
 # --- ページ設定 ---
 st.set_page_config(page_title="ボウリング解析", layout="wide")
-st.title("🎳 ボウリングスコア自動解析システム")
+st.title("🎳 Eagle ROLLERS Stats")
 
 # --- サイドバー：APIキー入力 ---
 with st.sidebar:
@@ -29,8 +29,8 @@ with st.sidebar:
 
 # ⚠️ AIモデル設定：Proモデルのみに限定し、最新モデルを最優先
 fallback_models = [
-    'gemini-1.5-pro',
-    'gemini-1.5-pro-latest',
+    'gemini-3.1-pro',
+    'gemini-3.0-pro',
     'gemini-2.5-pro',
     'gemini-2.0-pro-exp-02-05'
 ]
@@ -45,7 +45,7 @@ if "raw_images_data" not in st.session_state:
 if "analyzed_results" not in st.session_state:
     st.session_state.analyzed_results = None
 
-st.markdown("### 📥 ボウリング画像の読み込み")
+st.markdown("### 📥 スコアシート読み込み")
 
 if st.button("🔄 ドライブから最新の画像を取得（最大3枚）"):
     with st.spinner("Googleドライブを探索中..."):
@@ -221,8 +221,9 @@ def put_rotated_text(img, text, local_x, local_y, ref_x, ref_y, theta, color, sc
     rot_p = R.dot(p) + np.array([ref_x, ref_y])
     cv2.putText(img, text, (int(rot_p[0]), int(rot_p[1])), cv2.FONT_HERSHEY_SIMPLEX, scale, color, thickness, cv2.LINE_AA)
 
-throw_cols = [7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47]
-target_indices = [8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 46, 48]
+# ★終了時刻追加に伴い、列インデックスを+1シフト
+throw_cols = [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48]
+target_indices = [9, 13, 17, 21, 25, 29, 33, 37, 41, 45, 47, 49]
 pin_positions = [(0, 0.0), (0, 1.0), (0, 2.0), (0, 3.0), (1, 0.5), (1, 1.5), (1, 2.5), (2, 1.0), (2, 2.0), (3, 1.5)]
 
 COLOR_OPENCV = (255, 0, 0)
@@ -762,10 +763,17 @@ if st.session_state.analyzed_results is None:
         elif not isinstance(ai_score_data, dict):
             ai_score_data = {"games": []}
 
+# =========================================================
+        # 📍 【ブロック 10内】 時刻とゲーム数の割り当て修正
+        # =========================================================
         # 読み取った日時データとスコアデータを結合
         global_date = str(ai_time_data.get("date") or "").replace("-", "/")
         time_list = ai_time_data.get("times") or []
         if not isinstance(time_list, list): time_list = [time_list]
+        
+        # ★修正：リストの最初を開始時刻、最後を終了時刻とする
+        start_time = str(time_list[0]) if time_list else ""
+        end_time = str(time_list[-1]) if len(time_list) > 1 else start_time
 
         for group_idx, parsed_data in enumerate(parsed_games):
             pink_inks = parsed_data['pink_inks']
@@ -780,28 +788,24 @@ if st.session_state.analyzed_results is None:
             py1_local = parsed_data['py1_local']
             new_ref1 = parsed_data['new_ref1']
 
-            row_data = [""] * 50
+            row_data = [""] * 51  # ★列が1つ増えたので51に変更
             row_data[0] = global_date
+            row_data[1] = start_time  # 開始時刻
+            row_data[2] = end_time    # ★終了時刻をC列に挿入
 
             games_list = ai_score_data.get("games") or []
             g_info = games_list[group_idx] if group_idx < len(games_list) else {}
 
-            # 時刻は、配列の上から順番に割り当てる（足りなければ最後の時刻を使う、無ければ空）
-            game_time = ""
-            if time_list:
-                time_idx = min(group_idx, len(time_list) - 1)
-                game_time = str(time_list[time_idx])
-            row_data[1] = game_time
-
-            row_data[2] = str(ai_score_data.get("lane") or "")
+            row_data[3] = str(ai_score_data.get("lane") or "")  # 以降、インデックスを+1
 
             ai_frame_totals = g_info.get("frame_totals") or []
             if not isinstance(ai_frame_totals, list): ai_frame_totals = []
             while len(ai_frame_totals) < 10: ai_frame_totals.append(0)
 
             ai_total = g_info.get("total") or ""
-            row_data[3] = g_info.get("game_num") or f"GAME {group_idx+1}"
-            row_data[49] = str(ai_total)
+            
+            row_data[4] = g_info.get("game_num") or f"GAME {group_idx+1}"
+            row_data[50] = str(ai_total)
 
             for f in range(9): row_data[target_indices[f]] = ",".join(map(str, all_frame_pins[f]))
             row_data[target_indices[9]] = ",".join(map(str, p9))
@@ -812,6 +816,8 @@ if st.session_state.analyzed_results is None:
             else:
                 row_data[target_indices[10]] = ""
                 row_data[target_indices[11]] = ",".join(map(str, p10))
+
+            # --- （ここから下の final_throws などの計算部分は既存のまま変更なし） ---
 
             final_throws = [""] * 21
             throw_colors = [COLOR_OPENCV] * 21
@@ -962,23 +968,30 @@ if st.session_state.analyzed_results:
         st.markdown("---")
 
         game_checkboxes = []
-        global_game_num = 1
 
-        for res in st.session_state.analyzed_results:
-            st.markdown(f"#### 📄 画像 {global_game_num}: {res['file_name']}")
+        for img_idx, res in enumerate(st.session_state.analyzed_results):
+            st.markdown(f"#### 📄 画像 {img_idx + 1}: {res['file_name']}")
 
-            zoom_width = st.slider(f"🔍 画像の表示サイズを調整（画像 {global_game_num}）", min_value=600, max_value=3000, value=1200, key=f"zoom_{global_game_num}")
+            zoom_width = st.slider(f"🔍 画像の表示サイズを調整（画像 {img_idx + 1}）", min_value=600, max_value=3000, value=1200, key=f"zoom_{img_idx}")
             st.image(cv2.cvtColor(res['output_img'], cv2.COLOR_BGR2RGB), width=zoom_width)
 
             for local_idx, row in enumerate(res['all_games_export_data']):
-                game_name = f"GAME {global_game_num}"
-                row[3] = game_name
-
-                date_str = row[0] if row[0] else "日付不明"
-                time_str = row[1] if row[1] else "時刻不明"
-                ai_total_str = row[49] if row[49] else "_"
+                # スプレッドシート出力用のデータ取得
+                date_str = row[0] if row[0] else "不明"
+                start_str = row[1] if row[1] else "不明"
+                end_str = row[2] if row[2] else "不明"
+                game_name = row[4] if row[4] else f"GAME {local_idx + 1}"
+                ai_total_str = row[50] if row[50] else "_"
                 ai_total_int = int(ai_total_str) if str(ai_total_str).isdigit() else 0
 
+                # ★修正：省略表示の作成 (2026/02/07 -> 26/02/07, GAME 7 -> G7)
+                short_date = date_str[2:] if date_str.startswith("20") else date_str
+                short_game = game_name.replace("GAME ", "G")
+                
+                # 開始と終了が同じ時刻しか読めなかった場合は1つだけ表示
+                time_display = f"{start_str}-{end_str}" if start_str != end_str and end_str != "不明" else start_str
+
+                # スコア計算による一致確認
                 throws_for_calc = [row[i] for i in throw_cols]
                 calc_totals = calculate_bowling_score(throws_for_calc)
                 calc_val = calc_totals[-1] if calc_totals else 0
@@ -988,7 +1001,8 @@ if st.session_state.analyzed_results:
                 else:
                     match_status = "⚠️AI不一致"
 
-                display_text = f"{date_str} {game_name}_{time_str} ｜ スコア: {ai_total_str}_{match_status}"
+                # ★修正：コンパクトなIDフォーマット
+                display_text = f"{short_date}_{time_display}_{short_game}_{ai_total_str}_{match_status}"
 
                 is_checked = st.checkbox(display_text, value=True, key=f"check_{res['file_name']}_{local_idx}")
 
@@ -996,8 +1010,6 @@ if st.session_state.analyzed_results:
                     "is_checked": is_checked,
                     "export_row": row
                 })
-
-                global_game_num += 1
 
             st.markdown("---")
 
