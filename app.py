@@ -98,23 +98,25 @@ client = genai.Client(api_key=gemini_api_key)
 status_text = st.empty()
 
 # =========================================================
-# 📍 【ブロック 3】 AIプロンプトの定義（シンプルな安定版）
+# 📍 【AIプロンプトの定義】（既存のプロンプト部分と差し替え）
 # =========================================================
-prompt_time = """
+prompt_metadata = """
 画像はボウリングのスコアシートの全体写真です。
-この画像から「日付」と「印字されているすべての時刻」を探し出し、以下のJSON形式で出力してください。
+この画像から「日付」「最初のゲーム数」「開始時刻」「終了時刻」を探し出し、以下のJSON形式で出力してください。
 
 【ルール】
-1. 日付は "YYYY/MM/DD" の形式で "date" に入れてください。
-2. 時刻は、各ゲームの行などに複数書かれている場合は、上から順に配列として "times" にすべて入れてください。
-3. 全体で1つの時刻しか見当たらない場合は、配列の中にその1つの時刻だけを入れてください。
-4. 見つからない場合は無理に推測せず、空にしてください。
+1. 日付: 中央上部にある黒い文字。「YY/MM/DD」の形式で "date" に出力。
+2. 最初のゲーム数: 左側の角が丸い枠内の記載。GAME1, GAME7, GAME13, GAME19, GAME25のいずれか。「1」などの数値のみを "start_game_num" に出力。
+3. 開始時刻: 1枚のスコアシートの1ゲーム目の8フレーム目のスコアの上に記載。"HH:MM" 形式で "start_time" に出力。見つからなければ "時刻不明" にする。
+4. 終了時刻: 1枚のスコアシートの一番最後のゲームの9フレーム目のスコアの上に記載。"HH:MM" 形式で "end_time" に出力。見つからなければ "時刻不明" にする。
 5. Markdownの記号などは一切含めず、純粋なJSON文字列だけを出力してください。
 
 【出力フォーマット例】
 {
-  "date": "2026/02/28",
-  "times": ["14:12", "14:25", "14:38"]
+  "date": "26/02/07",
+  "start_game_num": 1,
+  "start_time": "14:12",
+  "end_time": "15:30"
 }
 """
 
@@ -138,15 +140,11 @@ prompt_score = """
       "game_num": "GAME 1",
       "frame_totals": [20, 47, 56, 86, 115, 135, 155, 185, 205, 225],
       "total": "225"
-    },
-    {
-      "game_num": "GAME 2",
-      "frame_totals": [9, 18, 27, 36, 45, 54, 63, 72, 81, 90],
-      "total": "90"
     }
   ]
 }
 """
+
 
 # =========================================================
 # 📍 【ブロック 4】 共通関数・定数定義（安定版の50列構成）
@@ -692,31 +690,10 @@ if st.session_state.analyzed_results is None:
 
         img_pil_full = Image.fromarray(cv2.cvtColor(output_img, cv2.COLOR_BGR2RGB))
 
-        status_text.info(f"⚙️ 画像 {img_idx+1}: AIで日時と時間を読み取っています...")
-        time.sleep(3)
-
-        ai_time_data = {"date": "", "times": []}
-        for attempt_model in fallback_models:
-            try:
-                response = client.models.generate_content(
-                    model=attempt_model,
-                    contents=[prompt_time, img_pil_full],
-                    config=types.GenerateContentConfig(
-                        temperature=0.0,
-                        response_mime_type="application/json"
-                    )
-                )
-                raw_text = response.text.strip()
-                if raw_text.startswith("```"):
-                    lines = raw_text.split('\n')
-                    raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
-                ai_time_data = json.loads(raw_text)
-                break
-            except Exception:
-                time.sleep(2)
-                continue
-
-        status_text.info(f"⚙️ 画像 {img_idx+1}: AIでスコアの数字を読み取っています...")
+        # ---------------------------------------------------------
+        # 📍 【ブロック 9】 AIによるテキスト読み取り（スコア → 日時）
+        # ---------------------------------------------------------
+        status_text.info(f"⚙️ 画像 {img_idx+1}: AIでスコアの数字を最優先で読み取っています...")
         time.sleep(3)
 
         ai_score_data = {"lane": "", "games": []}
@@ -749,6 +726,33 @@ if st.session_state.analyzed_results is None:
         if not success_score:
             st.warning(f"⚠️ {file_name}: AIのスコア読み取りに失敗しました。理由: {last_error}")
 
+        status_text.info(f"⚙️ 画像 {img_idx+1}: AIで日付・時刻・ゲーム数を追加解析しています...")
+        time.sleep(3)
+
+        ai_meta_data = {"date": "日付不明", "start_time": "時刻不明", "end_time": "時刻不明", "start_game_num": 1}
+        for attempt_model in fallback_models:
+            try:
+                response = client.models.generate_content(
+                    model=attempt_model,
+                    contents=[prompt_metadata, img_pil_full],
+                    config=types.GenerateContentConfig(
+                        temperature=0.0,
+                        response_mime_type="application/json"
+                    )
+                )
+                raw_text = response.text.strip()
+                if raw_text.startswith("```"):
+                    lines = raw_text.split('\n')
+                    raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
+                ai_meta_data = json.loads(raw_text)
+                break
+            except Exception:
+                time.sleep(2)
+                continue
+
+        # ---------------------------------------------------------
+        # 📍 【ブロック 10】 解析結果の統合とデータ整形
+        # ---------------------------------------------------------
         cv2.putText(output_img, f"AI Ver: {used_model}", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 0, 0), 3, cv2.LINE_AA)
 
         if isinstance(ai_score_data, list):
@@ -756,9 +760,13 @@ if st.session_state.analyzed_results is None:
         elif not isinstance(ai_score_data, dict):
             ai_score_data = {"games": []}
 
-        global_date = str(ai_time_data.get("date") or "").replace("-", "/")
-        time_list = ai_time_data.get("times") or []
-        if not isinstance(time_list, list): time_list = [time_list]
+        global_date = str(ai_meta_data.get("date", "日付不明")).replace("-", "/")
+        start_time = str(ai_meta_data.get("start_time", "時刻不明"))
+        end_time = str(ai_meta_data.get("end_time", "時刻不明"))
+        try:
+            base_game_num = int(ai_meta_data.get("start_game_num", 1))
+        except:
+            base_game_num = 1
 
         for group_idx, parsed_data in enumerate(parsed_games):
             pink_inks = parsed_data['pink_inks']
@@ -773,27 +781,23 @@ if st.session_state.analyzed_results is None:
             py1_local = parsed_data['py1_local']
             new_ref1 = parsed_data['new_ref1']
 
-            row_data = [""] * 50
+            row_data = [""] * 51
             row_data[0] = global_date
+            row_data[1] = start_time
+            row_data[2] = end_time 
+            row_data[3] = str(ai_score_data.get("lane") or "")
 
             games_list = ai_score_data.get("games") or []
             g_info = games_list[group_idx] if group_idx < len(games_list) else {}
-
-            game_time = ""
-            if time_list:
-                time_idx = min(group_idx, len(time_list) - 1)
-                game_time = str(time_list[time_idx])
-            row_data[1] = game_time
-
-            row_data[2] = str(ai_score_data.get("lane") or "")
 
             ai_frame_totals = g_info.get("frame_totals") or []
             if not isinstance(ai_frame_totals, list): ai_frame_totals = []
             while len(ai_frame_totals) < 10: ai_frame_totals.append(0)
 
             ai_total = g_info.get("total") or ""
-            row_data[3] = g_info.get("game_num") or f"GAME {group_idx+1}"
-            row_data[49] = str(ai_total)
+            current_game_num = base_game_num + group_idx
+            row_data[4] = f"G{current_game_num}"
+            row_data[50] = str(ai_total)
 
             for f in range(9): row_data[target_indices[f]] = ",".join(map(str, all_frame_pins[f]))
             row_data[target_indices[9]] = ",".join(map(str, p9))
@@ -931,7 +935,8 @@ if st.session_state.analyzed_results is None:
         analyzed_results.append({
             "file_name": file_name,
             "output_img": output_img,
-            "all_games_export_data": all_games_export_data
+            "all_games_export_data": all_games_export_data,
+            "meta_data": ai_meta_data
         })
 
     st.session_state.analyzed_results = analyzed_results
@@ -954,21 +959,22 @@ if st.session_state.analyzed_results:
         st.markdown("---")
 
         game_checkboxes = []
-        global_game_num = 1
 
-        for res in st.session_state.analyzed_results:
-            st.markdown(f"#### 📄 画像 {global_game_num}: {res['file_name']}")
+        for img_idx, res in enumerate(st.session_state.analyzed_results):
+            st.markdown(f"#### 📄 画像 {img_idx+1}: {res['file_name']}")
 
-            zoom_width = st.slider(f"🔍 画像の表示サイズを調整（画像 {global_game_num}）", min_value=600, max_value=3000, value=1200, key=f"zoom_{global_game_num}")
+            zoom_width = st.slider(f"🔍 画像の表示サイズを調整（画像 {img_idx+1}）", min_value=600, max_value=3000, value=1200, key=f"zoom_{img_idx}")
             st.image(cv2.cvtColor(res['output_img'], cv2.COLOR_BGR2RGB), width=zoom_width)
 
-            for local_idx, row in enumerate(res['all_games_export_data']):
-                game_name = f"GAME {global_game_num}"
-                row[3] = game_name
+            meta = res.get("meta_data", {})
+            date_str = meta.get("date", "日付不明")
+            start_time = meta.get("start_time", "時刻不明")
+            end_time = meta.get("end_time", "時刻不明")
 
-                date_str = row[0] if row[0] else "日付不明"
-                time_str = row[1] if row[1] else "時刻不明"
-                ai_total_str = row[49] if row[49] else "_"
+            for local_idx, row in enumerate(res['all_games_export_data']):
+                game_name = row[4] # G1などが格納済み
+
+                ai_total_str = row[50] if row[50] else "_"
                 ai_total_int = int(ai_total_str) if str(ai_total_str).isdigit() else 0
 
                 throws_for_calc = [row[i] for i in throw_cols]
@@ -980,7 +986,8 @@ if st.session_state.analyzed_results:
                 else:
                     match_status = "⚠️AI不一致"
 
-                display_text = f"{date_str} {game_name}_{time_str} ｜ スコア: {ai_total_str}_{match_status}"
+                # 画面表示フォーマットの指定反映
+                display_text = f"{date_str}_{start_time}_{end_time}_{game_name}｜{ai_total_str}_{match_status}"
 
                 is_checked = st.checkbox(display_text, value=True, key=f"check_{res['file_name']}_{local_idx}")
 
@@ -988,8 +995,6 @@ if st.session_state.analyzed_results:
                     "is_checked": is_checked,
                     "export_row": row
                 })
-
-                global_game_num += 1
 
             st.markdown("---")
 
