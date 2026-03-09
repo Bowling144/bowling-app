@@ -26,7 +26,7 @@ with st.sidebar:
 # 修正後
 client = genai.Client(
     api_key=gemini_api_key,
-    http_options={'api_version': 'v1beta'}
+    http_options={'api_version': 'v1alpha'}
 )
     st.markdown("※APIキーがないと累計スコアのAI読取ができません。")
 
