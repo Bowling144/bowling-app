@@ -23,17 +23,19 @@ st.title("🎳 Eagle ROLLERS")
 # --- サイドバー：APIキー入力 ---
 with st.sidebar:
     st.header("⚙️ 設定")
-# 修正後
-client = genai.Client(
-    api_key=gemini_api_key,
-    http_options={'api_version': 'v1alpha'}
-)
+    gemini_api_key = st.text_input("Gemini APIキーを入力", type="password")
     st.markdown("※APIキーがないと累計スコアのAI読取ができません。")
+
 
 # ⚠️ AIモデル設定：Flash版を除外し、Proモデルに限定（存在しないモデル名によるエラーを防止）
 fallback_models = [
-    'gemini-2.5-pro'
+    'gemini-3.0-pro',
+    'gemini-2.5-pro',
+    'gemini-2.0-pro-exp-02-05',
+    'gemini-1.5-pro-latest',
+    'gemini-1.5-pro'
 ]
+
 
 # =========================================================
 # 📍 【ブロック 2】 状態管理とGoogleドライブからの画像取得
