@@ -909,6 +909,7 @@ if st.session_state.analyzed_results is None:
                 t2 = final_throws[f*2+1].replace("R:", "")
                 put_rotated_text(output_img, t2, start_x_base + f * box_w + 10 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, throw_colors[f*2+1])
 
+# --- 【ここから下を差し替え】 ---
             f = 9
             t1 = final_throws[18].replace("R:", "")
             put_rotated_text(output_img, t1, start_x_base + f * box_w + 3 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, throw_colors[18])
@@ -917,7 +918,13 @@ if st.session_state.analyzed_results is None:
             t3 = final_throws[20].replace("R:", "")
             put_rotated_text(output_img, t3, start_x_base + f * box_w + 17 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, throw_colors[20])
 
-            calc_totals = calculate_bowling_score(final_throws)
+            # 【修正点1】関数に渡す前に "R:" を削除し、エラー時はアプリを落とさずスキップする
+            clean_throws = [str(t).replace("R:", "") for t in final_throws]
+            try:
+                calc_totals = calculate_bowling_score(clean_throws)
+            except Exception:
+                calc_totals = []
+
             ai_tot_int = int(ai_total) if str(ai_total).isdigit() else int(ai_frame_totals[-1]) if ai_frame_totals else 0
             result_text_x = start_x_base + 9 * box_w + 5 * current_scale
             result_text_y = py1_local - 10 * current_scale
@@ -972,21 +979,25 @@ if st.session_state.analyzed_results:
             end_time = meta.get("end_time", "時刻不明")
 
             for local_idx, row in enumerate(res['all_games_export_data']):
-                game_name = row[4] # G1などが格納済み
+                game_name = row[4]
 
                 ai_total_str = row[50] if row[50] else "_"
                 ai_total_int = int(ai_total_str) if str(ai_total_str).isdigit() else 0
 
-                throws_for_calc = [row[i] for i in throw_cols]
-                calc_totals = calculate_bowling_score(throws_for_calc)
-                calc_val = calc_totals[-1] if calc_totals else 0
+                # 【修正点2】ここでも "R:" を削除し、エラーで止まらないように安全装置を追加
+                throws_for_calc = [str(row[i]).replace("R:", "") for i in throw_cols]
+                try:
+                    calc_totals = calculate_bowling_score(throws_for_calc)
+                    calc_val = calc_totals[-1] if calc_totals else 0
+                except Exception:
+                    calc_totals = []
+                    calc_val = 0
 
                 if calc_totals and calc_val == ai_total_int:
                     match_status = "✅AI一致"
                 else:
                     match_status = "⚠️AI不一致"
 
-                # 画面表示フォーマットの指定反映
                 display_text = f"{date_str}_{start_time}_{end_time}_{game_name}｜{ai_total_str}_{match_status}"
 
                 is_checked = st.checkbox(display_text, value=True, key=f"check_{res['file_name']}_{local_idx}")
