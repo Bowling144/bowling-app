@@ -23,6 +23,7 @@ st.title("🎳 Eagle ROLLERS")
 # --- サイドバー：APIキー入力 ---
 with st.sidebar:
     st.header("⚙️ 設定")
+# 修正後
 client = genai.Client(
     api_key=gemini_api_key,
     http_options={'api_version': 'v1beta'}
