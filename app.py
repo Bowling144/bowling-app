@@ -27,14 +27,12 @@ with st.sidebar:
     gemini_api_key = st.text_input("Gemini APIキーを入力", type="password")
     st.markdown("※APIキーがないと累計スコアのAI読取ができません。")
 
-# ⚠️ AIモデル設定：Proモデルのみに限定し、最新モデルを最優先
+# ⚠️ AIモデル設定：APIで利用可能な最新のProモデルに限定
 fallback_models = [
-    'gemini-3.1-pro',
-    'gemini-3.0-pro',
     'gemini-2.5-pro',
-    'gemini-2.0-pro-exp-02-05'
+    'gemini-2.0-pro-exp-02-05',
+    'gemini-1.5-pro'
 ]
-
 # =========================================================
 # 📍 【ブロック 2】 状態管理とGoogleドライブからの画像取得
 # =========================================================
