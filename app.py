@@ -27,11 +27,10 @@ with st.sidebar:
     gemini_api_key = st.text_input("Gemini APIキーを入力", type="password")
     st.markdown("※APIキーがないと累計スコアのAI読取ができません。")
 
-# ⚠️ AIモデル設定：APIで利用可能な最新のProモデルに限定
+# ⚠️ AIモデル設定：ご指示に基づき2.5 Pro以上に厳密化
 fallback_models = [
     'gemini-2.5-pro',
-    'gemini-2.0-pro-exp-02-05',
-    'gemini-1.5-pro'
+    'gemini-2.0-pro-exp-02-05'
 ]
 
 
