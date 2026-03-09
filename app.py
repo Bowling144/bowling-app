@@ -27,11 +27,12 @@ with st.sidebar:
     gemini_api_key = st.text_input("Gemini APIキーを入力", type="password")
     st.markdown("※APIキーがないと累計スコアのAI読取ができません。")
 
-# ⚠️ ユーザー合意事項：Flash版を削除し、Proモデルのみに限定
+# ⚠️ AIモデル設定：Proモデルのみに限定し、最新モデルを最優先
 fallback_models = [
+    'gemini-1.5-pro',
+    'gemini-1.5-pro-latest',
     'gemini-2.5-pro',
-    'gemini-2.0-pro-exp-02-05',
-    'gemini-1.5-pro-latest'
+    'gemini-2.0-pro-exp-02-05'
 ]
 
 # =========================================================
@@ -130,7 +131,7 @@ prompt_score = """
 
 【ルール】
 1. 各ゲームの行の下段には、「累計トータルスコア」が書かれています。1F〜10Fまでの10個の累計スコア数字を配列にしてください。
-2. ⚠️重要⚠️ 複数のゲームが写っている場合は、絶対に省略せず【写っているすべてのゲーム】のデータを配列 "games" に出力してください。
+2. 複数のゲームが写っている場合は、写っているすべてのゲームのデータを配列 "games" に出力してください。
 3. 日付や時間は読まなくて構いません。スコアの数字だけに集中してください。
 4. Markdownの記号などは一切含めず、純粋なJSON文字列だけを出力してください。
 
@@ -465,17 +466,17 @@ if st.session_state.analyzed_results is None:
                 else: pct = 0
                 game_info['purple_data'][f] = {'pct': pct, 'pts': pts_purple, 'rx': rx, 'ry': ry}
 
-                if f == 9:
-                    px1_3 = start_x_base + 9 * box_w + 14.28 * current_scale
-                    pw_3 = (21.87 - 14.28) * current_scale
-                    pts_3 = get_angled_box_pts(px1_3, py1_local_box, pw_3, ph_box, new_ref1[0], new_ref1[1], theta)
-                    rx3, ry3, rw3, rh3 = cv2.boundingRect(pts_3)
-                    if ry3+m < ry3+rh3-m and rx3+m < rx3+rw3-m:
-                        crop = thresh_ink_rotated[max(0, ry3+m):ry3+rh3-m, max(0, rx3+m):rx3+rw3-m]
-                        pixels = crop.shape[0] * crop.shape[1]
-                        pct = (cv2.countNonZero(crop) / pixels * 100) if pixels > 0 else 0
-                    else: pct = 0
-                    game_info['purple_data']['10_3'] = {'pct': pct, 'pts': pts_3, 'rx': rx3, 'ry': ry3}
+            if f == 9:
+                px1_3 = start_x_base + 9 * box_w + 14.28 * current_scale
+                pw_3 = (21.87 - 14.28) * current_scale
+                pts_3 = get_angled_box_pts(px1_3, py1_local_box, pw_3, ph_box, new_ref1[0], new_ref1[1], theta)
+                rx3, ry3, rw3, rh3 = cv2.boundingRect(pts_3)
+                if ry3+m < ry3+rh3-m and rx3+m < rx3+rw3-m:
+                    crop = thresh_ink_rotated[max(0, ry3+m):ry3+rh3-m, max(0, rx3+m):rx3+rw3-m]
+                    pixels = crop.shape[0] * crop.shape[1]
+                    pct = (cv2.countNonZero(crop) / pixels * 100) if pixels > 0 else 0
+                else: pct = 0
+                game_info['purple_data']['10_3'] = {'pct': pct, 'pts': pts_3, 'rx': rx3, 'ry': ry3}
 
             for f in range(12):
                 gx_local = start_x_base + f * box_w
@@ -636,11 +637,11 @@ if st.session_state.analyzed_results is None:
                     temp_throws[20] = str3_10
                 elif pink_inks['10_3'] >= dyn_thresh_pink:
                     temp_throws[20] = "/"
-            else:
-                if pink_inks[9] >= dyn_thresh_pink: temp_throws[19] = "/"
-                v3_10 = 10 - len(p10)
-                str3_10 = 'X' if v3_10 == 10 else ('-' if v3_10 == 0 else str(v3_10))
-                temp_throws[20] = str3_10
+                else:
+                    if pink_inks[9] >= dyn_thresh_pink: temp_throws[19] = "/"
+                    v3_10 = 10 - len(p10)
+                    str3_10 = 'X' if v3_10 == 10 else ('-' if v3_10 == 0 else str(v3_10))
+                    temp_throws[20] = str3_10
 
             for f in range(9):
                 t1 = temp_throws[f*2]
@@ -708,7 +709,10 @@ if st.session_state.analyzed_results is None:
                 response = client.models.generate_content(
                     model=attempt_model,
                     contents=[prompt_time, img_pil_full], # 全体画像だけ渡す
-                    config=types.GenerateContentConfig(response_mime_type="application/json")
+                    config=types.GenerateContentConfig(
+                        temperature=0.0, # 👈 追加: ブレを完全に封印
+                        response_mime_type="application/json"
+                    )
                 )
                 raw_text = response.text.strip()
                 if raw_text.startswith("```"):
@@ -731,7 +735,10 @@ if st.session_state.analyzed_results is None:
                 response = client.models.generate_content(
                     model=attempt_model,
                     contents=[prompt_score, img_pil_scores], # 切り抜き画像だけ渡す
-                    config=types.GenerateContentConfig(response_mime_type="application/json")
+                    config=types.GenerateContentConfig(
+                        temperature=0.0, # 👈 追加: ブレを完全に封印
+                        response_mime_type="application/json"
+                    )
                 )
                 raw_text = response.text.strip()
                 if raw_text.startswith("```"):
@@ -785,7 +792,7 @@ if st.session_state.analyzed_results is None:
                 time_idx = min(group_idx, len(time_list) - 1)
                 game_time = str(time_list[time_idx])
             row_data[1] = game_time
-            
+
             row_data[2] = str(ai_score_data.get("lane") or "")
 
             ai_frame_totals = g_info.get("frame_totals") or []
@@ -959,7 +966,7 @@ if st.session_state.analyzed_results:
 
         for res in st.session_state.analyzed_results:
             st.markdown(f"#### 📄 画像 {global_game_num}: {res['file_name']}")
-            
+
             zoom_width = st.slider(f"🔍 画像の表示サイズを調整（画像 {global_game_num}）", min_value=600, max_value=3000, value=1200, key=f"zoom_{global_game_num}")
             st.image(cv2.cvtColor(res['output_img'], cv2.COLOR_BGR2RGB), width=zoom_width)
 
@@ -992,7 +999,7 @@ if st.session_state.analyzed_results:
 
                 global_game_num += 1
 
-        st.markdown("---")
+            st.markdown("---")
 
         submit_btn = st.form_submit_button("💾 選択したデータを確定（CSV生成）")
 
