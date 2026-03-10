@@ -26,7 +26,7 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
-st.markdown("<h1 style='color: turquoise;'>🎳 Eagle ROLLERS 🎳</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='color: turquoise;'>🎳Eagle ROLLERS🎳</h1>", unsafe_allow_html=True)
 
 # --- サイドバー：APIキー入力 ---
 with st.sidebar:
@@ -53,7 +53,7 @@ if "raw_images_data" not in st.session_state:
 if "analyzed_results" not in st.session_state:
     st.session_state.analyzed_results = None
 
-st.markdown("### ☟　☟　☟　☟　☟　☟　☟　☟  ☟　☟　☟　☟　☟　☟　☟")
+st.markdown("### ☟　☟　☟　☟　☟　☟　☟　")
 
 if st.button("ドライブからスコアシート取得（MAX３シート）"):
     with st.spinner("Googleドライブを探索中..."):
