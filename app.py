@@ -1116,7 +1116,7 @@ if st.session_state.analyzed_results:
                     gc = gspread.authorize(creds_write)
                     drive_service_write = build('drive', 'v3', credentials=creds_write)
 
-　　　　　　　　　　　# 2. 「Players_Data」フォルダを検索
+                    # 2. 「Players_Data」フォルダを検索
                     query = "name = 'Players_Data' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
                     results = drive_service_write.files().list(q=query, fields="files(id, name)").execute()
                     folders = results.get('files', [])
