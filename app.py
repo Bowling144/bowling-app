@@ -26,7 +26,7 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
-st.markdown("<h1 style='color: turquoise;'>🎳Eagle ROLLERS🎳</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='color: turquoise; text-align: center;'>🎳Eagle ROLLERS🎳</h1>", unsafe_allow_html=True)
 
 # --- サイドバー：APIキー入力 ---
 with st.sidebar:
@@ -53,9 +53,15 @@ if "raw_images_data" not in st.session_state:
 if "analyzed_results" not in st.session_state:
     st.session_state.analyzed_results = None
 
-st.markdown("### ☟　☟　☟　☟　☟　☟　☟　")
+st.markdown("<h3 style='text-align: center;'>☟　☟　☟　☟　☟　☟　☟　</h3>", unsafe_allow_html=True)
 
-if st.button("ドライブからスコアシート取得（MAX３シート）"):
+# --- 変更点：カラムでレイアウトを3分割し、中央のカラムにボタンを配置する ---
+col1, col2, col3 = st.columns([1, 2, 1]) # [1, 2, 1] は左右の余白と中央の幅の比率です。
+with col2:
+    fetch_button = st.button("🔄 スコアシート取込（MAX３枚）🔄", use_container_width=True)
+
+if fetch_button:
+# ----------------------------------------------------------------------
     with st.spinner("Googleドライブを探索中..."):
         try:
             creds_json_str = st.secrets["google_credentials"]
@@ -98,7 +104,7 @@ if st.button("ドライブからスコアシート取得（MAX３シート）"):
             st.error(f"⚠️ 読み込みエラー: {e}")
 
 if not st.session_state.raw_images_data:
-    st.info("👆 上のボタンを押して、最新のスコアシートを読み込んでください。")
+    st.info("　")
     st.stop()
 
 if not gemini_api_key:
