@@ -956,85 +956,146 @@ if st.session_state.analyzed_results is None:
     st.rerun()
 
 # =========================================================
-# 📍 【ブロック 11】 結果画面・登録フォーム
+# 📍 【ブロック 11】 結果画面・登録フォーム（手動修正機能追加版）
 # =========================================================
 if st.session_state.analyzed_results:
     st.success("✅ 全ての画像の解析が完了しました！")
 
-    with st.form("register_form"):
-        st.markdown("### 👤 プレイヤー選択")
-        player_list = ["001_田中一吉", "002_田中佳恵", "003_田中蒼之助", "004_田中柾吉", "005_米田稔", "999_ゲスト"]
-        selected_player = st.selectbox("このスコアを誰のデータとして登録しますか？", player_list)
+    # 注：修正ボタンを機能させるため、st.form による囲みを外して再構築しています
+    st.markdown("### 👤 プレイヤー選択")
+    player_list = ["001_田中一吉", "002_田中佳恵", "003_田中蒼之助", "004_田中柾吉", "005_米田稔", "999_ゲスト"]
+    selected_player = st.selectbox("このスコアを誰のデータとして登録しますか？", player_list)
 
-        st.markdown("---")
-        register_all = st.checkbox("全てのゲームをマスターに登録する", value=True)
-        st.markdown("---")
+    st.markdown("---")
+    register_all = st.checkbox("全てのゲームをマスターに登録する", value=True)
+    st.markdown("---")
 
-        game_checkboxes = []
+    game_checkboxes = []
 
-        for img_idx, res in enumerate(st.session_state.analyzed_results):
-            st.markdown(f"#### 📄 画像 {img_idx+1}: {res['file_name']}")
+    for img_idx, res in enumerate(st.session_state.analyzed_results):
+        st.markdown(f"#### 📄 画像 {img_idx+1}: {res['file_name']}")
+        st.image(cv2.cvtColor(res['output_img'], cv2.COLOR_BGR2RGB), use_container_width=True)
 
-# スライダーを削除し、画面幅に合わせて綺麗に自動調整させる設定に変更します
-            st.image(cv2.cvtColor(res['output_img'], cv2.COLOR_BGR2RGB), use_container_width=True)
+        for local_idx, row in enumerate(res['all_games_export_data']):
+            game_name = row[4]
+            date_str = row[0]
+            start_time = row[1]
+            end_time = row[2]
+            ai_total_str = row[50] if row[50] else "_"
+            
+            throws_for_calc = [str(row[i]).replace("R:", "") for i in throw_cols]
+            try:
+                calc_totals = calculate_bowling_score(throws_for_calc)
+                calc_val = calc_totals[-1] if calc_totals else 0
+            except Exception:
+                calc_totals = []
+                calc_val = 0
 
-            meta = res.get("meta_data", {})
-            date_str = meta.get("date", "日付不明")
-            start_time = meta.get("start_time", "時刻不明")
-            end_time = meta.get("end_time", "時刻不明")
+            ai_total_int = int(ai_total_str) if str(ai_total_str).isdigit() else 0
+            if calc_totals and calc_val == ai_total_int:
+                match_status = "✅計算一致"
+            else:
+                match_status = "⚠️不一致(要修正)"
 
-            for local_idx, row in enumerate(res['all_games_export_data']):
-                game_name = row[4]
+            display_text = f"{date_str}_{start_time}_{end_time}_{game_name}｜トータル:{ai_total_str}_{match_status}"
+            is_checked = st.checkbox(display_text, value=True, key=f"check_{res['file_name']}_{local_idx}")
 
-                ai_total_str = row[50] if row[50] else "_"
-                ai_total_int = int(ai_total_str) if str(ai_total_str).isdigit() else 0
+            game_checkboxes.append({
+                "is_checked": is_checked,
+                "export_row": row
+            })
 
-                # 【修正点2】ここでも "R:" を削除し、エラーで止まらないように安全装置を追加
-                throws_for_calc = [str(row[i]).replace("R:", "") for i in throw_cols]
-                try:
-                    calc_totals = calculate_bowling_score(throws_for_calc)
-                    calc_val = calc_totals[-1] if calc_totals else 0
-                except Exception:
-                    calc_totals = []
-                    calc_val = 0
+            # --- 🛠️ 修正機能 UI（AI不使用） ---
+            with st.expander(f"✏️ {game_name} のスコア・残ピン・日時を手動修正"):
+                c_date, c_start, c_end = st.columns(3)
+                with c_date:
+                    new_date = st.text_input("日付", value=row[0], key=f"d_{img_idx}_{local_idx}")
+                with c_start:
+                    new_start = st.text_input("開始時刻", value=row[1], key=f"s_{img_idx}_{local_idx}")
+                with c_end:
+                    new_end = st.text_input("終了時刻", value=row[2], key=f"e_{img_idx}_{local_idx}")
 
-                if calc_totals and calc_val == ai_total_int:
-                    match_status = "✅AI一致"
-                else:
-                    match_status = "⚠️AI不一致"
+                st.markdown("**🎳 投球結果と残ピン位置（1〜10番を選択）**")
+                new_throws = []
+                new_pins = []
 
-                display_text = f"{date_str}_{start_time}_{end_time}_{game_name}｜{ai_total_str}_{match_status}"
+                # 1〜9フレームの入力
+                for f in range(9):
+                    st.write(f"**{f+1}F**")
+                    c1, c2, c3 = st.columns([1, 1, 3])
+                    with c1:
+                        t1 = st.text_input("1投目", value=str(row[throw_cols[f*2]]).replace("R:", ""), key=f"t1_{img_idx}_{local_idx}_{f}")
+                    with c2:
+                        t2 = st.text_input("2投目", value=str(row[throw_cols[f*2+1]]).replace("R:", ""), key=f"t2_{img_idx}_{local_idx}_{f}")
+                    with c3:
+                        curr_pins_str = str(row[target_indices[f]])
+                        curr_pins = [int(p) for p in curr_pins_str.split(",")] if curr_pins_str else []
+                        p_sel = st.multiselect("残ピン番号", options=list(range(1, 11)), default=curr_pins, key=f"p_{img_idx}_{local_idx}_{f}")
+                    
+                    new_throws.extend([t1, t2])
+                    new_pins.append(",".join(map(str, p_sel)))
 
-                is_checked = st.checkbox(display_text, value=True, key=f"check_{res['file_name']}_{local_idx}")
+                # 10フレームの入力
+                st.write("**10F**")
+                c10_1, c10_2, c10_3 = st.columns(3)
+                with c10_1:
+                    t10_1 = st.text_input("1投目", value=str(row[throw_cols[18]]).replace("R:", ""), key=f"t1_{img_idx}_{local_idx}_9")
+                    p1_str = str(row[target_indices[9]])
+                    p1_def = [int(p) for p in p1_str.split(",")] if p1_str else []
+                    p1_sel = st.multiselect("1投目後 残ピン", options=list(range(1, 11)), default=p1_def, key=f"p1_{img_idx}_{local_idx}_9")
+                with c10_2:
+                    t10_2 = st.text_input("2投目", value=str(row[throw_cols[19]]).replace("R:", ""), key=f"t2_{img_idx}_{local_idx}_9")
+                    p2_str = str(row[target_indices[10]])
+                    p2_def = [int(p) for p in p2_str.split(",")] if p2_str else []
+                    p2_sel = st.multiselect("2投目後 残ピン", options=list(range(1, 11)), default=p2_def, key=f"p2_{img_idx}_{local_idx}_9")
+                with c10_3:
+                    t10_3 = st.text_input("3投目", value=str(row[throw_cols[20]]).replace("R:", ""), key=f"t3_{img_idx}_{local_idx}_9")
+                    p3_str = str(row[target_indices[11]])
+                    p3_def = [int(p) for p in p3_str.split(",")] if p3_str else []
+                    p3_sel = st.multiselect("3投目後 残ピン", options=list(range(1, 11)), default=p3_def, key=f"p3_{img_idx}_{local_idx}_9")
+                
+                new_throws.extend([t10_1, t10_2, t10_3])
+                new_pins.extend([",".join(map(str, p1_sel)), ",".join(map(str, p2_sel)), ",".join(map(str, p3_sel))])
 
-                game_checkboxes.append({
-                    "is_checked": is_checked,
-                    "export_row": row
-                })
+                # 修正確定・自動計算ボタン
+                if st.button("🔄 修正を反映して再計算", key=f"update_{img_idx}_{local_idx}"):
+                    row[0] = new_date
+                    row[1] = new_start
+                    row[2] = new_end
+                    
+                    for i in range(21):
+                        row[throw_cols[i]] = new_throws[i]
+                    for i in range(12):
+                        row[target_indices[i]] = new_pins[i]
+                    
+                    # 再計算ロジックを実行し、トータルスコア(row[50])を上書き
+                    new_calc_totals = calculate_bowling_score(new_throws)
+                    if new_calc_totals:
+                        row[50] = str(new_calc_totals[-1])
+                    
+                    st.rerun()
 
             st.markdown("---")
 
-        submit_btn = st.form_submit_button("💾 選択したデータを確定（CSV生成）")
+    # --- CSV自動生成・ダウンロード ---
+    csv_buffer = io.StringIO()
+    writer = csv.writer(csv_buffer)
 
-        if submit_btn:
-            csv_buffer = io.StringIO()
-            writer = csv.writer(csv_buffer)
+    export_count = 0
+    for item in game_checkboxes:
+        is_target = True if register_all else item["is_checked"]
+        if is_target:
+            export_row = [selected_player] + item["export_row"]
+            writer.writerow(export_row)
+            export_count += 1
 
-            export_count = 0
-            for item in game_checkboxes:
-                is_target = True if register_all else item["is_checked"]
-                if is_target:
-                    export_row = [selected_player] + item["export_row"]
-                    writer.writerow(export_row)
-                    export_count += 1
-
-            if export_count > 0:
-                st.success(f"✅ {selected_player} のデータを {export_count} 件確定しました！下のボタンから保存できます。")
-                st.download_button(
-                    label="📥 確定済みデータをダウンロード",
-                    data=csv_buffer.getvalue(),
-                    file_name=f"{selected_player}_bowling.csv",
-                    mime="text/csv"
-                )
-            else:
-                st.warning("⚠️ 登録対象のゲームが選択されていません。")
+    if export_count > 0:
+        st.download_button(
+            label=f"📥 {export_count}件のデータをCSVでダウンロード",
+            data=csv_buffer.getvalue(),
+            file_name=f"{selected_player}_bowling.csv",
+            mime="text/csv",
+            type="primary"
+        )
+    else:
+        st.warning("⚠️ 登録対象のゲームが選択されていません。")
