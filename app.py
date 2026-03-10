@@ -690,9 +690,7 @@ if st.session_state.analyzed_results is None:
             img_pil_scores = Image.fromarray(cv2.cvtColor(stacked_scores, cv2.COLOR_BGR2RGB))
 else:
             img_pil_scores = Image.fromarray(cv2.cvtColor(img_for_ai, cv2.COLOR_BGR2RGB))
-
-        # グラフや線が書き込まれる前の「綺麗な状態の画像」をAIに渡すように変更
-        img_pil_full = Image.fromarray(cv2.cvtColor(img_color_rotated, cv2.COLOR_BGR2RGB))
+            img_pil_full = Image.fromarray(cv2.cvtColor(img_color_rotated, cv2.COLOR_BGR2RGB))
 
         # ---------------------------------------------------------
         # 📍 【ブロック 9】 AIによるテキスト読み取り（スコア → 日時）
