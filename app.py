@@ -975,8 +975,8 @@ if st.session_state.analyzed_results:
         for img_idx, res in enumerate(st.session_state.analyzed_results):
             st.markdown(f"#### 📄 画像 {img_idx+1}: {res['file_name']}")
 
-            zoom_width = st.slider(f"🔍 画像の表示サイズを調整（画像 {img_idx+1}）", min_value=600, max_value=3000, value=1200, key=f"zoom_{img_idx}")
-            st.image(cv2.cvtColor(res['output_img'], cv2.COLOR_BGR2RGB), width=zoom_width)
+　　　　　　# スライダーを削除し、画面幅に合わせて綺麗に自動調整させる設定に変更します
+            st.image(cv2.cvtColor(res['output_img'], cv2.COLOR_BGR2RGB), use_container_width=True)
 
             meta = res.get("meta_data", {})
             date_str = meta.get("date", "日付不明")
