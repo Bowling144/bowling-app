@@ -79,7 +79,7 @@ if fetch_button:
 
             # ▼ フォルダIDを指定して検索（変更なし）
             # ▼ フォルダIDを指定して検索（変更なし）
-            FOLDER_ID = "実際のフォルダIDをここに入力してください" # ←★この1行を追加
+            FOLDER_ID = "1AbC2dE3fG4hI5jK6lM7nO8pQ9rS_tU"  # ←ここにコピーした本物のIDを貼り付けます
             query = f"'{FOLDER_ID}' in parents and mimeType='image/jpeg' and trashed = false"
             results = drive_service.files().list(
                 q=query,
