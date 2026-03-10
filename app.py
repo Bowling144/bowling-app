@@ -77,11 +77,13 @@ if fetch_button:
             )
             drive_service = build('drive', 'v3', credentials=creds)
 
+            # ▼ フォルダIDを指定して検索（変更なし）
+            query = f"'{FOLDER_ID}' in parents and mimeType='image/jpeg' and trashed = false"
             results = drive_service.files().list(
-                q="mimeType contains 'image/' and trashed=false",
+                q=query,
+                fields="files(id, name)",
                 orderBy="createdTime desc",
-                pageSize=3,
-                fields="files(id, name)"
+                pageSize=3
             ).execute()
             items = results.get('files', [])
 
