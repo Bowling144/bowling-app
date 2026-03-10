@@ -731,7 +731,7 @@ if st.session_state.analyzed_results is None:
         if not success_score:
             st.warning(f"⚠️ {file_name}: AIのスコア読み取りに失敗しました。理由: {last_error}")
 
-        status_text.info(f"⚙️ 画像 {img_idx+1}: AIで日付・時刻・ゲーム数を追加解析しています...")
+        status_text.info(f"⚙️ 画像 {img_idx+1}: AIが日付・時刻・ゲーム数を取得中...")
         time.sleep(3)
 
         ai_meta_data = {"date": "日付不明", "start_time": "時刻不明", "end_time": "時刻不明", "start_game_num": 1}
