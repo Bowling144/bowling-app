@@ -63,6 +63,7 @@ with col2:
 if fetch_button:
 # ----------------------------------------------------------------------
 
+
     with st.spinner("Googleドライブを探索中..."):
         try:
             creds_json_str = st.secrets["google_credentials"]
@@ -70,7 +71,7 @@ if fetch_button:
             if "private_key" in creds_info:
                 creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
 
-            # ▼ここを変更：読み取り専用(readonly)から、ドライブとSPSのフル権限に変更
+            # ▼ ドライブとSPSのフル権限を指定する設定を追加
             scopes = [
                 'https://www.googleapis.com/auth/spreadsheets',
                 'https://www.googleapis.com/auth/drive'
