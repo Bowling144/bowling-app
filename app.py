@@ -18,6 +18,14 @@ import matplotlib.pyplot as plt
 
 # --- ページ設定 ---
 st.set_page_config(page_title="ボウリング解析", layout="wide")
+st.markdown("""
+    <style>
+    /* expanderの下の余白を消す */
+    div[data-testid="stExpander"] {
+        margin-bottom: 0rem !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
 st.title("🎳 Eagle ROLLERS")
 
 # --- サイドバー：APIキー入力 ---
@@ -1006,7 +1014,7 @@ if st.session_state.analyzed_results:
             })
 
             # --- 🛠️ 修正機能 UI（AI不使用） ---
-            with st.expander(f"✏️ {game_name} のスコア・残ピン・日時を手動修正"):
+            with st.expander(f"✏️ {game_name} を手動修正"):
                 c_date, c_start, c_end = st.columns(3)
                 with c_date:
                     new_date = st.text_input("日付", value=row[0], key=f"d_{img_idx}_{local_idx}")
@@ -1074,8 +1082,6 @@ if st.session_state.analyzed_results:
                         row[50] = str(new_calc_totals[-1])
                     
                     st.rerun()
-
-            st.markdown("---")
 
     # --- CSV自動生成・ダウンロード ---
     csv_buffer = io.StringIO()
