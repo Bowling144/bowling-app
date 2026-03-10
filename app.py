@@ -103,8 +103,8 @@ if fetch_button:
                 st.session_state.analyzed_results = None
                 st.success(f"✅ {len(fetched_images)}枚の画像をセットしました！")
                 st.rerun()
-        except Exception as e:
-            st.error(f"⚠️ 読み込みエラー: {e}")
+            except Exception as e:
+                st.error(f"⚠️ 読み込みエラー: {e}")
 
 if not st.session_state.raw_images_data:
     st.info("　")
