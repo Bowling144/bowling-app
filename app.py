@@ -679,7 +679,7 @@ if st.session_state.analyzed_results is None:
             if crop_y2 > crop_y1 and crop_x2 > crop_x1:
                 score_crops.append(img_for_ai[crop_y1:crop_y2, crop_x1:crop_x2])
 
-        if score_crops:
+if score_crops:
             max_w = max(crop.shape[1] for crop in score_crops)
             padded_crops = []
             for crop in score_crops:
@@ -688,15 +688,18 @@ if st.session_state.analyzed_results is None:
                 padded_crops.append(padded)
             stacked_scores = cv2.vconcat(padded_crops)
             img_pil_scores = Image.fromarray(cv2.cvtColor(stacked_scores, cv2.COLOR_BGR2RGB))
-else:
+        else:
             img_pil_scores = Image.fromarray(cv2.cvtColor(img_for_ai, cv2.COLOR_BGR2RGB))
-            img_pil_full = Image.fromarray(cv2.cvtColor(img_color_rotated, cv2.COLOR_BGR2RGB))
+
+        # ⚠️ ここが重要！ else の中には入れず、左にずらして「else」の文字と縦を揃える
+        img_pil_full = Image.fromarray(cv2.cvtColor(img_color_rotated, cv2.COLOR_BGR2RGB))
 
         # ---------------------------------------------------------
         # 📍 【ブロック 9】 AIによるテキスト読み取り（スコア → 日時）
         # ---------------------------------------------------------
         status_text.info(f"⚙️ 画像 {img_idx+1}: AIがスコアを読み取り中...")
         time.sleep(3)
+
 
         ai_score_data = {"lane": "", "games": []}
         success_score = False
