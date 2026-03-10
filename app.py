@@ -679,7 +679,7 @@ if st.session_state.analyzed_results is None:
             if crop_y2 > crop_y1 and crop_x2 > crop_x1:
                 score_crops.append(img_for_ai[crop_y1:crop_y2, crop_x1:crop_x2])
 
-if score_crops:
+        if score_crops:
             max_w = max(crop.shape[1] for crop in score_crops)
             padded_crops = []
             for crop in score_crops:
