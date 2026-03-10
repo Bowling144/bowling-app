@@ -1116,12 +1116,12 @@ if st.session_state.analyzed_results:
                     gc = gspread.authorize(creds_write)
                     drive_service_write = build('drive', 'v3', credentials=creds_write)
 
-                    # 2. 「playersdata」フォルダを検索
-                    query = "name = 'playersdata' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+　　　　　　　　　　　# 2. 「Players_Data」フォルダを検索
+                    query = "name = 'Players_Data' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
                     results = drive_service_write.files().list(q=query, fields="files(id, name)").execute()
                     folders = results.get('files', [])
                     if not folders:
-                        st.error("エラー: Googleドライブ内に「playersdata」フォルダが見つかりません。共有設定（編集者権限）を確認してください。")
+                        st.error("エラー: Googleドライブ内に「Players_Data」フォルダが見つかりません。共有設定（編集者権限）を確認してください。")
                         st.stop()
                     playersdata_id = folders[0]['id']
 
@@ -1130,9 +1130,8 @@ if st.session_state.analyzed_results:
                     results = drive_service_write.files().list(q=query, fields="files(id, name)").execute()
                     p_folders = results.get('files', [])
                     if not p_folders:
-                        st.error(f"エラー: 「playersdata」内に「{selected_player}」のフォルダが見つかりません。")
+                        st.error(f"エラー: 「Players_Data」内に「{selected_player}」のフォルダが見つかりません。")
                         st.stop()
-                    player_folder_id = p_folders[0]['id']
 
                     # 4. フォルダ内のSPSを検索
                     query = f"'{player_folder_id}' in parents and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"
