@@ -975,7 +975,7 @@ if st.session_state.analyzed_results:
         for img_idx, res in enumerate(st.session_state.analyzed_results):
             st.markdown(f"#### 📄 画像 {img_idx+1}: {res['file_name']}")
 
-　　　　　　# スライダーを削除し、画面幅に合わせて綺麗に自動調整させる設定に変更します
+# スライダーを削除し、画面幅に合わせて綺麗に自動調整させる設定に変更します
             st.image(cv2.cvtColor(res['output_img'], cv2.COLOR_BGR2RGB), use_container_width=True)
 
             meta = res.get("meta_data", {})
