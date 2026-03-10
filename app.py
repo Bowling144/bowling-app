@@ -61,8 +61,6 @@ with col2:
     fetch_button = st.button("🔄 スコアシート取込（MAX３枚）🔄", use_container_width=True)
 
 if fetch_button:
-# ----------------------------------------------------------------------
-
     with st.spinner("Googleドライブを探索中..."):
         try:
             creds_json_str = st.secrets["google_credentials"]
