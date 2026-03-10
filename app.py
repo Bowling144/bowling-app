@@ -78,6 +78,8 @@ if fetch_button:
             drive_service = build('drive', 'v3', credentials=creds)
 
             # ▼ フォルダIDを指定して検索（変更なし）
+            # ▼ フォルダIDを指定して検索（変更なし）
+            FOLDER_ID = "実際のフォルダIDをここに入力してください" # ←★この1行を追加
             query = f"'{FOLDER_ID}' in parents and mimeType='image/jpeg' and trashed = false"
             results = drive_service.files().list(
                 q=query,
