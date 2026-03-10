@@ -970,8 +970,10 @@ if st.session_state.analyzed_results is None:
     st.rerun()
 
 # =========================================================
-# 📍 【ブロック 11】 結果画面・登録フォーム（手動修正機能追加版）
+# 📍 【ブロック 11】 結果画面・SPS自動登録フォーム
 # =========================================================
+import gspread
+
 if st.session_state.analyzed_results:
     st.success("✅ 全ての画像の解析が完了しました！")
 
@@ -1015,7 +1017,10 @@ if st.session_state.analyzed_results:
 
             game_checkboxes.append({
                 "is_checked": is_checked,
-                "export_row": row
+                "export_row": row,
+                "date": date_str,
+                "start": start_time,
+                "end": end_time
             })
 
             # --- 🛠️ 修正機能 UI（AI不使用） ---
@@ -1088,25 +1093,118 @@ if st.session_state.analyzed_results:
                     
                     st.rerun()
 
-    # --- CSV自動生成・ダウンロード ---
-    csv_buffer = io.StringIO()
-    writer = csv.writer(csv_buffer)
+    st.markdown("<h3 style='text-align: center;'>☟　☟　☟　☟　☟　☟　☟　</h3>", unsafe_allow_html=True)
 
-    export_count = 0
-    for item in game_checkboxes:
-        is_target = True if register_all else item["is_checked"]
-        if is_target:
-            export_row = [selected_player] + item["export_row"]
-            writer.writerow(export_row)
-            export_count += 1
+    # --- ドライブ検索＆SPS自動登録処理 ---
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if st.button("☁️ 選択したプレイヤーのSPSへデータを登録", use_container_width=True, type="primary"):
+            with st.spinner("Google Driveを検索し、データを登録中..."):
+                try:
+                    # 1. 権限とスコープの設定 (書き込み権限を含む)
+                    creds_json_str = st.secrets["google_credentials"]
+                    creds_info = json.loads(creds_json_str, strict=False)
+                    if "private_key" in creds_info:
+                        creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
+                    
+                    scopes = [
+                        'https://www.googleapis.com/auth/spreadsheets',
+                        'https://www.googleapis.com/auth/drive'
+                    ]
+                    creds_write = service_account.Credentials.from_service_account_info(creds_info, scopes=scopes)
+                    
+                    gc = gspread.authorize(creds_write)
+                    drive_service_write = build('drive', 'v3', credentials=creds_write)
 
-    if export_count > 0:
-        st.download_button(
-            label=f"📥 {export_count}件のデータをCSVでダウンロード",
-            data=csv_buffer.getvalue(),
-            file_name=f"{selected_player}_bowling.csv",
-            mime="text/csv",
-            type="primary"
-        )
-    else:
-        st.warning("⚠️ 登録対象のゲームが選択されていません。")
+                    # 2. 「playersdata」フォルダを検索
+                    query = "name = 'playersdata' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+                    results = drive_service_write.files().list(q=query, fields="files(id, name)").execute()
+                    folders = results.get('files', [])
+                    if not folders:
+                        st.error("エラー: Googleドライブ内に「playersdata」フォルダが見つかりません。共有設定（編集者権限）を確認してください。")
+                        st.stop()
+                    playersdata_id = folders[0]['id']
+
+                    # 3. 選択したプレイヤーのフォルダを検索
+                    query = f"name = '{selected_player}' and '{playersdata_id}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+                    results = drive_service_write.files().list(q=query, fields="files(id, name)").execute()
+                    p_folders = results.get('files', [])
+                    if not p_folders:
+                        st.error(f"エラー: 「playersdata」内に「{selected_player}」のフォルダが見つかりません。")
+                        st.stop()
+                    player_folder_id = p_folders[0]['id']
+
+                    # 4. フォルダ内のSPSを検索
+                    query = f"'{player_folder_id}' in parents and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"
+                    results = drive_service_write.files().list(q=query, fields="files(id, name)").execute()
+                    sheets = results.get('files', [])
+                    if not sheets:
+                        st.error(f"エラー: 「{selected_player}」フォルダ内にスプレッドシートが見つかりません。")
+                        st.stop()
+                    
+                    sheet_id = sheets[0]['id']
+                    
+                    # 5. SPSの「マスター」シートを取得し、重複・上書きチェック
+                    sh = gc.open_by_key(sheet_id)
+                    try:
+                        worksheet = sh.worksheet("マスター")
+                    except gspread.exceptions.WorksheetNotFound:
+                        st.error("エラー: スプレッドシート内に「マスター」という名前のシートが見つかりません。")
+                        st.stop()
+
+                    existing_data = worksheet.get_all_values()
+                    
+                    rows_to_append = []
+                    update_count = 0
+
+                    for item in game_checkboxes:
+                        is_target = True if register_all else item["is_checked"]
+                        if not is_target:
+                            continue
+
+                        row = item["export_row"]
+                        new_date = row[0]
+                        new_start = row[1]
+                        new_end = row[2]
+
+                        # SPSの54列フォーマットに変換 (日付, 開始, 終了, レーン, ゲーム, オイル長, オイル量, ボール, F1-1...)
+                        formatted_row = [
+                            row[0], row[1], row[2],  # 日付, 開始時刻, 終了時刻
+                            row[3],                  # レーン
+                            row[4],                  # ゲーム数（ゲーム名）
+                            "", "", "",              # オイル長, オイル量, 使用ボール (将来用空欄)
+                        ]
+                        formatted_row.extend(row[5:]) 
+
+                        # 重複確認ロジック（日付一致 ＋ 開始or終了の一致）
+                        match_found = False
+                        for i, ex_row in enumerate(existing_data):
+                            if i == 0 or len(ex_row) < 3: 
+                                continue # ヘッダー行や空行はスキップ
+                            
+                            ex_date = ex_row[0]
+                            ex_start = ex_row[1]
+                            ex_end = ex_row[2]
+
+                            if ex_date == new_date and (ex_start == new_start or ex_end == new_end):
+                                # 一致した行を上書き (gspreadは1始まりのため i+1)
+                                row_num = i + 1
+                                worksheet.update(range_name=f"A{row_num}", values=[formatted_row])
+                                existing_data[i] = formatted_row # メモリ上のデータも更新（同一バッチ内の重複防止）
+                                update_count += 1
+                                match_found = True
+                                break
+
+                        # 一致するものがなければ新規追加リストへ
+                        if not match_found:
+                            rows_to_append.append(formatted_row)
+
+                    # 6. 新規データの一括書き込み
+                    if rows_to_append:
+                        worksheet.append_rows(rows_to_append)
+                    
+                    add_count = len(rows_to_append)
+                    st.success(f"🎉 登録完了！ 新規追加: {add_count}件 / 上書き更新: {update_count}件")
+
+                except Exception as e:
+                    st.error(f"SPSへの登録中にエラーが発生しました: {e}")
