@@ -62,18 +62,23 @@ with col2:
 
 if fetch_button:
 # ----------------------------------------------------------------------
-    with st.spinner("Googleドライブを探索中..."):
+
+with st.spinner("Googleドライブを探索中..."):
         try:
             creds_json_str = st.secrets["google_credentials"]
             creds_info = json.loads(creds_json_str, strict=False)
             if "private_key" in creds_info:
                 creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
 
+            # ▼ここを変更：読み取り専用(readonly)から、ドライブとSPSのフル権限に変更
+            scopes = [
+                'https://www.googleapis.com/auth/spreadsheets',
+                'https://www.googleapis.com/auth/drive'
+            ]
             creds = service_account.Credentials.from_service_account_info(
-                creds_info, scopes=['https://www.googleapis.com/auth/drive.readonly']
+                creds_info, scopes=scopes
             )
             drive_service = build('drive', 'v3', credentials=creds)
-
             results = drive_service.files().list(
                 q="mimeType contains 'image/' and trashed=false",
                 orderBy="createdTime desc",
