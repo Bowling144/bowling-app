@@ -26,7 +26,7 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
-st.title("🎳 Eagle ROLLERS")
+st.markdown("<h1 style='color: turquoise;'>🎳 Eagle ROLLERS 🎳</h1>", unsafe_allow_html=True)
 
 # --- サイドバー：APIキー入力 ---
 with st.sidebar:
@@ -53,9 +53,9 @@ if "raw_images_data" not in st.session_state:
 if "analyzed_results" not in st.session_state:
     st.session_state.analyzed_results = None
 
-st.markdown("### ☟score sheet ")
+st.markdown("### ☟　☟　☟　☟　☟　☟　☟　☟  ☟　☟　☟　☟　☟　☟　☟")
 
-if st.button("🔄 ドライブから最新の画像を取得（最大3枚）"):
+if st.button("ドライブからスコアシート取得（MAX３シート）"):
     with st.spinner("Googleドライブを探索中..."):
         try:
             creds_json_str = st.secrets["google_credentials"]
@@ -970,9 +970,8 @@ if st.session_state.analyzed_results:
     st.success("✅ 全ての画像の解析が完了しました！")
 
     # 注：修正ボタンを機能させるため、st.form による囲みを外して再構築しています
-    st.markdown("### 👤 プレイヤー選択")
     player_list = ["001_田中一吉", "002_田中佳恵", "003_田中蒼之助", "004_田中柾吉", "005_米田稔", "999_ゲスト"]
-    selected_player = st.selectbox("このスコアを誰のデータとして登録しますか？", player_list)
+    selected_player = st.selectbox("👤プレイヤー選択👤", player_list, label_visibility="collapsed")
 
     st.markdown("---")
     register_all = st.checkbox("全てのゲームをマスターに登録する", value=True)
@@ -1003,7 +1002,7 @@ if st.session_state.analyzed_results:
             if calc_totals and calc_val == ai_total_int:
                 match_status = "✅計算一致"
             else:
-                match_status = "⚠️不一致(要修正)"
+                match_status = "⚠️不一致"
 
             display_text = f"{date_str}_{start_time}_{end_time}_{game_name}｜トータル:{ai_total_str}_{match_status}"
             is_checked = st.checkbox(display_text, value=True, key=f"check_{res['file_name']}_{local_idx}")
