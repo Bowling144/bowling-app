@@ -26,7 +26,7 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
-st.markdown("<h1 style='color: turquoise; text-align: center;'>🎳Eagle ROLLERS🎳</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='color: turquoise; text-align: center;'> 🎳Eagle ROLLERS🎳</h1>", unsafe_allow_html=True)
 
 # --- サイドバー：APIキー入力 ---
 with st.sidebar:
@@ -53,7 +53,7 @@ if "raw_images_data" not in st.session_state:
 if "analyzed_results" not in st.session_state:
     st.session_state.analyzed_results = None
 
-st.markdown("<h3 style='text-align: center;'>☟　☟　☟　☟　☟　☟　☟　</h3>", unsafe_allow_html=True)
+st.markdown("<h3 style='text-align: center;'>  ☟　☟　☟　☟　☟　☟　☟　</h3>", unsafe_allow_html=True)
 
 # --- 変更点：カラムでレイアウトを3分割し、中央のカラムにボタンを配置する ---
 col1, col2, col3 = st.columns([1, 2, 1]) # [1, 2, 1] は左右の余白と中央の幅の比率です。
