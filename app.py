@@ -63,7 +63,7 @@ with col2:
 if fetch_button:
 # ----------------------------------------------------------------------
 
-with st.spinner("Googleドライブを探索中..."):
+    with st.spinner("Googleドライブを探索中..."):
         try:
             creds_json_str = st.secrets["google_credentials"]
             creds_info = json.loads(creds_json_str, strict=False)
