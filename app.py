@@ -109,9 +109,9 @@ prompt_metadata = """
 
 【ルール】
 1. 日付: 中央上部にある黒い文字。「YY/MM/DD」の形式で "date" に出力。
-2. 最初のゲーム数: 左側の角が丸い枠内の記載。GAME1, GAME7, GAME13, GAME19, GAME25のいずれか。「1」などの数値のみを "start_game_num" に出力。
-3. 開始時刻: 1枚のスコアシートの1ゲーム目の8フレーム目のスコアの上に記載。"HH:MM" 形式で "start_time" に出力。見つからなければ "時刻不明" にする。
-4. 終了時刻: 1枚のスコアシートの一番最後のゲームの9フレーム目のスコアの上に記載。"HH:MM" 形式で "end_time" に出力。見つからなければ "時刻不明" にする。
+2. 最初のゲーム数: 一番上のゲームのスコア欄の左端に記載。フレームという文字の下GAMEの下に改行されて数字を記載。GAME1, GAME7, GAME13, GAME19, GAME25のいずれか。「1」などの数値のみを "start_game_num" に出力。
+3. 開始時刻: 1枚のスコアシートの日付の右下に記載。1ゲーム目の開始時刻と終了時刻が左右に並んでいて、その左側の時刻が開始時刻。"HH:MM" 形式で "start_time" に出力。見つからなければ "時刻不明" にする。
+4. 終了時刻: 1枚のスコアシートの一番最後のゲームの9フレーム目のスコア欄の上部に記載。開始時刻と終了時刻が左右に並んでいて、その右側の時刻が終了時刻。"HH:MM" 形式で "end_time" に出力。見つからなければ "時刻不明" にする。
 5. Markdownの記号などは一切含めず、純粋なJSON文字列だけを出力してください。
 
 【出力フォーマット例】
@@ -688,15 +688,16 @@ if st.session_state.analyzed_results is None:
                 padded_crops.append(padded)
             stacked_scores = cv2.vconcat(padded_crops)
             img_pil_scores = Image.fromarray(cv2.cvtColor(stacked_scores, cv2.COLOR_BGR2RGB))
-        else:
+else:
             img_pil_scores = Image.fromarray(cv2.cvtColor(img_for_ai, cv2.COLOR_BGR2RGB))
 
-        img_pil_full = Image.fromarray(cv2.cvtColor(output_img, cv2.COLOR_BGR2RGB))
+        # グラフや線が書き込まれる前の「綺麗な状態の画像」をAIに渡すように変更
+        img_pil_full = Image.fromarray(cv2.cvtColor(img_color_rotated, cv2.COLOR_BGR2RGB))
 
         # ---------------------------------------------------------
         # 📍 【ブロック 9】 AIによるテキスト読み取り（スコア → 日時）
         # ---------------------------------------------------------
-        status_text.info(f"⚙️ 画像 {img_idx+1}: AIでスコアの数字を最優先で読み取っています...")
+        status_text.info(f"⚙️ 画像 {img_idx+1}: AIがスコアを読み取り中...")
         time.sleep(3)
 
         ai_score_data = {"lane": "", "games": []}
