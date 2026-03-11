@@ -37,7 +37,6 @@ with st.sidebar:
 
 # ⚠️ AIモデル設定：Flash版を除外し、Proモデルに限定（存在しないモデル名によるエラーを防止）
 fallback_models = [
-    'gemini-3.0-pro',
     'gemini-2.5-pro',
     'gemini-2.0-pro-exp-02-05'
 ]
@@ -1138,6 +1137,8 @@ if st.session_state.analyzed_results:
                     if not p_folders:
                         st.error(f"エラー: 「Players_Data」内に「{selected_player}」のフォルダが見つかりません。")
                         st.stop()
+
+                    player_folder_id = p_folders[0]['id']
 
                     # 4. フォルダ内のSPSを検索
                     query = f"'{player_folder_id}' in parents and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"
