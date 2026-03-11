@@ -718,17 +718,17 @@ if st.session_state.analyzed_results is None:
         # ⚠️ ここが重要！ else の中には入れず、左にずらして「else」の文字と縦を揃える
         img_pil_full = Image.fromarray(cv2.cvtColor(img_color_rotated, cv2.COLOR_BGR2RGB))
 
-            # ---------------------------------------------------------
-            # 📍 【ブロック 9】 AIによるテキスト読み取り（スコア → 日時）
-            # ---------------------------------------------------------
+
+        # ---------------------------------------------------------
+        # 📍 【ブロック 9】 AIによるテキスト読み取り（スコア → 日時）
+        # ---------------------------------------------------------
             status_text.info(f"⚙️ 画像 {img_idx+1}: AIがスコアを読み取り中...")
             time.sleep(3)
-
             ai_score_data = {"lane": "", "games": []}
             success_score = False
             last_error = ""
             used_model = "FAILED"
-            max_retries = 3  # 制限に引っかかった場合の最大再試行回数
+            max_retries = 3  # 制限時の最大再試行回数
 
             for attempt_model in fallback_models:
                 for attempt in range(max_retries):
@@ -803,7 +803,6 @@ if st.session_state.analyzed_results is None:
                 if success_meta:
                     break
 
-        
         
         # ---------------------------------------------------------
         # 📍 【ブロック 10】 解析結果の統合とデータ整形
