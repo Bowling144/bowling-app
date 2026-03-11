@@ -80,35 +80,40 @@ if fetch_button:
             )
             drive_service = build('drive', 'v3', credentials=creds)
 
-            # ▼ フォルダIDを指定して検索（変更なし）
+            # ▼ Bowling_Appフォルダ内のみ検索
             FOLDER_ID = "1PjzUPZNZYl2vKBnJjG0YVSh3NRyxlbEX"
+            query = f"'{FOLDER_ID}' in parents and mimeType='image/jpeg' and trashed=false"
+            
             results = drive_service.files().list(
-                q=f"'{FOLDER_ID}' in parents and mimeType='image/jpeg' and trashed = false",
+                q=query,
                 orderBy="createdTime desc",
                 pageSize=3,
                 fields="files(id, name)"
             ).execute()
+            items = results.get('files', [])
 
-            for file in results.get('files', []):
-                request = drive_service.files().get_media(fileId=file['id'])
-                file_content = io.BytesIO()
-                downloader = MediaIoBaseDownload(file_content, request)
-                done = False
-                while done is False:
-                    status, done = downloader.next_chunk()
+            if not items:
+                st.error("⚠️ 画像が見つかりません。")
+            else:
+                fetched_images = []
+                for item in items:
+                    file_id = item['id']
+                    request = drive_service.files().get_media(fileId=file_id)
+                    fh = io.BytesIO()
+                    downloader = MediaIoBaseDownload(fh, request)
+                    done = False
+                    while not done:
+                        _, done = downloader.next_chunk()
+                    fetched_images.append({"name": item['name'], "bytes": fh.getvalue()})
+
+                # ▼ 変数名を元の正しい名前（raw_images_data）に戻す
+                st.session_state.raw_images_data = fetched_images
+                st.session_state.analyzed_results = None
+                st.success(f"✅ {len(fetched_images)}枚の画像をセットしました！")
+                st.rerun()
                 
-                file_content.seek(0)
-                file_bytes = np.asarray(bytearray(file_content.read()), dtype=np.uint8)
-                img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-
-                if img is not None:
-                    st.session_state.downloaded_images.append({
-                        'file_name': file['name'],
-                        'image': img
-                    })
-
         except Exception as e:
-            st.error(f"エラーが発生しました: {e}")
+            st.error(f"⚠️ 読み込みエラー: {e}")
 
 if not st.session_state.raw_images_data:
     st.info("　")
