@@ -741,6 +741,7 @@ if st.session_state.analyzed_results is None:
                                 response_mime_type="application/json"
                             )
                         )
+                        # ▼ ここのブロックを右に4スペース移動させ、responseと縦を揃えました
                         raw_text = response.text.strip()
                         if raw_text.startswith("```"):
                             lines = raw_text.split('\n')
