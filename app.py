@@ -784,8 +784,8 @@ for attempt_model in fallback_models:
             last_error = str(e)
             if "429" in last_error or "Too Many Requests" in last_error or "exhausted" in last_error.lower():
                 if attempt < max_retries - 1:
-                    status_text.warning(f"⚠️ API制限(429エラー)。20秒待機して再試行します ({attempt+1}/{max_retries})...")
-                    time.sleep(20)
+                    status_text.warning(f"⚠️ API制限(429エラー)。10秒待機して再試行します ({attempt+1}/{max_retries})...")
+                    time.sleep(10)
                     continue
             time.sleep(2)
             break
