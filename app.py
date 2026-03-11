@@ -81,14 +81,12 @@ if fetch_button:
             drive_service = build('drive', 'v3', credentials=creds)
 
             # ▼ フォルダIDを指定して検索（変更なし）
-            # ▼ フォルダIDを指定して検索（変更なし）
             FOLDER_ID = "1PjzUPZNZYl2vKBnJjG0YVSh3NRyxlbEX"
-            query = f"'{FOLDER_ID}' in parents and mimeType='image/jpeg' and trashed = false"
             results = drive_service.files().list(
-                q=query,
-                fields="files(id, name)",
+                q=f"'{FOLDER_ID}' in parents and mimeType='image/jpeg' and trashed = false",
                 orderBy="createdTime desc",
-                pageSize=3
+                pageSize=3,
+                fields="files(id, name)"
             ).execute()
 
             for file in results.get('files', []):
