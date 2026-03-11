@@ -52,8 +52,6 @@ if "raw_images_data" not in st.session_state:
     st.session_state.raw_images_data = []
 if "analyzed_results" not in st.session_state:
     st.session_state.analyzed_results = None
-if "downloaded_images" not in st.session_state:
-    st.session_state.downloaded_images = []
 
 
 st.markdown("<h3 style='text-align: center;'>  ☟　☟　☟　☟　☟　☟　☟　</h3>", unsafe_allow_html=True)
