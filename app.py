@@ -39,8 +39,6 @@ with st.sidebar:
 
 fallback_models = [
     'gemini-2.5-pro',
-    'gemini-1.5-pro',
-    'gemini-2.0-pro-exp-02-05'
 ]
 
 # =========================================================
@@ -726,61 +724,74 @@ if st.session_state.analyzed_results is None:
         status_text.info(f"⚙️ 画像 {img_idx+1}: AIがスコアを読み取り中...")
         time.sleep(3)
 
+ai_meta_data = {"date": "日付不明", "start_time": "時刻不明", "end_time": "時刻不明", "start_game_num": 1}
+max_retries = 3
 
-        ai_score_data = {"lane": "", "games": []}
-        success_score = False
-        last_error = ""
-        used_model = "FAILED"
-        for attempt_model in fallback_models:
-            try:
-                response = client.models.generate_content(
-                    model=attempt_model,
-                    contents=[prompt_score, img_pil_scores],
-                    config=types.GenerateContentConfig(
-                        temperature=0.0,
-                        response_mime_type="application/json"
-                    )
+for attempt_model in fallback_models:
+    for attempt in range(max_retries):
+        try:
+            response = client.models.generate_content(
+                model=attempt_model,
+                contents=[prompt_metadata, img_pil_full],
+                config=types.GenerateContentConfig(
+                    temperature=0.0,
+                    response_mime_type="application/json"
                 )
-                raw_text = response.text.strip()
-                if raw_text.startswith("```"):
-                    lines = raw_text.split('\n')
-                    raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
-                ai_score_data = json.loads(raw_text)
-                success_score = True
-                used_model = attempt_model.upper()
-                break
-            except Exception as e:
-                last_error = str(e)
-                time.sleep(2)
-                continue
-
-        if not success_score:
-            st.warning(f"⚠️ {file_name}: AIのスコア読み取りに失敗しました。理由: {last_error}")
-
+            )
+            raw_text = response.text.strip()
+            if raw_text.startswith("```"):
+                lines = raw_text.split('\n')
+                raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
+            ai_meta_data = json.loads(raw_text)
+            break # 成功したらリトライループを抜ける
+        except Exception as e:
+            last_error = str(e)
+            if "429" in last_error or "Too Many Requests" in last_error or "exhausted" in last_error.lower():
+                if attempt < max_retries - 1:
+                    status_text.warning(f"⚠️ API制限(429エラー)。10秒待機して再試行します ({attempt+1}/{max_retries})...")
+                    time.sleep(10)
+                    continue
+            time.sleep(2)
+            break
+            
+    if ai_meta_data.get("date") != "日付不明":
+        break
+        
         status_text.info(f"⚙️ 画像 {img_idx+1}: AIが日付・時刻・ゲーム数を取得中...")
         time.sleep(3)
 
-        ai_meta_data = {"date": "日付不明", "start_time": "時刻不明", "end_time": "時刻不明", "start_game_num": 1}
-        for attempt_model in fallback_models:
-            try:
-                response = client.models.generate_content(
-                    model=attempt_model,
-                    contents=[prompt_metadata, img_pil_full],
-                    config=types.GenerateContentConfig(
-                        temperature=0.0,
-                        response_mime_type="application/json"
-                    )
-                )
-                raw_text = response.text.strip()
-                if raw_text.startswith("```"):
-                    lines = raw_text.split('\n')
-                    raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
-                ai_meta_data = json.loads(raw_text)
-                break
-            except Exception:
-                time.sleep(2)
-                continue
+ai_meta_data = {"date": "日付不明", "start_time": "時刻不明", "end_time": "時刻不明", "start_game_num": 1}
+max_retries = 3
 
+for attempt_model in fallback_models:
+    for attempt in range(max_retries):
+        try:
+            response = client.models.generate_content(
+                model=attempt_model,
+                contents=[prompt_metadata, img_pil_full],
+                config=types.GenerateContentConfig(
+                    temperature=0.0,
+                    response_mime_type="application/json"
+                )
+            )
+            raw_text = response.text.strip()
+            if raw_text.startswith("```"):
+                lines = raw_text.split('\n')
+                raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
+            ai_meta_data = json.loads(raw_text)
+            break # 成功したらリトライループを抜ける
+        except Exception as e:
+            last_error = str(e)
+            if "429" in last_error or "Too Many Requests" in last_error or "exhausted" in last_error.lower():
+                if attempt < max_retries - 1:
+                    status_text.warning(f"⚠️ API制限(429エラー)。20秒待機して再試行します ({attempt+1}/{max_retries})...")
+                    time.sleep(20)
+                    continue
+            time.sleep(2)
+            break
+    if ai_meta_data.get("date") != "日付不明":
+        break
+        
         # ---------------------------------------------------------
         # 📍 【ブロック 10】 解析結果の統合とデータ整形
         # ---------------------------------------------------------
