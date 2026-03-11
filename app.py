@@ -722,8 +722,9 @@ if st.session_state.analyzed_results is None:
         # ---------------------------------------------------------
         # 📍 【ブロック 9】 AIによるテキスト読み取り（スコア → 日時）
         # ---------------------------------------------------------
-            status_text.info(f"⚙️ 画像 {img_idx+1}: AIがスコアを読み取り中...")
-            time.sleep(3)
+        status_text.info(f"⚙️ 画像 {img_idx+1}: AIがスコアを読み取り中...")
+        time.sleep(3)
+
             ai_score_data = {"lane": "", "games": []}
             success_score = False
             last_error = ""
@@ -741,7 +742,6 @@ if st.session_state.analyzed_results is None:
                                 response_mime_type="application/json"
                             )
                         )
-                        # ▼ ここのブロックを右に4スペース移動させ、responseと縦を揃えました
                         raw_text = response.text.strip()
                         if raw_text.startswith("```"):
                             lines = raw_text.split('\n')
@@ -803,7 +803,7 @@ if st.session_state.analyzed_results is None:
                         break
                 if success_meta:
                     break
-
+		
         
         # ---------------------------------------------------------
         # 📍 【ブロック 10】 解析結果の統合とデータ整形
