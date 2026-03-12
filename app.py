@@ -1191,7 +1191,13 @@ if st.session_state.analyzed_results:
                     
                     rows_to_append = []
                     update_count = 0
-
+                    
+                    # ▼▼▼ ここから追加（データが空の場合に処理を止めて警告を出す） ▼▼▼
+                    if not game_checkboxes:
+                        st.warning("⚠️ 登録対象のデータがありません。画像からスコア行が抽出されているか（チェックボックスが表示されているか）確認してください。")
+                        st.stop()
+                    # ▲▲▲ ここまで追加 ▲▲▲
+                    
                     for item in game_checkboxes:
                         is_target = True if register_all else item["is_checked"]
                         if not is_target:
