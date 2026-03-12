@@ -1202,14 +1202,32 @@ if st.session_state.analyzed_results:
                         new_start = row[1]
                         new_end = row[2]
 
-                        # SPSの54列フォーマットに変換 (日付, 開始, 終了, レーン, ゲーム, オイル長, オイル量, ボール, F1-1...)
-                        formatted_row = [
-                            row[0], row[1], row[2],  # 日付, 開始時刻, 終了時刻
-                            row[3],                  # レーン
-                            row[4],                  # ゲーム数（ゲーム名）
-                            "", "", "",              # オイル長, オイル量, 使用ボール (将来用空欄)
-                        ]
-                        formatted_row.extend(row[5:]) 
+# SPSの指定フォーマットにマッピング (日付, 開始, 終了, レーン, ゲーム, オイル長, オイル量, ボール, F1-1...)
+            formatted_row = [
+                row[0], row[1], row[2],  # A: 日付, B: 開始, C: 終了
+                row[3],                  # D: レーン
+                row[4],                  # E: ゲーム
+                "", "", "",              # F: オイル長, G: オイル量, H: ボール (空欄)
+            ]
+            
+            # I〜AR列: 1〜9フレーム (1投目, 1投目残ピン, 2投目, 2投目残ピン)
+            for f in range(9):
+                formatted_row.extend([
+                    row[throw_cols[f*2]],     
+                    row[target_indices[f]],   
+                    row[throw_cols[f*2+1]],   
+                    ""                        
+                ])
+                
+            # AS〜AX列: 10フレーム (投1, 残1, 投2, 残2, 投3, 残3)
+            formatted_row.extend([
+                row[throw_cols[18]], row[target_indices[9]],   
+                row[throw_cols[19]], row[target_indices[10]],  
+                row[throw_cols[20]], row[target_indices[11]]   
+            ])
+            
+            # AY列: トータルスコア
+            formatted_row.append(row[50])
 
                         # 重複確認ロジック（日付一致 ＋ 開始or終了の一致）
                         match_found = False
