@@ -1255,8 +1255,8 @@ if st.session_state.analyzed_results:
                             break
 
                         # 一致するものがなければ新規追加リストへ
-                        if not match_found:
-                            rows_to_append.append(formatted_row)
+                    if not match_found:
+                        rows_to_append.append(formatted_row)
 
                     # 6. 新規データの一括書き込み
                     if rows_to_append:
