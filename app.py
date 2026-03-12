@@ -1052,8 +1052,27 @@ if st.session_state.analyzed_results:
                 match_status = "⚠️不一致"
 
 # --- 🛠️ 修正機能 UI（AI不使用） ---
-    # ① expanded=False を指定（再計算時のリロードで確実に閉じるようにする）
-    with st.expander(f"✏️ {game_name} を手動修正", expanded=False):
+    # ① expanderの仕様で閉じない問題を解決するため、チェックボックスによる開閉に変更
+    edit_key = f"edit_toggle_{img_idx}_{local_idx}"
+    if edit_key not in st.session_state:
+        st.session_state[edit_key] = False
+
+    st.checkbox(f"✏️ {game_name} を手動修正する", key=edit_key)
+
+    if st.session_state[edit_key]:
+        # ③ 残ピンの背景を薄ピンクにするCSSをここに直接埋め込んで強制発動させる
+        st.markdown(
+            """
+            <style>
+            span[data-baseweb="tag"] {
+                background-color: #FFC0CB !important;
+                color: #000000 !important;
+                font-weight: bold !important;
+            }
+            </style>
+            """, unsafe_allow_html=True
+        )
+
         c_date, c_start, c_end = st.columns(3)
         with c_date:
             new_date = st.text_input("日付", value=row[0], key=f"d_{img_idx}_{local_idx}")
@@ -1068,8 +1087,8 @@ if st.session_state.analyzed_results:
 
         # 1〜9フレームの入力
         for f in range(9):
-            # ② 「F」を「フレーム」に変更、太字・ターコイズブルーに装飾
-            st.markdown(f"<span style='color: turquoise; font-weight: bold;'>{f+1}フレーム</span>", unsafe_allow_html=True)
+            # ② より確実に太字・ターコイズブルー（#40E0D0）にする
+            st.markdown(f"<div style='color: #40E0D0; font-weight: 900; font-size: 1.1em; margin-bottom: -10px;'>{f+1}フレーム</div>", unsafe_allow_html=True)
             c1, c2, c3 = st.columns([1, 1, 3])
             with c1:
                 t1 = st.text_input("1投目", value=str(row[throw_cols[f*2]]).replace("R:", ""), key=f"t1_{img_idx}_{local_idx}_{f}")
@@ -1084,8 +1103,7 @@ if st.session_state.analyzed_results:
             new_pins.append(",".join(map(str, p_sel)))
 
         # 10フレームの入力
-        # ② 「F」を「フレーム」に変更、太字・ターコイズブルーに装飾
-        st.markdown("<span style='color: turquoise; font-weight: bold;'>10フレーム</span>", unsafe_allow_html=True)
+        st.markdown("<div style='color: #40E0D0; font-weight: 900; font-size: 1.1em; margin-bottom: -10px;'>10フレーム</div>", unsafe_allow_html=True)
         c10_1, c10_2, c10_3 = st.columns(3)
         with c10_1:
             t10_1 = st.text_input("1投目", value=str(row[throw_cols[18]]).replace("R:", ""), key=f"t1_{img_idx}_{local_idx}_9")
@@ -1102,6 +1120,11 @@ if st.session_state.analyzed_results:
             p3_str = str(row[target_indices[11]])
             p3_def = [int(p) for p in p3_str.split(",")] if p3_str else []
             p3_sel = st.multiselect("3投目後 残ピン", options=list(range(1, 11)), default=p3_def, key=f"p3_{img_idx}_{local_idx}_9")
+
+        # ① 自動で閉じるための「完了ボタン」
+        if st.button("✅ 修正を完了して閉じる", key=f"close_btn_{img_idx}_{local_idx}"):
+            st.session_state[edit_key] = False
+            st.rerun()
 
     st.markdown("<h3 style='text-align: center;'>☟　☟　☟　☟　☟　☟　☟　</h3>", unsafe_allow_html=True)
 
