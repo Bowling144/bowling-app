@@ -1203,7 +1203,7 @@ if st.session_state.analyzed_results:
                         if not is_target:
                             continue
 
-row = item["export_row"]
+        row = item["export_row"]
         new_date = row[0]
         new_start = row[1]
         new_end = row[2]
