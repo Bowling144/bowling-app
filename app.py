@@ -724,16 +724,16 @@ if st.session_state.analyzed_results is None:
         # ---------------------------------------------------------
 		status_text.info(f"⚙️ 画像 {img_idx+1}: AIがスコアを読み取り中...")
 		time.sleep(3)
-	
+
 		ai_score_data = {"lane": "", "games": []}
 		success_score = False
 		last_error = ""
 		used_model = "FAILED"
 		max_retries = 3  # 制限時の最大再試行回数
-	
+
 		for attempt_model in fallback_models:
 			for attempt in range(max_retries):
-				 try:
+				try:
 					response = client.models.generate_content(
 						model=attempt_model,
 						contents=[prompt_score, img_pil_scores],
@@ -741,7 +741,7 @@ if st.session_state.analyzed_results is None:
 							temperature=0.0,
 							response_mime_type="application/json"
 						)
-					 )
+					)
 					raw_text = response.text.strip()
 					if raw_text.startswith("```"):
 						lines = raw_text.split('\n')
@@ -763,16 +763,16 @@ if st.session_state.analyzed_results is None:
 					break
 			if success_score:
 				break
-	
+
 		if not success_score:
 			st.warning(f"⚠️ {file_name}: AIのスコア読み取りに失敗しました。理由: {last_error}")
-	
+
 		status_text.info(f"⚙️ 画像 {img_idx+1}: AIが日付・時刻・ゲーム数を取得中...")
 		time.sleep(3)
-	
+
 		ai_meta_data = {"date": "日付不明", "start_time": "時刻不明", "end_time": "時刻不明", "start_game_num": 1}
 		success_meta = False
-			
+		
 		for attempt_model in fallback_models:
 			for attempt in range(max_retries):
 				try:
