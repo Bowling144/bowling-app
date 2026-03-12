@@ -1051,89 +1051,57 @@ if st.session_state.analyzed_results:
             else:
                 match_status = "⚠️不一致"
 
-            display_text = f"{date_str}_{start_time}_{end_time}_{game_name}｜トータル:{ai_total_str}_{match_status}"
-            is_checked = st.checkbox(display_text, value=True, key=f"check_{res['file_name']}_{local_idx}")
+# --- 🛠️ 修正機能 UI（AI不使用） ---
+    # ① expanded=False を指定（再計算時のリロードで確実に閉じるようにする）
+    with st.expander(f"✏️ {game_name} を手動修正", expanded=False):
+        c_date, c_start, c_end = st.columns(3)
+        with c_date:
+            new_date = st.text_input("日付", value=row[0], key=f"d_{img_idx}_{local_idx}")
+        with c_start:
+            new_start = st.text_input("開始時刻", value=row[1], key=f"s_{img_idx}_{local_idx}")
+        with c_end:
+            new_end = st.text_input("終了時刻", value=row[2], key=f"e_{img_idx}_{local_idx}")
 
-            game_checkboxes.append({
-                "is_checked": is_checked,
-                "export_row": row,
-                "date": date_str,
-                "start": start_time,
-                "end": end_time
-            })
+        st.markdown("**🎳 投球結果と残ピン位置（1〜10番を選択）**")
+        new_throws = []
+        new_pins = []
 
-        # --- 🛠️ 修正機能 UI（AI不使用） ---
-        # ① expanded=False を指定（再計算時のリロードで確実に閉じるようにする）
-        with st.expander(f"✏️ {game_name} を手動修正", expanded=False):
-            c_date, c_start, c_end = st.columns(3)
-            with c_date:
-                new_date = st.text_input("日付", value=row[0], key=f"d_{img_idx}_{local_idx}")
-            with c_start:
-                new_start = st.text_input("開始時刻", value=row[1], key=f"s_{img_idx}_{local_idx}")
-            with c_end:
-                new_end = st.text_input("終了時刻", value=row[2], key=f"e_{img_idx}_{local_idx}")
-    
-            st.markdown("**🎳 投球結果と残ピン位置（1〜10番を選択）**")
-            new_throws = []
-            new_pins = []
-    
-            # 1〜9フレームの入力
-            for f in range(9):
-                # ② 「F」を「フレーム」に変更、太字・ターコイズブルーに装飾
-                st.markdown(f"<span style='color: turquoise; font-weight: bold;'>{f+1}フレーム</span>", unsafe_allow_html=True)
-                c1, c2, c3 = st.columns([1, 1, 3])
-                with c1:
-                    t1 = st.text_input("1投目", value=str(row[throw_cols[f*2]]).replace("R:", ""), key=f"t1_{img_idx}_{local_idx}_{f}")
-                with c2:
-                    t2 = st.text_input("2投目", value=str(row[throw_cols[f*2+1]]).replace("R:", ""), key=f"t2_{img_idx}_{local_idx}_{f}")
-                with c3:
-                    curr_pins_str = str(row[target_indices[f]])
-                    curr_pins = [int(p) for p in curr_pins_str.split(",")] if curr_pins_str else []
-                    p_sel = st.multiselect("残ピン番号", options=list(range(1, 11)), default=curr_pins, key=f"p_{img_idx}_{local_idx}_{f}")
-    
-                new_throws.extend([t1, t2])
-                new_pins.append(",".join(map(str, p_sel)))
-    
-            # 10フレームの入力
+        # 1〜9フレームの入力
+        for f in range(9):
             # ② 「F」を「フレーム」に変更、太字・ターコイズブルーに装飾
-            st.markdown("<span style='color: turquoise; font-weight: bold;'>10フレーム</span>", unsafe_allow_html=True)
-            c10_1, c10_2, c10_3 = st.columns(3)
-            with c10_1:
-                t10_1 = st.text_input("1投目", value=str(row[throw_cols[18]]).replace("R:", ""), key=f"t1_{img_idx}_{local_idx}_9")
-                p1_str = str(row[target_indices[9]])
-                p1_def = [int(p) for p in p1_str.split(",")] if p1_str else []
-                p1_sel = st.multiselect("1投目後 残ピン", options=list(range(1, 11)), default=p1_def, key=f"p1_{img_idx}_{local_idx}_9")
-            with c10_2:
-                t10_2 = st.text_input("2投目", value=str(row[throw_cols[19]]).replace("R:", ""), key=f"t2_{img_idx}_{local_idx}_9")
-                p2_str = str(row[target_indices[10]])
-                p2_def = [int(p) for p in p2_str.split(",")] if p2_str else []
-                p2_sel = st.multiselect("2投目後 残ピン", options=list(range(1, 11)), default=p2_def, key=f"p2_{img_idx}_{local_idx}_9")
-            with c10_3:
-                t10_3 = st.text_input("3投目", value=str(row[throw_cols[20]]).replace("R:", ""), key=f"t3_{img_idx}_{local_idx}_9")
-                p3_str = str(row[target_indices[11]])
-                p3_def = [int(p) for p in p3_str.split(",")] if p3_str else []
-                p3_sel = st.multiselect("3投目後 残ピン", options=list(range(1, 11)), default=p3_def, key=f"p3_{img_idx}_{local_idx}_9")
-                
-                new_throws.extend([t10_1, t10_2, t10_3])
-                new_pins.extend([",".join(map(str, p1_sel)), ",".join(map(str, p2_sel)), ",".join(map(str, p3_sel))])
+            st.markdown(f"<span style='color: turquoise; font-weight: bold;'>{f+1}フレーム</span>", unsafe_allow_html=True)
+            c1, c2, c3 = st.columns([1, 1, 3])
+            with c1:
+                t1 = st.text_input("1投目", value=str(row[throw_cols[f*2]]).replace("R:", ""), key=f"t1_{img_idx}_{local_idx}_{f}")
+            with c2:
+                t2 = st.text_input("2投目", value=str(row[throw_cols[f*2+1]]).replace("R:", ""), key=f"t2_{img_idx}_{local_idx}_{f}")
+            with c3:
+                curr_pins_str = str(row[target_indices[f]])
+                curr_pins = [int(p) for p in curr_pins_str.split(",")] if curr_pins_str else []
+                p_sel = st.multiselect("残ピン番号", options=list(range(1, 11)), default=curr_pins, key=f"p_{img_idx}_{local_idx}_{f}")
 
-                # 修正確定・自動計算ボタン
-                if st.button("🔄 修正を反映して再計算", key=f"update_{img_idx}_{local_idx}"):
-                    row[0] = new_date
-                    row[1] = new_start
-                    row[2] = new_end
-                    
-                    for i in range(21):
-                        row[throw_cols[i]] = new_throws[i]
-                    for i in range(12):
-                        row[target_indices[i]] = new_pins[i]
-                    
-                    # 再計算ロジックを実行し、トータルスコア(row[50])を上書き
-                    new_calc_totals = calculate_bowling_score(new_throws)
-                    if new_calc_totals:
-                        row[50] = str(new_calc_totals[-1])
-                    
-                    st.rerun()
+            new_throws.extend([t1, t2])
+            new_pins.append(",".join(map(str, p_sel)))
+
+        # 10フレームの入力
+        # ② 「F」を「フレーム」に変更、太字・ターコイズブルーに装飾
+        st.markdown("<span style='color: turquoise; font-weight: bold;'>10フレーム</span>", unsafe_allow_html=True)
+        c10_1, c10_2, c10_3 = st.columns(3)
+        with c10_1:
+            t10_1 = st.text_input("1投目", value=str(row[throw_cols[18]]).replace("R:", ""), key=f"t1_{img_idx}_{local_idx}_9")
+            p1_str = str(row[target_indices[9]])
+            p1_def = [int(p) for p in p1_str.split(",")] if p1_str else []
+            p1_sel = st.multiselect("1投目後 残ピン", options=list(range(1, 11)), default=p1_def, key=f"p1_{img_idx}_{local_idx}_9")
+        with c10_2:
+            t10_2 = st.text_input("2投目", value=str(row[throw_cols[19]]).replace("R:", ""), key=f"t2_{img_idx}_{local_idx}_9")
+            p2_str = str(row[target_indices[10]])
+            p2_def = [int(p) for p in p2_str.split(",")] if p2_str else []
+            p2_sel = st.multiselect("2投目後 残ピン", options=list(range(1, 11)), default=p2_def, key=f"p2_{img_idx}_{local_idx}_9")
+        with c10_3:
+            t10_3 = st.text_input("3投目", value=str(row[throw_cols[20]]).replace("R:", ""), key=f"t3_{img_idx}_{local_idx}_9")
+            p3_str = str(row[target_indices[11]])
+            p3_def = [int(p) for p in p3_str.split(",")] if p3_str else []
+            p3_sel = st.multiselect("3投目後 残ピン", options=list(range(1, 11)), default=p3_def, key=f"p3_{img_idx}_{local_idx}_9")
 
     st.markdown("<h3 style='text-align: center;'>☟　☟　☟　☟　☟　☟　☟　</h3>", unsafe_allow_html=True)
 
