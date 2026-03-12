@@ -19,12 +19,17 @@ import matplotlib.pyplot as plt
 # --- ページ設定 ---
 st.set_page_config(page_title="ボウリング解析", layout="wide")
 st.markdown("""
-    <style>
-    /* expanderの下の余白を消す */
-    div[data-testid="stExpander"] {
-        margin-bottom: 0rem !important;
-    }
-    </style>
+<style>
+/* expanderの下の余白を消す */
+div[data-testid="stExpander"] {
+    margin-bottom: 0rem !important;
+}
+/* ③ 追加：残ピン（選択されたタグ）の背景を薄ピンクにする */
+span[data-baseweb="tag"] {
+    background-color: #FFC0CB !important;
+    color: #000000 !important;
+}
+</style>
 """, unsafe_allow_html=True)
 st.markdown("<h1 style='color: turquoise; text-align: center;'> 🎳Eagle ROLLERS🎳</h1>", unsafe_allow_html=True)
 
