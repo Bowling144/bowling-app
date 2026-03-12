@@ -1229,24 +1229,24 @@ if st.session_state.analyzed_results:
                     # AY列: トータルスコア
                     formatted_row.append(row[50])
 
-                        # 重複確認ロジック（日付一致 ＋ 開始or終了の一致）
-                        match_found = False
-                        for i, ex_row in enumerate(existing_data):
-                            if i == 0 or len(ex_row) < 3: 
-                                continue # ヘッダー行や空行はスキップ
-                            
-                            ex_date = ex_row[0]
-                            ex_start = ex_row[1]
-                            ex_end = ex_row[2]
+                    # 重複確認ロジック（日付一致 ＋ 開始or終了の一致）
+                    match_found = False
+                    for i, ex_row in enumerate(existing_data):
+                        if i == 0 or len(ex_row) < 3: 
+                            continue # ヘッダー行や空行はスキップ
+                        
+                        ex_date = ex_row[0]
+                        ex_start = ex_row[1]
+                        ex_end = ex_row[2]
 
-                            if ex_date == new_date and (ex_start == new_start or ex_end == new_end):
-                                # 一致した行を上書き (gspreadは1始まりのため i+1)
-                                row_num = i + 1
-                                worksheet.update(range_name=f"A{row_num}", values=[formatted_row])
-                                existing_data[i] = formatted_row # メモリ上のデータも更新（同一バッチ内の重複防止）
-                                update_count += 1
-                                match_found = True
-                                break
+                        if ex_date == new_date and (ex_start == new_start or ex_end == new_end):
+                            # 一致した行を上書き (gspreadは1始まりのため i+1)
+                            row_num = i + 1
+                            worksheet.update(range_name=f"A{row_num}", values=[formatted_row])
+                            existing_data[i] = formatted_row # メモリ上のデータも更新（同一バッチ内の重複防止）
+                            update_count += 1
+                            match_found = True
+                            break
 
                         # 一致するものがなければ新規追加リストへ
                         if not match_found:
