@@ -5,6 +5,7 @@ import io
 import csv
 import json
 import time
+import random
 from PIL import Image
 from google import genai
 from google.genai import types
@@ -727,13 +728,13 @@ if st.session_state.analyzed_results is None:
         # 📍 【ブロック 9】 AIによるテキスト読み取り（スコア → 日時）
         # ---------------------------------------------------------
         status_text.info(f"⚙️ 画像 {img_idx+1}: AIがスコアを読み取り中...")
-        time.sleep(3)
+        time.sleep(2) # 意図的なスリープ
 
         ai_score_data = {"lane": "", "games": []}
         success_score = False
         last_error = ""
         used_model = "FAILED"
-        max_retries = 5  # ★修正：リトライ回数を3から5に増やす
+        max_retries = 5  
 
         for attempt_model in fallback_models:
             for attempt in range(max_retries):
@@ -757,16 +758,58 @@ if st.session_state.analyzed_results is None:
                 except Exception as e:
                     last_error = str(e)
                     error_msg = last_error.lower()
-                    # ★修正：503や高負荷のエラーを条件に追加し、待機時間を段階的に延ばす
                     if any(err in error_msg for err in ["429", "too many requests", "quota", "503", "unavailable", "high demand", "overloaded"]):
                         if attempt < max_retries - 1:
-                            wait_sec = 10 * (attempt + 1)
-                            status_text.warning(f"⚠️ サーバー高負荷/制限。{wait_sec}秒待機して再試行します... ({attempt+1}/{max_retries})")
+                            # エクスポネンシャル・バックオフ + ジッター
+                            wait_sec = (2 ** (attempt + 1)) + random.uniform(0, 1)
+                            status_text.warning(f"⚠️ サーバー高負荷/制限。{wait_sec:.1f}秒待機して再試行します... ({attempt+1}/{max_retries})")
                             time.sleep(wait_sec)
                             status_text.info(f"⚙️ 画像 {img_idx+1}: AIがスコアを読み取り中... (再試行 {attempt+1})")
                             continue
                     break
             if success_score:
+                break
+
+        if not success_score:
+            st.warning(f"⚠️ {file_name}: AIのスコア読み取りに失敗しました。理由: {last_error}")
+
+        status_text.info(f"⚙️ 画像 {img_idx+1}: AIが日付・時刻・ゲーム数を取得中...")
+        time.sleep(2) # 意図的なスリープ
+
+        ai_meta_data = {"date": "日付不明", "start_time": "時刻不明", "end_time": "時刻不明", "start_game_num": 1, "lane": ""}
+        success_meta = False
+        
+        for attempt_model in fallback_models:
+            for attempt in range(max_retries):
+                try:
+                    response = client.models.generate_content(
+                        model=attempt_model,
+                        contents=[prompt_metadata, img_pil_full],
+                        config=types.GenerateContentConfig(
+                            temperature=0.0,
+                            response_mime_type="application/json"
+                        )
+                    )
+                    raw_text = response.text.strip()
+                    if raw_text.startswith("```"):
+                        lines = raw_text.split('\n')
+                        raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
+                    ai_meta_data = json.loads(raw_text)
+                    success_meta = True
+                    break
+
+                except Exception as e:
+                    error_msg = str(e).lower()
+                    if any(err in error_msg for err in ["429", "too many requests", "quota", "503", "unavailable", "high demand", "overloaded"]):
+                        if attempt < max_retries - 1:
+                            # エクスポネンシャル・バックオフ + ジッター
+                            wait_sec = (2 ** (attempt + 1)) + random.uniform(0, 1)
+                            status_text.warning(f"⚠️ API制限/高負荷(日時取得)。{wait_sec:.1f}秒待機して再試行します... ({attempt+1}/{max_retries})")
+                            time.sleep(wait_sec)
+                            status_text.info(f"⚙️ 画像 {img_idx+1}: AIが日付・時刻・ゲーム数を取得中... (再試行 {attempt+1})")
+                            continue
+                    break
+            if success_meta:
                 break
 
         if not success_score:
