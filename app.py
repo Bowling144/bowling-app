@@ -1203,59 +1203,59 @@ if st.session_state.analyzed_results:
                         if not is_target:
                             continue
 
-        row = item["export_row"]
-        new_date = row[0]
-        new_start = row[1]
-        new_end = row[2]
-        new_game = row[4]  # ★追加：ゲーム番号（G1, G2など）を取得
-
-        # SPSの指定フォーマットにマッピング (省略せずに元のコードのまま)
-        formatted_row = [
-            row[0], row[1], row[2],
-            row[3],
-            row[4],
-            "", "", "",
-        ]
-
-        for f in range(9):
+            row = item["export_row"]
+            new_date = row[0]
+            new_start = row[1]
+            new_end = row[2]
+            new_game = row[4]  # ★追加：ゲーム番号（G1, G2など）を取得
+    
+            # SPSの指定フォーマットにマッピング (省略せずに元のコードのまま)
+            formatted_row = [
+                row[0], row[1], row[2],
+                row[3],
+                row[4],
+                "", "", "",
+            ]
+    
+            for f in range(9):
+                formatted_row.extend([
+                    row[throw_cols[f*2]],
+                    row[target_indices[f]],
+                    row[throw_cols[f*2+1]],
+                    ""
+                ])
+    
             formatted_row.extend([
-                row[throw_cols[f*2]],
-                row[target_indices[f]],
-                row[throw_cols[f*2+1]],
-                ""
+                row[throw_cols[18]], row[target_indices[9]],
+                row[throw_cols[19]], row[target_indices[10]],
+                row[throw_cols[20]], row[target_indices[11]]
             ])
-
-        formatted_row.extend([
-            row[throw_cols[18]], row[target_indices[9]],
-            row[throw_cols[19]], row[target_indices[10]],
-            row[throw_cols[20]], row[target_indices[11]]
-        ])
-
-        formatted_row.append(row[50])
-
-        # 重複確認ロジック（日付・時刻 ＋ ★ゲーム番号の一致）
-        match_found = False
-        for i, ex_row in enumerate(existing_data):
-            if i == 0 or len(ex_row) < 5:  # ★修正：E列（5列目）までチェックするため <3 を <5 に変更
-                continue
-
-            ex_date = ex_row[0]
-            ex_start = ex_row[1]
-            ex_end = ex_row[2]
-            ex_game = ex_row[4]  # ★追加：SPS側のゲーム番号を取得
-
-            # ★修正：条件の最後に「and ex_game == new_game」を追加
-            if ex_date == new_date and (ex_start == new_start or ex_end == new_end) and ex_game == new_game:
-                row_num = i + 1
-                worksheet.update(range_name=f"A{row_num}", values=[formatted_row])
-                existing_data[i] = formatted_row
-                update_count += 1
-                match_found = True
-                break
-
-        # ▼▼▼ 修正：上の for i, ex_row... の「for」と全く同じ縦のライン（左端からスペース8個分）に合わせる ▼▼▼
-        if not match_found:
-            rows_to_append.append(formatted_row)
+    
+            formatted_row.append(row[50])
+    
+            # 重複確認ロジック（日付・時刻 ＋ ★ゲーム番号の一致）
+            match_found = False
+            for i, ex_row in enumerate(existing_data):
+                if i == 0 or len(ex_row) < 5:  # ★修正：E列（5列目）までチェックするため <3 を <5 に変更
+                    continue
+    
+                ex_date = ex_row[0]
+                ex_start = ex_row[1]
+                ex_end = ex_row[2]
+                ex_game = ex_row[4]  # ★追加：SPS側のゲーム番号を取得
+    
+                # ★修正：条件の最後に「and ex_game == new_game」を追加
+                if ex_date == new_date and (ex_start == new_start or ex_end == new_end) and ex_game == new_game:
+                    row_num = i + 1
+                    worksheet.update(range_name=f"A{row_num}", values=[formatted_row])
+                    existing_data[i] = formatted_row
+                    update_count += 1
+                    match_found = True
+                    break
+    
+            # ▼▼▼ 修正：上の for i, ex_row... の「for」と全く同じ縦のライン（左端からスペース8個分）に合わせる ▼▼▼
+            if not match_found:
+                rows_to_append.append(formatted_row)
                     # 6. 新規データの一括書き込み
                     if rows_to_append:
                         worksheet.append_rows(rows_to_append)
