@@ -1279,6 +1279,8 @@ if st.session_state.analyzed_results:
     # --- ドライブ検索＆SPS自動登録処理 ---
     col1, col2, col3 = st.columns([1, 2, 1]) 
     with col2:
+
+
         if st.button("☁️ 選択したプレイヤーのSPSへデータを登録", use_container_width=True, type="primary"):
             with st.spinner("Google Driveを検索し、データを登録中..."):
                 try:
@@ -1296,33 +1298,35 @@ if st.session_state.analyzed_results:
                     gc = gspread.authorize(creds_write)
                     drive_service_write = build('drive', 'v3', credentials=creds_write)
 
-                    query = "name = 'Players_Data' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-                    results = drive_service_write.files().list(q=query, fields="files(id, name)").execute()
-                    folders = results.get('files', [])
-                    if not folders:
-                        st.error("エラー: Googleドライブ内に「Players_Data」フォルダが見つかりません。共有設定（編集者権限）を確認してください。")
-                        st.stop()
-                    playersdata_id = folders[0]['id']
-
-                    query = f"name = '{selected_player}' and '{playersdata_id}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-                    results = drive_service_write.files().list(q=query, fields="files(id, name)").execute()
-                    p_folders = results.get('files', [])
-                    if not p_folders:
-                        st.error(f"エラー: 「Players_Data」内に「{selected_player}」のフォルダが見つかりません。")
-                        st.stop()
-
-                    player_folder_id = p_folders[0]['id']
-
-                    query = f"'{player_folder_id}' in parents and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"
+                    # 統合SPS「EagleBowl_ROLLERS」を検索
+                    query = "name = 'EagleBowl_ROLLERS' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"
                     results = drive_service_write.files().list(q=query, fields="files(id, name)").execute()
                     sheets = results.get('files', [])
                     if not sheets:
-                        st.error(f"エラー: 「{selected_player}」フォルダ内にスプレッドシートが見つかりません。")
+                        st.error("エラー: Googleドライブ内に「EagleBowl_ROLLERS」が見つかりません。")
                         st.stop()
                     
                     sheet_id = sheets[0]['id']
-                    
                     sh = gc.open_by_key(sheet_id)
+
+                    # 【改良点】「プレイヤー設定」シートからメールアドレスのマッピングを自動取得する
+                    player_email_map = {}
+                    try:
+                        settings_sheet = sh.worksheet("プレイヤー設定")
+                        settings_data = settings_sheet.get_all_values()
+                        # 1行目は見出しなので2行目以降をループ処理
+                        for row in settings_data[1:]:
+                            # A列(row[0])がメール、B列(row[1])がプレイヤー名
+                            if len(row) >= 2 and row[1]: 
+                                player_email_map[row[1]] = row[0]
+                    except gspread.exceptions.WorksheetNotFound:
+                        st.warning("⚠️ 「プレイヤー設定」シートが見つかりません。メールアドレスは空白で登録されます。")
+                    except Exception as e:
+                        st.warning(f"⚠️ プレイヤー設定の読み込みに失敗しました: {e}")
+
+                    # 選択されたプレイヤーのメールアドレスを取得（見つからなければ空白）
+                    user_email = player_email_map.get(selected_player, "")
+                    
                     try:
                         worksheet = sh.worksheet("マスター")
                     except gspread.exceptions.WorksheetNotFound:
@@ -1335,7 +1339,7 @@ if st.session_state.analyzed_results:
                     update_count = 0
                     
                     if not game_checkboxes:
-                        st.warning("⚠️ 登録対象のデータがありません。画像からスコア行が抽出されているか（チェックボックスが表示されているか）確認してください。")
+                        st.warning("⚠️ 登録対象のデータがありません。")
                         st.stop()
                     
                     for item in game_checkboxes:
@@ -1351,11 +1355,14 @@ if st.session_state.analyzed_results:
                 
                         selected_lane, oil_len, oil_vol, ball_used = input_data.get((item["img_idx"], item["local_idx"]), ("", "", ""))
 
+                        # A列・B列にメールアドレスとプレイヤー名を自動セット
                         formatted_row = [
-                            row[0], row[1], row[2],
-                            selected_lane, # ▼ 変更：AI生データ(row[3])ではなくUIの選択結果を使用
-                            row[4],
-                            oil_len, oil_vol, ball_used, 
+                            user_email,      # A列：取得したメールアドレス
+                            selected_player, # B列：プレイヤー名
+                            row[0], row[1], row[2], # C:日付, D:開始, E:終了
+                            selected_lane,   # F列:レーン
+                            row[4],          # G列:ゲーム数
+                            oil_len, oil_vol, ball_used, # H, I, J列
                         ]
 
                         for f in range(9):
@@ -1372,19 +1379,20 @@ if st.session_state.analyzed_results:
                             row[throw_cols[20]], row[target_indices[11]]
                         ])
                 
-                        formatted_row.append(row[50])
+                        formatted_row.append(row[50]) # トータルスコア
                 
                         match_found = False
                         for i, ex_row in enumerate(existing_data):
-                            if i == 0 or len(ex_row) < 5: 
+                            if i == 0 or len(ex_row) < 7: 
                                 continue
-                
-                            ex_date = ex_row[0]
-                            ex_start = ex_row[1]
-                            ex_end = ex_row[2]
-                            ex_game = ex_row[4] 
-                
-                            if ex_date == new_date and (ex_start == new_start or ex_end == new_end) and ex_game == new_game:
+                            
+                            ex_player = ex_row[1]
+                            ex_date = ex_row[2]
+                            ex_start = ex_row[3]
+                            ex_end = ex_row[4]
+                            ex_game = ex_row[6] 
+                            
+                            if ex_player == selected_player and ex_date == new_date and (ex_start == new_start or ex_end == new_end) and ex_game == new_game:
                                 row_num = i + 1
                                 worksheet.update(range_name=f"A{row_num}", values=[formatted_row])
                                 existing_data[i] = formatted_row
