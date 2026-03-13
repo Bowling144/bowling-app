@@ -1065,8 +1065,15 @@ if st.session_state.analyzed_results:
             # --- 🛠️ 修正機能 UI（AI不使用） ---
             # ① expanderをプログラムから閉じるため、toggle（スイッチ）に変更
             edit_key = f"edit_{img_idx}_{local_idx}"
+            close_flag_key = f"close_flag_{img_idx}_{local_idx}"  # ★追加：閉じるための予約フラグ
+
             if edit_key not in st.session_state:
                 st.session_state[edit_key] = False
+
+            # ★追加：画面にtoggleが描画される「前」に状態をFalseに書き換える
+            if st.session_state.get(close_flag_key):
+                st.session_state[edit_key] = False
+                st.session_state[close_flag_key] = False
 
             if st.toggle(f"✏️ {game_name} を手動修正", key=edit_key):
                 
@@ -1154,7 +1161,8 @@ if st.session_state.analyzed_results:
                         row[50] = str(new_calc_totals[-1])
                     
                     # ① 再計算時に自動で入力欄を閉じる処理
-                    st.session_state[edit_key] = False
+                    # ★修正：直接Falseに書き換えず、予約フラグを立ててからrerunする
+                    st.session_state[close_flag_key] = True
                     st.rerun()
 
     st.markdown("<h3 style='text-align: center;'>☟　☟　☟　☟　☟　☟　☟　</h3>", unsafe_allow_html=True)
