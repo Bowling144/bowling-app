@@ -1171,7 +1171,7 @@ if st.session_state.analyzed_results:
 
     # ▼▼▼ 以下、左端からのスペースを4つ分に修正（画像ループの外に出す） ▼▼▼
     st.markdown("---")
-    st.markdown("### 🎳 コンディション・使用ボール設定")
+    st.markdown("### 🎳 レーン・オイル・ボール")
     input_data = {}
 
     # 画像ごとにゲームをグループ化
@@ -1195,7 +1195,7 @@ if st.session_state.analyzed_results:
             common_ball = st.text_input("使用ボール", key=f"c_ball_{img_idx}", placeholder="例: ツアーダイナミクス")
             
         # 個別入力（expander内に格納）
-        with st.expander(f"🔽 画像 {img_idx+1} のゲームごとに個別設定する（変更したいゲームのみ入力）"):
+        with st.expander(f"🔽 画像 {img_idx+1} のゲームごとの個別設定"):
             for item in items:
                 l_idx = item["local_idx"]
                 g_name = item["export_row"][4]
