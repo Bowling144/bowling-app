@@ -1221,7 +1221,8 @@ if st.session_state.analyzed_results:
         st.markdown("<h3 style='text-align: center;'>☟　☟　☟　☟　☟　☟　☟　</h3>", unsafe_allow_html=True)
 
         # --- ドライブ検索＆SPS自動登録処理 ---
-        col1, col2, col3 = st.columns([1, 2, 1])    with col2:
+        col1, col2, col3 = st.columns([1, 2, 1]) 
+        with col2:
         if st.button("☁️ 選択したプレイヤーのSPSへデータを登録", use_container_width=True, type="primary"):
             with st.spinner("Google Driveを検索し、データを登録中..."):
                 try:
