@@ -729,7 +729,7 @@ if st.session_state.analyzed_results is None:
         success_score = False
         last_error = ""
         used_model = "FAILED"
-        max_retries = 3  # 制限時の最大再試行回数
+        max_retries = 5  # ★修正：リトライ回数を3から5に増やす
 
         for attempt_model in fallback_models:
             for attempt in range(max_retries):
@@ -753,11 +753,12 @@ if st.session_state.analyzed_results is None:
                 except Exception as e:
                     last_error = str(e)
                     error_msg = last_error.lower()
-                    # 429エラー（リクエスト過多）の場合は20秒待って再試行
-                    if "429" in error_msg or "too many requests" in error_msg or "quota" in error_msg:
+                    # ★修正：503や高負荷のエラーを条件に追加し、待機時間を段階的に延ばす
+                    if any(err in error_msg for err in ["429", "too many requests", "quota", "503", "unavailable", "high demand", "overloaded"]):
                         if attempt < max_retries - 1:
-                            status_text.warning(f"⚠️ API制限に達しました。20秒待機して再試行します... ({attempt+1}/{max_retries})")
-                            time.sleep(20)
+                            wait_sec = 10 * (attempt + 1)
+                            status_text.warning(f"⚠️ サーバー高負荷/制限。{wait_sec}秒待機して再試行します... ({attempt+1}/{max_retries})")
+                            time.sleep(wait_sec)
                             status_text.info(f"⚙️ 画像 {img_idx+1}: AIがスコアを読み取り中... (再試行 {attempt+1})")
                             continue
                     break
@@ -791,17 +792,21 @@ if st.session_state.analyzed_results is None:
                     ai_meta_data = json.loads(raw_text)
                     success_meta = True
                     break
+
                 except Exception as e:
                     error_msg = str(e).lower()
-                    if "429" in error_msg or "too many requests" in error_msg or "quota" in error_msg:
+                    # ★修正：ここも同様に条件を追加し、段階的な待機時間に直す
+                    if any(err in error_msg for err in ["429", "too many requests", "quota", "503", "unavailable", "high demand", "overloaded"]):
                         if attempt < max_retries - 1:
-                            status_text.warning(f"⚠️ API制限(日時取得)。20秒待機して再試行します... ({attempt+1}/{max_retries})")
-                            time.sleep(20)
+                            wait_sec = 10 * (attempt + 1)
+                            status_text.warning(f"⚠️ API制限/高負荷(日時取得)。{wait_sec}秒待機して再試行します... ({attempt+1}/{max_retries})")
+                            time.sleep(wait_sec)
                             status_text.info(f"⚙️ 画像 {img_idx+1}: AIが日付・時刻・ゲーム数を取得中... (再試行 {attempt+1})")
                             continue
                     break
             if success_meta:
                 break
+                   
 
         # ---------------------------------------------------------
         # 📍 【ブロック 10】 解析結果の統合とデータ整形
