@@ -1168,61 +1168,60 @@ if st.session_state.analyzed_results:
                     st.session_state[close_flag_key] = True
                     st.rerun()
                     
-# ▼▼▼ ここから追加：コンディション・使用ボール入力UI ▼▼▼
-st.markdown("---")
-st.markdown("### 🎳 コンディション・使用ボール設定")
-input_data = {}
+        # ▼▼▼ ここから追加：コンディション・使用ボール入力UI ▼▼▼
+        st.markdown("---")
+        st.markdown("### 🎳 コンディション・使用ボール設定")
+        input_data = {}
 
-# 画像ごとにゲームをグループ化
-games_by_img = {}
-for item in game_checkboxes:
-    idx = item["img_idx"]
-    if idx not in games_by_img:
-        games_by_img[idx] = []
-    games_by_img[idx].append(item)
-    
-for img_idx, items in games_by_img.items():
-    st.markdown(f"**📄 画像 {img_idx+1} の設定**")
-    
-    # 画像共通入力（初期表示）
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        common_len = st.text_input("オイル長 (m)", key=f"c_len_{img_idx}", placeholder="例: 42")
-    with col2:
-        common_vol = st.text_input("オイル量 (ml)", key=f"c_vol_{img_idx}", placeholder="例: 25.5")
-    with col3:
-        common_ball = st.text_input("使用ボール", key=f"c_ball_{img_idx}", placeholder="例: ツアーダイナミクス")
-        
-    # 個別入力（expander内に格納）
-    with st.expander(f"🔽 画像 {img_idx+1} のゲームごとに個別設定する（変更したいゲームのみ入力）"):
-        for item in items:
-            l_idx = item["local_idx"]
-            g_name = item["export_row"][4]
+        # 画像ごとにゲームをグループ化
+        games_by_img = {}
+        for item in game_checkboxes:
+            idx = item["img_idx"]
+            if idx not in games_by_img:
+                games_by_img[idx] = []
+            games_by_img[idx].append(item)
             
-            c1, c2, c3, c4 = st.columns([1, 2, 2, 2])
-            with c1:
-                st.markdown(f"<div style='margin-top:8px;'><b>{g_name}</b></div>", unsafe_allow_html=True)
-            with c2:
-                i_len = st.text_input(f"{g_name}長", key=f"i_len_{img_idx}_{l_idx}", label_visibility="collapsed", placeholder="共通を適用")
-            with c3:
-                i_vol = st.text_input(f"{g_name}量", key=f"i_vol_{img_idx}_{l_idx}", label_visibility="collapsed", placeholder="共通を適用")
-            with c4:
-                i_ball = st.text_input(f"{g_name}球", key=f"i_ball_{img_idx}_{l_idx}", label_visibility="collapsed", placeholder="共通を適用")
+        for img_idx, items in games_by_img.items():
+            st.markdown(f"**📄 画像 {img_idx+1} の設定**")
             
-            # 個別入力が空欄なら、共通入力の値を自動適用する
-            final_len = i_len if i_len.strip() else common_len
-            final_vol = i_vol if i_vol.strip() else common_vol
-            final_ball = i_ball if i_ball.strip() else common_ball
-            
-            input_data[(img_idx, l_idx)] = (final_len, final_vol, final_ball)
-st.markdown("<br>", unsafe_allow_html=True)
-# ▲▲▲ ここまで追加 ▲▲▲
+            # 画像共通入力（初期表示）
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                common_len = st.text_input("オイル長 (m)", key=f"c_len_{img_idx}", placeholder="例: 42")
+            with col2:
+                common_vol = st.text_input("オイル量 (ml)", key=f"c_vol_{img_idx}", placeholder="例: 25.5")
+            with col3:
+                common_ball = st.text_input("使用ボール", key=f"c_ball_{img_idx}", placeholder="例: ツアーダイナミクス")
+                
+            # 個別入力（expander内に格納）
+            with st.expander(f"🔽 画像 {img_idx+1} のゲームごとに個別設定する（変更したいゲームのみ入力）"):
+                for item in items:
+                    l_idx = item["local_idx"]
+                    g_name = item["export_row"][4]
+                    
+                    c1, c2, c3, c4 = st.columns([1, 2, 2, 2])
+                    with c1:
+                        st.markdown(f"<div style='margin-top:8px;'><b>{g_name}</b></div>", unsafe_allow_html=True)
+                    with c2:
+                        i_len = st.text_input(f"{g_name}長", key=f"i_len_{img_idx}_{l_idx}", label_visibility="collapsed", placeholder="共通を適用")
+                    with c3:
+                        i_vol = st.text_input(f"{g_name}量", key=f"i_vol_{img_idx}_{l_idx}", label_visibility="collapsed", placeholder="共通を適用")
+                    with c4:
+                        i_ball = st.text_input(f"{g_name}球", key=f"i_ball_{img_idx}_{l_idx}", label_visibility="collapsed", placeholder="共通を適用")
+                    
+                    # 個別入力が空欄なら、共通入力の値を自動適用する
+                    final_len = i_len if i_len.strip() else common_len
+                    final_vol = i_vol if i_vol.strip() else common_vol
+                    final_ball = i_ball if i_ball.strip() else common_ball
+                    
+                    input_data[(img_idx, l_idx)] = (final_len, final_vol, final_ball)
+        st.markdown("<br>", unsafe_allow_html=True)
+        # ▲▲▲ ここまで追加 ▲▲▲
 
-    st.markdown("<h3 style='text-align: center;'>☟　☟　☟　☟　☟　☟　☟　</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='text-align: center;'>☟　☟　☟　☟　☟　☟　☟　</h3>", unsafe_allow_html=True)
 
-    # --- ドライブ検索＆SPS自動登録処理 ---
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
+        # --- ドライブ検索＆SPS自動登録処理 ---
+        col1, col2, col3 = st.columns([1, 2, 1])    with col2:
         if st.button("☁️ 選択したプレイヤーのSPSへデータを登録", use_container_width=True, type="primary"):
             with st.spinner("Google Driveを検索し、データを登録中..."):
                 try:
