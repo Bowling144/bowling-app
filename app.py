@@ -1063,7 +1063,28 @@ if st.session_state.analyzed_results:
             })
 
             # --- 🛠️ 修正機能 UI（AI不使用） ---
-            with st.expander(f"✏️ {game_name} を手動修正"):
+            # ① expanderをプログラムから閉じるため、toggle（スイッチ）に変更
+            edit_key = f"edit_{img_idx}_{local_idx}"
+            if edit_key not in st.session_state:
+                st.session_state[edit_key] = False
+
+            if st.toggle(f"✏️ {game_name} を手動修正", key=edit_key):
+                
+                # ③ 残ピン（マルチセレクト）のタグと枠の背景色を薄ピンクにするCSS
+                st.markdown("""
+                    <style>
+                    /* 選択されたピン番号（タグ）の背景色 */
+                    span[data-baseweb="tag"] {
+                        background-color: #FFB6C1 !important; 
+                        color: black !important;
+                    }
+                    /* 残ピン選択ボックス自体の背景色 */
+                    div[data-baseweb="select"] > div {
+                        background-color: #FFF0F5 !important;
+                    }
+                    </style>
+                """, unsafe_allow_html=True)
+
                 c_date, c_start, c_end = st.columns(3)
                 with c_date:
                     new_date = st.text_input("日付", value=row[0], key=f"d_{img_idx}_{local_idx}")
@@ -1078,7 +1099,8 @@ if st.session_state.analyzed_results:
 
                 # 1〜9フレームの入力
                 for f in range(9):
-                    st.write(f"**{f+1}F**")
+                    # ② 1F → 1フレーム に変更し、太字・ターコイズブルーに
+                    st.markdown(f"**<span style='color: turquoise;'>{f+1}フレーム</span>**", unsafe_allow_html=True)
                     c1, c2, c3 = st.columns([1, 1, 3])
                     with c1:
                         t1 = st.text_input("1投目", value=str(row[throw_cols[f*2]]).replace("R:", ""), key=f"t1_{img_idx}_{local_idx}_{f}")
@@ -1093,7 +1115,8 @@ if st.session_state.analyzed_results:
                     new_pins.append(",".join(map(str, p_sel)))
 
                 # 10フレームの入力
-                st.write("**10F**")
+                # ② 10F → 10フレーム に変更し、太字・ターコイズブルーに
+                st.markdown("**<span style='color: turquoise;'>10フレーム</span>**", unsafe_allow_html=True)
                 c10_1, c10_2, c10_3 = st.columns(3)
                 with c10_1:
                     t10_1 = st.text_input("1投目", value=str(row[throw_cols[18]]).replace("R:", ""), key=f"t1_{img_idx}_{local_idx}_9")
@@ -1130,6 +1153,8 @@ if st.session_state.analyzed_results:
                     if new_calc_totals:
                         row[50] = str(new_calc_totals[-1])
                     
+                    # ① 再計算時に自動で入力欄を閉じる処理
+                    st.session_state[edit_key] = False
                     st.rerun()
 
     st.markdown("<h3 style='text-align: center;'>☟　☟　☟　☟　☟　☟　☟　</h3>", unsafe_allow_html=True)
