@@ -130,21 +130,23 @@ status_text = st.empty()
 # =========================================================
 prompt_metadata = """
 画像はボウリングのスコアシートの全体写真です。
-この画像から「日付」「最初のゲーム数」「開始時刻」「終了時刻」を探し出し、以下のJSON形式で出力してください。
+この画像から「日付」「最初のゲーム数」「開始時刻」「終了時刻」「レーン番号」を探し出し、以下のJSON形式で出力してください。
 
 【ルール】
 1. 日付: 中央上部にある黒い文字。「YY/MM/DD」の形式で "date" に出力。
 2. 最初のゲーム数: 一番上のゲームのスコア欄の左端に記載。フレームという文字の下GAMEの下に改行されて数字を記載。GAME1, GAME7, GAME13, GAME19, GAME25のいずれか。「1」などの数値のみを "start_game_num" に出力。
 3. 開始時刻: 1枚のスコアシートの日付の右下に記載。1ゲーム目の開始時刻と終了時刻が左右に並んでいて、その左側の時刻が開始時刻。"HH:MM" 形式で "start_time" に出力。見つからなければ "時刻不明" にする。
 4. 終了時刻: 1枚のスコアシートの一番最後のゲームの9フレーム目のスコア欄の上部に記載。開始時刻と終了時刻が左右に並んでいて、その右側の時刻が終了時刻。"HH:MM" 形式で "end_time" に出力。見つからなければ "時刻不明" にする。
-5. Markdownの記号などは一切含めず、純粋なJSON文字列だけを出力してください。
+5. レーン番号: 「ゲーム日付」の右側にある「使用レーン」の右に記載されている数字。1から18までの単独の整数か、「1-2」「3-4」「5-6」「7-8」「9-10」「11-12」「13-14」「15-16」「17-18」または、その逆の「2-1」から「18-17」までの文字列を "lane" に出力。見つからなければ空文字にする。
+6. Markdownの記号などは一切含めず、純粋なJSON文字列だけを出力してください。
 
 【出力フォーマット例】
 {
   "date": "26/02/07",
   "start_game_num": 1,
   "start_time": "14:12",
-  "end_time": "15:30"
+  "end_time": "15:30",
+  "lane": "1-2"
 }
 """
 
@@ -844,7 +846,7 @@ if st.session_state.analyzed_results is None:
             row_data[0] = global_date
             row_data[1] = start_time
             row_data[2] = end_time 
-            row_data[3] = str(ai_score_data.get("lane") or "")
+            row_data[3] = str(ai_meta_data.get("lane") or "")
 
             games_list = ai_score_data.get("games") or []
             g_info = games_list[group_idx] if group_idx < len(games_list) else {}
@@ -1174,7 +1176,9 @@ if st.session_state.analyzed_results:
     st.markdown("### 🎳 レーン・オイル・ボール")
     input_data = {}
 
-    # 画像ごとにゲームをグループ化
+    # ▼ 追加：レーン番号の選択肢を生成（空欄 + 1〜18の単独 + 奇数-偶数 + 偶数-奇数）
+    LANE_OPTIONS = [""] + [str(i) for i in range(1, 19)] + [f"{i}-{i+1}" for i in range(1, 19, 2)] + [f"{i+1}-{i}" for i in range(1, 19, 2)]
+# 画像ごとにゲームをグループ化
     games_by_img = {}
     for item in game_checkboxes:
         idx = item["img_idx"]
@@ -1185,6 +1189,13 @@ if st.session_state.analyzed_results:
     for img_idx, items in games_by_img.items():
         st.markdown(f"**📄 画像 {img_idx+1} の設定**")
         
+        # ▼ 追加：AIが読み取ったレーン番号を取得し、選択肢の初期値を決定
+        ai_lane = items[0]["export_row"][3]
+        default_lane_index = LANE_OPTIONS.index(ai_lane) if ai_lane in LANE_OPTIONS else 0
+        
+        # ▼ 追加：オイル長の上にレーン番号の選択欄を配置
+        common_lane = st.selectbox("レーン番号", LANE_OPTIONS, index=default_lane_index, key=f"c_lane_{img_idx}")
+
         # 画像共通入力（初期表示）
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -1215,7 +1226,8 @@ if st.session_state.analyzed_results:
                 final_vol = i_vol if i_vol.strip() else common_vol
                 final_ball = i_ball if i_ball.strip() else common_ball
                 
-                input_data[(img_idx, l_idx)] = (final_len, final_vol, final_ball)
+                # ▼ 変更：input_data に common_lane も保存する
+                input_data[(img_idx, l_idx)] = (common_lane, final_len, final_vol, final_ball)
     st.markdown("<br>", unsafe_allow_html=True)
 
     st.markdown("<h3 style='text-align: center;'>☟　☟　☟　☟　☟　☟　☟　</h3>", unsafe_allow_html=True)
@@ -1293,11 +1305,11 @@ if st.session_state.analyzed_results:
                         new_end = row[2]
                         new_game = row[4] 
                 
-                        oil_len, oil_vol, ball_used = input_data.get((item["img_idx"], item["local_idx"]), ("", "", ""))
+                        selected_lane, oil_len, oil_vol, ball_used = input_data.get((item["img_idx"], item["local_idx"]), ("", "", ""))
 
                         formatted_row = [
                             row[0], row[1], row[2],
-                            row[3],
+                            selected_lane, # ▼ 変更：AI生データ(row[3])ではなくUIの選択結果を使用
                             row[4],
                             oil_len, oil_vol, ball_used, 
                         ]
