@@ -1565,11 +1565,11 @@ if st.session_state.analyzed_results:
                         # --- ②～⑧のためのフレーム別処理 ---
                         game_seq = []
                         
-                        # 1〜9フレーム
+                        # 1〜9フレーム (※元の正しい列番号に修正)
                         for f in range(9):
-                            res1 = clean_res(r[7 + f*4])
-                            pin1 = str(r[8 + f*4]).strip()
-                            res2 = clean_res(r[9 + f*4])
+                            res1 = clean_res(r[10 + f*4])
+                            pin1 = str(r[11 + f*4]).strip()
+                            res2 = clean_res(r[12 + f*4])
                             
                             game_seq.append(res1)
                             
@@ -1602,12 +1602,12 @@ if st.session_state.analyzed_results:
                                     
                                 game_seq.append(res2)
 
-                        # 10フレーム目
-                        res10_1 = clean_res(r[43]) if len(r) > 43 else ""
-                        pin10_1 = str(r[44]).strip() if len(r) > 44 else ""
-                        res10_2 = clean_res(r[45]) if len(r) > 45 else ""
-                        pin10_2 = str(r[46]).strip() if len(r) > 46 else ""
-                        res10_3 = clean_res(r[47]) if len(r) > 47 else ""
+                        # 10フレーム目 (※元の正しい列番号に修正)
+                        res10_1 = clean_res(r[46]) if len(r) > 46 else ""
+                        pin10_1 = str(r[47]).strip() if len(r) > 47 else ""
+                        res10_2 = clean_res(r[48]) if len(r) > 48 else ""
+                        pin10_2 = str(r[49]).strip() if len(r) > 49 else ""
+                        res10_3 = clean_res(r[50]) if len(r) > 50 else ""
                         
                         game_seq.append(res10_1)
                         
@@ -1753,31 +1753,7 @@ if st.session_state.analyzed_results:
                         if stats["am_g"] > 0:
                             award_rows.append([email, n, "6.投球方式", "⑨アメリカン", stats["am_g"], stats["am_s"], calc_ave(stats["am_s"], stats["am_g"])])
                             
-                        # --- ⑩ レーン番号ごと ---
-                        for l, d in stats["lanes"].items():
-                            award_rows.append([email, n, "7.レーン別", f"⑩レーン {l}", d["g"], d["s"], calc_ave(d["s"], d["g"])])
-                            
-                        # --- ⑪ オイル長さごと ---
-                        for l, d in stats["oil_lens"].items():
-                            award_rows.append([email, n, "8.オイル長別", f"⑪{l}ft", d["g"], d["s"], calc_ave(d["s"], d["g"])])
-                            
-                        # --- ⑫ オイル量ごと ---
-                        for v, d in stats["oil_vols"].items():
-                            award_rows.append([email, n, "9.オイル量別", f"⑫{v}ml", d["g"], d["s"], calc_ave(d["s"], d["g"])])
-
-                    # ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
-                    # AWARDシートへの出力
-                    # ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
-                    try:
-                        award_sheet = sh.worksheet("AWARD")
-                    except gspread.exceptions.WorksheetNotFound:
-                        award_sheet = sh.add_worksheet(title="AWARD", rows="1000", cols="7")
-                        
-                    award_sheet.clear()
-                    if award_rows:
-                        award_sheet.update(range_name="A1", values=award_rows)
-                    # === ▲▲▲ AWARD集計機能の追加ここまで ▲▲▲ ===
-
+                        # --- ⑩ レーン番号
 
                     
                     st.success(f"🎉 登録完了！ 新規追加: {add_count}件 / 上書き更新: {update_count}件")
