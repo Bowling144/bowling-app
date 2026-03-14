@@ -728,7 +728,7 @@ if st.session_state.analyzed_results is None:
         # 📍 【ブロック 9】 AIによるテキスト読み取り（スコア → 日時）
         # ---------------------------------------------------------
         status_text.info(f"⚙️ 画像 {img_idx+1}: AIがスコアを読み取り中...")
-        time.sleep(④) # 意図的なスリープ
+        time.sleep(4) # 意図的なスリープ
 
         ai_score_data = {"lane": "", "games": []}
         success_score = False
