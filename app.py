@@ -728,7 +728,7 @@ if st.session_state.analyzed_results is None:
         # 📍 【ブロック 9】 AIによるテキスト読み取り（スコア → 日時）
         # ---------------------------------------------------------
         status_text.info(f"⚙️ 画像 {img_idx+1}: AIがスコアを読み取り中...")
-        time.sleep(2) # 意図的なスリープ
+        time.sleep(④) # 意図的なスリープ
 
         ai_score_data = {"lane": "", "games": []}
         success_score = False
@@ -774,7 +774,7 @@ if st.session_state.analyzed_results is None:
             st.warning(f"⚠️ {file_name}: AIのスコア読み取りに失敗しました。理由: {last_error}")
 
         status_text.info(f"⚙️ 画像 {img_idx+1}: AIが日付・時刻・ゲーム数を取得中...")
-        time.sleep(2) # 意図的なスリープ
+        time.sleep(4) # 意図的なスリープ
 
         ai_meta_data = {"date": "日付不明", "start_time": "時刻不明", "end_time": "時刻不明", "start_game_num": 1, "lane": ""}
         success_meta = False
