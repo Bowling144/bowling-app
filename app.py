@@ -728,13 +728,13 @@ if st.session_state.analyzed_results is None:
         # 📍 【ブロック 9】 AIによるテキスト読み取り（スコア → 日時）
         # ---------------------------------------------------------
         status_text.info(f"⚙️ 画像 {img_idx+1}: AIがスコアを読み取り中...")
-        time.sleep(4) # 意図的なスリープ
+        time.sleep(5) # 意図的なスリープ
 
         ai_score_data = {"lane": "", "games": []}
         success_score = False
         last_error = ""
         used_model = "FAILED"
-        max_retries = 5  
+        max_retries = 7  
 
         for attempt_model in fallback_models:
             for attempt in range(max_retries):
@@ -774,7 +774,7 @@ if st.session_state.analyzed_results is None:
             st.warning(f"⚠️ {file_name}: AIのスコア読み取りに失敗しました。理由: {last_error}")
 
         status_text.info(f"⚙️ 画像 {img_idx+1}: AIが日付・時刻・ゲーム数を取得中...")
-        time.sleep(4) # 意図的なスリープ
+        time.sleep(5) # 意図的なスリープ
 
         ai_meta_data = {"date": "日付不明", "start_time": "時刻不明", "end_time": "時刻不明", "start_game_num": 1, "lane": ""}
         success_meta = False
@@ -816,7 +816,7 @@ if st.session_state.analyzed_results is None:
             st.warning(f"⚠️ {file_name}: AIのスコア読み取りに失敗しました。理由: {last_error}")
 
         status_text.info(f"⚙️ 画像 {img_idx+1}: AIが日付・時刻・ゲーム数を取得中...")
-        time.sleep(3)
+        time.sleep(5)
 
         ai_meta_data = {"date": "日付不明", "start_time": "時刻不明", "end_time": "時刻不明", "start_game_num": 1}
         success_meta = False
@@ -1353,7 +1353,7 @@ if st.session_state.analyzed_results:
                         new_end = row[2]
                         new_game = row[4] 
                 
-                        selected_lane, oil_len, oil_vol, ball_used = input_data.get((item["img_idx"], item["local_idx"]), ("", "", ""))
+                        selected_lane, oil_len, oil_vol, ball_used = input_data.get((item["img_idx"], item["local_idx"]), ("", "", "", ""))
 
                         # A列・B列にメールアドレスとプレイヤー名を自動セット
                         formatted_row = [
