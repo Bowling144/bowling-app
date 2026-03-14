@@ -1451,10 +1451,18 @@ if st.session_state.analyzed_results:
                     
                     add_count = len(rows_to_append)
 
-                    # === ▼▼▼ ここからAWARD集計機能の追加（全12項目対応版） ▼▼▼ ===
+# === ▼▼▼ ここからAWARD集計機能の追加（全12項目対応・ブロック分割版） ▼▼▼ ===
                     all_master_data = worksheet.get_all_values()
                     
-                    # 抽出しない簡単なピン残り
+                    data_rows = [r for r in all_master_data[1:] if len(r) >= 53 and str(r[0]).strip()]
+                    def sort_key(x):
+                        d = str(x[2]).strip()
+                        t = str(x[3]).strip()
+                        g = str(x[6]).strip()
+                        g_num = g.zfill(3) if g.isdigit() else g
+                        return (d, t, g_num)
+                    data_rows.sort(key=sort_key)
+                    
                     non_splits = ["2,4","2,5","3,5","3,6","4,7","4,8","5,8","5,9","6,9","6,10","2,4,5","3,5,6","6,9,10","3,6,10","2,4,5,8"]
                     
                     def is_target(pin_str):
@@ -1472,10 +1480,13 @@ if st.session_state.analyzed_results:
 
                     player_stats = {}
                     
-                    for r in all_master_data[1:]: 
-                        if len(r) < 53: continue
+                    # ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
+                    # 各種データのカウント（データごとの集計）
+                    # ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
+                    for r in data_rows:
                         email = str(r[0]).strip()
                         p_name = str(r[1]).strip()
+                        play_date = str(r[2]).strip()
                         if not email: continue
                         
                         lane = str(r[5]).strip()
@@ -1486,50 +1497,67 @@ if st.session_state.analyzed_results:
                         except ValueError:
                             continue
                             
+                        # --- 初期値の設定 ---
                         if email not in player_stats:
                             player_stats[email] = {
                                 "name": p_name,
-                                "max_str": 0,
+                                "last_date": "",
+                                # ① 記録
+                                "max_str": 0, "cur_str": 0,
+                                "score_300": 0, "score_250_plus": 0, "score_220_plus": 0, "score_200_plus": 0,
+                                # ② ③ 全体率
                                 "st_chances": 0, "st_success": 0,
                                 "sp_chances": 0, "sp_success": 0,
+                                # ④ ⑤ 特定ピン
                                 "pin_7_c": 0, "pin_7_s": 0,
                                 "pin_10_c": 0, "pin_10_s": 0,
+                                # ⑥ スプリット
                                 "splits": {},
+                                # ⑦ ⑧ 連発率用履歴
                                 "seq": [],
+                                # ⑨ 投球方式
                                 "euro_g": 0, "euro_s": 0,
                                 "am_g": 0, "am_s": 0,
-                                "lanes": {},
-                                "oil_lens": {},
-                                "oil_vols": {}
+                                # ⑩ ⑪ ⑫ レーン・オイル
+                                "lanes": {}, "oil_lens": {}, "oil_vols": {}
                             }
                             
                         stats = player_stats[email]
                         
-                        # ⑨ ヨーロピアン vs アメリカン
+                        # --- ① 記録（連続ストライクリセットとスコア判定） ---
+                        if stats["last_date"] != play_date:
+                            stats["cur_str"] = 0
+                            stats["last_date"] = play_date
+                            
+                        if total_score == 300: stats["score_300"] += 1
+                        if total_score >= 250: stats["score_250_plus"] += 1
+                        if total_score >= 220: stats["score_220_plus"] += 1
+                        if total_score >= 200: stats["score_200_plus"] += 1
+                            
+                        # --- ⑨ 投球方式 ---
                         if "-" in lane:
                             stats["am_g"] += 1; stats["am_s"] += total_score
                         elif lane:
                             stats["euro_g"] += 1; stats["euro_s"] += total_score
                             
-                        # ⑩ レーン
+                        # --- ⑩ レーン別 ---
                         if lane:
                             if lane not in stats["lanes"]: stats["lanes"][lane] = {"g": 0, "s": 0}
                             stats["lanes"][lane]["g"] += 1; stats["lanes"][lane]["s"] += total_score
                             
-                        # ⑪ オイル長
+                        # --- ⑪ オイル長別 ---
                         if oil_len:
                             if oil_len not in stats["oil_lens"]: stats["oil_lens"][oil_len] = {"g": 0, "s": 0}
                             stats["oil_lens"][oil_len]["g"] += 1; stats["oil_lens"][oil_len]["s"] += total_score
                             
-                        # ⑫ オイル量
+                        # --- ⑫ オイル量別 ---
                         if oil_vol:
                             if oil_vol not in stats["oil_vols"]: stats["oil_vols"][oil_vol] = {"g": 0, "s": 0}
                             stats["oil_vols"][oil_vol]["g"] += 1; stats["oil_vols"][oil_vol]["s"] += total_score
 
+                        # --- ②～⑧のためのフレーム別処理 ---
                         game_seq = []
-                        cur_consecutive = 0
                         
-                        # 1〜9フレーム
                         for f in range(9):
                             res1 = str(r[10 + f*4]).strip().upper()
                             pin1 = str(r[11 + f*4]).strip()
@@ -1539,10 +1567,10 @@ if st.session_state.analyzed_results:
                             stats["st_chances"] += 1
                             if res1 == "X":
                                 stats["st_success"] += 1
-                                cur_consecutive += 1
-                                if cur_consecutive > stats["max_str"]: stats["max_str"] = cur_consecutive
+                                stats["cur_str"] += 1
+                                if stats["cur_str"] > stats["max_str"]: stats["max_str"] = stats["cur_str"]
                             else:
-                                cur_consecutive = 0
+                                stats["cur_str"] = 0
                                 stats["sp_chances"] += 1
                                 if res2 == "/": stats["sp_success"] += 1
                                 
@@ -1570,26 +1598,26 @@ if st.session_state.analyzed_results:
                         stats["st_chances"] += 1
                         if res10_1 == "X":
                             stats["st_success"] += 1
-                            cur_consecutive += 1
-                            if cur_consecutive > stats["max_str"]: stats["max_str"] = cur_consecutive
+                            stats["cur_str"] += 1
+                            if stats["cur_str"] > stats["max_str"]: stats["max_str"] = stats["cur_str"]
                             
                             game_seq.append(res10_2)
                             stats["st_chances"] += 1
                             if res10_2 == "X":
                                 stats["st_success"] += 1
-                                cur_consecutive += 1
-                                if cur_consecutive > stats["max_str"]: stats["max_str"] = cur_consecutive
+                                stats["cur_str"] += 1
+                                if stats["cur_str"] > stats["max_str"]: stats["max_str"] = stats["cur_str"]
                                 
                                 game_seq.append(res10_3)
                                 stats["st_chances"] += 1
                                 if res10_3 == "X":
                                     stats["st_success"] += 1
-                                    cur_consecutive += 1
-                                    if cur_consecutive > stats["max_str"]: stats["max_str"] = cur_consecutive
+                                    stats["cur_str"] += 1
+                                    if stats["cur_str"] > stats["max_str"]: stats["max_str"] = stats["cur_str"]
                                 else:
-                                    cur_consecutive = 0
+                                    stats["cur_str"] = 0
                             else:
-                                cur_consecutive = 0
+                                stats["cur_str"] = 0
                                 stats["sp_chances"] += 1
                                 if res10_3 == "/": stats["sp_success"] += 1
                                 game_seq.append(res10_3)
@@ -1606,7 +1634,7 @@ if st.session_state.analyzed_results:
                                     stats["splits"][p_str]["c"] += 1
                                     if res10_3 == "/": stats["splits"][p_str]["s"] += 1
                         else:
-                            cur_consecutive = 0
+                            stats["cur_str"] = 0
                             stats["sp_chances"] += 1
                             if res10_2 == "/":
                                 stats["sp_success"] += 1
@@ -1615,8 +1643,8 @@ if st.session_state.analyzed_results:
                                 stats["st_chances"] += 1
                                 if res10_3 == "X":
                                     stats["st_success"] += 1
-                                    cur_consecutive += 1
-                                    if cur_consecutive > stats["max_str"]: stats["max_str"] = cur_consecutive
+                                    stats["cur_str"] += 1
+                                    if stats["cur_str"] > stats["max_str"]: stats["max_str"] = stats["cur_str"]
                             else:
                                 game_seq.append(res10_2)
                                 
@@ -1634,26 +1662,44 @@ if st.session_state.analyzed_results:
 
                         stats["seq"].extend(game_seq)
 
-                    # 集計と行作成
-                    award_rows = [["メールアドレス", "プレイヤー名", "カテゴリ", "項目", "母数", "成功数_合計スコア", "確率_アベレージ"]]
+
+                    # ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
+                    # 各種データの書き出し（リストへの変換）
+                    # ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
+                    award_rows = [["メールアドレス", "プレイヤー名", "カテゴリ", "項目", "母数", "成功数_合計スコア", "確率_アベレージ_回数"]]
                     
                     def calc_rate(s, c): return round((s / c) * 100, 1) if c > 0 else 0
                     def calc_ave(s, g): return round(s / g, 1) if g > 0 else 0
                     
                     for email, stats in player_stats.items():
                         n = stats["name"]
+                        
+                        # --- ① 記録 ---
                         award_rows.append([email, n, "1.記録", "①最大連続ストライク", "-", "-", stats["max_str"]])
+                        award_rows.append([email, n, "1.記録", "①パーフェクト(300)", "-", "-", stats["score_300"]])
+                        award_rows.append([email, n, "1.記録", "①250オーバー", "-", "-", stats["score_250_plus"]])
+                        award_rows.append([email, n, "1.記録", "①220オーバー", "-", "-", stats["score_220_plus"]])
+                        award_rows.append([email, n, "1.記録", "①200オーバー", "-", "-", stats["score_200_plus"]])
+                        
+                        # --- ② 1投目ストライク率 ---
                         award_rows.append([email, n, "2.全体率", "②1投目ストライク率", stats["st_chances"], stats["st_success"], calc_rate(stats["st_success"], stats["st_chances"])])
+                        
+                        # --- ③ 2投目スペア率 ---
                         award_rows.append([email, n, "2.全体率", "③2投目スペア率", stats["sp_chances"], stats["sp_success"], calc_rate(stats["sp_success"], stats["sp_chances"])])
                         
+                        # --- ④ 7番ピン ---
                         if stats["pin_7_c"] > 0:
                             award_rows.append([email, n, "3.特定ピン", "④7番ピン", stats["pin_7_c"], stats["pin_7_s"], calc_rate(stats["pin_7_s"], stats["pin_7_c"])])
+                            
+                        # --- ⑤ 10番ピン ---
                         if stats["pin_10_c"] > 0:
                             award_rows.append([email, n, "3.特定ピン", "⑤10番ピン", stats["pin_10_c"], stats["pin_10_s"], calc_rate(stats["pin_10_s"], stats["pin_10_c"])])
                             
+                        # --- ⑥ スプリット形状ごと ---
                         for sp, d in stats["splits"].items():
                             award_rows.append([email, n, "4.スプリット", f"⑥{sp}", d["c"], d["s"], calc_rate(d["s"], d["c"])])
                             
+                        # --- ⑦ ⑧ 連続ストライク確率計算 ---
                         seq = stats["seq"]
                         st_after_st_c, st_after_st_s, st_after_db_c, st_after_db_s = 0, 0, 0, 0
                         
@@ -1667,23 +1713,33 @@ if st.session_state.analyzed_results:
                                 st_after_db_c += 1
                                 if seq[i+2] == "X": st_after_db_s += 1
                                     
+                        # --- ⑦ ストライク後のストライク ---
                         award_rows.append([email, n, "5.連発率", "⑦ストライク後のストライク", st_after_st_c, st_after_st_s, calc_rate(st_after_st_s, st_after_st_c)])
+                        
+                        # --- ⑧ ダブル後のストライク ---
                         award_rows.append([email, n, "5.連発率", "⑧ダブル後のストライク", st_after_db_c, st_after_db_s, calc_rate(st_after_db_s, st_after_db_c)])
                         
+                        # --- ⑨ 投球方式 ---
                         if stats["euro_g"] > 0:
                             award_rows.append([email, n, "6.投球方式", "⑨ヨーロピアン", stats["euro_g"], stats["euro_s"], calc_ave(stats["euro_s"], stats["euro_g"])])
                         if stats["am_g"] > 0:
                             award_rows.append([email, n, "6.投球方式", "⑨アメリカン", stats["am_g"], stats["am_s"], calc_ave(stats["am_s"], stats["am_g"])])
                             
+                        # --- ⑩ レーン番号ごと ---
                         for l, d in stats["lanes"].items():
                             award_rows.append([email, n, "7.レーン別", f"⑩レーン {l}", d["g"], d["s"], calc_ave(d["s"], d["g"])])
                             
+                        # --- ⑪ オイル長さごと ---
                         for l, d in stats["oil_lens"].items():
                             award_rows.append([email, n, "8.オイル長別", f"⑪{l}ft", d["g"], d["s"], calc_ave(d["s"], d["g"])])
                             
+                        # --- ⑫ オイル量ごと ---
                         for v, d in stats["oil_vols"].items():
                             award_rows.append([email, n, "9.オイル量別", f"⑫{v}ml", d["g"], d["s"], calc_ave(d["s"], d["g"])])
 
+                    # ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
+                    # AWARDシートへの出力
+                    # ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
                     try:
                         award_sheet = sh.worksheet("AWARD")
                     except gspread.exceptions.WorksheetNotFound:
