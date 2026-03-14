@@ -1063,8 +1063,48 @@ import gspread
 if st.session_state.analyzed_results:
     st.success("✅ 全ての画像の解析が完了しました！")
 
-    # 注：修正ボタンを機能させるため、st.form による囲みを外して再構築しています
-    player_list = ["001_田中一吉", "002_田中佳恵", "003_田中蒼之助", "004_田中柾吉", "005_米田稔", "999_ゲスト"]
+    # --- 【追加】SPS「プレイヤー設定」シートからプレイヤー一覧を動的に取得 ---
+    if "dynamic_player_list" not in st.session_state:
+        with st.spinner("SPSからプレイヤー一覧を取得中..."):
+            try:
+                creds_json_str = st.secrets["google_credentials"]
+                creds_info = json.loads(creds_json_str, strict=False)
+                if "private_key" in creds_info:
+                    creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
+                
+                scopes = [
+                    'https://www.googleapis.com/auth/spreadsheets',
+                    'https://www.googleapis.com/auth/drive'
+                ]
+                creds_write = service_account.Credentials.from_service_account_info(creds_info, scopes=scopes)
+                gc = gspread.authorize(creds_write)
+                drive_service_write = build('drive', 'v3', credentials=creds_write)
+
+                query = "name = 'EagleBowl_ROLLERS' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"
+                results = drive_service_write.files().list(q=query, fields="files(id, name)").execute()
+                sheets = results.get('files', [])
+                
+                fetched_players = []
+                if sheets:
+                    sh = gc.open_by_key(sheets[0]['id'])
+                    settings_sheet = sh.worksheet("プレイヤー設定")
+                    settings_data = settings_sheet.get_all_values()
+                    
+                    # 2行目以降のB列（インデックス1: プレイヤー名）を取得
+                    for row in settings_data[1:]:
+                        if len(row) >= 2 and row[1].strip():
+                            fetched_players.append(row[1].strip())
+                
+                # 取得できたらセッションに保存、空ならフォールバック
+                if fetched_players:
+                    st.session_state.dynamic_player_list = fetched_players
+                else:
+                    st.session_state.dynamic_player_list = ["999_ゲスト"] 
+            except Exception as e:
+                st.warning(f"⚠️ プレイヤー設定の読み込みに失敗しました: {e}")
+                st.session_state.dynamic_player_list = ["999_ゲスト"]
+
+    player_list = st.session_state.dynamic_player_list
     selected_player = st.selectbox("👤プレイヤー選択👤", player_list, label_visibility="collapsed")
 
     st.markdown("---")
