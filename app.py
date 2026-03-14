@@ -1283,7 +1283,7 @@ if st.session_state.analyzed_results:
         # 画像共通入力（初期表示）
         col1, col2, col3 = st.columns(3)
         with col1:
-            common_len = st.text_input("オイル長 (m)", key=f"c_len_{img_idx}", placeholder="例: 42")
+            common_len = st.text_input("オイル長 (ft)", key=f"c_len_{img_idx}", placeholder="例: 42")
         with col2:
             common_vol = st.text_input("オイル量 (ml)", key=f"c_vol_{img_idx}", placeholder="例: 25.5")
         with col3:
@@ -1420,7 +1420,10 @@ if st.session_state.analyzed_results:
                         ])
                 
                         formatted_row.append(row[50]) # トータルスコア
-                
+                        
+                        unique_id = f"{selected_player}_{new_date}_{new_start}_{new_game}"
+                        formatted_row.append(unique_id)
+                        
                         match_found = False
                         for i, ex_row in enumerate(existing_data):
                             if i == 0 or len(ex_row) < 7: 
