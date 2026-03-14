@@ -1558,19 +1558,26 @@ if st.session_state.analyzed_results:
                         # --- ②～⑧のためのフレーム別処理 ---
                         game_seq = []
                         
+                        # 1〜9フレーム
                         for f in range(9):
-                            res1 = str(r[10 + f*4]).strip().upper()
-                            pin1 = str(r[11 + f*4]).strip()
-                            res2 = str(r[12 + f*4]).strip().upper()
+                            # ★列番号のズレを修正 (7, 8, 9列目から4列刻み)
+                            res1 = str(r[7 + f*4]).strip().upper()
+                            pin1 = str(r[8 + f*4]).strip()
+                            res2 = str(r[9 + f*4]).strip().upper()
                             
                             game_seq.append(res1)
+                            
+                            # ② ストライク母数の加算（1〜9フレーム目は常に+1）
                             stats["st_chances"] += 1
+                            
                             if res1 == "X":
                                 stats["st_success"] += 1
                                 stats["cur_str"] += 1
                                 if stats["cur_str"] > stats["max_str"]: stats["max_str"] = stats["cur_str"]
                             else:
                                 stats["cur_str"] = 0
+                                
+                                # ③ スペア母数の加算（1投目がX以外のとき）
                                 stats["sp_chances"] += 1
                                 if res2 == "/": stats["sp_success"] += 1
                                 
@@ -1588,27 +1595,34 @@ if st.session_state.analyzed_results:
                                 game_seq.append(res2)
 
                         # 10フレーム目
-                        res10_1 = str(r[46]).strip().upper()
-                        pin10_1 = str(r[47]).strip()
-                        res10_2 = str(r[48]).strip().upper()
-                        pin10_2 = str(r[49]).strip()
-                        res10_3 = str(r[50]).strip().upper()
+                        # ★列番号のズレを修正 (43〜48列目)
+                        res10_1 = str(r[43]).strip().upper() if len(r) > 43 else ""
+                        pin10_1 = str(r[44]).strip() if len(r) > 44 else ""
+                        res10_2 = str(r[45]).strip().upper() if len(r) > 45 else ""
+                        pin10_2 = str(r[46]).strip() if len(r) > 46 else ""
+                        res10_3 = str(r[47]).strip().upper() if len(r) > 47 else ""
                         
                         game_seq.append(res10_1)
+                        
+                        # ② ストライク母数（10フレーム1投目は常に+1）
                         stats["st_chances"] += 1
+                        
                         if res10_1 == "X":
                             stats["st_success"] += 1
                             stats["cur_str"] += 1
                             if stats["cur_str"] > stats["max_str"]: stats["max_str"] = stats["cur_str"]
                             
                             game_seq.append(res10_2)
+                            # ② ストライク母数（1投目がXなら2投目も+1）
                             stats["st_chances"] += 1
+                            
                             if res10_2 == "X":
                                 stats["st_success"] += 1
                                 stats["cur_str"] += 1
                                 if stats["cur_str"] > stats["max_str"]: stats["max_str"] = stats["cur_str"]
                                 
                                 game_seq.append(res10_3)
+                                # ② ストライク母数（2投目もXなら3投目も+1）
                                 stats["st_chances"] += 1
                                 if res10_3 == "X":
                                     stats["st_success"] += 1
@@ -1618,6 +1632,7 @@ if st.session_state.analyzed_results:
                                     stats["cur_str"] = 0
                             else:
                                 stats["cur_str"] = 0
+                                # ③ スペア母数（1投目Xで、2投目がX以外のとき、3投目はスペアチャンス）
                                 stats["sp_chances"] += 1
                                 if res10_3 == "/": stats["sp_success"] += 1
                                 game_seq.append(res10_3)
@@ -1635,11 +1650,15 @@ if st.session_state.analyzed_results:
                                     if res10_3 == "/": stats["splits"][p_str]["s"] += 1
                         else:
                             stats["cur_str"] = 0
+                            
+                            # ③ スペア母数（1投目がX以外のとき、2投目はスペアチャンス）
                             stats["sp_chances"] += 1
                             if res10_2 == "/":
                                 stats["sp_success"] += 1
                                 game_seq.append(res10_2)
                                 game_seq.append(res10_3)
+                                
+                                # ② ストライク母数（2投目がスペアなら、3投目はストライクチャンス）
                                 stats["st_chances"] += 1
                                 if res10_3 == "X":
                                     stats["st_success"] += 1
@@ -1661,6 +1680,8 @@ if st.session_state.analyzed_results:
                                 if res10_2 == "/": stats["splits"][p_str]["s"] += 1
 
                         stats["seq"].extend(game_seq)
+                        
+                        # （※これより下の「各種データの書き出し」部分は前回と同じなのでそのまま残してください）
 
 
                     # ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
