@@ -1480,6 +1480,13 @@ if st.session_state.analyzed_results:
 
                     player_stats = {}
                     
+                    # --- 投球結果の文字列から「X」「/」を正確に抽出するフィルター処理 ---
+                    def clean_res(val):
+                        v = str(val).strip().upper()
+                        if "X" in v: return "X"
+                        if "/" in v: return "/"
+                        return v
+
                     # ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
                     # 各種データのカウント（データごとの集計）
                     # ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
@@ -1560,10 +1567,9 @@ if st.session_state.analyzed_results:
                         
                         # 1〜9フレーム
                         for f in range(9):
-                            # ★列番号のズレを修正 (7, 8, 9列目から4列刻み)
-                            res1 = str(r[7 + f*4]).strip().upper()
+                            res1 = clean_res(r[7 + f*4])
                             pin1 = str(r[8 + f*4]).strip()
-                            res2 = str(r[9 + f*4]).strip().upper()
+                            res2 = clean_res(r[9 + f*4])
                             
                             game_seq.append(res1)
                             
@@ -1581,6 +1587,7 @@ if st.session_state.analyzed_results:
                                 stats["sp_chances"] += 1
                                 if res2 == "/": stats["sp_success"] += 1
                                 
+                                # ＝＝＝ ④ ⑤ 特定ピンの判定（1〜9フレームの1投目後） ＝＝＝
                                 p_str = normalize_pin(pin1)
                                 if p_str == "7":
                                     stats["pin_7_c"] += 1
@@ -1592,15 +1599,15 @@ if st.session_state.analyzed_results:
                                     if p_str not in stats["splits"]: stats["splits"][p_str] = {"c": 0, "s": 0}
                                     stats["splits"][p_str]["c"] += 1
                                     if res2 == "/": stats["splits"][p_str]["s"] += 1
+                                    
                                 game_seq.append(res2)
 
                         # 10フレーム目
-                        # ★列番号のズレを修正 (43〜48列目)
-                        res10_1 = str(r[43]).strip().upper() if len(r) > 43 else ""
+                        res10_1 = clean_res(r[43]) if len(r) > 43 else ""
                         pin10_1 = str(r[44]).strip() if len(r) > 44 else ""
-                        res10_2 = str(r[45]).strip().upper() if len(r) > 45 else ""
+                        res10_2 = clean_res(r[45]) if len(r) > 45 else ""
                         pin10_2 = str(r[46]).strip() if len(r) > 46 else ""
-                        res10_3 = str(r[47]).strip().upper() if len(r) > 47 else ""
+                        res10_3 = clean_res(r[47]) if len(r) > 47 else ""
                         
                         game_seq.append(res10_1)
                         
@@ -1637,6 +1644,7 @@ if st.session_state.analyzed_results:
                                 if res10_3 == "/": stats["sp_success"] += 1
                                 game_seq.append(res10_3)
                                 
+                                # ＝＝＝ ④ ⑤ 特定ピンの判定（10フレームの2投目後 ※1投目ストライク時） ＝＝＝
                                 p_str = normalize_pin(pin10_2)
                                 if p_str == "7":
                                     stats["pin_7_c"] += 1
@@ -1667,6 +1675,7 @@ if st.session_state.analyzed_results:
                             else:
                                 game_seq.append(res10_2)
                                 
+                            # ＝＝＝ ④ ⑤ 特定ピンの判定（10フレームの1投目後 ※1投目ストライク以外） ＝＝＝
                             p_str = normalize_pin(pin10_1)
                             if p_str == "7":
                                 stats["pin_7_c"] += 1
@@ -1680,8 +1689,6 @@ if st.session_state.analyzed_results:
                                 if res10_2 == "/": stats["splits"][p_str]["s"] += 1
 
                         stats["seq"].extend(game_seq)
-                        
-                        # （※これより下の「各種データの書き出し」部分は前回と同じなのでそのまま残してください）
 
 
                     # ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
