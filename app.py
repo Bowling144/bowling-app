@@ -682,7 +682,7 @@ if st.session_state.analyzed_results is None:
                 vx, vy, vw, vh = cv2.boundingRect(v_cnt)
                 if vh > 20:
                     real_x = crop_x1 + vx
-                    if real_x > img_resized.shape[1] * 0.03:
+                    if real_x > img_resized.shape[1] * 0.02:
                         valid_vertical_xs.append(real_x)
 
             if valid_vertical_xs:
