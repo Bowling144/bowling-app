@@ -152,10 +152,68 @@ if app_mode == "📊 プレイヤー分析":
                 st.markdown("---")
 
                 # 4. タブの作成（画面構成の骨組み）
+                # --- AWARDシートから各種統計データを取得 ---
+                award_data = sh.worksheet("AWARD").get_all_values()
+                # 項目名（row[3]）をキー、確率や回数（row[6]）を値として辞書化
+                p_awards = {row[3]: row[6] for row in award_data if len(row) >= 7 and row[1] == selected_player}
+
+                # 4. タブの作成とダッシュボード展開
                 tab1, tab2, tab3, tab4 = st.tabs(["🏠 HOME", "📊 STATS", "🏆 AWARDS", "🌍 ENVIRONMENT"])
 
+                # ==========================================
+                # タブ1：HOME（総合ステータスとスコア推移）
+                # ==========================================
                 with tab1:
-                    st.info("タブ1：レーティングゲージ、コアスタッツ、スコア推移グラフがここに入ります。")
+                    c1, c2 = st.columns([1, 1])
+                    
+                    with c1:
+                        # Plotly レーティングゲージチャート
+                        fig_gauge = go.Figure(go.Indicator(
+                            mode = "gauge+number",
+                            value = rt,
+                            title = {'text': "Rating (Rt.)", 'font': {'size': 20}},
+                            gauge = {
+                                'axis': {'range': [1, 18], 'tickwidth': 1},
+                                'bar': {'color': "gold"},
+                                'steps': [
+                                    {'range': [1, 5.99], 'color': "#ededed"},
+                                    {'range': [6, 9.99], 'color': "#c4c4c4"},
+                                    {'range': [10, 18], 'color': "#8a8a8a"}
+                                ],
+                            }
+                        ))
+                        fig_gauge.update_layout(height=250, margin=dict(l=20, r=20, t=40, b=20))
+                        st.plotly_chart(fig_gauge, use_container_width=True)
+                        
+                    with c2:
+                        # ストライク率とスペア率を大きく表示
+                        st.markdown("<div style='margin-top: 30px;'></div>", unsafe_allow_html=True)
+                        st_rate = p_awards.get("②1投目ストライク率", "0.0")
+                        sp_rate = p_awards.get("③2投目スペア率", "0.0")
+                        st.metric(label="🎳 1投目ストライク率", value=f"{st_rate} %")
+                        st.metric(label="🎳 2投目スペア率", value=f"{sp_rate} %")
+
+                    st.markdown("### 📈 直近50ゲーム スコア推移")
+                    if player_games:
+                        # 古い順に並び替えて折れ線グラフ化
+                        chrono_games = list(reversed(player_games[:50]))
+                        x_vals = [f"{g['date'][5:]} {g['time']}" for g in chrono_games] # 年を省いて 月-日 時間 のみに
+                        y_vals = [g['score'] for g in chrono_games]
+                        
+                        fig_trend = px.line(x=x_vals, y=y_vals, markers=True)
+                        fig_trend.update_layout(
+                            xaxis_title="プレイ日時", 
+                            yaxis_title="スコア", 
+                            height=300,
+                            margin=dict(l=10, r=10, t=10, b=10)
+                        )
+                        st.plotly_chart(fig_trend, use_container_width=True)
+                    else:
+                        st.info("データがありません。")
+
+                # ==========================================
+                # タブ2〜4：今後の実装エリア
+                # ==========================================
                 with tab2:
                     st.info("タブ2：残存率マップ（⑬）、カバー率（④・⑤）、連発率（⑦・⑧）がここに入ります。")
                 with tab3:
