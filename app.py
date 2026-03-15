@@ -613,7 +613,8 @@ if st.session_state.analyzed_results is None:
         gray = cv2.cvtColor(img_resized, cv2.COLOR_BGR2GRAY)
         thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 5)
         b_channel = img_resized[:, :, 0]
-        thresh_ink = cv2.adaptiveThreshold(b_channel, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 5)
+        # ★ 一番最後の「5」を「15」に増やす（数値を大きくするほど薄い影を無視します）
+        thresh_ink = cv2.adaptiveThreshold(b_channel, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 9)
 
         h_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (100, 1))
         h_mask = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, h_kernel)
@@ -870,7 +871,7 @@ if st.session_state.analyzed_results is None:
             else:
                 dyn_thresh_empty = np.max(all_global_pin_pcts) + 5.0
         # ★ ここで黄色の枠（残ピン）の閾値を微調整する
-        dyn_thresh_empty = dyn_thresh_empty + 10.0
+        dyn_thresh_empty = dyn_thresh_empty + 3.0
 
         dyn_thresh_circle = dyn_thresh_empty + 12.0
 
