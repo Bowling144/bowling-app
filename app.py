@@ -26,36 +26,9 @@ st.markdown("""
     div[data-testid="stExpander"] {
         margin-bottom: 0rem !important;
     }
-    /* ★修正：スマホ画面でも強制的に横並びにする（Streamlit最新版対応） */
-    @media (max-width: 768px) {
-        div[data-testid="stHorizontalBlock"] {
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;
-            gap: 0.2rem !important;
-        }
-        div[data-testid="stColumn"] {
-            width: auto !important;
-            flex: 1 1 0% !important;
-            min-width: 0 !important;
-        }
-    }
-    /* ★追加：入力欄の余白と文字サイズを削ってさらにコンパクトに */
-    .stTextInput > div > div > input {
-        padding: 0.2rem 0.4rem !important;
-        font-size: 13px !important;
-    }
-    .stMultiSelect > div > div > div {
-        padding: 0px !important;
-        min-height: 1.8rem !important;
-        font-size: 13px !important;
-    }
-    div[data-baseweb="select"] {
-        font-size: 13px !important;
-    }
     </style>
 """, unsafe_allow_html=True)
 st.markdown("<h1 style='color: turquoise; text-align: center;'> 🎳Eagle ROLLERS🎳</h1>", unsafe_allow_html=True)
-
 # --- サイドバー：APIキー入力 ---
 with st.sidebar:
     st.header("⚙️ 設定")
@@ -85,10 +58,8 @@ if "downloaded_images" not in st.session_state:
 
 st.markdown("<h3 style='text-align: center;'>☟　☟　☟</h3>", unsafe_allow_html=True)
 
-# --- 変更点：カラムでレイアウトを3分割し、中央のカラムにボタンを配置する ---
-col1, col2, col3 = st.columns([1, 2, 1]) # [1, 2, 1] は左右の余白と中央の幅の比率です。
-with col2:
-    fetch_button = st.button("🔄 スコアシート取込（MAX３枚）🔄", use_container_width=True)
+# ★要望1：カラムを廃止し、ボタンを狭くせず横幅いっぱいに広げる
+fetch_button = st.button("🔄 スコアシート取込（MAX３枚）🔄", use_container_width=True)
 
 if fetch_button:
     with st.spinner("Googleドライブを探索中..."):
@@ -1131,7 +1102,8 @@ if st.session_state.analyzed_results:
                 st.session_state.dynamic_player_list = ["999_ゲスト"]
 
     player_list = st.session_state.dynamic_player_list
-    selected_player = st.selectbox("👤プレイヤー選択👤", player_list, label_visibility="collapsed")
+    # ★要望5：プレイヤー名が消える不具合を修正（不要な設定を削除）
+    selected_player = st.selectbox("👤プレイヤー選択👤", player_list)
 
     st.markdown("---")
     register_all = st.checkbox("全てのゲームをマスターに登録する", value=True)
@@ -1173,45 +1145,30 @@ if st.session_state.analyzed_results:
                 "date": date_str,
                 "start": start_time,
                 "end": end_time,
-                "img_idx": img_idx,      # ★追加：何枚目の画像かを記憶させる
-                "local_idx": local_idx   # ★追加：何番目のゲームかを記憶させる
+                "img_idx": img_idx,      
+                "local_idx": local_idx   
             })
 
-            # --- 🛠️ 修正機能 UI（AI不使用） ---
-            # ① expanderをプログラムから閉じるため、toggle（スイッチ）に変更
+            # --- 🛠️ 修正機能 UI ---
             edit_key = f"edit_{img_idx}_{local_idx}"
-            close_flag_key = f"close_flag_{img_idx}_{local_idx}"  # ★追加：閉じるための予約フラグ
+            close_flag_key = f"close_flag_{img_idx}_{local_idx}"
 
             if edit_key not in st.session_state:
                 st.session_state[edit_key] = False
 
-            # ★追加：画面にtoggleが描画される「前」に状態をFalseに書き換える
             if st.session_state.get(close_flag_key):
                 st.session_state[edit_key] = False
                 st.session_state[close_flag_key] = False
 
             if st.toggle(f"✏️ {game_name} を手動修正", key=edit_key):
-                
-                # ③ 残ピン（マルチセレクト）のタグと枠の背景色を薄ピンクにするCSS
-                st.markdown("""
-                    <style>
-                    span[data-baseweb="tag"] {
-                        background-color: #FFB6C1 !important; 
-                        color: black !important;
-                    }
-                    div[data-baseweb="select"] > div {
-                        background-color: #FFF0F5 !important;
-                    }
-                    </style>
-                """, unsafe_allow_html=True)
 
                 c_date, c_start, c_end = st.columns(3)
                 with c_date:
-                    new_date = st.text_input("日付", value=row[0], key=f"d_{img_idx}_{local_idx}", label_visibility="collapsed", placeholder="日付")
+                    new_date = st.text_input("日付", value=row[0], key=f"d_{img_idx}_{local_idx}")
                 with c_start:
-                    new_start = st.text_input("開始時刻", value=row[1], key=f"s_{img_idx}_{local_idx}", label_visibility="collapsed", placeholder="開始時刻")
+                    new_start = st.text_input("開始時刻", value=row[1], key=f"s_{img_idx}_{local_idx}")
                 with c_end:
-                    new_end = st.text_input("終了時刻", value=row[2], key=f"e_{img_idx}_{local_idx}", label_visibility="collapsed", placeholder="終了時刻")
+                    new_end = st.text_input("終了時刻", value=row[2], key=f"e_{img_idx}_{local_idx}")
 
                 st.markdown("**🎳 投球結果と残ピン位置（1〜10番を選択）**")
                 new_throws = []
@@ -1219,46 +1176,47 @@ if st.session_state.analyzed_results:
 
                 # 1〜9フレームの入力
                 for f in range(9):
-                    st.markdown(f"<div style='color: turquoise; font-weight: bold; margin-bottom: -15px;'>{f+1}フレーム</div>", unsafe_allow_html=True)
-                    c1, c2, c3 = st.columns([1, 2, 1])
+                    # ★要望2：フレーム文字が見えなくなるバグを解消
+                    st.markdown(f"**<span style='color: turquoise;'>{f+1}フレーム</span>**", unsafe_allow_html=True)
+                    # ★要望2：1投目、残ピン、2投目の順に横並び
+                    c1, c2, c3 = st.columns([1, 3, 1])
                     with c1:
-                        t1 = st.text_input(f"1投_{f}", value=str(row[throw_cols[f*2]]).replace("R:", ""), key=f"t1_{img_idx}_{local_idx}_{f}", label_visibility="collapsed", placeholder="1投")
+                        t1 = st.text_input("1投目", value=str(row[throw_cols[f*2]]).replace("R:", ""), key=f"t1_{img_idx}_{local_idx}_{f}")
                     with c2:
                         curr_pins_str = str(row[target_indices[f]])
                         curr_pins = [int(p) for p in curr_pins_str.split(",")] if curr_pins_str else []
-                        p_sel = st.multiselect(f"残_{f}", options=list(range(1, 11)), default=curr_pins, key=f"p_{img_idx}_{local_idx}_{f}", label_visibility="collapsed", placeholder="残ピン")
+                        p_sel = st.multiselect("残ピン", options=list(range(1, 11)), default=curr_pins, key=f"p_{img_idx}_{local_idx}_{f}")
                     with c3:
-                        t2 = st.text_input(f"2投_{f}", value=str(row[throw_cols[f*2+1]]).replace("R:", ""), key=f"t2_{img_idx}_{local_idx}_{f}", label_visibility="collapsed", placeholder="2投")
+                        t2 = st.text_input("2投目", value=str(row[throw_cols[f*2+1]]).replace("R:", ""), key=f"t2_{img_idx}_{local_idx}_{f}")
                     
                     new_throws.extend([t1, t2])
                     new_pins.append(",".join(map(str, p_sel)))
 
                 # 10フレームの入力
-                st.markdown("<div style='color: turquoise; font-weight: bold; margin-bottom: -15px; margin-top: 10px;'>10フレーム</div>", unsafe_allow_html=True)
+                st.markdown("**<span style='color: turquoise;'>10フレーム</span>**", unsafe_allow_html=True)
                 c10_1, c10_p1, c10_2, c10_p2, c10_3, c10_p3 = st.columns([1, 2, 1, 2, 1, 2])
                 with c10_1:
-                    t10_1 = st.text_input("10_1", value=str(row[throw_cols[18]]).replace("R:", ""), key=f"t1_{img_idx}_{local_idx}_9", label_visibility="collapsed", placeholder="1投")
+                    t10_1 = st.text_input("1投", value=str(row[throw_cols[18]]).replace("R:", ""), key=f"t1_{img_idx}_{local_idx}_9")
                 with c10_p1:
                     p1_str = str(row[target_indices[9]])
                     p1_def = [int(p) for p in p1_str.split(",")] if p1_str else []
-                    p1_sel = st.multiselect("残10_1", options=list(range(1, 11)), default=p1_def, key=f"p1_{img_idx}_{local_idx}_9", label_visibility="collapsed", placeholder="残")
+                    p1_sel = st.multiselect("残", options=list(range(1, 11)), default=p1_def, key=f"p1_{img_idx}_{local_idx}_9")
                 with c10_2:
-                    t10_2 = st.text_input("10_2", value=str(row[throw_cols[19]]).replace("R:", ""), key=f"t2_{img_idx}_{local_idx}_9", label_visibility="collapsed", placeholder="2投")
+                    t10_2 = st.text_input("2投", value=str(row[throw_cols[19]]).replace("R:", ""), key=f"t2_{img_idx}_{local_idx}_9")
                 with c10_p2:
                     p2_str = str(row[target_indices[10]])
                     p2_def = [int(p) for p in p2_str.split(",")] if p2_str else []
-                    p2_sel = st.multiselect("残10_2", options=list(range(1, 11)), default=p2_def, key=f"p2_{img_idx}_{local_idx}_9", label_visibility="collapsed", placeholder="残")
+                    p2_sel = st.multiselect("残", options=list(range(1, 11)), default=p2_def, key=f"p2_{img_idx}_{local_idx}_9")
                 with c10_3:
-                    t10_3 = st.text_input("10_3", value=str(row[throw_cols[20]]).replace("R:", ""), key=f"t3_{img_idx}_{local_idx}_9", label_visibility="collapsed", placeholder="3投")
+                    t10_3 = st.text_input("3投", value=str(row[throw_cols[20]]).replace("R:", ""), key=f"t3_{img_idx}_{local_idx}_9")
                 with c10_p3:
                     p3_str = str(row[target_indices[11]])
                     p3_def = [int(p) for p in p3_str.split(",")] if p3_str else []
-                    p3_sel = st.multiselect("残10_3", options=list(range(1, 11)), default=p3_def, key=f"p3_{img_idx}_{local_idx}_9", label_visibility="collapsed", placeholder="残")
+                    p3_sel = st.multiselect("残", options=list(range(1, 11)), default=p3_def, key=f"p3_{img_idx}_{local_idx}_9")
                 
                 new_throws.extend([t10_1, t10_2, t10_3])
                 new_pins.extend([",".join(map(str, p1_sel)), ",".join(map(str, p2_sel)), ",".join(map(str, p3_sel))])
 
-                # 修正確定・自動計算ボタン
                 if st.button("🔄 修正を反映して再計算", key=f"update_{img_idx}_{local_idx}"):
                     row[0] = new_date
                     row[1] = new_start
@@ -1296,31 +1254,31 @@ if st.session_state.analyzed_results:
         ai_lane = items[0]["export_row"][3]
         default_lane_index = LANE_OPTIONS.index(ai_lane) if ai_lane in LANE_OPTIONS else 0
         
-        # ★修正：レーン・長・量・ボールを1行に。すべて label_visibility="collapsed" を適用し高さを揃える
-        col_lane, col_len, col_vol, col_ball = st.columns([1.5, 1, 1, 1.5])
-        with col_lane:
-            common_lane = st.selectbox("レーン", LANE_OPTIONS, index=default_lane_index, key=f"c_lane_{img_idx}", label_visibility="collapsed")
-        with col_len:
-            common_len = st.text_input("オイル長", key=f"c_len_{img_idx}", label_visibility="collapsed", placeholder="長(ft)")
-        with col_vol:
-            common_vol = st.text_input("オイル量", key=f"c_vol_{img_idx}", label_visibility="collapsed", placeholder="量(ml)")
-        with col_ball:
-            common_ball = st.text_input("ボール", key=f"c_ball_{img_idx}", label_visibility="collapsed", placeholder="ボール")
+        # ★要望3：AI読取結果をタイトルに明記
+        # ★要望4：レーン、長、量を1段目、ボールを幅広く2段目に配置
+        c_lane, c_len, c_vol = st.columns([1.5, 1, 1])
+        with c_lane:
+            common_lane = st.selectbox(f"レーン番号 (※AI読取: {ai_lane})", LANE_OPTIONS, index=default_lane_index, key=f"c_lane_{img_idx}")
+        with c_len:
+            common_len = st.text_input("オイル長 (ft)", key=f"c_len_{img_idx}", placeholder="例: 42")
+        with c_vol:
+            common_vol = st.text_input("オイル量 (ml)", key=f"c_vol_{img_idx}", placeholder="例: 25.5")
+            
+        common_ball = st.text_input("使用ボール", key=f"c_ball_{img_idx}", placeholder="例: ツアーダイナミクス")
             
         with st.expander(f"🔽 画像 {img_idx+1} のゲームごとの個別設定"):
             for item in items:
                 l_idx = item["local_idx"]
                 g_name = item["export_row"][4]
                 
-                c1, c2, c3, c4 = st.columns([1.5, 1, 1, 1.5])
-                with c1:
-                    st.markdown(f"<div style='margin-top:2px;'><b>{g_name}</b></div>", unsafe_allow_html=True)
-                with c2:
-                    i_len = st.text_input(f"{g_name}長", key=f"i_len_{img_idx}_{l_idx}", label_visibility="collapsed", placeholder="個別長")
-                with c3:
-                    i_vol = st.text_input(f"{g_name}量", key=f"i_vol_{img_idx}_{l_idx}", label_visibility="collapsed", placeholder="個別量")
-                with c4:
-                    i_ball = st.text_input(f"{g_name}球", key=f"i_ball_{img_idx}_{l_idx}", label_visibility="collapsed", placeholder="個別球")
+                st.markdown(f"**{g_name}**")
+                i_c1, i_c2 = st.columns(2)
+                with i_c1:
+                    i_len = st.text_input(f"{g_name} オイル長", key=f"i_len_{img_idx}_{l_idx}", placeholder="共通を適用")
+                with i_c2:
+                    i_vol = st.text_input(f"{g_name} オイル量", key=f"i_vol_{img_idx}_{l_idx}", placeholder="共通を適用")
+                
+                i_ball = st.text_input(f"{g_name} 使用ボール", key=f"i_ball_{img_idx}_{l_idx}", placeholder="共通を適用")
                 
                 final_len = i_len if i_len.strip() else common_len
                 final_vol = i_vol if i_vol.strip() else common_vol
@@ -1331,140 +1289,136 @@ if st.session_state.analyzed_results:
 
     st.markdown("<h3 style='text-align: center;'>☟　☟　☟　☟　☟　☟　☟　</h3>", unsafe_allow_html=True)
 
-    # --- ドライブ検索＆SPS自動登録処理 ---
-    col1, col2, col3 = st.columns([1, 2, 1]) 
-    with col2:
+    # ★要望1：SPS登録ボタンも元の全幅に戻す
+    if st.button("☁️ 選択したプレイヤーのSPSへデータを登録", use_container_width=True, type="primary"):
+        with st.spinner("Google Driveを検索し、データを登録中..."):
+            try:
+                creds_json_str = st.secrets["google_credentials"]
+                creds_info = json.loads(creds_json_str, strict=False)
+                if "private_key" in creds_info:
+                    creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
+                
+                scopes = [
+                    'https://www.googleapis.com/auth/spreadsheets',
+                    'https://www.googleapis.com/auth/drive'
+                ]
+                creds_write = service_account.Credentials.from_service_account_info(creds_info, scopes=scopes)
+                
+                gc = gspread.authorize(creds_write)
+                drive_service_write = build('drive', 'v3', credentials=creds_write)
 
+                # 統合SPS「EagleBowl_ROLLERS」を検索
+                query = "name = 'EagleBowl_ROLLERS' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"
+                results = drive_service_write.files().list(q=query, fields="files(id, name)").execute()
+                sheets = results.get('files', [])
+                if not sheets:
+                    st.error("エラー: Googleドライブ内に「EagleBowl_ROLLERS」が見つかりません。")
+                    st.stop()
+                
+                sheet_id = sheets[0]['id']
+                sh = gc.open_by_key(sheet_id)
 
-        if st.button("☁️ 選択したプレイヤーのSPSへデータを登録", use_container_width=True, type="primary"):
-            with st.spinner("Google Driveを検索し、データを登録中..."):
+                # 【改良点】「プレイヤー設定」シートからメールアドレスのマッピングを自動取得する
+                player_email_map = {}
                 try:
-                    creds_json_str = st.secrets["google_credentials"]
-                    creds_info = json.loads(creds_json_str, strict=False)
-                    if "private_key" in creds_info:
-                        creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
-                    
-                    scopes = [
-                        'https://www.googleapis.com/auth/spreadsheets',
-                        'https://www.googleapis.com/auth/drive'
+                    settings_sheet = sh.worksheet("プレイヤー設定")
+                    settings_data = settings_sheet.get_all_values()
+                    # 1行目は見出しなので2行目以降をループ処理
+                    for row in settings_data[1:]:
+                        # A列(row[0])がメール、B列(row[1])がプレイヤー名
+                        if len(row) >= 2 and row[1]: 
+                            player_email_map[row[1]] = row[0]
+                except gspread.exceptions.WorksheetNotFound:
+                    st.warning("⚠️ 「プレイヤー設定」シートが見つかりません。メールアドレスは空白で登録されます。")
+                except Exception as e:
+                    st.warning(f"⚠️ プレイヤー設定の読み込みに失敗しました: {e}")
+
+                # 選択されたプレイヤーのメールアドレスを取得（見つからなければ空白）
+                user_email = player_email_map.get(selected_player, "")
+                
+                try:
+                    worksheet = sh.worksheet("マスター")
+                except gspread.exceptions.WorksheetNotFound:
+                    st.error("エラー: スプレッドシート内に「マスター」という名前のシートが見つかりません。")
+                    st.stop()
+
+                existing_data = worksheet.get_all_values()
+                
+                rows_to_append = []
+                update_count = 0
+                
+                if not game_checkboxes:
+                    st.warning("⚠️ 登録対象のデータがありません。")
+                    st.stop()
+                
+                for item in game_checkboxes:
+                    is_target = True if register_all else item["is_checked"]
+                    if not is_target:
+                        continue
+
+                    row = item["export_row"]
+                    new_date = row[0]
+                    new_start = row[1]
+                    new_end = row[2]
+                    new_game = row[4] 
+            
+                    selected_lane, oil_len, oil_vol, ball_used = input_data.get((item["img_idx"], item["local_idx"]), ("", "", "", ""))
+
+                    # A列・B列にメールアドレスとプレイヤー名を自動セット
+                    formatted_row = [
+                        user_email,      # A列：取得したメールアドレス
+                        selected_player, # B列：プレイヤー名
+                        row[0], row[1], row[2], # C:日付, D:開始, E:終了
+                        selected_lane,   # F列:レーン
+                        row[4],          # G列:ゲーム数
+                        oil_len, oil_vol, ball_used, # H, I, J列
                     ]
-                    creds_write = service_account.Credentials.from_service_account_info(creds_info, scopes=scopes)
-                    
-                    gc = gspread.authorize(creds_write)
-                    drive_service_write = build('drive', 'v3', credentials=creds_write)
 
-                    # 統合SPS「EagleBowl_ROLLERS」を検索
-                    query = "name = 'EagleBowl_ROLLERS' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"
-                    results = drive_service_write.files().list(q=query, fields="files(id, name)").execute()
-                    sheets = results.get('files', [])
-                    if not sheets:
-                        st.error("エラー: Googleドライブ内に「EagleBowl_ROLLERS」が見つかりません。")
-                        st.stop()
-                    
-                    sheet_id = sheets[0]['id']
-                    sh = gc.open_by_key(sheet_id)
-
-                    # 【改良点】「プレイヤー設定」シートからメールアドレスのマッピングを自動取得する
-                    player_email_map = {}
-                    try:
-                        settings_sheet = sh.worksheet("プレイヤー設定")
-                        settings_data = settings_sheet.get_all_values()
-                        # 1行目は見出しなので2行目以降をループ処理
-                        for row in settings_data[1:]:
-                            # A列(row[0])がメール、B列(row[1])がプレイヤー名
-                            if len(row) >= 2 and row[1]: 
-                                player_email_map[row[1]] = row[0]
-                    except gspread.exceptions.WorksheetNotFound:
-                        st.warning("⚠️ 「プレイヤー設定」シートが見つかりません。メールアドレスは空白で登録されます。")
-                    except Exception as e:
-                        st.warning(f"⚠️ プレイヤー設定の読み込みに失敗しました: {e}")
-
-                    # 選択されたプレイヤーのメールアドレスを取得（見つからなければ空白）
-                    user_email = player_email_map.get(selected_player, "")
-                    
-                    try:
-                        worksheet = sh.worksheet("マスター")
-                    except gspread.exceptions.WorksheetNotFound:
-                        st.error("エラー: スプレッドシート内に「マスター」という名前のシートが見つかりません。")
-                        st.stop()
-
-                    existing_data = worksheet.get_all_values()
-                    
-                    rows_to_append = []
-                    update_count = 0
-                    
-                    if not game_checkboxes:
-                        st.warning("⚠️ 登録対象のデータがありません。")
-                        st.stop()
-                    
-                    for item in game_checkboxes:
-                        is_target = True if register_all else item["is_checked"]
-                        if not is_target:
-                            continue
-
-                        row = item["export_row"]
-                        new_date = row[0]
-                        new_start = row[1]
-                        new_end = row[2]
-                        new_game = row[4] 
-                
-                        selected_lane, oil_len, oil_vol, ball_used = input_data.get((item["img_idx"], item["local_idx"]), ("", "", "", ""))
-
-                        # A列・B列にメールアドレスとプレイヤー名を自動セット
-                        formatted_row = [
-                            user_email,      # A列：取得したメールアドレス
-                            selected_player, # B列：プレイヤー名
-                            row[0], row[1], row[2], # C:日付, D:開始, E:終了
-                            selected_lane,   # F列:レーン
-                            row[4],          # G列:ゲーム数
-                            oil_len, oil_vol, ball_used, # H, I, J列
-                        ]
-
-                        for f in range(9):
-                            formatted_row.extend([
-                                row[throw_cols[f*2]],
-                                row[target_indices[f]],
-                                row[throw_cols[f*2+1]],
-                                ""
-                            ])
-                
+                    for f in range(9):
                         formatted_row.extend([
-                            row[throw_cols[18]], row[target_indices[9]],
-                            row[throw_cols[19]], row[target_indices[10]],
-                            row[throw_cols[20]], row[target_indices[11]]
+                            row[throw_cols[f*2]],
+                            row[target_indices[f]],
+                            row[throw_cols[f*2+1]],
+                            ""
                         ])
-                
-                        formatted_row.append(row[50]) # トータルスコア
-                        
-                        unique_id = f"{selected_player}_{new_date}_{new_start}_{new_game}"
-                        formatted_row.append(unique_id)
-                        
-                        match_found = False
-                        for i, ex_row in enumerate(existing_data):
-                            if i == 0 or len(ex_row) < 7: 
-                                continue
-                            
-                            ex_player = ex_row[1]
-                            ex_date = ex_row[2]
-                            ex_start = ex_row[3]
-                            ex_end = ex_row[4]
-                            ex_game = ex_row[6] 
-                            
-                            if ex_player == selected_player and ex_date == new_date and (ex_start == new_start or ex_end == new_end) and ex_game == new_game:
-                                row_num = i + 1
-                                worksheet.update(range_name=f"A{row_num}", values=[formatted_row])
-                                existing_data[i] = formatted_row
-                                update_count += 1
-                                match_found = True
-                                break
-                
-                        if not match_found:
-                            rows_to_append.append(formatted_row)
-
-                    if rows_to_append:
-                        worksheet.append_rows(rows_to_append)
+            
+                    formatted_row.extend([
+                        row[throw_cols[18]], row[target_indices[9]],
+                        row[throw_cols[19]], row[target_indices[10]],
+                        row[throw_cols[20]], row[target_indices[11]]
+                    ])
+            
+                    formatted_row.append(row[50]) # トータルスコア
                     
-                    add_count = len(rows_to_append)
+                    unique_id = f"{selected_player}_{new_date}_{new_start}_{new_game}"
+                    formatted_row.append(unique_id)
+                    
+                    match_found = False
+                    for i, ex_row in enumerate(existing_data):
+                        if i == 0 or len(ex_row) < 7: 
+                            continue
+                        
+                        ex_player = ex_row[1]
+                        ex_date = ex_row[2]
+                        ex_start = ex_row[3]
+                        ex_end = ex_row[4]
+                        ex_game = ex_row[6] 
+                        
+                        if ex_player == selected_player and ex_date == new_date and (ex_start == new_start or ex_end == new_end) and ex_game == new_game:
+                            row_num = i + 1
+                            worksheet.update(range_name=f"A{row_num}", values=[formatted_row])
+                            existing_data[i] = formatted_row
+                            update_count += 1
+                            match_found = True
+                            break
+            
+                    if not match_found:
+                        rows_to_append.append(formatted_row)
+
+                if rows_to_append:
+                    worksheet.append_rows(rows_to_append)
+                
+                add_count = len(rows_to_append)
 
 
 # === ▼▼▼ ここからAWARD集計機能の追加（全12項目対応・ブロック分割版） ▼▼▼ ===
