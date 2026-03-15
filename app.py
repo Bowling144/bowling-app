@@ -1454,6 +1454,9 @@ if st.session_state.analyzed_results:
 # === ▼▼▼ ここからAWARD集計機能の追加（全12項目対応・ブロック分割版） ▼▼▼ ===
                     all_master_data = worksheet.get_all_values()
                     
+# === ▼▼▼ ここからAWARD集計機能の追加（全12項目対応・ブロック分割版） ▼▼▼ ===
+                    all_master_data = worksheet.get_all_values()
+                    
                     data_rows = [r for r in all_master_data[1:] if len(r) >= 53 and str(r[0]).strip()]
                     def sort_key(x):
                         d = str(x[2]).strip()
@@ -1753,7 +1756,30 @@ if st.session_state.analyzed_results:
                         if stats["am_g"] > 0:
                             award_rows.append([email, n, "6.投球方式", "⑨アメリカン", stats["am_g"], stats["am_s"], calc_ave(stats["am_s"], stats["am_g"])])
                             
-                        # --- ⑩ レーン番号
+                        # --- ⑩ レーン番号ごと ---
+                        for l, d in stats["lanes"].items():
+                            award_rows.append([email, n, "7.レーン別", f"⑩レーン {l}", d["g"], d["s"], calc_ave(d["s"], d["g"])])
+                            
+                        # --- ⑪ オイル長さごと ---
+                        for l, d in stats["oil_lens"].items():
+                            award_rows.append([email, n, "8.オイル長別", f"⑪{l}ft", d["g"], d["s"], calc_ave(d["s"], d["g"])])
+                            
+                        # --- ⑫ オイル量ごと ---
+                        for v, d in stats["oil_vols"].items():
+                            award_rows.append([email, n, "9.オイル量別", f"⑫{v}ml", d["g"], d["s"], calc_ave(d["s"], d["g"])])
+
+                    # ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
+                    # AWARDシートへの出力
+                    # ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
+                    try:
+                        award_sheet = sh.worksheet("AWARD")
+                    except gspread.exceptions.WorksheetNotFound:
+                        award_sheet = sh.add_worksheet(title="AWARD", rows="1000", cols="7")
+                        
+                    award_sheet.clear()
+                    if award_rows:
+                        award_sheet.update(range_name="A1", values=award_rows)
+                    # === ▲▲▲ AWARD集計機能の追加ここまで ▲▲▲ ===
 
                     
                     st.success(f"🎉 登録完了！ 新規追加: {add_count}件 / 上書き更新: {update_count}件")
