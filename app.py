@@ -614,7 +614,7 @@ if st.session_state.analyzed_results is None:
         thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 5)
         b_channel = img_resized[:, :, 0]
         # ★ 一番最後の「5」を「15」に増やす（数値を大きくするほど薄い影を無視します）
-        thresh_ink = cv2.adaptiveThreshold(b_channel, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 9)
+        thresh_ink = cv2.adaptiveThreshold(b_channel, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 8)
 
         h_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (100, 1))
         h_mask = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, h_kernel)
