@@ -1479,14 +1479,20 @@ if st.session_state.analyzed_results:
                     def normalize_pin(pin_str):
                         return str(pin_str).replace(",", "-").replace(" ", "").replace("'", "").replace('"', "")
 
-                    player_stats = {}
-                    
                     # --- 投球結果の文字列から「X」「/」を正確に抽出するフィルター処理 ---
                     def clean_res(val):
                         v = str(val).strip().upper()
                         if "X" in v: return "X"
                         if "/" in v: return "/"
                         return v
+                        
+                    # --- 残ったピンの番号をリストとして抽出する処理（⑬用） ---
+                    def get_left_pins(pin_str):
+                        if not pin_str: return []
+                        import re
+                        return [str(p) for p in re.findall(r'\d+', str(pin_str)) if 1 <= int(p) <= 10]
+
+                    player_stats = {}
 
                     # ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
                     # 各種データのカウント（データごとの集計）
@@ -1526,11 +1532,14 @@ if st.session_state.analyzed_results:
                                 # ⑨ 投球方式
                                 "euro_g": 0, "euro_s": 0,
                                 "am_g": 0, "am_s": 0,
-                                # ⑩ レーン、⑪ ⑫ オイル（L, Vの不等号表記で初期化）
+                                # ⑩ レーン、⑪ ⑫ オイル
                                 "euro_lanes": {str(i): {"g": 0, "s": 0} for i in range(1, 19)},
                                 "am_lanes": {f"{i}-{i+1}": {"g": 0, "s": 0} for i in range(1, 18, 2)},
                                 "oil_lens": {k: {"g": 0, "s": 0} for k in ["L < 32ft", "32 ≦ L < 34ft", "34 ≦ L < 36ft", "36 ≦ L < 38ft", "38 ≦ L < 40ft", "40 ≦ L < 42ft", "42 ≦ L < 44ft", "44 ≦ L < 46ft", "46ft ≦ L"]},
-                                "oil_vols": {k: {"g": 0, "s": 0} for k in ["V < 20ml", "20 ≦ V < 22ml", "22 ≦ V < 24ml", "24 ≦ V < 26ml", "26 ≦ V < 28ml", "28 ≦ V < 30ml", "30 ≦ V < 32ml", "32 ≦ V < 34ml", "34 ≦ V < 36ml", "36ml ≦ V"]}
+                                "oil_vols": {k: {"g": 0, "s": 0} for k in ["V < 20ml", "20 ≦ V < 22ml", "22 ≦ V < 24ml", "24 ≦ V < 26ml", "26 ≦ V < 28ml", "28 ≦ V < 30ml", "30 ≦ V < 32ml", "32 ≦ V < 34ml", "34 ≦ V < 36ml", "36ml ≦ V"]},
+                                # ⑬ 1〜10番ピン残存率
+                                "first_pitch_c": 0,  # 1投目（新たな10本）の総数
+                                "pin_left": {str(i): 0 for i in range(1, 11)} # 各ピンが残った回数
                             }
                             
                         stats = player_stats[email]
@@ -1604,7 +1613,7 @@ if st.session_state.analyzed_results:
                             except ValueError:
                                 pass
 
-                        # --- ②～⑧のためのフレーム別処理 ---
+                        # --- ②～⑧・⑬のためのフレーム別処理 ---
                         game_seq = []
                         
                         # 1〜9フレーム
@@ -1616,12 +1625,19 @@ if st.session_state.analyzed_results:
                             game_seq.append(res1)
                             
                             stats["st_chances"] += 1
+                            stats["first_pitch_c"] += 1 # ⑬ 1投目の母数を加算
+                            
                             if res1 == "X":
                                 stats["st_success"] += 1
                                 stats["cur_str"] += 1
                                 if stats["cur_str"] > stats["max_str"]: stats["max_str"] = stats["cur_str"]
                             else:
                                 stats["cur_str"] = 0
+                                
+                                # ⑬ ストライクでなければ残ったピンを集計
+                                for p in get_left_pins(pin1):
+                                    stats["pin_left"][p] += 1
+                                    
                                 stats["sp_chances"] += 1
                                 if res2 == "/": stats["sp_success"] += 1
                                 
@@ -1645,10 +1661,12 @@ if st.session_state.analyzed_results:
                         res10_2 = clean_res(r[48]) if len(r) > 48 else ""
                         pin10_2 = str(r[49]).strip() if len(r) > 49 else ""
                         res10_3 = clean_res(r[50]) if len(r) > 50 else ""
+                        pin10_3 = str(r[51]).strip() if len(r) > 51 else "" # 10-3の残ピンを追加
                         
                         game_seq.append(res10_1)
                         
                         stats["st_chances"] += 1
+                        stats["first_pitch_c"] += 1 # ⑬ 10フレーム1投目の母数
                         
                         if res10_1 == "X":
                             stats["st_success"] += 1
@@ -1656,7 +1674,9 @@ if st.session_state.analyzed_results:
                             if stats["cur_str"] > stats["max_str"]: stats["max_str"] = stats["cur_str"]
                             
                             game_seq.append(res10_2)
+                            
                             stats["st_chances"] += 1
+                            stats["first_pitch_c"] += 1 # ⑬ 10-1がXなので10-2も母数
                             
                             if res10_2 == "X":
                                 stats["st_success"] += 1
@@ -1664,15 +1684,26 @@ if st.session_state.analyzed_results:
                                 if stats["cur_str"] > stats["max_str"]: stats["max_str"] = stats["cur_str"]
                                 
                                 game_seq.append(res10_3)
+                                
                                 stats["st_chances"] += 1
+                                stats["first_pitch_c"] += 1 # ⑬ 10-2もXなので10-3も母数
+                                
                                 if res10_3 == "X":
                                     stats["st_success"] += 1
                                     stats["cur_str"] += 1
                                     if stats["cur_str"] > stats["max_str"]: stats["max_str"] = stats["cur_str"]
                                 else:
                                     stats["cur_str"] = 0
+                                    # ⑬ 10-3でX以外なら残ピンを集計
+                                    for p in get_left_pins(pin10_3):
+                                        stats["pin_left"][p] += 1
                             else:
                                 stats["cur_str"] = 0
+                                
+                                # ⑬ 10-2でX以外なら残ピンを集計
+                                for p in get_left_pins(pin10_2):
+                                    stats["pin_left"][p] += 1
+                                    
                                 stats["sp_chances"] += 1
                                 if res10_3 == "/": stats["sp_success"] += 1
                                 game_seq.append(res10_3)
@@ -1690,6 +1721,11 @@ if st.session_state.analyzed_results:
                                     if res10_3 == "/": stats["splits"][p_str]["s"] += 1
                         else:
                             stats["cur_str"] = 0
+                            
+                            # ⑬ 10-1でX以外なら残ピンを集計
+                            for p in get_left_pins(pin10_1):
+                                stats["pin_left"][p] += 1
+                                
                             stats["sp_chances"] += 1
                             if res10_2 == "/":
                                 stats["sp_success"] += 1
@@ -1697,10 +1733,16 @@ if st.session_state.analyzed_results:
                                 game_seq.append(res10_3)
                                 
                                 stats["st_chances"] += 1
+                                stats["first_pitch_c"] += 1 # ⑬ 10-2がスペアなので10-3は新たな母数
+                                
                                 if res10_3 == "X":
                                     stats["st_success"] += 1
                                     stats["cur_str"] += 1
                                     if stats["cur_str"] > stats["max_str"]: stats["max_str"] = stats["cur_str"]
+                                else:
+                                    # ⑬ 10-3でX以外なら残ピンを集計
+                                    for p in get_left_pins(pin10_3):
+                                        stats["pin_left"][p] += 1
                             else:
                                 game_seq.append(res10_2)
                                 
@@ -1824,7 +1866,7 @@ if st.session_state.analyzed_results:
                         award_rows.append([email, n, "6.投球方式", "⑨1レーン", stats["euro_g"], stats["euro_s"], calc_ave(stats["euro_s"], stats["euro_g"])])
                         award_rows.append([email, n, "6.投球方式", "⑨2レーン", stats["am_g"], stats["am_s"], calc_ave(stats["am_s"], stats["am_g"])])
                             
-                        # --- ⑩ レーン番号ごと（0回でもすべて出力・スッキリ化） ---
+                        # --- ⑩ レーン番号ごと ---
                         for i in range(1, 19):
                             k = str(i)
                             d = stats["euro_lanes"][k]
@@ -1835,13 +1877,20 @@ if st.session_state.analyzed_results:
                             d = stats["am_lanes"][k]
                             award_rows.append([email, n, "7.レーン別", f"⑩{i}-{i+1}・{i+1}-{i} レーン", d["g"], d["s"], calc_ave(d["s"], d["g"])])
                             
-                        # --- ⑪ オイル長さごと（0回でもすべて出力して間抜けを防ぐ） ---
+                        # --- ⑪ オイル長さごと ---
                         for l_key, d in stats["oil_lens"].items():
                             award_rows.append([email, n, "8.オイル長別", f"⑪{l_key}", d["g"], d["s"], calc_ave(d["s"], d["g"])])
                             
-                        # --- ⑫ オイル量ごと（0回でもすべて出力して間抜けを防ぐ） ---
+                        # --- ⑫ オイル量ごと ---
                         for v_key, d in stats["oil_vols"].items():
                             award_rows.append([email, n, "9.オイル量別", f"⑫{v_key}", d["g"], d["s"], calc_ave(d["s"], d["g"])])
+
+                        # --- ⑬ 1〜10番ピン残存率 ---
+                        for i in range(1, 11):
+                            k = str(i)
+                            c = stats["first_pitch_c"]
+                            s = stats["pin_left"][k]
+                            award_rows.append([email, n, "10.残存率", f"⑬{i}番ピン残存率", c, s, calc_rate(s, c)])
 
                     # ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
                     # AWARDシートへの出力
