@@ -424,7 +424,8 @@ if fetch_button:
                     done = False
                     while not done:
                         _, done = downloader.next_chunk()
-                    fetched_images.append({"name": item['name'], "bytes": fh.getvalue()})
+                    # ★ここで file_id も一緒に記憶させる
+                    fetched_images.append({"name": item['name'], "bytes": fh.getvalue(), "file_id": file_id})
 
                 # ▼ 変数名を元の正しい名前（raw_images_data）に戻す
                 st.session_state.raw_images_data = fetched_images
@@ -581,6 +582,7 @@ if st.session_state.analyzed_results is None:
 
     for img_idx, img_data in enumerate(st.session_state.raw_images_data):
         file_name = img_data["name"]
+        file_id = img_data.get("file_id") # ★この1行を追加
         status_text.info(f"⚙️ 画像 {img_idx+1}/{len(st.session_state.raw_images_data)} 枚目 ({file_name}) を解析中...")
 
         image_bytes = np.frombuffer(img_data["bytes"], np.uint8)
@@ -1365,6 +1367,7 @@ if st.session_state.analyzed_results is None:
 
         analyzed_results.append({
             "file_name": file_name,
+            "file_id": file_id, # ★この1行を追加
             "output_img": output_img,
             "all_games_export_data": all_games_export_data,
             "meta_data": ai_meta_data
