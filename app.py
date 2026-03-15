@@ -26,6 +26,31 @@ st.markdown("""
     div[data-testid="stExpander"] {
         margin-bottom: 0rem !important;
     }
+    /* ★追加：スマホ画面でもst.columnsを強制的に横並びにする（折り返し禁止） */
+    @media (max-width: 640px) {
+        div[data-testid="stHorizontalBlock"] {
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            gap: 0.2rem !important;
+        }
+        div[data-testid="column"] {
+            width: auto !important;
+            flex: 1 1 0% !important;
+            min-width: 0 !important;
+        }
+    }
+    /* ★追加：入力欄の文字サイズと余白を圧縮して高さを減らす */
+    .stTextInput>div>div>input {
+        padding: 0.3rem 0.5rem !important;
+        font-size: 14px !important;
+    }
+    .stMultiSelect>div>div>div {
+        min-height: 2rem !important;
+        padding: 0.1rem !important;
+    }
+    div[data-baseweb="select"] {
+        font-size: 14px !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 st.markdown("<h1 style='color: turquoise; text-align: center;'> 🎳Eagle ROLLERS🎳</h1>", unsafe_allow_html=True)
@@ -1169,25 +1194,24 @@ if st.session_state.analyzed_results:
                 # ③ 残ピン（マルチセレクト）のタグと枠の背景色を薄ピンクにするCSS
                 st.markdown("""
                     <style>
-                    /* 選択されたピン番号（タグ）の背景色 */
                     span[data-baseweb="tag"] {
                         background-color: #FFB6C1 !important; 
                         color: black !important;
                     }
-                    /* 残ピン選択ボックス自体の背景色 */
                     div[data-baseweb="select"] > div {
                         background-color: #FFF0F5 !important;
                     }
                     </style>
                 """, unsafe_allow_html=True)
 
+                # ★修正：ラベルを消してplaceholderにし、高さを圧縮
                 c_date, c_start, c_end = st.columns(3)
                 with c_date:
-                    new_date = st.text_input("日付", value=row[0], key=f"d_{img_idx}_{local_idx}")
+                    new_date = st.text_input("日付", value=row[0], key=f"d_{img_idx}_{local_idx}", label_visibility="collapsed", placeholder="日付")
                 with c_start:
-                    new_start = st.text_input("開始時刻", value=row[1], key=f"s_{img_idx}_{local_idx}")
+                    new_start = st.text_input("開始", value=row[1], key=f"s_{img_idx}_{local_idx}", label_visibility="collapsed", placeholder="開始時刻")
                 with c_end:
-                    new_end = st.text_input("終了時刻", value=row[2], key=f"e_{img_idx}_{local_idx}")
+                    new_end = st.text_input("終了", value=row[2], key=f"e_{img_idx}_{local_idx}", label_visibility="collapsed", placeholder="終了時刻")
 
                 st.markdown("**🎳 投球結果と残ピン位置（1〜10番を選択）**")
                 new_throws = []
@@ -1195,43 +1219,44 @@ if st.session_state.analyzed_results:
 
                 # 1〜9フレームの入力
                 for f in range(9):
-                    st.markdown(f"**<span style='color: turquoise;'>{f+1}フレーム</span>**", unsafe_allow_html=True)
-                    # ★修正：1投目 → 残ピン → 2投目 の順に横並び
+                    # HTMLで文字間の隙間を極限まで詰める
+                    st.markdown(f"<div style='color: turquoise; font-weight: bold; margin-bottom: -15px;'>{f+1}フレーム</div>", unsafe_allow_html=True)
+                    # ★修正：1投・残ピン・2投 を横並びに
                     c1, c2, c3 = st.columns([1, 3, 1])
                     with c1:
-                        t1 = st.text_input("1投目", value=str(row[throw_cols[f*2]]).replace("R:", ""), key=f"t1_{img_idx}_{local_idx}_{f}")
+                        t1 = st.text_input(f"1投_{f}", value=str(row[throw_cols[f*2]]).replace("R:", ""), key=f"t1_{img_idx}_{local_idx}_{f}", label_visibility="collapsed", placeholder="1投")
                     with c2:
                         curr_pins_str = str(row[target_indices[f]])
                         curr_pins = [int(p) for p in curr_pins_str.split(",")] if curr_pins_str else []
-                        p_sel = st.multiselect("残ピン", options=list(range(1, 11)), default=curr_pins, key=f"p_{img_idx}_{local_idx}_{f}")
+                        p_sel = st.multiselect(f"残_{f}", options=list(range(1, 11)), default=curr_pins, key=f"p_{img_idx}_{local_idx}_{f}", label_visibility="collapsed", placeholder="残ピン")
                     with c3:
-                        t2 = st.text_input("2投目", value=str(row[throw_cols[f*2+1]]).replace("R:", ""), key=f"t2_{img_idx}_{local_idx}_{f}")
+                        t2 = st.text_input(f"2投_{f}", value=str(row[throw_cols[f*2+1]]).replace("R:", ""), key=f"t2_{img_idx}_{local_idx}_{f}", label_visibility="collapsed", placeholder="2投")
                     
                     new_throws.extend([t1, t2])
                     new_pins.append(",".join(map(str, p_sel)))
 
                 # 10フレームの入力
-                st.markdown("**<span style='color: turquoise;'>10フレーム</span>**", unsafe_allow_html=True)
-                # ★修正：10フレーム目もすべて横並びに圧縮（1投・残・2投・残・3投・残）
+                st.markdown("<div style='color: turquoise; font-weight: bold; margin-bottom: -15px; margin-top: 10px;'>10フレーム</div>", unsafe_allow_html=True)
+                # ★修正：10フレーム目もすべて1行に詰め込む
                 c10_1, c10_p1, c10_2, c10_p2, c10_3, c10_p3 = st.columns([1, 2, 1, 2, 1, 2])
                 with c10_1:
-                    t10_1 = st.text_input("1投", value=str(row[throw_cols[18]]).replace("R:", ""), key=f"t1_{img_idx}_{local_idx}_9")
+                    t10_1 = st.text_input("10_1", value=str(row[throw_cols[18]]).replace("R:", ""), key=f"t1_{img_idx}_{local_idx}_9", label_visibility="collapsed", placeholder="1投")
                 with c10_p1:
                     p1_str = str(row[target_indices[9]])
                     p1_def = [int(p) for p in p1_str.split(",")] if p1_str else []
-                    p1_sel = st.multiselect("残", options=list(range(1, 11)), default=p1_def, key=f"p1_{img_idx}_{local_idx}_9")
+                    p1_sel = st.multiselect("残10_1", options=list(range(1, 11)), default=p1_def, key=f"p1_{img_idx}_{local_idx}_9", label_visibility="collapsed", placeholder="残")
                 with c10_2:
-                    t10_2 = st.text_input("2投", value=str(row[throw_cols[19]]).replace("R:", ""), key=f"t2_{img_idx}_{local_idx}_9")
+                    t10_2 = st.text_input("10_2", value=str(row[throw_cols[19]]).replace("R:", ""), key=f"t2_{img_idx}_{local_idx}_9", label_visibility="collapsed", placeholder="2投")
                 with c10_p2:
                     p2_str = str(row[target_indices[10]])
                     p2_def = [int(p) for p in p2_str.split(",")] if p2_str else []
-                    p2_sel = st.multiselect("残", options=list(range(1, 11)), default=p2_def, key=f"p2_{img_idx}_{local_idx}_9")
+                    p2_sel = st.multiselect("残10_2", options=list(range(1, 11)), default=p2_def, key=f"p2_{img_idx}_{local_idx}_9", label_visibility="collapsed", placeholder="残")
                 with c10_3:
-                    t10_3 = st.text_input("3投", value=str(row[throw_cols[20]]).replace("R:", ""), key=f"t3_{img_idx}_{local_idx}_9")
+                    t10_3 = st.text_input("10_3", value=str(row[throw_cols[20]]).replace("R:", ""), key=f"t3_{img_idx}_{local_idx}_9", label_visibility="collapsed", placeholder="3投")
                 with c10_p3:
                     p3_str = str(row[target_indices[11]])
                     p3_def = [int(p) for p in p3_str.split(",")] if p3_str else []
-                    p3_sel = st.multiselect("残", options=list(range(1, 11)), default=p3_def, key=f"p3_{img_idx}_{local_idx}_9")
+                    p3_sel = st.multiselect("残10_3", options=list(range(1, 11)), default=p3_def, key=f"p3_{img_idx}_{local_idx}_9", label_visibility="collapsed", placeholder="残")
                 
                 new_throws.extend([t10_1, t10_2, t10_3])
                 new_pins.extend([",".join(map(str, p1_sel)), ",".join(map(str, p2_sel)), ",".join(map(str, p3_sel))])
@@ -1247,18 +1272,14 @@ if st.session_state.analyzed_results:
                     for i in range(12):
                         row[target_indices[i]] = new_pins[i]
                     
-                    # 再計算ロジックを実行し、トータルスコア(row[50])を上書き
                     new_calc_totals = calculate_bowling_score(new_throws)
                     if new_calc_totals:
                         row[50] = str(new_calc_totals[-1])
                     
-                    # ① 再計算時に自動で入力欄を閉じる処理
-                    # ★修正：直接Falseに書き換えず、予約フラグを立ててからrerunする
                     st.session_state[close_flag_key] = True
                     st.rerun()
 
 
-    # ▼▼▼ 以下、左端からのスペースを4つ分に修正（画像ループの外に出す） ▼▼▼
     st.markdown("---")
     st.markdown("### 🎳 レーン・オイル・ボール")
     input_data = {}
@@ -1278,34 +1299,32 @@ if st.session_state.analyzed_results:
         ai_lane = items[0]["export_row"][3]
         default_lane_index = LANE_OPTIONS.index(ai_lane) if ai_lane in LANE_OPTIONS else 0
         
-        # ★修正：レーン・オイル長・オイル量・ボールをすべて1行（横一列）に並べる
+        # ★修正：レーン・オイル長・量・ボールをすべて1行（横並び）に圧縮
         col_lane, col_len, col_vol, col_ball = st.columns([1.5, 1, 1, 1.5])
         with col_lane:
-            common_lane = st.selectbox("レーン番号", LANE_OPTIONS, index=default_lane_index, key=f"c_lane_{img_idx}")
+            common_lane = st.selectbox("レーン", LANE_OPTIONS, index=default_lane_index, key=f"c_lane_{img_idx}")
         with col_len:
-            common_len = st.text_input("オイル長 (ft)", key=f"c_len_{img_idx}", placeholder="例: 42")
+            common_len = st.text_input("オイル長", key=f"c_len_{img_idx}", label_visibility="collapsed", placeholder="長(ft)")
         with col_vol:
-            common_vol = st.text_input("オイル量 (ml)", key=f"c_vol_{img_idx}", placeholder="例: 25.5")
+            common_vol = st.text_input("オイル量", key=f"c_vol_{img_idx}", label_visibility="collapsed", placeholder="量(ml)")
         with col_ball:
-            common_ball = st.text_input("使用ボール", key=f"c_ball_{img_idx}", placeholder="例: ツアーダイナミクス")
+            common_ball = st.text_input("ボール", key=f"c_ball_{img_idx}", label_visibility="collapsed", placeholder="ボール")
             
-        # 個別入力（expander内に格納）
         with st.expander(f"🔽 画像 {img_idx+1} のゲームごとの個別設定"):
             for item in items:
                 l_idx = item["local_idx"]
                 g_name = item["export_row"][4]
                 
-                c1, c2, c3, c4 = st.columns([1, 2, 2, 2])
+                c1, c2, c3, c4 = st.columns([1.5, 1, 1, 1.5])
                 with c1:
                     st.markdown(f"<div style='margin-top:8px;'><b>{g_name}</b></div>", unsafe_allow_html=True)
                 with c2:
-                    i_len = st.text_input(f"{g_name}長", key=f"i_len_{img_idx}_{l_idx}", label_visibility="collapsed", placeholder="共通を適用")
+                    i_len = st.text_input(f"{g_name}長", key=f"i_len_{img_idx}_{l_idx}", label_visibility="collapsed", placeholder="個別 長")
                 with c3:
-                    i_vol = st.text_input(f"{g_name}量", key=f"i_vol_{img_idx}_{l_idx}", label_visibility="collapsed", placeholder="共通を適用")
+                    i_vol = st.text_input(f"{g_name}量", key=f"i_vol_{img_idx}_{l_idx}", label_visibility="collapsed", placeholder="個別 量")
                 with c4:
-                    i_ball = st.text_input(f"{g_name}球", key=f"i_ball_{img_idx}_{l_idx}", label_visibility="collapsed", placeholder="共通を適用")
+                    i_ball = st.text_input(f"{g_name}球", key=f"i_ball_{img_idx}_{l_idx}", label_visibility="collapsed", placeholder="個別 ボール")
                 
-                # 個別入力が空欄なら、共通入力の値を自動適用する
                 final_len = i_len if i_len.strip() else common_len
                 final_vol = i_vol if i_vol.strip() else common_vol
                 final_ball = i_ball if i_ball.strip() else common_ball
