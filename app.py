@@ -1454,9 +1454,6 @@ if st.session_state.analyzed_results:
 # === ▼▼▼ ここからAWARD集計機能の追加（全12項目対応・ブロック分割版） ▼▼▼ ===
                     all_master_data = worksheet.get_all_values()
                     
-# === ▼▼▼ ここからAWARD集計機能の追加（全12項目対応・ブロック分割版） ▼▼▼ ===
-                    all_master_data = worksheet.get_all_values()
-                    
                     data_rows = [r for r in all_master_data[1:] if len(r) >= 53 and str(r[0]).strip()]
                     def sort_key(x):
                         d = str(x[2]).strip()
@@ -1528,8 +1525,10 @@ if st.session_state.analyzed_results:
                                 # ⑨ 投球方式
                                 "euro_g": 0, "euro_s": 0,
                                 "am_g": 0, "am_s": 0,
-                                # ⑩ ⑪ ⑫ レーン・オイル
-                                "lanes": {}, "oil_lens": {}, "oil_vols": {}
+                                # ⑩ レーン（ヨーロピアン1〜18、アメリカン1-2〜17-18枠を初期化）、⑪ ⑫ オイル
+                                "euro_lanes": {str(i): {"g": 0, "s": 0} for i in range(1, 19)},
+                                "am_lanes": {f"{i}-{i+1}": {"g": 0, "s": 0} for i in range(1, 18, 2)},
+                                "oil_lens": {}, "oil_vols": {}
                             }
                             
                         stats = player_stats[email]
@@ -1550,10 +1549,24 @@ if st.session_state.analyzed_results:
                         elif lane:
                             stats["euro_g"] += 1; stats["euro_s"] += total_score
                             
-                        # --- ⑩ レーン別 ---
+                        # --- ⑩ レーン別（文字列から数字を判別して固定枠に集計） ---
                         if lane:
-                            if lane not in stats["lanes"]: stats["lanes"][lane] = {"g": 0, "s": 0}
-                            stats["lanes"][lane]["g"] += 1; stats["lanes"][lane]["s"] += total_score
+                            import re
+                            nums = [int(x) for x in re.findall(r'\d+', lane)]
+                            if "-" in lane and len(nums) == 2:
+                                # アメリカンの場合 (例：1-2, 2-1 いずれも対応)
+                                n1, n2 = min(nums), max(nums)
+                                if n1 % 2 == 1 and n2 == n1 + 1:
+                                    k = f"{n1}-{n2}"
+                                    if k in stats["am_lanes"]:
+                                        stats["am_lanes"][k]["g"] += 1
+                                        stats["am_lanes"][k]["s"] += total_score
+                            elif len(nums) == 1:
+                                # ヨーロピアンの場合
+                                k = str(nums[0])
+                                if k in stats["euro_lanes"]:
+                                    stats["euro_lanes"][k]["g"] += 1
+                                    stats["euro_lanes"][k]["s"] += total_score
                             
                         # --- ⑪ オイル長別 ---
                         if oil_len:
@@ -1568,7 +1581,7 @@ if st.session_state.analyzed_results:
                         # --- ②～⑧のためのフレーム別処理 ---
                         game_seq = []
                         
-                        # 1〜9フレーム (※元の正しい列番号に修正)
+                        # 1〜9フレーム
                         for f in range(9):
                             res1 = clean_res(r[10 + f*4])
                             pin1 = str(r[11 + f*4]).strip()
@@ -1605,7 +1618,7 @@ if st.session_state.analyzed_results:
                                     
                                 game_seq.append(res2)
 
-                        # 10フレーム目 (※元の正しい列番号に修正)
+                        # 10フレーム目
                         res10_1 = clean_res(r[46]) if len(r) > 46 else ""
                         pin10_1 = str(r[47]).strip() if len(r) > 47 else ""
                         res10_2 = clean_res(r[48]) if len(r) > 48 else ""
@@ -1697,7 +1710,6 @@ if st.session_state.analyzed_results:
                     # ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
                     # 各種データの書き出し（リストへの変換）
                     # ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
-
                     award_rows = [["メールアドレス", "プレイヤー名", "カテゴリ", "項目", "母数", "成功数_合計スコア", "確率_アベレージ_回数"]]
                     
                     def calc_rate(s, c): return round((s / c) * 100, 1) if c > 0 else 0
@@ -1745,7 +1757,6 @@ if st.session_state.analyzed_results:
                             "4_5P": {"named": {}, "others": {"c": 0, "s": 0}}
                         }
                         
-                        # 0回でも表示させるため、名称付きスプリットの枠をあらかじめ作っておく
                         for sp, (grp, name) in named_splits.items():
                             name_label = f"⑥{name} ({sp})"
                             if name_label not in split_stats[grp]["named"]:
@@ -1769,29 +1780,23 @@ if st.session_state.analyzed_results:
                                 split_stats[group]["others"]["c"] += d["c"]
                                 split_stats[group]["others"]["s"] += d["s"]
                                 
-                        # 書き出し：2P -> 3P -> 4・5P の順で出力
                         for g_key, g_name in [("2P", "4.2Pスプリット"), ("3P", "4.3Pスプリット"), ("4_5P", "4.4・5Pスプリット")]:
-                            # 1. 名称ありのものを出力（0回でも出力される）
                             for name_label, d in split_stats[g_key]["named"].items():
                                 award_rows.append([email, n, g_name, name_label, d["c"], d["s"], calc_rate(d["s"], d["c"])])
                             
-                            # 2. そのカテゴリのOthers（その他）を出力（※これだけは1回でも出現していれば出力）
                             oth = split_stats[g_key]["others"]
                             if oth["c"] > 0:
                                 award_rows.append([email, n, g_name, "⑥Others", oth["c"], oth["s"], calc_rate(oth["s"], oth["c"])])
 
-                        # --- ⑦ ⑧ 連続ストライク確率計算（1ゲーム内のみで判定） ---
+                        # --- ⑦ ⑧ 連続ストライク確率計算 ---
                         st_after_st_c, st_after_st_s, st_after_db_c, st_after_db_s = 0, 0, 0, 0
                         
-                        # プレイヤーの全ゲーム履歴を、1ゲームずつ順番にチェックする
                         for game_record in stats["seq"]:
-                            # ⑦ その1ゲーム内でのストライク後のストライク
                             for i in range(len(game_record) - 1):
                                 if game_record[i] == "X":
                                     st_after_st_c += 1
                                     if game_record[i+1] == "X": st_after_st_s += 1
                                         
-                            # ⑧ その1ゲーム内でのダブル後のストライク
                             for i in range(len(game_record) - 2):
                                 if game_record[i] == "X" and game_record[i+1] == "X":
                                     st_after_db_c += 1
@@ -1807,9 +1812,16 @@ if st.session_state.analyzed_results:
                         award_rows.append([email, n, "6.投球方式", "⑨ヨーロピアン", stats["euro_g"], stats["euro_s"], calc_ave(stats["euro_s"], stats["euro_g"])])
                         award_rows.append([email, n, "6.投球方式", "⑨アメリカン", stats["am_g"], stats["am_s"], calc_ave(stats["am_s"], stats["am_g"])])
                             
-                        # --- ⑩ レーン番号ごと（※動的項目なので記録があるものだけ） ---
-                        for l, d in stats["lanes"].items():
-                            award_rows.append([email, n, "7.レーン別", f"⑩レーン {l}", d["g"], d["s"], calc_ave(d["s"], d["g"])])
+                        # --- ⑩ レーン番号ごと（0回でもすべて出力） ---
+                        for i in range(1, 19):
+                            k = str(i)
+                            d = stats["euro_lanes"][k]
+                            award_rows.append([email, n, "7.レーン別", f"⑩ヨーロピアン {k}レーン", d["g"], d["s"], calc_ave(d["s"], d["g"])])
+                            
+                        for i in range(1, 18, 2):
+                            k = f"{i}-{i+1}"
+                            d = stats["am_lanes"][k]
+                            award_rows.append([email, n, "7.レーン別", f"⑩アメリカン {i}-{i+1}・{i+1}-{i} レーン", d["g"], d["s"], calc_ave(d["s"], d["g"])])
                             
                         # --- ⑪ オイル長さごと（※動的項目なので記録があるものだけ） ---
                         for l, d in stats["oil_lens"].items():
