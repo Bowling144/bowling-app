@@ -1308,7 +1308,7 @@ if st.session_state.analyzed_results:
     
     st.markdown("<br>", unsafe_allow_html=True)
 
-    st.markdown("<h3 style='text-align: center;'>☟　☟　☟　☟　☟　☟　☟　</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center;'>　　☟　☟　☟　☟　☟　☟　</h3>", unsafe_allow_html=True)
 
     
 
