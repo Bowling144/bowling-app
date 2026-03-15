@@ -26,6 +26,25 @@ st.markdown("""
     div[data-testid="stExpander"] {
         margin-bottom: 0rem !important;
     }
+    /* ★スマホ画面で強制的に横並び（st.columns）を維持するための安全な設定 */
+    @media (max-width: 768px) {
+        div[data-testid="stHorizontalBlock"] {
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+        }
+        div[data-testid="stColumn"] {
+            width: auto !important;
+            flex: 1 1 0% !important;
+            min-width: 0 !important;
+        }
+    }
+    /* 10フレームなどの横幅を確保するため入力欄の余白を少し圧縮 */
+    .stTextInput > div > div > input {
+        padding: 0.3rem !important;
+    }
+    .stMultiSelect > div > div > div {
+        padding: 0px !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 st.markdown("<h1 style='color: turquoise; text-align: center;'> 🎳Eagle ROLLERS🎳</h1>", unsafe_allow_html=True)
@@ -1160,8 +1179,10 @@ if st.session_state.analyzed_results:
                 st.session_state[edit_key] = False
                 st.session_state[close_flag_key] = False
 
+
             if st.toggle(f"✏️ {game_name} を手動修正", key=edit_key):
 
+                # １つ目の要望：日付・開始・終了を横並びに
                 c_date, c_start, c_end = st.columns(3)
                 with c_date:
                     new_date = st.text_input("日付", value=row[0], key=f"d_{img_idx}_{local_idx}")
@@ -1174,12 +1195,10 @@ if st.session_state.analyzed_results:
                 new_throws = []
                 new_pins = []
 
-                # 1〜9フレームの入力
+                # ２つ目の要望：1〜9フレームの1投目・残ピン・2投目を横並びに（文字も見えるように）
                 for f in range(9):
-                    # ★要望2：フレーム文字が見えなくなるバグを解消
                     st.markdown(f"**<span style='color: turquoise;'>{f+1}フレーム</span>**", unsafe_allow_html=True)
-                    # ★要望2：1投目、残ピン、2投目の順に横並び
-                    c1, c2, c3 = st.columns([1, 3, 1])
+                    c1, c2, c3 = st.columns([1, 2, 1])
                     with c1:
                         t1 = st.text_input("1投目", value=str(row[throw_cols[f*2]]).replace("R:", ""), key=f"t1_{img_idx}_{local_idx}_{f}")
                     with c2:
@@ -1192,27 +1211,27 @@ if st.session_state.analyzed_results:
                     new_throws.extend([t1, t2])
                     new_pins.append(",".join(map(str, p_sel)))
 
-                # 10フレームの入力
+                # 10フレーム目の入力（1投・残・2投・残・3投・残 をすべて横並びに）
                 st.markdown("**<span style='color: turquoise;'>10フレーム</span>**", unsafe_allow_html=True)
-                c10_1, c10_p1, c10_2, c10_p2, c10_3, c10_p3 = st.columns([1, 2, 1, 2, 1, 2])
+                c10_1, c10_p1, c10_2, c10_p2, c10_3, c10_p3 = st.columns([1, 1.5, 1, 1.5, 1, 1.5])
                 with c10_1:
                     t10_1 = st.text_input("1投", value=str(row[throw_cols[18]]).replace("R:", ""), key=f"t1_{img_idx}_{local_idx}_9")
                 with c10_p1:
                     p1_str = str(row[target_indices[9]])
                     p1_def = [int(p) for p in p1_str.split(",")] if p1_str else []
-                    p1_sel = st.multiselect("残", options=list(range(1, 11)), default=p1_def, key=f"p1_{img_idx}_{local_idx}_9")
+                    p1_sel = st.multiselect("残1", options=list(range(1, 11)), default=p1_def, key=f"p1_{img_idx}_{local_idx}_9")
                 with c10_2:
                     t10_2 = st.text_input("2投", value=str(row[throw_cols[19]]).replace("R:", ""), key=f"t2_{img_idx}_{local_idx}_9")
                 with c10_p2:
                     p2_str = str(row[target_indices[10]])
                     p2_def = [int(p) for p in p2_str.split(",")] if p2_str else []
-                    p2_sel = st.multiselect("残", options=list(range(1, 11)), default=p2_def, key=f"p2_{img_idx}_{local_idx}_9")
+                    p2_sel = st.multiselect("残2", options=list(range(1, 11)), default=p2_def, key=f"p2_{img_idx}_{local_idx}_9")
                 with c10_3:
                     t10_3 = st.text_input("3投", value=str(row[throw_cols[20]]).replace("R:", ""), key=f"t3_{img_idx}_{local_idx}_9")
                 with c10_p3:
                     p3_str = str(row[target_indices[11]])
                     p3_def = [int(p) for p in p3_str.split(",")] if p3_str else []
-                    p3_sel = st.multiselect("残", options=list(range(1, 11)), default=p3_def, key=f"p3_{img_idx}_{local_idx}_9")
+                    p3_sel = st.multiselect("残3", options=list(range(1, 11)), default=p3_def, key=f"p3_{img_idx}_{local_idx}_9")
                 
                 new_throws.extend([t10_1, t10_2, t10_3])
                 new_pins.extend([",".join(map(str, p1_sel)), ",".join(map(str, p2_sel)), ",".join(map(str, p3_sel))])
@@ -1254,11 +1273,10 @@ if st.session_state.analyzed_results:
         ai_lane = items[0]["export_row"][3]
         default_lane_index = LANE_OPTIONS.index(ai_lane) if ai_lane in LANE_OPTIONS else 0
         
-        # ★要望3：AI読取結果をタイトルに明記
-        # ★要望4：レーン、長、量を1段目、ボールを幅広く2段目に配置
+        # ★要望３＆４：レーン・オイル長・オイル量を1段目で横並びにし、ボールを幅広で2段目に配置
         c_lane, c_len, c_vol = st.columns([1.5, 1, 1])
         with c_lane:
-            common_lane = st.selectbox(f"レーン番号 (※AI読取: {ai_lane})", LANE_OPTIONS, index=default_lane_index, key=f"c_lane_{img_idx}")
+            common_lane = st.selectbox(f"レーン番号 (AI読取: {ai_lane})", LANE_OPTIONS, index=default_lane_index, key=f"c_lane_{img_idx}")
         with c_len:
             common_len = st.text_input("オイル長 (ft)", key=f"c_len_{img_idx}", placeholder="例: 42")
         with c_vol:
@@ -1272,6 +1290,7 @@ if st.session_state.analyzed_results:
                 g_name = item["export_row"][4]
                 
                 st.markdown(f"**{g_name}**")
+                # ★個別設定も同様に、長・量を横並び、ボールを段下げ
                 i_c1, i_c2 = st.columns(2)
                 with i_c1:
                     i_len = st.text_input(f"{g_name} オイル長", key=f"i_len_{img_idx}_{l_idx}", placeholder="共通を適用")
@@ -1285,9 +1304,13 @@ if st.session_state.analyzed_results:
                 final_ball = i_ball if i_ball.strip() else common_ball
                 
                 input_data[(img_idx, l_idx)] = (common_lane, final_len, final_vol, final_ball)
+
+    
     st.markdown("<br>", unsafe_allow_html=True)
 
     st.markdown("<h3 style='text-align: center;'>☟　☟　☟　☟　☟　☟　☟　</h3>", unsafe_allow_html=True)
+
+    
 
     # ★要望1：SPS登録ボタンも元の全幅に戻す
     if st.button("☁️ 選択したプレイヤーのSPSへデータを登録", use_container_width=True, type="primary"):
