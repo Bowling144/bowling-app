@@ -1434,10 +1434,41 @@ if st.session_state.analyzed_results:
     game_checkboxes = []
 
     for img_idx, res in enumerate(st.session_state.analyzed_results):
-        st.markdown(f"#### 📄 画像 {img_idx+1}: {res['file_name']}")
+        # ★タイトルとゴミ箱ボタンを横に並べて配置
+        c_title, c_del = st.columns([3, 1])
+        with c_title:
+            st.markdown(f"#### 📄 画像 {img_idx+1}: {res['file_name']}")
+        with c_del:
+            # 🗑️ ゴミ箱ボタンが押された時の処理
+            if st.button("🗑️ ドライブから削除（ゴミ箱へ）", key=f"trash_{img_idx}"):
+                with st.spinner("ゴミ箱に移動中..."):
+                    try:
+                        # ドライブへアクセスする権限の準備
+                        creds_json_str = st.secrets["google_credentials"]
+                        creds_info = json.loads(creds_json_str, strict=False)
+                        if "private_key" in creds_info:
+                            creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
+                        scopes = ['https://www.googleapis.com/auth/drive']
+                        creds_del = service_account.Credentials.from_service_account_info(creds_info, scopes=scopes)
+                        drive_service_del = build('drive', 'v3', credentials=creds_del)
+                        
+                        # 画像をゴミ箱へ移動 (trashed = True)
+                        file_id = res.get('file_id')
+                        if file_id:
+                            drive_service_del.files().update(fileId=file_id, body={'trashed': True}).execute()
+                            
+                            # アプリの表示からも画像を消す
+                            st.session_state.analyzed_results.pop(img_idx)
+                            st.rerun()
+                        else:
+                            st.error("ファイルIDが見つからないため削除できませんでした。")
+                    except Exception as e:
+                        st.error(f"削除エラーが発生しました: {e}")
+
         st.image(cv2.cvtColor(res['output_img'], cv2.COLOR_BGR2RGB), use_container_width=True)
 
         for local_idx, row in enumerate(res['all_games_export_data']):
+
             game_name = row[4]
             date_str = row[0]
             start_time = row[1]
