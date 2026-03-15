@@ -1691,7 +1691,7 @@ if st.session_state.analyzed_results:
                                 stats["splits"][p_str]["c"] += 1
                                 if res10_2 == "/": stats["splits"][p_str]["s"] += 1
 
-                        stats["seq"].extend(game_seq)
+                        stats["seq"].append(game_seq)
 
 
                     # ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
@@ -1780,25 +1780,25 @@ if st.session_state.analyzed_results:
 
                         
                             
-                        # --- ⑦ ⑧ 連続ストライク確率計算 ---
-                        seq = stats["seq"]
+                       # --- ⑦ ⑧ 連続ストライク確率計算（1ゲーム内のみで判定） ---
                         st_after_st_c, st_after_st_s, st_after_db_c, st_after_db_s = 0, 0, 0, 0
                         
-                        for i in range(len(seq) - 1):
-                            if seq[i] == "X":
-                                st_after_st_c += 1
-                                if seq[i+1] == "X": st_after_st_s += 1
-                                    
-                        for i in range(len(seq) - 2):
-                            if seq[i] == "X" and seq[i+1] == "X":
-                                st_after_db_c += 1
-                                if seq[i+2] == "X": st_after_db_s += 1
-                                    
-                        # --- ⑦ ストライク後のストライク ---
-                        award_rows.append([email, n, "5.連発率", "⑦ストライク後のストライク", st_after_st_c, st_after_st_s, calc_rate(st_after_st_s, st_after_st_c)])
-                        
-                        # --- ⑧ ダブル後のストライク ---
-                        award_rows.append([email, n, "5.連発率", "⑧ダブル後のストライク", st_after_db_c, st_after_db_s, calc_rate(st_after_db_s, st_after_db_c)])
+                        # プレイヤーの全ゲーム履歴を、1ゲームずつ順番にチェックする
+                        for game_record in stats["seq"]:
+                            
+                            # ⑦ その1ゲーム内でのストライク後のストライク
+                            # （※ -1 をしているため、ゲーム最後の投球は母数に入りません）
+                            for i in range(len(game_record) - 1):
+                                if game_record[i] == "X":
+                                    st_after_st_c += 1
+                                    if game_record[i+1] == "X": st_after_st_s += 1
+                                        
+                            # ⑧ その1ゲーム内でのダブル後のストライク
+                            # （※ -2 をしているため、ゲーム最後の2投でのダブルは母数に入りません）
+                            for i in range(len(game_record) - 2):
+                                if game_record[i] == "X" and game_record[i+1] == "X":
+                                    st_after_db_c += 1
+                                    if game_record[i+2] == "X": st_after_db_s += 1
                         
                         # --- ⑨ 投球方式 ---
                         if stats["euro_g"] > 0:
