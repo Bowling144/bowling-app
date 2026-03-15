@@ -214,7 +214,7 @@ if app_mode == "📊 プレイヤー分析":
                     else:
                         st.info("データがありません。")
 
-# ==========================================
+                # ==========================================
                 # タブ2：STATS（詳細データ・ピンスタッツ）
                 # ==========================================
                 with tab2:
@@ -250,10 +250,107 @@ if app_mode == "📊 プレイヤー分析":
                     rate_turkey = p_awards.get("⑧ダブル後のストライク", "0.0")
                     c_dbl.metric("ダブル率 (ストライク後)", f"{rate_double} %")
                     c_trk.metric("ターキー率 (ダブル後)", f"{rate_turkey} %")
+                # ==========================================
+                # タブ3：AWARDS（称号・記録・スプリット）
+                # ==========================================
                 with tab3:
-                    st.info("タブ3：ハイスコア記録（①）、スプリットメイク一覧（⑥）がここに入ります。")
+                    st.markdown("### 🏆 ハイスコア & レコード")
+                    r_c1, r_c2, r_c3 = st.columns(3)
+                    r_c1.metric("最大連続ストライク", f"{p_awards.get('①最大連続ストライク', '0')} 回")
+                    r_c2.metric("パーフェクト(300)", f"{p_awards.get('①パーフェクト(300)', '0')} 回")
+                    r_c3.metric("250オーバー", f"{p_awards.get('①250オーバー', '0')} 回")
+                    
+                    r_c4, r_c5, _ = st.columns(3)
+                    r_c4.metric("220オーバー", f"{p_awards.get('①220オーバー', '0')} 回")
+                    r_c5.metric("200オーバー", f"{p_awards.get('①200オーバー', '0')} 回")
+
+                    st.markdown("### 🎳 スプリット・メイク コレクション")
+                    # スプリットのデータを抽出（マスターの集計から、スプリット名称、遭遇回数、成功数、確率を取得）
+                    split_records = []
+                    for row in award_data:
+                        if len(row) >= 7 and row[1] == selected_player and "⑥" in row[3]:
+                            name = row[3].replace("⑥", "")
+                            chances = row[4]
+                            success = row[5]
+                            rate = row[6]
+                            split_records.append({"スプリット名称": name, "遭遇回数": chances, "メイク数": success, "メイク率(%)": rate})
+                    
+                    if split_records:
+                        st.dataframe(split_records, use_container_width=True, hide_index=True)
+                    else:
+                        st.info("スプリットの記録がありません。")
+
+                # ==========================================
+                # タブ4：ENVIRONMENT（環境・レーン適性）
+                # ==========================================
                 with tab4:
-                    st.info("タブ4：投球方式・レーン・オイルコンディション適性のグラフがここに入ります。")
+                    st.markdown("### 🏟️ 投球方式 適性")
+                    euro_ave = float(p_awards.get("⑨1レーン", "0"))
+                    am_ave = float(p_awards.get("⑨2レーン", "0"))
+                    fig_style = px.bar(
+                        x=["ヨーロピアン (1レーン)", "アメリカン (2レーン)"], 
+                        y=[euro_ave, am_ave],
+                        labels={"x": "投球方式", "y": "アベレージ"},
+                        text=[f"{euro_ave}", f"{am_ave}"],
+                        color_discrete_sequence=['#FFA15A']
+                    )
+                    fig_style.update_traces(textposition='outside')
+                    fig_style.update_layout(height=300, margin=dict(t=10, b=10, l=10, r=10), yaxis=dict(range=[0, max(euro_ave, am_ave, 150) * 1.2]))
+                    st.plotly_chart(fig_style, use_container_width=True)
+
+                    st.markdown("### 📏 オイル長 (Length) 適性")
+                    len_keys, len_aves = [], []
+                    for row in award_data:
+                        if len(row) >= 7 and row[1] == selected_player and "⑪" in row[3]:
+                            try:
+                                if float(row[4]) > 0: # プレイ回数が1回以上のものだけ抽出
+                                    len_keys.append(row[3].replace("⑪", ""))
+                                    len_aves.append(float(row[6]))
+                            except ValueError:
+                                pass
+                    if len_keys:
+                        fig_len = px.line(x=len_keys, y=len_aves, markers=True, labels={"x": "オイル長 (ft)", "y": "アベレージ"})
+                        fig_len.update_traces(line_color='#00CC96')
+                        fig_len.update_layout(height=300, margin=dict(t=10, b=10, l=10, r=10))
+                        st.plotly_chart(fig_len, use_container_width=True)
+                    else:
+                        st.info("オイル長のプレイデータがありません。")
+
+                    st.markdown("### 💧 オイル量 (Volume) 適性")
+                    vol_keys, vol_aves = [], []
+                    for row in award_data:
+                        if len(row) >= 7 and row[1] == selected_player and "⑫" in row[3]:
+                            try:
+                                if float(row[4]) > 0: # プレイ回数が1回以上のものだけ抽出
+                                    vol_keys.append(row[3].replace("⑫", ""))
+                                    vol_aves.append(float(row[6]))
+                            except ValueError:
+                                pass
+                    if vol_keys:
+                        fig_vol = px.line(x=vol_keys, y=vol_aves, markers=True, labels={"x": "オイル量 (ml)", "y": "アベレージ"})
+                        fig_vol.update_traces(line_color='#AB63FA')
+                        fig_vol.update_layout(height=300, margin=dict(t=10, b=10, l=10, r=10))
+                        st.plotly_chart(fig_vol, use_container_width=True)
+                    else:
+                        st.info("オイル量のプレイデータがありません。")
+                        
+                    st.markdown("### 🎯 レーン番号 相性")
+                    lane_keys, lane_aves = [], []
+                    for row in award_data:
+                        if len(row) >= 7 and row[1] == selected_player and "⑩" in row[3]:
+                            try:
+                                if float(row[4]) > 0: # プレイ回数が1回以上のものだけ抽出
+                                    lane_keys.append(row[3].replace("⑩", "").replace(" レーン", ""))
+                                    lane_aves.append(float(row[6]))
+                            except ValueError:
+                                pass
+                    if lane_keys:
+                        fig_lane = px.bar(x=lane_keys, y=lane_aves, labels={"x": "レーン番号", "y": "アベレージ"}, text=[f"{a}" for a in lane_aves])
+                        fig_lane.update_traces(marker_color='#636EFA', textposition='outside')
+                        fig_lane.update_layout(height=300, margin=dict(t=10, b=10, l=10, r=10), yaxis=dict(range=[0, max(lane_aves + [150]) * 1.2]))
+                        st.plotly_chart(fig_lane, use_container_width=True)
+                    else:
+                        st.info("レーン番号のプレイデータがありません。")
         except Exception as e:
             st.error(f"データ取得エラー: {e}")
 
