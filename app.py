@@ -1726,9 +1726,59 @@ if st.session_state.analyzed_results:
                         if stats["pin_10_c"] > 0:
                             award_rows.append([email, n, "3.特定ピン", "⑤10番ピン", stats["pin_10_c"], stats["pin_10_s"], calc_rate(stats["pin_10_s"], stats["pin_10_c"])])
                             
-                        # --- ⑥ スプリット形状ごと ---
+
+                        # --- ⑥ スプリット形状ごと（名称付き＋Others分類） ---
+                        named_splits = {
+                            "7-10": "スネークアイ",
+                            "2-7": "ベビースプリット",
+                            "3-10": "ベビースプリット",
+                            "4-6": "フォーシックス",
+                            "4-9": "ビッグディボット",
+                            "6-8": "ビッグディボット",
+                            "5-7-10": "リリー",
+                            "4-6-7-10": "ビッグフォー",
+                            "4-6-7-9-10": "グリークチャーチ",
+                            "4-6-7-8-10": "グリークチャーチ"
+                        }
+                        
+                        split_stats = {
+                            "2P": {"named": {}, "others": {"c": 0, "s": 0}},
+                            "3P": {"named": {}, "others": {"c": 0, "s": 0}},
+                            "4_5P": {"named": {}, "others": {"c": 0, "s": 0}}
+                        }
+                        
                         for sp, d in stats["splits"].items():
-                            award_rows.append([email, n, "4.スプリット", f"⑥{sp}", d["c"], d["s"], calc_rate(d["s"], d["c"])])
+                            pin_count = len(sp.split("-"))
+                            if pin_count == 2:
+                                group = "2P"
+                            elif pin_count == 3:
+                                group = "3P"
+                            else:
+                                group = "4_5P"
+                                
+                            if sp in named_splits:
+                                name_label = f"⑥{named_splits[sp]} ({sp})"
+                                if name_label not in split_stats[group]["named"]:
+                                    split_stats[group]["named"][name_label] = {"c": 0, "s": 0}
+                                split_stats[group]["named"][name_label]["c"] += d["c"]
+                                split_stats[group]["named"][name_label]["s"] += d["s"]
+                            else:
+                                split_stats[group]["others"]["c"] += d["c"]
+                                split_stats[group]["others"]["s"] += d["s"]
+                                
+                        # 書き出し：2P -> 3P -> 4・5P の順で出力
+                        for g_key, g_name in [("2P", "4.2Pスプリット"), ("3P", "4.3Pスプリット"), ("4_5P", "4.4・5Pスプリット")]:
+                            # 1. 名称ありのものを出力
+                            for name_label, d in split_stats[g_key]["named"].items():
+                                award_rows.append([email, n, g_name, name_label, d["c"], d["s"], calc_rate(d["s"], d["c"])])
+                            
+                            # 2. そのカテゴリのOthers（その他）を出力（※1回でも出現していれば）
+                            oth = split_stats[g_key]["others"]
+                            if oth["c"] > 0:
+                                award_rows.append([email, n, g_name, "⑥Others", oth["c"], oth["s"], calc_rate(oth["s"], oth["c"])])
+
+
+                        
                             
                         # --- ⑦ ⑧ 連続ストライク確率計算 ---
                         seq = stats["seq"]
