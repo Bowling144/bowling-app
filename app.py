@@ -69,7 +69,7 @@ if app_mode == "📊 プレイヤー分析":
     from google.oauth2 import service_account
     from googleapiclient.discovery import build
 
-    st.markdown("<h2 style='text-align: center; color: turquoise;'>📊 プレイヤー分析ダッシュボード</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: turquoise;'>📊 Play Data</h2>", unsafe_allow_html=True)
 
     # 🎯 ダーツライブ準拠：レーティング＆フライト計算関数
     def calc_rating_flight(recent_scores):
@@ -87,13 +87,13 @@ if app_mode == "📊 プレイヤー分析":
         
         rt = round(max(1.0, rt), 2)
         
-        if rt >= 16: flight = "SA FLIGHT"
-        elif rt >= 13: flight = "AA FLIGHT"
-        elif rt >= 10: flight = "A FLIGHT"
-        elif rt >= 8: flight = "BB FLIGHT"
-        elif rt >= 6: flight = "B FLIGHT"
-        elif rt >= 4: flight = "CC FLIGHT"
-        else: flight = "C FLIGHT"
+        if rt >= 16: flight = "SA ROLLER"
+        elif rt >= 13: flight = "AA ROLLER"
+        elif rt >= 10: flight = "A ROLLER"
+        elif rt >= 8: flight = "BB ROLLER"
+        elif rt >= 6: flight = "B ROLLER"
+        elif rt >= 4: flight = "CC ROLLER"
+        else: flight = "C ROLLER"
         
         return rt, flight, round(a, 1)
 
