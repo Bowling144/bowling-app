@@ -48,11 +48,126 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 st.markdown("<h1 style='color: turquoise; text-align: center;'> 🎳Eagle ROLLERS🎳</h1>", unsafe_allow_html=True)
-# --- サイドバー：APIキー入力 ---
+
+# --- サイドバー：APIキー入力 ＆ モード切替 ---
 with st.sidebar:
     st.header("⚙️ 設定")
     gemini_api_key = st.text_input("Gemini APIキーを入力", type="password")
     st.markdown("※APIキーがないと累計スコアのAI読取ができません。")
+    st.markdown("---")
+    app_mode = st.radio("🚀 モード選択", ["📝 スコア登録", "📊 プレイヤー分析"])
+
+# =========================================================
+# 📊 【新機能】プレイヤー分析ダッシュボード
+# =========================================================
+if app_mode == "📊 プレイヤー分析":
+    import plotly.graph_objects as go
+    import plotly.express as px
+    import gspread
+    import math
+    import json
+    from google.oauth2 import service_account
+    from googleapiclient.discovery import build
+
+    st.markdown("<h2 style='text-align: center; color: turquoise;'>📊 プレイヤー分析ダッシュボード</h2>", unsafe_allow_html=True)
+
+    # 🎯 ダーツライブ準拠：レーティング＆フライト計算関数
+    def calc_rating_flight(recent_scores):
+        if not recent_scores: return 0.0, "UNRATED", 0.0
+        
+        a = sum(recent_scores) / len(recent_scores)
+        
+        if a >= 230: rt = 18 + (a - 230) * (3 / 20)
+        elif a >= 210: rt = 15 + (a - 210) * (3 / 20)
+        elif a >= 190: rt = 12 + (a - 190) * (3 / 20)
+        elif a >= 170: rt = 9 + (a - 170) * (3 / 20)
+        elif a >= 145: rt = 6 + (a - 145) * (3 / 25)
+        elif a >= 95: rt = 1 + (a - 95) * 0.1
+        else: rt = a / 95
+        
+        rt = round(max(1.0, rt), 2)
+        
+        if rt >= 16: flight = "SA FLIGHT"
+        elif rt >= 13: flight = "AA FLIGHT"
+        elif rt >= 10: flight = "A FLIGHT"
+        elif rt >= 8: flight = "BB FLIGHT"
+        elif rt >= 6: flight = "B FLIGHT"
+        elif rt >= 4: flight = "CC FLIGHT"
+        else: flight = "C FLIGHT"
+        
+        return rt, flight, round(a, 1)
+
+    # SPSからデータを取得（スピナー表示）
+    with st.spinner("SPSから最新の分析データを取得中..."):
+        try:
+            creds_json_str = st.secrets["google_credentials"]
+            creds_info = json.loads(creds_json_str, strict=False)
+            if "private_key" in creds_info:
+                creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
+            scopes = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
+            creds = service_account.Credentials.from_service_account_info(creds_info, scopes=scopes)
+            gc = gspread.authorize(creds)
+            drive_service = build('drive', 'v3', credentials=creds)
+
+            query = "name = 'EagleBowl_ROLLERS' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"
+            results = drive_service.files().list(q=query, fields="files(id, name)").execute()
+            sheets = results.get('files', [])
+            
+            if not sheets:
+                st.error("エラー: スプレッドシートが見つかりません。")
+                st.stop()
+                
+            sh = gc.open_by_key(sheets[0]['id'])
+
+            # プレイヤーリスト取得
+            settings_data = sh.worksheet("プレイヤー設定").get_all_values()
+            players = [row[1] for row in settings_data[1:] if len(row) >= 2 and row[1]]
+
+            selected_player = st.selectbox("👤 分析するプレイヤーを選択してください", [""] + players)
+
+            if selected_player:
+                # 1. マスターシートから「直近50ゲーム」のスコアを抽出
+                master_data = sh.worksheet("マスター").get_all_values()
+                player_games = []
+                for row in master_data[1:]:
+                    if len(row) >= 53 and row[1] == selected_player:
+                        try:
+                            score = int(row[52])
+                            player_games.append({"date": row[2], "time": row[3], "score": score})
+                        except ValueError:
+                            pass
+                            
+                # 日付・時間で降順ソートし、直近50件を抽出
+                player_games.sort(key=lambda x: (x["date"], x["time"]), reverse=True)
+                recent_50 = [g["score"] for g in player_games[:50]]
+
+                # 2. レーティング計算
+                rt, flight, ave = calc_rating_flight(recent_50)
+
+                # 3. ヘッダー表示（ダーツライブ風ステータス）
+                st.markdown("---")
+                st.markdown(f"<h1 style='text-align: center; color: gold; margin-bottom: 0px; font-style: italic;'>{flight}</h1>", unsafe_allow_html=True)
+                st.markdown(f"<h3 style='text-align: center; margin-top: 0px;'>{selected_player} ｜ Rt. {rt} ｜ Ave. {ave}</h3>", unsafe_allow_html=True)
+                st.markdown(f"<p style='text-align: center; color: gray;'>※直近 {len(recent_50)} ゲーム対象</p>", unsafe_allow_html=True)
+                st.markdown("---")
+
+                # 4. タブの作成（画面構成の骨組み）
+                tab1, tab2, tab3, tab4 = st.tabs(["🏠 HOME", "📊 STATS", "🏆 AWARDS", "🌍 ENVIRONMENT"])
+
+                with tab1:
+                    st.info("タブ1：レーティングゲージ、コアスタッツ、スコア推移グラフがここに入ります。")
+                with tab2:
+                    st.info("タブ2：残存率マップ（⑬）、カバー率（④・⑤）、連発率（⑦・⑧）がここに入ります。")
+                with tab3:
+                    st.info("タブ3：ハイスコア記録（①）、スプリットメイク一覧（⑥）がここに入ります。")
+                with tab4:
+                    st.info("タブ4：投球方式・レーン・オイルコンディション適性のグラフがここに入ります。")
+
+        except Exception as e:
+            st.error(f"データ取得エラー: {e}")
+
+    # ⚠️ 【重要】分析モードの時は、これより下の「登録画面のコード」を読み込まずにストップする
+    st.stop()
 
 
 # ⚠️ AIモデル設定：Flash版を除外し、Proモデルに限定（存在しないモデル名によるエラーを防止）
