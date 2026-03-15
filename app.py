@@ -1195,40 +1195,43 @@ if st.session_state.analyzed_results:
 
                 # 1〜9フレームの入力
                 for f in range(9):
-                    # ② 1F → 1フレーム に変更し、太字・ターコイズブルーに
                     st.markdown(f"**<span style='color: turquoise;'>{f+1}フレーム</span>**", unsafe_allow_html=True)
-                    c1, c2, c3 = st.columns([1, 1, 3])
+                    # ★修正：1投目 → 残ピン → 2投目 の順に横並び
+                    c1, c2, c3 = st.columns([1, 3, 1])
                     with c1:
                         t1 = st.text_input("1投目", value=str(row[throw_cols[f*2]]).replace("R:", ""), key=f"t1_{img_idx}_{local_idx}_{f}")
                     with c2:
-                        t2 = st.text_input("2投目", value=str(row[throw_cols[f*2+1]]).replace("R:", ""), key=f"t2_{img_idx}_{local_idx}_{f}")
-                    with c3:
                         curr_pins_str = str(row[target_indices[f]])
                         curr_pins = [int(p) for p in curr_pins_str.split(",")] if curr_pins_str else []
-                        p_sel = st.multiselect("残ピン番号", options=list(range(1, 11)), default=curr_pins, key=f"p_{img_idx}_{local_idx}_{f}")
+                        p_sel = st.multiselect("残ピン", options=list(range(1, 11)), default=curr_pins, key=f"p_{img_idx}_{local_idx}_{f}")
+                    with c3:
+                        t2 = st.text_input("2投目", value=str(row[throw_cols[f*2+1]]).replace("R:", ""), key=f"t2_{img_idx}_{local_idx}_{f}")
                     
                     new_throws.extend([t1, t2])
                     new_pins.append(",".join(map(str, p_sel)))
 
                 # 10フレームの入力
-                # ② 10F → 10フレーム に変更し、太字・ターコイズブルーに
                 st.markdown("**<span style='color: turquoise;'>10フレーム</span>**", unsafe_allow_html=True)
-                c10_1, c10_2, c10_3 = st.columns(3)
+                # ★修正：10フレーム目もすべて横並びに圧縮（1投・残・2投・残・3投・残）
+                c10_1, c10_p1, c10_2, c10_p2, c10_3, c10_p3 = st.columns([1, 2, 1, 2, 1, 2])
                 with c10_1:
-                    t10_1 = st.text_input("1投目", value=str(row[throw_cols[18]]).replace("R:", ""), key=f"t1_{img_idx}_{local_idx}_9")
+                    t10_1 = st.text_input("1投", value=str(row[throw_cols[18]]).replace("R:", ""), key=f"t1_{img_idx}_{local_idx}_9")
+                with c10_p1:
                     p1_str = str(row[target_indices[9]])
                     p1_def = [int(p) for p in p1_str.split(",")] if p1_str else []
-                    p1_sel = st.multiselect("1投目後 残ピン", options=list(range(1, 11)), default=p1_def, key=f"p1_{img_idx}_{local_idx}_9")
+                    p1_sel = st.multiselect("残", options=list(range(1, 11)), default=p1_def, key=f"p1_{img_idx}_{local_idx}_9")
                 with c10_2:
-                    t10_2 = st.text_input("2投目", value=str(row[throw_cols[19]]).replace("R:", ""), key=f"t2_{img_idx}_{local_idx}_9")
+                    t10_2 = st.text_input("2投", value=str(row[throw_cols[19]]).replace("R:", ""), key=f"t2_{img_idx}_{local_idx}_9")
+                with c10_p2:
                     p2_str = str(row[target_indices[10]])
                     p2_def = [int(p) for p in p2_str.split(",")] if p2_str else []
-                    p2_sel = st.multiselect("2投目後 残ピン", options=list(range(1, 11)), default=p2_def, key=f"p2_{img_idx}_{local_idx}_9")
+                    p2_sel = st.multiselect("残", options=list(range(1, 11)), default=p2_def, key=f"p2_{img_idx}_{local_idx}_9")
                 with c10_3:
-                    t10_3 = st.text_input("3投目", value=str(row[throw_cols[20]]).replace("R:", ""), key=f"t3_{img_idx}_{local_idx}_9")
+                    t10_3 = st.text_input("3投", value=str(row[throw_cols[20]]).replace("R:", ""), key=f"t3_{img_idx}_{local_idx}_9")
+                with c10_p3:
                     p3_str = str(row[target_indices[11]])
                     p3_def = [int(p) for p in p3_str.split(",")] if p3_str else []
-                    p3_sel = st.multiselect("3投目後 残ピン", options=list(range(1, 11)), default=p3_def, key=f"p3_{img_idx}_{local_idx}_9")
+                    p3_sel = st.multiselect("残", options=list(range(1, 11)), default=p3_def, key=f"p3_{img_idx}_{local_idx}_9")
                 
                 new_throws.extend([t10_1, t10_2, t10_3])
                 new_pins.extend([",".join(map(str, p1_sel)), ",".join(map(str, p2_sel)), ",".join(map(str, p3_sel))])
@@ -1260,9 +1263,8 @@ if st.session_state.analyzed_results:
     st.markdown("### 🎳 レーン・オイル・ボール")
     input_data = {}
 
-    # ▼ 追加：レーン番号の選択肢を生成（空欄 + 1〜18の単独 + 奇数-偶数 + 偶数-奇数）
     LANE_OPTIONS = [""] + [str(i) for i in range(1, 19)] + [f"{i}-{i+1}" for i in range(1, 19, 2)] + [f"{i+1}-{i}" for i in range(1, 19, 2)]
-# 画像ごとにゲームをグループ化
+
     games_by_img = {}
     for item in game_checkboxes:
         idx = item["img_idx"]
@@ -1273,20 +1275,18 @@ if st.session_state.analyzed_results:
     for img_idx, items in games_by_img.items():
         st.markdown(f"**📄 画像 {img_idx+1} の設定**")
         
-        # ▼ 追加：AIが読み取ったレーン番号を取得し、選択肢の初期値を決定
         ai_lane = items[0]["export_row"][3]
         default_lane_index = LANE_OPTIONS.index(ai_lane) if ai_lane in LANE_OPTIONS else 0
         
-        # ▼ 追加：オイル長の上にレーン番号の選択欄を配置
-        common_lane = st.selectbox("レーン番号", LANE_OPTIONS, index=default_lane_index, key=f"c_lane_{img_idx}")
-
-        # 画像共通入力（初期表示）
-        col1, col2, col3 = st.columns(3)
-        with col1:
+        # ★修正：レーン・オイル長・オイル量・ボールをすべて1行（横一列）に並べる
+        col_lane, col_len, col_vol, col_ball = st.columns([1.5, 1, 1, 1.5])
+        with col_lane:
+            common_lane = st.selectbox("レーン番号", LANE_OPTIONS, index=default_lane_index, key=f"c_lane_{img_idx}")
+        with col_len:
             common_len = st.text_input("オイル長 (ft)", key=f"c_len_{img_idx}", placeholder="例: 42")
-        with col2:
+        with col_vol:
             common_vol = st.text_input("オイル量 (ml)", key=f"c_vol_{img_idx}", placeholder="例: 25.5")
-        with col3:
+        with col_ball:
             common_ball = st.text_input("使用ボール", key=f"c_ball_{img_idx}", placeholder="例: ツアーダイナミクス")
             
         # 個別入力（expander内に格納）
@@ -1310,7 +1310,6 @@ if st.session_state.analyzed_results:
                 final_vol = i_vol if i_vol.strip() else common_vol
                 final_ball = i_ball if i_ball.strip() else common_ball
                 
-                # ▼ 変更：input_data に common_lane も保存する
                 input_data[(img_idx, l_idx)] = (common_lane, final_len, final_vol, final_ball)
     st.markdown("<br>", unsafe_allow_html=True)
 
