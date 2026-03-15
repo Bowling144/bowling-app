@@ -1195,7 +1195,7 @@ if st.session_state.analyzed_results:
                 new_throws = []
                 new_pins = []
 
-                # ２つ目の要望：1〜9フレームの1投目・残ピン・2投目を横並びに（文字も見えるように）
+                # 1〜9フレームの入力
                 for f in range(9):
                     st.markdown(f"**<span style='color: turquoise;'>{f+1}フレーム</span>**", unsafe_allow_html=True)
                     c1, c2, c3 = st.columns([1, 2, 1])
@@ -1204,38 +1204,47 @@ if st.session_state.analyzed_results:
                     with c2:
                         curr_pins_str = str(row[target_indices[f]])
                         curr_pins = [int(p) for p in curr_pins_str.split(",")] if curr_pins_str else []
-                        p_sel = st.multiselect("残ピン", options=list(range(1, 11)), default=curr_pins, key=f"p_{img_idx}_{local_idx}_{f}")
+                        # ★要望1: placeholder="" を追加して空欄表示にする
+                        p_sel = st.multiselect("残ピン", options=list(range(1, 11)), default=curr_pins, key=f"p_{img_idx}_{local_idx}_{f}", placeholder="")
                     with c3:
                         t2 = st.text_input("2投目", value=str(row[throw_cols[f*2+1]]).replace("R:", ""), key=f"t2_{img_idx}_{local_idx}_{f}")
                     
                     new_throws.extend([t1, t2])
                     new_pins.append(",".join(map(str, p_sel)))
 
-                # 10フレーム目の入力（1投・残・2投・残・3投・残 をすべて横並びに）
+                # 10フレーム目の入力
                 st.markdown("**<span style='color: turquoise;'>10フレーム</span>**", unsafe_allow_html=True)
-                c10_1, c10_p1, c10_2, c10_p2, c10_3, c10_p3 = st.columns([1, 1.5, 1, 1.5, 1, 1.5])
+                # ★要望2: 1投目、2投目、3投目をそれぞれ改行して配置（上のフレームと幅を合わせるため [1, 2, 1] を使用）
+                
+                # 10フレーム 1投目
+                c10_1, c10_p1, _ = st.columns([1, 2, 1])
                 with c10_1:
                     t10_1 = st.text_input("1投", value=str(row[throw_cols[18]]).replace("R:", ""), key=f"t1_{img_idx}_{local_idx}_9")
                 with c10_p1:
                     p1_str = str(row[target_indices[9]])
                     p1_def = [int(p) for p in p1_str.split(",")] if p1_str else []
-                    p1_sel = st.multiselect("残1", options=list(range(1, 11)), default=p1_def, key=f"p1_{img_idx}_{local_idx}_9")
+                    p1_sel = st.multiselect("残1", options=list(range(1, 11)), default=p1_def, key=f"p1_{img_idx}_{local_idx}_9", placeholder="")
+
+                # 10フレーム 2投目
+                c10_2, c10_p2, _ = st.columns([1, 2, 1])
                 with c10_2:
                     t10_2 = st.text_input("2投", value=str(row[throw_cols[19]]).replace("R:", ""), key=f"t2_{img_idx}_{local_idx}_9")
                 with c10_p2:
                     p2_str = str(row[target_indices[10]])
                     p2_def = [int(p) for p in p2_str.split(",")] if p2_str else []
-                    p2_sel = st.multiselect("残2", options=list(range(1, 11)), default=p2_def, key=f"p2_{img_idx}_{local_idx}_9")
+                    p2_sel = st.multiselect("残2", options=list(range(1, 11)), default=p2_def, key=f"p2_{img_idx}_{local_idx}_9", placeholder="")
+
+                # 10フレーム 3投目
+                c10_3, c10_p3, _ = st.columns([1, 2, 1])
                 with c10_3:
                     t10_3 = st.text_input("3投", value=str(row[throw_cols[20]]).replace("R:", ""), key=f"t3_{img_idx}_{local_idx}_9")
                 with c10_p3:
                     p3_str = str(row[target_indices[11]])
                     p3_def = [int(p) for p in p3_str.split(",")] if p3_str else []
-                    p3_sel = st.multiselect("残3", options=list(range(1, 11)), default=p3_def, key=f"p3_{img_idx}_{local_idx}_9")
+                    p3_sel = st.multiselect("残3", options=list(range(1, 11)), default=p3_def, key=f"p3_{img_idx}_{local_idx}_9", placeholder="")
                 
                 new_throws.extend([t10_1, t10_2, t10_3])
                 new_pins.extend([",".join(map(str, p1_sel)), ",".join(map(str, p2_sel)), ",".join(map(str, p3_sel))])
-
                 if st.button("🔄 修正を反映して再計算", key=f"update_{img_idx}_{local_idx}"):
                     row[0] = new_date
                     row[1] = new_start
@@ -1276,7 +1285,8 @@ if st.session_state.analyzed_results:
         # ★要望３＆４：レーン・オイル長・オイル量を1段目で横並びにし、ボールを幅広で2段目に配置
         c_lane, c_len, c_vol = st.columns([1.5, 1, 1])
         with c_lane:
-            common_lane = st.selectbox(f"レーン番号 (AI読取: {ai_lane})", LANE_OPTIONS, index=default_lane_index, key=f"c_lane_{img_idx}")
+            # ★要望3: レーン番号の横の (AI読取: XX) を削除
+            common_lane = st.selectbox("レーン番号", LANE_OPTIONS, index=default_lane_index, key=f"c_lane_{img_idx}")
         with c_len:
             common_len = st.text_input("オイル長 (ft)", key=f"c_len_{img_idx}", placeholder="例: 42")
         with c_vol:
