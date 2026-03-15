@@ -26,30 +26,31 @@ st.markdown("""
     div[data-testid="stExpander"] {
         margin-bottom: 0rem !important;
     }
-    /* ★追加：スマホ画面でもst.columnsを強制的に横並びにする（折り返し禁止） */
-    @media (max-width: 640px) {
+    /* ★修正：スマホ画面でも強制的に横並びにする（Streamlit最新版対応） */
+    @media (max-width: 768px) {
         div[data-testid="stHorizontalBlock"] {
             flex-direction: row !important;
             flex-wrap: nowrap !important;
             gap: 0.2rem !important;
         }
-        div[data-testid="column"] {
+        div[data-testid="stColumn"] {
             width: auto !important;
             flex: 1 1 0% !important;
             min-width: 0 !important;
         }
     }
-    /* ★追加：入力欄の文字サイズと余白を圧縮して高さを減らす */
-    .stTextInput>div>div>input {
-        padding: 0.3rem 0.5rem !important;
-        font-size: 14px !important;
+    /* ★追加：入力欄の余白と文字サイズを削ってさらにコンパクトに */
+    .stTextInput > div > div > input {
+        padding: 0.2rem 0.4rem !important;
+        font-size: 13px !important;
     }
-    .stMultiSelect>div>div>div {
-        min-height: 2rem !important;
-        padding: 0.1rem !important;
+    .stMultiSelect > div > div > div {
+        padding: 0px !important;
+        min-height: 1.8rem !important;
+        font-size: 13px !important;
     }
     div[data-baseweb="select"] {
-        font-size: 14px !important;
+        font-size: 13px !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -1204,14 +1205,13 @@ if st.session_state.analyzed_results:
                     </style>
                 """, unsafe_allow_html=True)
 
-                # ★修正：ラベルを消してplaceholderにし、高さを圧縮
                 c_date, c_start, c_end = st.columns(3)
                 with c_date:
                     new_date = st.text_input("日付", value=row[0], key=f"d_{img_idx}_{local_idx}", label_visibility="collapsed", placeholder="日付")
                 with c_start:
-                    new_start = st.text_input("開始", value=row[1], key=f"s_{img_idx}_{local_idx}", label_visibility="collapsed", placeholder="開始時刻")
+                    new_start = st.text_input("開始時刻", value=row[1], key=f"s_{img_idx}_{local_idx}", label_visibility="collapsed", placeholder="開始時刻")
                 with c_end:
-                    new_end = st.text_input("終了", value=row[2], key=f"e_{img_idx}_{local_idx}", label_visibility="collapsed", placeholder="終了時刻")
+                    new_end = st.text_input("終了時刻", value=row[2], key=f"e_{img_idx}_{local_idx}", label_visibility="collapsed", placeholder="終了時刻")
 
                 st.markdown("**🎳 投球結果と残ピン位置（1〜10番を選択）**")
                 new_throws = []
@@ -1219,10 +1219,8 @@ if st.session_state.analyzed_results:
 
                 # 1〜9フレームの入力
                 for f in range(9):
-                    # HTMLで文字間の隙間を極限まで詰める
                     st.markdown(f"<div style='color: turquoise; font-weight: bold; margin-bottom: -15px;'>{f+1}フレーム</div>", unsafe_allow_html=True)
-                    # ★修正：1投・残ピン・2投 を横並びに
-                    c1, c2, c3 = st.columns([1, 3, 1])
+                    c1, c2, c3 = st.columns([1, 2, 1])
                     with c1:
                         t1 = st.text_input(f"1投_{f}", value=str(row[throw_cols[f*2]]).replace("R:", ""), key=f"t1_{img_idx}_{local_idx}_{f}", label_visibility="collapsed", placeholder="1投")
                     with c2:
@@ -1237,7 +1235,6 @@ if st.session_state.analyzed_results:
 
                 # 10フレームの入力
                 st.markdown("<div style='color: turquoise; font-weight: bold; margin-bottom: -15px; margin-top: 10px;'>10フレーム</div>", unsafe_allow_html=True)
-                # ★修正：10フレーム目もすべて1行に詰め込む
                 c10_1, c10_p1, c10_2, c10_p2, c10_3, c10_p3 = st.columns([1, 2, 1, 2, 1, 2])
                 with c10_1:
                     t10_1 = st.text_input("10_1", value=str(row[throw_cols[18]]).replace("R:", ""), key=f"t1_{img_idx}_{local_idx}_9", label_visibility="collapsed", placeholder="1投")
@@ -1299,10 +1296,10 @@ if st.session_state.analyzed_results:
         ai_lane = items[0]["export_row"][3]
         default_lane_index = LANE_OPTIONS.index(ai_lane) if ai_lane in LANE_OPTIONS else 0
         
-        # ★修正：レーン・オイル長・量・ボールをすべて1行（横並び）に圧縮
+        # ★修正：レーン・長・量・ボールを1行に。すべて label_visibility="collapsed" を適用し高さを揃える
         col_lane, col_len, col_vol, col_ball = st.columns([1.5, 1, 1, 1.5])
         with col_lane:
-            common_lane = st.selectbox("レーン", LANE_OPTIONS, index=default_lane_index, key=f"c_lane_{img_idx}")
+            common_lane = st.selectbox("レーン", LANE_OPTIONS, index=default_lane_index, key=f"c_lane_{img_idx}", label_visibility="collapsed")
         with col_len:
             common_len = st.text_input("オイル長", key=f"c_len_{img_idx}", label_visibility="collapsed", placeholder="長(ft)")
         with col_vol:
@@ -1317,13 +1314,13 @@ if st.session_state.analyzed_results:
                 
                 c1, c2, c3, c4 = st.columns([1.5, 1, 1, 1.5])
                 with c1:
-                    st.markdown(f"<div style='margin-top:8px;'><b>{g_name}</b></div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='margin-top:2px;'><b>{g_name}</b></div>", unsafe_allow_html=True)
                 with c2:
-                    i_len = st.text_input(f"{g_name}長", key=f"i_len_{img_idx}_{l_idx}", label_visibility="collapsed", placeholder="個別 長")
+                    i_len = st.text_input(f"{g_name}長", key=f"i_len_{img_idx}_{l_idx}", label_visibility="collapsed", placeholder="個別長")
                 with c3:
-                    i_vol = st.text_input(f"{g_name}量", key=f"i_vol_{img_idx}_{l_idx}", label_visibility="collapsed", placeholder="個別 量")
+                    i_vol = st.text_input(f"{g_name}量", key=f"i_vol_{img_idx}_{l_idx}", label_visibility="collapsed", placeholder="個別量")
                 with c4:
-                    i_ball = st.text_input(f"{g_name}球", key=f"i_ball_{img_idx}_{l_idx}", label_visibility="collapsed", placeholder="個別 ボール")
+                    i_ball = st.text_input(f"{g_name}球", key=f"i_ball_{img_idx}_{l_idx}", label_visibility="collapsed", placeholder="個別球")
                 
                 final_len = i_len if i_len.strip() else common_len
                 final_vol = i_vol if i_vol.strip() else common_vol
