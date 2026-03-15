@@ -1526,11 +1526,11 @@ if st.session_state.analyzed_results:
                                 # ⑨ 投球方式
                                 "euro_g": 0, "euro_s": 0,
                                 "am_g": 0, "am_s": 0,
-                                # ⑩ レーン、⑪ ⑫ オイル（すべての固定枠を初期化）
+                                # ⑩ レーン、⑪ ⑫ オイル（すべての固定枠を適切な順番で初期化）
                                 "euro_lanes": {str(i): {"g": 0, "s": 0} for i in range(1, 19)},
                                 "am_lanes": {f"{i}-{i+1}": {"g": 0, "s": 0} for i in range(1, 18, 2)},
-                                "oil_lens": {k: {"g": 0, "s": 0} for k in ["32ft未満", "32-33ft", "34-35ft", "36-37ft", "38-39ft", "40-41ft", "42-43ft", "44-45ft", "46ft以上"]},
-                                "oil_vols": {k: {"g": 0, "s": 0} for k in ["20ml未満", "20-21ml", "22-23ml", "24-25ml", "26-27ml", "28-29ml", "30-31ml", "32-33ml", "34-35ml", "36ml以上"]}
+                                "oil_lens": {k: {"g": 0, "s": 0} for k in ["32ft未満", "32≦～<34ft", "34≦～<36ft", "36≦～<38ft", "38≦～<40ft", "40≦～<42ft", "42≦～<44ft", "44≦～<46ft", "46ft以上"]},
+                                "oil_vols": {k: {"g": 0, "s": 0} for k in ["20ml未満", "20≦～<22ml", "22≦～<24ml", "24≦～<26ml", "26≦～<28ml", "28≦～<30ml", "30≦～<32ml", "32≦～<34ml", "34≦～<36ml", "36ml以上"]}
                             }
                             
                         stats = player_stats[email]
@@ -1568,7 +1568,7 @@ if st.session_state.analyzed_results:
                                     stats["euro_lanes"][k]["g"] += 1
                                     stats["euro_lanes"][k]["s"] += total_score
                             
-                        # --- ⑪ オイル長別（指定のくくりで集計） ---
+                        # --- ⑪ オイル長別（小数も正確に不等号枠へ集計） ---
                         if oil_len:
                             try:
                                 olen = float(oil_len)
@@ -1578,7 +1578,7 @@ if st.session_state.analyzed_results:
                                     k = "46ft以上"
                                 else:
                                     lower = int((olen - 32) // 2) * 2 + 32
-                                    k = f"{lower}-{lower+1}ft"
+                                    k = f"{lower}≦～<{lower+2}ft"
                                     
                                 if k in stats["oil_lens"]:
                                     stats["oil_lens"][k]["g"] += 1
@@ -1586,7 +1586,7 @@ if st.session_state.analyzed_results:
                             except ValueError:
                                 pass
                             
-                        # --- ⑫ オイル量別（指定のくくりで集計） ---
+                        # --- ⑫ オイル量別（小数も正確に不等号枠へ集計） ---
                         if oil_vol:
                             try:
                                 ovol = float(oil_vol)
@@ -1596,7 +1596,7 @@ if st.session_state.analyzed_results:
                                     k = "36ml以上"
                                 else:
                                     lower = int((ovol - 20) // 2) * 2 + 20
-                                    k = f"{lower}-{lower+1}ml"
+                                    k = f"{lower}≦～<{lower+2}ml"
                                     
                                 if k in stats["oil_vols"]:
                                     stats["oil_vols"][k]["g"] += 1
@@ -1831,7 +1831,7 @@ if st.session_state.analyzed_results:
                         award_rows.append([email, n, "6.投球方式", "⑨ヨーロピアン", stats["euro_g"], stats["euro_s"], calc_ave(stats["euro_s"], stats["euro_g"])])
                         award_rows.append([email, n, "6.投球方式", "⑨アメリカン", stats["am_g"], stats["am_s"], calc_ave(stats["am_s"], stats["am_g"])])
                             
-                        # --- ⑩ レーン番号ごと（0回でもすべて出力） ---
+                        # --- ⑩ レーン番号ごと ---
                         for i in range(1, 19):
                             k = str(i)
                             d = stats["euro_lanes"][k]
@@ -1842,13 +1842,15 @@ if st.session_state.analyzed_results:
                             d = stats["am_lanes"][k]
                             award_rows.append([email, n, "7.レーン別", f"⑩アメリカン {i}-{i+1}・{i+1}-{i} レーン", d["g"], d["s"], calc_ave(d["s"], d["g"])])
                             
-                        # --- ⑪ オイル長さごと（0回でもすべて出力） ---
+                        # --- ⑪ オイル長さごと（※記録があるものだけ出力） ---
                         for l_key, d in stats["oil_lens"].items():
-                            award_rows.append([email, n, "8.オイル長別", f"⑪{l_key}", d["g"], d["s"], calc_ave(d["s"], d["g"])])
+                            if d["g"] > 0:
+                                award_rows.append([email, n, "8.オイル長別", f"⑪{l_key}", d["g"], d["s"], calc_ave(d["s"], d["g"])])
                             
-                        # --- ⑫ オイル量ごと（0回でもすべて出力） ---
+                        # --- ⑫ オイル量ごと（※記録があるものだけ出力） ---
                         for v_key, d in stats["oil_vols"].items():
-                            award_rows.append([email, n, "9.オイル量別", f"⑫{v_key}", d["g"], d["s"], calc_ave(d["s"], d["g"])])
+                            if d["g"] > 0:
+                                award_rows.append([email, n, "9.オイル量別", f"⑫{v_key}", d["g"], d["s"], calc_ave(d["s"], d["g"])])
 
                     # ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
                     # AWARDシートへの出力
