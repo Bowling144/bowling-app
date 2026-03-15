@@ -153,9 +153,12 @@ if app_mode == "📊 プレイヤー分析":
 
                 # 4. タブの作成（画面構成の骨組み）
                 # --- AWARDシートから各種統計データを取得 ---
-                award_data = sh.worksheet("AWARD").get_all_values()
-                # 項目名（row[3]）をキー、確率や回数（row[6]）を値として辞書化
-                p_awards = {row[3]: row[6] for row in award_data if len(row) >= 7 and row[1] == selected_player}
+                try:
+                    award_data = sh.worksheet("AWARD").get_all_values()
+                    # 項目名（row[3]）をキー、確率や回数（row[6]）を値として辞書化
+                    p_awards = {row[3]: row[6] for row in award_data if len(row) >= 7 and row[1] == selected_player}
+                except Exception:
+                    p_awards = {}
 
                 # 4. タブの作成とダッシュボード展開
                 tab1, tab2, tab3, tab4 = st.tabs(["🏠 HOME", "📊 STATS", "🏆 AWARDS", "🌍 ENVIRONMENT"])
@@ -220,7 +223,6 @@ if app_mode == "📊 プレイヤー分析":
                     st.info("タブ3：ハイスコア記録（①）、スプリットメイク一覧（⑥）がここに入ります。")
                 with tab4:
                     st.info("タブ4：投球方式・レーン・オイルコンディション適性のグラフがここに入ります。")
-
         except Exception as e:
             st.error(f"データ取得エラー: {e}")
 
