@@ -869,6 +869,8 @@ if st.session_state.analyzed_results is None:
                     dyn_thresh_empty = peak1_idx + valley_idx
             else:
                 dyn_thresh_empty = np.max(all_global_pin_pcts) + 5.0
+        # ★ ここで黄色の枠（残ピン）の閾値を微調整する
+        dyn_thresh_empty = dyn_thresh_empty + 3.0
 
         dyn_thresh_circle = dyn_thresh_empty + 12.0
 
