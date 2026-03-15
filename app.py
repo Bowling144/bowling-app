@@ -214,11 +214,42 @@ if app_mode == "📊 プレイヤー分析":
                     else:
                         st.info("データがありません。")
 
-                # ==========================================
-                # タブ2〜4：今後の実装エリア
+# ==========================================
+                # タブ2：STATS（詳細データ・ピンスタッツ）
                 # ==========================================
                 with tab2:
-                    st.info("タブ2：残存率マップ（⑬）、カバー率（④・⑤）、連発率（⑦・⑧）がここに入ります。")
+                    st.markdown("### 🎯 鬼門ピン カバー率")
+                    c_7, c_10 = st.columns(2)
+                    
+                    # 7番ピンカバー率（ドーナツチャート）
+                    rate_7 = float(p_awards.get("④7番ピン", "0"))
+                    fig_7 = go.Figure(data=[go.Pie(labels=['Cover', 'Miss'], values=[rate_7, max(0, 100-rate_7)], hole=.7, marker_colors=['#00CC96', '#333333'])])
+                    fig_7.update_layout(title_text="7番ピン", title_x=0.5, showlegend=False, margin=dict(t=30, b=10, l=10, r=10), height=200)
+                    fig_7.add_annotation(text=f"{rate_7}%", x=0.5, y=0.5, font_size=20, showarrow=False)
+                    c_7.plotly_chart(fig_7, use_container_width=True)
+                    
+                    # 10番ピンカバー率（ドーナツチャート）
+                    rate_10 = float(p_awards.get("⑤10番ピン", "0"))
+                    fig_10 = go.Figure(data=[go.Pie(labels=['Cover', 'Miss'], values=[rate_10, max(0, 100-rate_10)], hole=.7, marker_colors=['#AB63FA', '#333333'])])
+                    fig_10.update_layout(title_text="10番ピン", title_x=0.5, showlegend=False, margin=dict(t=30, b=10, l=10, r=10), height=200)
+                    fig_10.add_annotation(text=f"{rate_10}%", x=0.5, y=0.5, font_size=20, showarrow=False)
+                    c_10.plotly_chart(fig_10, use_container_width=True)
+
+                    st.markdown("### 🎳 1投目 ピン別残存率")
+                    # 1〜10番ピンの残存率を取得して棒グラフ化
+                    pins = [str(i) for i in range(1, 11)]
+                    rates = [float(p_awards.get(f"⑬{i}番ピン残存率", "0")) for i in range(1, 11)]
+                    fig_pins = px.bar(x=pins, y=rates, labels={'x': 'ピン番号', 'y': '残存率 (%)'}, text=[f"{r}%" for r in rates])
+                    fig_pins.update_traces(marker_color='turquoise', textposition='outside')
+                    fig_pins.update_layout(height=300, margin=dict(t=10, b=10, l=10, r=10), yaxis=dict(range=[0, max(rates + [10]) * 1.2]))
+                    st.plotly_chart(fig_pins, use_container_width=True)
+
+                    st.markdown("### 🔥 連発力スタッツ")
+                    c_dbl, c_trk = st.columns(2)
+                    rate_double = p_awards.get("⑦ストライク後のストライク", "0.0")
+                    rate_turkey = p_awards.get("⑧ダブル後のストライク", "0.0")
+                    c_dbl.metric("ダブル率 (ストライク後)", f"{rate_double} %")
+                    c_trk.metric("ターキー率 (ダブル後)", f"{rate_turkey} %")
                 with tab3:
                     st.info("タブ3：ハイスコア記録（①）、スプリットメイク一覧（⑥）がここに入ります。")
                 with tab4:
