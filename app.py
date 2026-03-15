@@ -1697,6 +1697,7 @@ if st.session_state.analyzed_results:
                     # ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
                     # 各種データの書き出し（リストへの変換）
                     # ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
+
                     award_rows = [["メールアドレス", "プレイヤー名", "カテゴリ", "項目", "母数", "成功数_合計スコア", "確率_アベレージ_回数"]]
                     
                     def calc_rate(s, c): return round((s / c) * 100, 1) if c > 0 else 0
@@ -1718,27 +1719,24 @@ if st.session_state.analyzed_results:
                         # --- ③ 2投目スペア率 ---
                         award_rows.append([email, n, "2.全体率", "③2投目スペア率", stats["sp_chances"], stats["sp_success"], calc_rate(stats["sp_success"], stats["sp_chances"])])
                         
-                        # --- ④ 7番ピン ---
-                        if stats["pin_7_c"] > 0:
-                            award_rows.append([email, n, "3.特定ピン", "④7番ピン", stats["pin_7_c"], stats["pin_7_s"], calc_rate(stats["pin_7_s"], stats["pin_7_c"])])
+                        # --- ④ 7番ピン（0回でも出力） ---
+                        award_rows.append([email, n, "3.特定ピン", "④7番ピン", stats["pin_7_c"], stats["pin_7_s"], calc_rate(stats["pin_7_s"], stats["pin_7_c"])])
                             
-                        # --- ⑤ 10番ピン ---
-                        if stats["pin_10_c"] > 0:
-                            award_rows.append([email, n, "3.特定ピン", "⑤10番ピン", stats["pin_10_c"], stats["pin_10_s"], calc_rate(stats["pin_10_s"], stats["pin_10_c"])])
+                        # --- ⑤ 10番ピン（0回でも出力） ---
+                        award_rows.append([email, n, "3.特定ピン", "⑤10番ピン", stats["pin_10_c"], stats["pin_10_s"], calc_rate(stats["pin_10_s"], stats["pin_10_c"])])
                             
-
                         # --- ⑥ スプリット形状ごと（名称付き＋Others分類） ---
                         named_splits = {
-                            "7-10": "スネークアイ",
-                            "2-7": "ベビースプリット",
-                            "3-10": "ベビースプリット",
-                            "4-6": "フォーシックス",
-                            "4-9": "ビッグディボット",
-                            "6-8": "ビッグディボット",
-                            "5-7-10": "リリー",
-                            "4-6-7-10": "ビッグフォー",
-                            "4-6-7-9-10": "グリークチャーチ",
-                            "4-6-7-8-10": "グリークチャーチ"
+                            "7-10": ("2P", "スネークアイ"),
+                            "2-7": ("2P", "ベビースプリット"),
+                            "3-10": ("2P", "ベビースプリット"),
+                            "4-6": ("2P", "フォーシックス"),
+                            "4-9": ("2P", "ビッグディボット"),
+                            "6-8": ("2P", "ビッグディボット"),
+                            "5-7-10": ("3P", "リリー"),
+                            "4-6-7-10": ("4_5P", "ビッグフォー"),
+                            "4-6-7-9-10": ("4_5P", "グリークチャーチ"),
+                            "4-6-7-8-10": ("4_5P", "グリークチャーチ")
                         }
                         
                         split_stats = {
@@ -1747,6 +1745,12 @@ if st.session_state.analyzed_results:
                             "4_5P": {"named": {}, "others": {"c": 0, "s": 0}}
                         }
                         
+                        # 0回でも表示させるため、名称付きスプリットの枠をあらかじめ作っておく
+                        for sp, (grp, name) in named_splits.items():
+                            name_label = f"⑥{name} ({sp})"
+                            if name_label not in split_stats[grp]["named"]:
+                                split_stats[grp]["named"][name_label] = {"c": 0, "s": 0}
+                                
                         for sp, d in stats["splits"].items():
                             pin_count = len(sp.split("-"))
                             if pin_count == 2:
@@ -1757,64 +1761,61 @@ if st.session_state.analyzed_results:
                                 group = "4_5P"
                                 
                             if sp in named_splits:
-                                name_label = f"⑥{named_splits[sp]} ({sp})"
-                                if name_label not in split_stats[group]["named"]:
-                                    split_stats[group]["named"][name_label] = {"c": 0, "s": 0}
-                                split_stats[group]["named"][name_label]["c"] += d["c"]
-                                split_stats[group]["named"][name_label]["s"] += d["s"]
+                                grp, name = named_splits[sp]
+                                name_label = f"⑥{name} ({sp})"
+                                split_stats[grp]["named"][name_label]["c"] += d["c"]
+                                split_stats[grp]["named"][name_label]["s"] += d["s"]
                             else:
                                 split_stats[group]["others"]["c"] += d["c"]
                                 split_stats[group]["others"]["s"] += d["s"]
                                 
                         # 書き出し：2P -> 3P -> 4・5P の順で出力
                         for g_key, g_name in [("2P", "4.2Pスプリット"), ("3P", "4.3Pスプリット"), ("4_5P", "4.4・5Pスプリット")]:
-                            # 1. 名称ありのものを出力
+                            # 1. 名称ありのものを出力（0回でも出力される）
                             for name_label, d in split_stats[g_key]["named"].items():
                                 award_rows.append([email, n, g_name, name_label, d["c"], d["s"], calc_rate(d["s"], d["c"])])
                             
-                            # 2. そのカテゴリのOthers（その他）を出力（※1回でも出現していれば）
+                            # 2. そのカテゴリのOthers（その他）を出力（※これだけは1回でも出現していれば出力）
                             oth = split_stats[g_key]["others"]
                             if oth["c"] > 0:
                                 award_rows.append([email, n, g_name, "⑥Others", oth["c"], oth["s"], calc_rate(oth["s"], oth["c"])])
 
-
-                        
-                            
-                       # --- ⑦ ⑧ 連続ストライク確率計算（1ゲーム内のみで判定） ---
+                        # --- ⑦ ⑧ 連続ストライク確率計算（1ゲーム内のみで判定） ---
                         st_after_st_c, st_after_st_s, st_after_db_c, st_after_db_s = 0, 0, 0, 0
                         
                         # プレイヤーの全ゲーム履歴を、1ゲームずつ順番にチェックする
                         for game_record in stats["seq"]:
-                            
                             # ⑦ その1ゲーム内でのストライク後のストライク
-                            # （※ -1 をしているため、ゲーム最後の投球は母数に入りません）
                             for i in range(len(game_record) - 1):
                                 if game_record[i] == "X":
                                     st_after_st_c += 1
                                     if game_record[i+1] == "X": st_after_st_s += 1
                                         
                             # ⑧ その1ゲーム内でのダブル後のストライク
-                            # （※ -2 をしているため、ゲーム最後の2投でのダブルは母数に入りません）
                             for i in range(len(game_record) - 2):
                                 if game_record[i] == "X" and game_record[i+1] == "X":
                                     st_after_db_c += 1
                                     if game_record[i+2] == "X": st_after_db_s += 1
+                                    
+                        # --- ⑦ ストライク後のストライク（0回でも出力） ---
+                        award_rows.append([email, n, "5.連発率", "⑦ストライク後のストライク", st_after_st_c, st_after_st_s, calc_rate(st_after_st_s, st_after_st_c)])
                         
-                        # --- ⑨ 投球方式 ---
-                        if stats["euro_g"] > 0:
-                            award_rows.append([email, n, "6.投球方式", "⑨ヨーロピアン", stats["euro_g"], stats["euro_s"], calc_ave(stats["euro_s"], stats["euro_g"])])
-                        if stats["am_g"] > 0:
-                            award_rows.append([email, n, "6.投球方式", "⑨アメリカン", stats["am_g"], stats["am_s"], calc_ave(stats["am_s"], stats["am_g"])])
+                        # --- ⑧ ダブル後のストライク（0回でも出力） ---
+                        award_rows.append([email, n, "5.連発率", "⑧ダブル後のストライク", st_after_db_c, st_after_db_s, calc_rate(st_after_db_s, st_after_db_c)])
+                        
+                        # --- ⑨ 投球方式（0回でも出力） ---
+                        award_rows.append([email, n, "6.投球方式", "⑨ヨーロピアン", stats["euro_g"], stats["euro_s"], calc_ave(stats["euro_s"], stats["euro_g"])])
+                        award_rows.append([email, n, "6.投球方式", "⑨アメリカン", stats["am_g"], stats["am_s"], calc_ave(stats["am_s"], stats["am_g"])])
                             
-                        # --- ⑩ レーン番号ごと ---
+                        # --- ⑩ レーン番号ごと（※動的項目なので記録があるものだけ） ---
                         for l, d in stats["lanes"].items():
                             award_rows.append([email, n, "7.レーン別", f"⑩レーン {l}", d["g"], d["s"], calc_ave(d["s"], d["g"])])
                             
-                        # --- ⑪ オイル長さごと ---
+                        # --- ⑪ オイル長さごと（※動的項目なので記録があるものだけ） ---
                         for l, d in stats["oil_lens"].items():
                             award_rows.append([email, n, "8.オイル長別", f"⑪{l}ft", d["g"], d["s"], calc_ave(d["s"], d["g"])])
                             
-                        # --- ⑫ オイル量ごと ---
+                        # --- ⑫ オイル量ごと（※動的項目なので記録があるものだけ） ---
                         for v, d in stats["oil_vols"].items():
                             award_rows.append([email, n, "9.オイル量別", f"⑫{v}ml", d["g"], d["s"], calc_ave(d["s"], d["g"])])
 
@@ -1831,6 +1832,8 @@ if st.session_state.analyzed_results:
                         award_sheet.update(range_name="A1", values=award_rows)
                     # === ▲▲▲ AWARD集計機能の追加ここまで ▲▲▲ ===
 
+
+                   
                     
                     st.success(f"🎉 登録完了！ 新規追加: {add_count}件 / 上書き更新: {update_count}件")
 
