@@ -1437,37 +1437,7 @@ if st.session_state.analyzed_results:
     game_checkboxes = []
 
     for img_idx, res in enumerate(st.session_state.analyzed_results):
-        # ★タイトルとゴミ箱ボタンを横に並べて配置
-        c_title, c_del = st.columns([3, 1])
-        with c_title:
-            st.markdown(f"#### 📄 画像 {img_idx+1}: {res['file_name']}")
-        with c_del:
-            # 🗑️ ゴミ箱ボタンが押された時の処理
-            if st.button("🗑️ ドライブから削除（ゴミ箱へ）", key=f"trash_{img_idx}"):
-                with st.spinner("ゴミ箱に移動中..."):
-                    try:
-                        # ドライブへアクセスする権限の準備
-                        creds_json_str = st.secrets["google_credentials"]
-                        creds_info = json.loads(creds_json_str, strict=False)
-                        if "private_key" in creds_info:
-                            creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
-                        scopes = ['https://www.googleapis.com/auth/drive']
-                        creds_del = service_account.Credentials.from_service_account_info(creds_info, scopes=scopes)
-                        drive_service_del = build('drive', 'v3', credentials=creds_del)
-                        
-                        # 画像をゴミ箱へ移動 (trashed = True)
-                        file_id = res.get('file_id')
-                        if file_id:
-                            drive_service_del.files().update(fileId=file_id, body={'trashed': True}).execute()
-                            
-                            # アプリの表示からも画像を消す
-                            st.session_state.analyzed_results.pop(img_idx)
-                            st.rerun()
-                        else:
-                            st.error("ファイルIDが見つからないため削除できませんでした。")
-                    except Exception as e:
-                        st.error(f"削除エラーが発生しました: {e}")
-
+        st.markdown(f"#### 📄 画像 {img_idx+1}: {res['file_name']}")
         st.image(cv2.cvtColor(res['output_img'], cv2.COLOR_BGR2RGB), use_container_width=True)
 
         for local_idx, row in enumerate(res['all_games_export_data']):
@@ -2242,7 +2212,44 @@ if st.session_state.analyzed_results:
                     award_sheet.update(range_name="A1", values=award_rows)
                 # === ▲▲▲ AWARD集計機能の追加ここまで ▲▲▲ ===
 
+
                 st.success(f"🎉 登録完了！ 新規追加: {add_count}件 / 上書き更新: {update_count}件")
+                st.session_state.sps_registered = True # ★登録完了のフラグを立てる
 
             except Exception as e:
                 st.error(f"SPSへの登録中にエラーが発生しました: {e}")
+
+    # =========================================================
+    # 🗑️ 登録完了後のクリーンアップ（ゴミ箱へ移動）
+    # =========================================================
+    if st.session_state.get("sps_registered"):
+        st.markdown("---")
+        st.info("💡 SPSへの登録が完了しました。不要になった画像をGoogleドライブから消去できます。")
+        if st.button("🗑️ 読み込んだすべての画像をドライブから削除（ゴミ箱へ）", use_container_width=True):
+            with st.spinner("画像をゴミ箱へ移動中..."):
+                try:
+                    creds_json_str = st.secrets["google_credentials"]
+                    creds_info = json.loads(creds_json_str, strict=False)
+                    if "private_key" in creds_info:
+                        creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
+                    scopes = ['https://www.googleapis.com/auth/drive']
+                    creds_del = service_account.Credentials.from_service_account_info(creds_info, scopes=scopes)
+                    drive_service_del = build('drive', 'v3', credentials=creds_del)
+                    
+                    del_count = 0
+                    for res in st.session_state.analyzed_results:
+                        fid = res.get("file_id")
+                        if fid:
+                            drive_service_del.files().update(fileId=fid, body={'trashed': True}).execute()
+                            del_count += 1
+                            
+                    st.success(f"🗑️ {del_count}枚の画像をゴミ箱へ移動しました！")
+                    
+                    # リセット処理（初期画面に戻す）
+                    st.session_state.analyzed_results = None
+                    st.session_state.raw_images_data = []
+                    st.session_state.sps_registered = False
+                    time.sleep(2)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"削除エラーが発生しました: {e}")
