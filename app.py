@@ -1431,6 +1431,8 @@ if st.session_state.analyzed_results:
                 st.session_state.dynamic_player_list = ["999_ゲスト"]
 
     player_list = st.session_state.dynamic_player_list
+    # ★要望5：プレイヤー名が消える不具合を修正（不要な設定を削除）
+    selected_player = st.selectbox("👤プレイヤー選択👤", player_list)
 
     st.markdown("---")
     register_all = st.checkbox("全てのゲームをマスターに登録する", value=True)
@@ -1629,8 +1631,7 @@ if st.session_state.analyzed_results:
 
     st.markdown("<h3 style='text-align: center;'>　　☟　☟　☟　☟　☟　☟　</h3>", unsafe_allow_html=True)
 
-# ★画面上部から移動させてきたプレイヤー選択タブ
-    selected_player = st.selectbox("👤プレイヤー選択👤", player_list)
+    
 
     # ★要望1：SPS登録ボタンも元の全幅に戻す
     if st.button("☁️ 選択したプレイヤーのSPSへデータを登録", use_container_width=True, type="primary"):
@@ -2297,3 +2298,4 @@ if st.session_state.analyzed_results:
                     st.rerun()
                 except Exception as e:
                     st.error(f"移動エラーが発生しました: {e}")
+
