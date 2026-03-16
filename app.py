@@ -55,7 +55,7 @@ with st.sidebar:
     gemini_api_key = st.text_input("Gemini APIキーを入力", type="password")
     st.markdown("※APIキーがないと累計スコアのAI読取ができません。")
     st.markdown("---")
-    app_mode = st.radio("🚀 モード選択", ["📝 スコア登録", "📊 プレイヤー分析"])
+    app_mode = st.radio("🚀 モード選択", ["📝 スコア登録", "📊 プレイヤー分析"], index=1)
 
 # =========================================================
 # 📊 【新機能】プレイヤー分析ダッシュボード
@@ -68,8 +68,6 @@ if app_mode == "📊 プレイヤー分析":
     import json
     from google.oauth2 import service_account
     from googleapiclient.discovery import build
-
-    st.markdown("<h2 style='text-align: center; color: turquoise;'>📊 Play Data</h2>", unsafe_allow_html=True)
 
     # 🎯 ダーツライブ準拠：レーティング＆フライト計算関数
     def calc_rating_flight(recent_scores):
@@ -123,7 +121,15 @@ if app_mode == "📊 プレイヤー分析":
             settings_data = sh.worksheet("プレイヤー設定").get_all_values()
             players = [row[1] for row in settings_data[1:] if len(row) >= 2 and row[1]]
 
-            selected_player = st.selectbox("👤 分析するプレイヤーを選択してください", [""] + players)
+            st.markdown("""
+            <style>
+            div[data-testid="stSelectbox"] > div > div {
+                border: 2px solid #c9a44e !important;
+                border-radius: 5px;
+            }
+            </style>
+            """, unsafe_allow_html=True)
+            selected_player = st.selectbox(" ", [""] + players, label_visibility="collapsed")
 
             if selected_player:
                 # 1. マスターシートから「直近50ゲーム」のスコアを抽出
@@ -144,36 +150,26 @@ if app_mode == "📊 プレイヤー分析":
                 # 2. レーティング計算
                 rt, flight, ave = calc_rating_flight(recent_50)
 
-                # 3. ヘッダー表示（ダーツライブ風ステータス）
-                st.markdown("---")
-                st.markdown(f"<h1 style='text-align: center; color: gold; margin-bottom: 0px; font-style: italic;'>{flight}</h1>", unsafe_allow_html=True)
-                st.markdown(f"<h3 style='text-align: center; margin-top: 0px;'>{selected_player} ｜ Rt. {rt} ｜ Ave. {ave}</h3>", unsafe_allow_html=True)
-                st.markdown(f"<p style='text-align: center; color: gray;'>※直近 {len(recent_50)} ゲーム対象</p>", unsafe_allow_html=True)
-                st.markdown("---")
-
-                # 4. タブの作成（画面構成の骨組み）
-                # --- AWARDシートから各種統計データを取得 ---
+                # 3. 統計データの取得とタブの作成
                 try:
                     award_data = sh.worksheet("AWARD").get_all_values()
-                    # 項目名（row[3]）をキー、確率や回数（row[6]）を値として辞書化
                     p_awards = {row[3]: row[6] for row in award_data if len(row) >= 7 and row[1] == selected_player}
                 except Exception:
                     p_awards = {}
 
-                # 4. タブの作成とダッシュボード展開
                 tab1, tab2, tab3, tab4 = st.tabs(["🏠 HOME", "📊 STATS", "🏆 AWARDS", "🌍 ENVIRONMENT"])
 
                 # ==========================================
                 # タブ1：HOME（総合ステータスとスコア推移）
                 # ==========================================
-# ==========================================
-                # タブ1：HOME（総合ステータスとスコア推移）
-                # ==========================================
                 with tab1:
                     st_rate = p_awards.get("②1投目ストライク率", "0.0")
                     sp_rate = p_awards.get("③2投目スペア率", "0.0")
-
-                    # ダーツライブ風のプレイヤー情報カード
+                    
+                    # Rt(最大18)からパーセンテージを計算（リングメーター用）
+                    rt_percent = min(100, max(0, (rt / 18.0) * 100))
+                    
+                    # ダーツライブ風のプレイヤー情報カード（リングメーター付き）
                     card_html = f"""
                     <div style="
                         background-color: #1a202c;
@@ -184,27 +180,54 @@ if app_mode == "📊 プレイヤー分析":
                         font-family: sans-serif;
                         margin-bottom: 20px;
                         box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
                     ">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px;">
-                            <div>
-                                <div style="font-size: 20px; font-weight: bold; margin-bottom: 20px;">{selected_player}</div>
-                                <div style="font-size: 12px; color: #c9a44e; margin-bottom: 2px;">RATING</div>
-                                <div style="font-size: 46px; font-weight: bold; color: #c9a44e; line-height: 1;">{rt}</div>
-                            </div>
-                            <div style="text-align: right; margin-top: 40px;">
-                                <div style="display: flex; gap: 20px; justify-content: flex-end;">
-                                    <div style="text-align: center;">
-                                        <span style="font-size: 11px; color: #a0aec0;">AVERAGE</span><br>
-                                        <span style="font-size: 24px; font-weight: bold;">{ave}</span>
-                                    </div>
-                                    <div style="text-align: center;">
-                                        <span style="font-size: 11px; color: #a0aec0;">STRIKE</span><br>
-                                        <span style="font-size: 24px; font-weight: bold;">{st_rate}%</span>
-                                    </div>
-                                </div>
+                        <div style="width: 100%; text-align: left; font-size: 14px; font-weight: bold; margin-bottom: 10px; color: #a0aec0;">
+                            {selected_player}
+                        </div>
+                        
+                        <div style="
+                            position: relative;
+                            width: 160px;
+                            height: 160px;
+                            border-radius: 50%;
+                            background: conic-gradient(#c9a44e {rt_percent}%, #333 {rt_percent}% 100%);
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            margin-bottom: 15px;
+                        ">
+                            <div style="
+                                width: 140px;
+                                height: 140px;
+                                background-color: #1a202c;
+                                border-radius: 50%;
+                                display: flex;
+                                justify-content: center;
+                                align-items: center;
+                                flex-direction: column;
+                                text-align: center;
+                            ">
+                                <span style="font-size: 18px; font-weight: bold; font-style: italic; color: gold; line-height: 1.2;">
+                                    {flight.replace(' ', '<br>')}
+                                </span>
                             </div>
                         </div>
-                        <div style="margin-top: 10px; font-size: 11px; color: #a0aec0;">
+                        
+                        <div style="display: flex; gap: 40px; justify-content: center; width: 100%; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px;">
+                            <div style="text-align: center;">
+                                <span style="font-size: 12px; color: #a0aec0;">RATING</span><br>
+                                <span style="font-size: 32px; font-weight: bold; color: #c9a44e; line-height: 1;">{rt}</span>
+                            </div>
+                            <div style="text-align: center;">
+                                <span style="font-size: 12px; color: #a0aec0;">AVERAGE</span><br>
+                                <span style="font-size: 32px; font-weight: bold; line-height: 1;">{ave}</span>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 10px; font-size: 11px; color: #a0aec0; width: 100%; text-align: left;">
                             RECENT GAMES<br>
                             <span style="color: white; font-size: 12px;">AVE {ave} &nbsp;&nbsp; STRIKE {st_rate}% &nbsp;&nbsp; SPARE {sp_rate}%</span>
                         </div>
@@ -220,10 +243,7 @@ if app_mode == "📊 プレイヤー分析":
                     """, unsafe_allow_html=True)
 
                     if player_games:
-                        # 古い順に並び替えて折れ線グラフ化
                         chrono_games = list(reversed(player_games[:50]))
-                        
-                        # 横軸を1〜50のカウントに変更
                         x_vals = list(range(1, len(chrono_games) + 1))
                         y_vals = [g['score'] for g in chrono_games]
                         
@@ -237,7 +257,7 @@ if app_mode == "📊 プレイヤー分析":
                         
                         fig_trend.update_layout(
                             xaxis_title="Game Count", 
-                            yaxis_title="RATING", 
+                            yaxis_title="SCORE", 
                             yaxis=dict(
                                 range=[0, 300], 
                                 gridcolor='rgba(255,255,255,0.1)', 
@@ -259,7 +279,6 @@ if app_mode == "📊 プレイヤー分析":
                         )
                         st.plotly_chart(fig_trend, use_container_width=True, config={'displayModeBar': False})
                         
-                        # グラフ下部のフッター情報
                         if len(chrono_games) > 0:
                             start_date = chrono_games[0]['date']
                             end_date = chrono_games[-1]['date']
