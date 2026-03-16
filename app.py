@@ -2224,47 +2224,77 @@ if st.session_state.analyzed_results:
                 st.error(f"SPSへの登録中にエラーが発生しました: {e}")
 
     # =========================================================
-    # 🗑️ 登録完了後のクリーンアップ（ゴミ箱へ移動）
+    # 📁 登録完了後のクリーンアップ（処理済みフォルダへ移動）
     # =========================================================
     if st.session_state.get("sps_registered"):
         st.markdown("---")
-        st.info("💡 SPSへの登録が完了しました。不要になった画像をGoogleドライブから消去できます。")
-        if st.button("🗑️ 読み込んだすべての画像をドライブから削除（ゴミ箱へ）", use_container_width=True):
-            with st.spinner("画像をゴミ箱へ移動中..."):
+        st.info("💡 SPSへ登録完了。取込済みの画像を別のフォルダへ移動させることができます。")
+        if st.button("🚮 画像を「取込済み画像」フォルダへ移動", use_container_width=True):
+            with st.spinner("画像を移動中..."):
                 try:
                     creds_json_str = st.secrets["google_credentials"]
                     creds_info = json.loads(creds_json_str, strict=False)
                     if "private_key" in creds_info:
                         creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
                     scopes = ['https://www.googleapis.com/auth/drive']
-                    creds_del = service_account.Credentials.from_service_account_info(creds_info, scopes=scopes)
-                    drive_service_del = build('drive', 'v3', credentials=creds_del)
+                    creds_move = service_account.Credentials.from_service_account_info(creds_info, scopes=scopes)
+                    drive_service_move = build('drive', 'v3', credentials=creds_move)
                     
-                    del_count = 0
+                    # ▼ 元のフォルダID（画像読み込み時と同じBowling_Appフォルダ）
+                    SOURCE_FOLDER_ID = "1PjzUPZNZYl2vKBnJjG0YVSh3NRyxlbEX"
+                    PROCESSED_FOLDER_NAME = "取込済み画像"
+
+                    # 1. 「処理済み」フォルダを探す
+                    query = f"'{SOURCE_FOLDER_ID}' in parents and name = '{PROCESSED_FOLDER_NAME}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+                    results = drive_service_move.files().list(q=query, fields="files(id, name)").execute()
+                    folders = results.get('files', [])
+                    
+                    # 2. 無ければ自動作成する
+                    if not folders:
+                        folder_metadata = {
+                            'name': PROCESSED_FOLDER_NAME,
+                            'mimeType': 'application/vnd.google-apps.folder',
+                            'parents': [SOURCE_FOLDER_ID]
+                        }
+                        created_folder = drive_service_move.files().create(body=folder_metadata, fields='id').execute()
+                        dest_folder_id = created_folder.get('id')
+                    else:
+                        dest_folder_id = folders[0]['id']
+
+                    # 3. ファイルを移動する
+                    move_count = 0
                     for res in st.session_state.analyzed_results:
                         fid = res.get("file_id")
                         if fid:
-                            drive_service_del.files().update(fileId=fid, body={'trashed': True}).execute()
-                            del_count += 1
+                            # 現在の親フォルダを取得
+                            file_obj = drive_service_move.files().get(fileId=fid, fields='parents').execute()
+                            previous_parents = ",".join(file_obj.get('parents', []))
                             
-                    st.success(f"🗑️ {del_count}枚の画像をゴミ箱へ移動しました！")
+                            # 親フォルダを書き換える（＝移動）
+                            drive_service_move.files().update(
+                                fileId=fid,
+                                addParents=dest_folder_id,
+                                removeParents=previous_parents,
+                                fields='id, parents'
+                            ).execute()
+                            move_count += 1
+                            
+                    st.success(f"📁 {move_count}枚の画像を「{PROCESSED_FOLDER_NAME}」フォルダへ移動しました！")
                     
                     # リセット処理（初期画面に戻す）
                     st.session_state.analyzed_results = None
                     st.session_state.raw_images_data = []
                     st.session_state.sps_registered = False
 
-                    # ★ここから追加：入力欄に残った古い記憶（レーン番号など）をすべて消去する
+                    # 入力欄に残った古い記憶（レーン番号など）をすべて消去する
                     keys_to_delete = []
                     for key in st.session_state.keys():
-                        # 「_」と「数字」を含むキー（画像番号やゲーム番号がつく入力欄のキー）を狙って抽出
                         if "_" in key and any(char.isdigit() for char in key):
                             keys_to_delete.append(key)
                     for key in keys_to_delete:
                         del st.session_state[key]
-                    # ★追加ここまで
 
                     time.sleep(2)
                     st.rerun()
                 except Exception as e:
-                    st.error(f"削除エラーが発生しました: {e}")
+                    st.error(f"移動エラーが発生しました: {e}")
