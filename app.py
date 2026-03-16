@@ -163,31 +163,32 @@ if app_mode == "📊 プレイヤー分析":
                 # タブ1：HOME（総合ステータスとスコア推移）
                 # ==========================================
                 with tab1:
+                    # ストライク率・スペア率の取得
                     st_rate = p_awards.get("②1投目ストライク率", "0.0")
                     sp_rate = p_awards.get("③2投目スペア率", "0.0")
+
+                    # ゲージの進捗パーセンテージ計算（MAXレーティングを18と仮定）
+                    gauge_pct = min(100, int((rt / 18.0) * 100))
                     
-                    # Rt(最大18)からパーセンテージを計算（リングメーター用）
-                    rt_percent = int(min(100, max(0, (rt / 18.0) * 100)))
-                    # Flight名から頭文字（A, BBなど）だけを抽出
-                    flight_letter = flight.split()[0] if flight else ""
-                    
-                    # 🎯 ダーツライブ風のプレイヤー情報カード（Markdown誤認対策としてカラーコードをrgbで指定）
-                    card_html = f"""
-                    <div style="background-color: rgb(26,26,28); border-radius: 8px; padding: 20px 10px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
-                        
-                        <div style="position: relative; width: 220px; height: 220px; margin: 0 auto; border-radius: 50%; background: conic-gradient(rgb(255,102,0) {rt_percent}%, rgb(51,51,51) {rt_percent}% 100%); display: flex; align-items: center; justify-content: center;">
+                    # バッジ用の短い称号（例: "BB ROLLER" -> "BB"）
+                    flight_short = flight.replace(" ROLLER", "")
+
+                    # ダーツライブアプリ風 UIカード
+                    html_card = f"""
+                    <div style="background-color: rgb(26,26,28); padding: 30px 10px; border-radius: 10px; margin-bottom: 20px;">
+                        <div style="position: relative; width: 220px; height: 220px; margin: 0 auto; border-radius: 50%; background: conic-gradient(rgb(255,102,0) {gauge_pct}%, rgb(51,51,51) {gauge_pct}% 100%); display: flex; align-items: center; justify-content: center;">
                             <div style="width: 190px; height: 190px; background-color: rgb(26,26,28); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-direction: column;">
                                 <span style="color: white; font-size: 64px; font-weight: 900; font-family: 'Arial Black', sans-serif; line-height: 1;">{rt}</span>
                             </div>
                         </div>
-                        
+
                         <div style="text-align: center; margin-top: -18px; position: relative; z-index: 10;">
                             <div style="display: inline-block; background-color: rgb(255,102,0); padding: 10px 20px 15px 20px; clip-path: polygon(0% 0%, 100% 0%, 100% 75%, 50% 100%, 0% 75%);">
-                                <span style="color: rgb(26,26,28); font-size: 28px; font-weight: 900; font-family: 'Arial Black', sans-serif;">{flight_letter}</span>
+                                <span style="color: rgb(26,26,28); font-size: 28px; font-weight: 900; font-family: 'Arial Black', sans-serif;">{flight_short}</span>
                             </div>
                         </div>
-                        
-                        <div style="display: flex; justify-content: space-around; margin-top: 20px; align-items: center;">
+
+                        <div style="display: flex; justify-content: space-around; margin-top: 30px; align-items: center;">
                             <div style="text-align: center;">
                                 <div style="color: rgb(255,59,48); font-size: 11px; font-weight: bold; letter-spacing: 1px;">AVE</div>
                                 <div style="color: white; font-size: 24px; font-weight: bold; font-family: sans-serif;">{ave}</div>
@@ -203,58 +204,36 @@ if app_mode == "📊 プレイヤー分析":
                         </div>
                     </div>
                     """
-                    st.markdown(card_html, unsafe_allow_html=True)
+                    st.markdown(html_card, unsafe_allow_html=True)
 
                     if player_games:
-                        # 古い順に並び替える（グラフの左が古く、右が新しくなるように）
+                        # 古い順に並び替えて折れ線グラフ化
                         chrono_games = list(reversed(player_games[:50]))
                         
-                        # 横軸を 1〜50 のカウント形式に変更
+                        # 横軸を「直近の50ゲーム（1, 2, 3...）」のカウントに変更
                         x_vals = list(range(1, len(chrono_games) + 1))
                         y_vals = [g['score'] for g in chrono_games]
                         
-                        fig_trend = go.Figure()
-                        fig_trend.add_trace(go.Scatter(
-                            x=x_vals, y=y_vals,
-                            mode='lines+markers',
-                            line=dict(color='rgb(255,102,0)', width=3), # オレンジの線
-                            marker=dict(color='rgb(255,102,0)', size=6)
-                        ))
+                        # グラフ用のダークコンテナ
+                        st.markdown("<div style='background-color: rgb(34,34,38); padding: 15px; border-radius: 10px;'>", unsafe_allow_html=True)
+                        st.markdown("<div style='color: white; font-weight: bold; margin-bottom: 5px; font-size: 14px;'>SCORE / 50 games</div>", unsafe_allow_html=True)
                         
+                        fig_trend = px.line(x=x_vals, y=y_vals, markers=True)
+                        
+                        # アプリ風にオレンジ色のグラフとダークテーマに設定
+                        fig_trend.update_traces(line_color='#ff6600', marker=dict(color='#ff6600', size=6))
                         fig_trend.update_layout(
-                            title=dict(
-                                text="SCORE / 50 games", 
-                                font=dict(color="white", size=14), 
-                                x=0.5,
-                                y=0.9
-                            ),
-                            xaxis_title="", 
-                            yaxis_title="", 
-                            yaxis=dict(
-                                range=[0, 300], # 縦軸をMAX300に固定
-                                dtick=50,
-                                gridcolor='rgba(255,255,255,0.1)', 
-                                zerolinecolor='rgba(255,255,255,0.1)',
-                                tickfont=dict(color='rgb(136,136,136)')
-                            ),
-                            xaxis=dict(
-                                range=[1, 50],  # 横軸を50ゲームスケールに固定
-                                tickmode='linear', 
-                                tick0=1, 
-                                dtick=5,
-                                gridcolor='rgba(255,255,255,0.1)',
-                                tickfont=dict(color='rgb(136,136,136)')
-                            ),
-                            height=300,
-                            margin=dict(l=40, r=20, t=50, b=30),
-                            plot_bgcolor="rgb(36,36,46)", # ダーツライブ風のダーク背景
-                            paper_bgcolor="rgb(36,36,46)",
-                            showlegend=False
+                            plot_bgcolor='rgba(0,0,0,0)',
+                            paper_bgcolor='rgba(0,0,0,0)',
+                            xaxis=dict(title="", showgrid=True, gridcolor='#444', tickmode='linear', tick0=1, dtick=5, color='gray'),
+                            yaxis=dict(title="", range=[0, 300], showgrid=True, gridcolor='#444', color='gray'),
+                            height=280,
+                            margin=dict(l=10, r=10, t=10, b=10)
                         )
-                        st.plotly_chart(fig_trend, use_container_width=True, config={'displayModeBar': False})
+                        st.plotly_chart(fig_trend, use_container_width=True)
+                        st.markdown("</div>", unsafe_allow_html=True)
                     else:
                         st.info("データがありません。")
-
                 # ==========================================
                 # タブ2：STATS（詳細データ・ピンスタッツ）
                 # ==========================================
