@@ -2252,6 +2252,17 @@ if st.session_state.analyzed_results:
                     st.session_state.analyzed_results = None
                     st.session_state.raw_images_data = []
                     st.session_state.sps_registered = False
+
+                    # ★ここから追加：入力欄に残った古い記憶（レーン番号など）をすべて消去する
+                    keys_to_delete = []
+                    for key in st.session_state.keys():
+                        # 「_」と「数字」を含むキー（画像番号やゲーム番号がつく入力欄のキー）を狙って抽出
+                        if "_" in key and any(char.isdigit() for char in key):
+                            keys_to_delete.append(key)
+                    for key in keys_to_delete:
+                        del st.session_state[key]
+                    # ★追加ここまで
+
                     time.sleep(2)
                     st.rerun()
                 except Exception as e:
