@@ -174,22 +174,46 @@ if app_mode == "📊 プレイヤー分析":
                     sp_rate = p_awards.get("③2投目スペア率", "0.0")
 
                     # ゲージの進捗パーセンテージ計算（MAXレーティングを18と仮定）
-                    gauge_pct = min(100, int((rt / 18.0) * 100))
+                    gauge_pct = min(100, max(0, int((rt / 18.0) * 100)))
                     
-                    # バッジ用の短い称号（例: "BB ROLLER" -> "BB"）
+                    # 7時(210度)からスタートし、5時(150度)で終わるため、全体の可動域は300度
+                    total_deg = 300
+                    current_deg = int((gauge_pct / 100) * total_deg)
+
+                    # 水色(#00bcd4) → 緑(#34a853) → 黄色(#fbbc04) → オレンジ(#ff6600) → 赤(#ff3b30) の計算
+                    if gauge_pct <= 25:
+                        p = gauge_pct / 25
+                        r, g, b = int(0 + (52-0)*p), int(188 + (168-188)*p), int(212 + (83-212)*p)
+                        conic_bg = f"conic-gradient(from 210deg, #00bcd4 0deg, rgb({r},{g},{b}) {current_deg}deg, #333 {current_deg}deg, #333 300deg, #1a1a1c 300deg, #1a1a1c 360deg)"
+                    elif gauge_pct <= 50:
+                        p = (gauge_pct - 25) / 25
+                        r, g, b = int(52 + (251-52)*p), int(168 + (188-168)*p), int(83 + (4-83)*p)
+                        conic_bg = f"conic-gradient(from 210deg, #00bcd4 0deg, #34a853 75deg, rgb({r},{g},{b}) {current_deg}deg, #333 {current_deg}deg, #333 300deg, #1a1a1c 300deg, #1a1a1c 360deg)"
+                    elif gauge_pct <= 75:
+                        p = (gauge_pct - 50) / 25
+                        r, g, b = int(251 + (255-251)*p), int(188 + (102-188)*p), int(4 + (0-4)*p)
+                        conic_bg = f"conic-gradient(from 210deg, #00bcd4 0deg, #34a853 75deg, #fbbc04 150deg, rgb({r},{g},{b}) {current_deg}deg, #333 {current_deg}deg, #333 300deg, #1a1a1c 300deg, #1a1a1c 360deg)"
+                    else:
+                        p = (gauge_pct - 75) / 25
+                        r, g, b = int(255 + (255-255)*p), int(102 + (59-102)*p), int(0 + (48-0)*p)
+                        conic_bg = f"conic-gradient(from 210deg, #00bcd4 0deg, #34a853 75deg, #fbbc04 150deg, #ff6600 225deg, rgb({r},{g},{b}) {current_deg}deg, #333 {current_deg}deg, #333 300deg, #1a1a1c 300deg, #1a1a1c 360deg)"
+                    
+                    current_color = f"rgb({r},{g},{b})"
+
+                    # バッジ用の短い称号
                     flight_short = flight.replace(" ROLLER", "")
 
-                    # ダーツライブアプリ風 UIカード（エラー回避のため左詰め＆キラキラ効果追加、旗の幅70%・V字キープ）
+                    # ダーツライブアプリ風 UIカード (直径1.3倍=325px, 太さ1.2倍のため内径277pxに設定)
                     html_card = f"""
-<div style="background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 35px 10px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333;">
-  <div style="position: relative; width: 250px; height: 250px; margin: 0 auto; border-radius: 50%; background: conic-gradient(#ff6600 {gauge_pct}%, #222 {gauge_pct}% 100%); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 25px rgba(255,102,0,0.4), inset 0 0 15px rgba(0,0,0,0.8);">
-    <div style="width: 210px; height: 210px; background-color: #1a1a1c; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-direction: column; box-shadow: inset 0 0 20px rgba(0,0,0,0.9);">
-      <span style="color: #ffffff; font-size: 76px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif; line-height: 1; text-shadow: 0 0 15px rgba(255,255,255,0.2);">{rt}</span>
+<div style="background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 35px 10px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333; overflow: hidden;">
+  <div style="position: relative; width: 325px; height: 325px; margin: 0 auto; border-radius: 50%; background: {conic_bg}; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 25px rgba({r},{g},{b},0.3);">
+    <div style="width: 277px; height: 277px; background-color: #1a1a1c; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-direction: column; box-shadow: inset 0 0 20px rgba(0,0,0,0.9);">
+      <span style="color: {current_color}; font-size: 60px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif; line-height: 1; text-shadow: 0 0 20px {current_color};">{rt}</span>
     </div>
   </div>
-  <div style="text-align: center; margin-top: -25px; position: relative; z-index: 10;">
-    <div style="display: inline-block; background: linear-gradient(to bottom, #ff8c00, #ff4500); padding: 12px 20px 20px 20px; clip-path: polygon(0% 0%, 100% 0%, 100% 75%, 50% 100%, 0% 75%); box-shadow: 0 5px 15px rgba(255,69,0,0.6);">
-      <span style="color: #1a1a1c; font-size: 32px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif;">{flight_short}</span>
+  <div style="text-align: center; margin-top: -45px; position: relative; z-index: 10; filter: drop-shadow(0 10px 10px rgba(0,0,0,0.8));">
+    <div style="display: inline-block; background: linear-gradient(135deg, #bf953f 0%, #fcf6ba 25%, #b38728 50%, #fbf5b7 75%, #aa771c 100%); padding: 12px 35px; clip-path: polygon(0 5%, 100% 0, 95% 95%, 5% 100%); border-radius: 2px;">
+      <span style="color: #1a1a1c; font-size: 32px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif; text-shadow: 1px 1px 0px #fff; transform: rotate(-2deg); display: inline-block; letter-spacing: 2px;">{flight_short}</span>
     </div>
   </div>
   <div style="display: flex; justify-content: space-around; margin-top: 40px; align-items: center;">
@@ -216,6 +240,134 @@ if app_mode == "📊 プレイヤー分析":
                         
                         # 横軸を「直近の50ゲーム（1, 2, 3...）」のカウントに変更
                         x_vals = list(range(1, len(chrono_games) + 1))
+                        y_vals = [g['score'] for g in chrono_games]
+                        
+                        # グラフ用のダークコンテナ
+                        st.markdown("<div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 15px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333;'>", unsafe_allow_html=True)
+                        st.markdown("<div style='color: white; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif;'>SCORE / 50 games</div>", unsafe_allow_html=True)
+                        
+                        fig_trend = px.line(x=x_vals, y=y_vals, markers=True)
+                        
+                        # アプリ風にオレンジ色のグラフとダークテーマに設定
+                        fig_trend.update_traces(line_color='#ff6600', marker=dict(color='#ff6600', size=6, line=dict(color='white', width=1)))
+                        fig_trend.update_layout(
+                            plot_bgcolor='rgba(0,0,0,0)',
+                            paper_bgcolor='rgba(0,0,0,0)',
+                            xaxis=dict(title="", showgrid=True, gridcolor='#444', tickmode='linear', tick0=1, dtick=5, color='gray'),
+                            yaxis=dict(title="", range=[0, 300], showgrid=True, gridcolor='#444', color='gray'),
+                            height=280,
+                            margin=dict(l=10, r=10, t=10, b=10)
+                        )
+                        st.plotly_chart(fig_trend, use_container_width=True)
+                        st.markdown("</div>", unsafe_allow_html=True)
+                    else:
+                        st.info("データがありません。")
+
+                
+                # ==========================================
+                # タブ2：STATS（詳細データ・ピンスタッツ）
+                # ==========================================
+                with tab2:
+                    st.markdown("### 🎯 鬼門ピン カバー率")
+                    c_7, c_10 = st.columns(2)
+                    
+                    # 7番ピンカバー率（ドーナツチャート）
+                    rate_7 = float(p_awards.get("④7番ピン", "0"))
+                    fig_7 = go.Figure(data=[go.Pie(labels=['Cover', 'Miss'], values=[rate_7, max(0, 100-rate_7)], hole=.7, marker_colors=['#00CC96', '#333333'])])
+                    fig_7.update_layout(title_text="7番ピン", title_x=0.5, showlegend=False, margin=dict(t=30, b=10, l=10, r=10), height=200)
+                    fig_7.add_annotation(text=f"{rate_7}%", x=0.5, y=0.5, font_size=20, showarrow=False)
+                    c_7.plotly_chart(fig_7, use_container_width=True)
+                    
+                    # 10番ピンカバー率（ドーナツチャート）
+                    rate_10 = float(p_awards.get("⑤10番ピン", "0"))
+                    fig_10 = go.Figure(data=[go.Pie(labels=['Cover', 'Miss'], values=[rate_10, max(0, 100-rate_10)], hole=.7, marker_colors=['#AB63FA', '#333333'])])
+                    fig_10.update_layout(title_text="10番ピン", title_x=0.5, showlegend=False, margin=dict(t=30, b=10, l=10, r=10), height=200)
+                    fig_10.add_annotation(text=f"{rate_10}%", x=0.5, y=0.5, font_size=20, showarrow=False)
+                    c_10.plotly_chart(fig_10, use_container_width=True)
+
+                    st.markdown("### 🎳 1投目 ピン別残存率")
+                    # 1〜10番ピンの残存率を取得して棒グラフ化
+                    pins = [str(i) for i in range(1, 11)]
+                    rates = [float(p_awards.get(f"⑬{i}番ピン残存率", "0")) for i in range(1, 11)]
+                    fig_pins = px.bar(x=pins, y=rates, labels={'x': 'ピン番号', 'y': '残存率 (%)'}, text=[f"{r}%" for r in rates])
+                    fig_pins.update_traces(marker_color='turquoise', textposition='outside')
+                    fig_pins.update_layout(height=300, margin=dict(t=10, b=10, l=10, r=10), yaxis=dict(range=[0, max(rates + [10]) * 1.2]))
+                    st.plotly_chart(fig_pins, use_container_width=True)
+
+                    st.markdown("### 🔥 連発力スタッツ")
+                    c_dbl, c_trk = st.columns(2)
+                    rate_double = p_awards.get("⑦ストライク後のストライク", "0.0")
+                    rate_turkey = p_awards.get("⑧ダブル後のストライク", "0.0")
+                    c_dbl.metric("ダブル率 (ストライク後)", f"{rate_double} %")
+                    c_trk.metric("ターキー率 (ダブル後)", f"{rate_turkey} %")
+                # ==========================================
+                # タブ3：AWARDS（称号・記録・スプリット）
+                # ==========================================
+                with tab3:
+                    st.markdown("### 🏆 ハイスコア & レコード")
+                    r_c1, r_c2, r_c3 = st.columns(3)
+                    r_c1.metric("最大連続ストライク", f"{p_awards.get('①最大連続ストライク', '0')} 回")
+                    r_c2.metric("パーフェクト(300)", f"{p_awards.get('①パーフェクト(300)', '0')} 回")
+                    r_c3.metric("250オーバー", f"{p_awards.get('①250オーバー', '0')} 回")
+                    
+                    r_c4, r_c5, _ = st.columns(3)
+                    r_c4.metric("220オーバー", f"{p_awards.get('①220オーバー', '0')} 回")
+                    r_c5.metric("200オーバー", f"{p_awards.get('①200オーバー', '0')} 回")
+
+                    st.markdown("### 🎳 スプリット・メイク コレクション")
+                    # スプリットのデータを抽出（マスターの集計から、スプリット名称、遭遇回数、成功数、確率を取得）
+                    split_records = []
+                    for row in award_data:
+                        if len(row) >= 7 and row[1] == selected_player and "⑥" in row[3]:
+                            name = row[3].replace("⑥", "")
+                            chances = row[4]
+                            success = row[5]
+                            rate = row[6]
+                            split_records.append({"スプリット名称": name, "遭遇回数": chances, "メイク数": success, "メイク率(%)": rate})
+                    
+                    if split_records:
+                        st.dataframe(split_records, use_container_width=True, hide_index=True)
+                    else:
+                        st.info("スプリットの記録がありません。")
+
+                # ==========================================
+                # タブ4：ENVIRONMENT（環境・レーン適性）
+                # ==========================================
+                with tab4:
+                    st.markdown("### 🏟️ 投球方式 適性")
+                    euro_ave = float(p_awards.get("⑨1レーン", "0"))
+                    am_ave = float(p_awards.get("⑨2レーン", "0"))
+                    fig_style = px.bar(
+                        x=["ヨーロピアン (1レーン)", "アメリカン (2レーン)"], 
+                        y=[euro_ave, am_ave],
+                        labels={"x": "投球方式", "y": "アベレージ"},
+                        text=[f"{euro_ave}", f"{am_ave}"],
+                        color_discrete_sequence=['#FFA15A']
+                    )
+                    fig_style.update_traces(textposition='outside')
+                    fig_style.update_layout(height=300, margin=dict(t=10, b=10, l=10, r=10), yaxis=dict(range=[0, max(euro_ave, am_ave, 150) * 1.2]))
+                    st.plotly_chart(fig_style, use_container_width=True)
+
+                    st.markdown("### 📏 オイル長 (Length) 適性")
+                    len_keys, len_aves = [], []
+                    for row in award_data:
+                        if len(row) >= 7 and row[1] == selected_player and "⑪" in row[3]:
+                            try:
+                                if float(row[4]) > 0: # プレイ回数が1回以上のものだけ抽出
+                                    len_keys.append(row[3].replace("⑪", ""))
+                                    len_aves.append(float(row[6]))
+                            except ValueError:
+                                pass
+                    if len_keys:
+                        fig_len = px.line(x=len_keys, y=len_aves, markers=True, labels={"x": "オイル長 (ft)", "y": "アベレージ"})
+                        fig_len.update_traces(line_color='#00CC96')
+                        fig_len.update_layout(height=300, margin=dict(t=10, b=10, l=10, r=10))
+                        st.plotly_chart(fig_len, use_container_width=True)
+                    else:
+                        st.info("オイル長のプレイデータがありません。")
+
+                    st.markdown("### 💧 オイル量 (Volume) 適性")
+                    vol_keys, vs) + 1))
                         y_vals = [g['score'] for g in chrono_games]
                         
                         # グラフ用のダークコンテナ
