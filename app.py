@@ -174,85 +174,6 @@ if app_mode == "📊 プレイヤー分析":
                     sp_rate = p_awards.get("③2投目スペア率", "0.0")
 
                     # ゲージの進捗パーセンテージ計算（MAXレーティングを18と仮定）
-                    gauge_pct = min(100, max(0, int((rt / 18.0) * 100)))
-                    
-                    # 7時(210度)からスタートし、5時(150度)で終わるため、全体の可動域は300度
-                    total_deg = 300
-                    current_deg = int((gauge_pct / 100) * total_deg)
-
-                    # 水色(#00bcd4) → 緑(#34a853) → 黄色(#fbbc04) → オレンジ(#ff6600) → 赤(#ff3b30) の計算
-                    if gauge_pct <= 25:
-                        p = gauge_pct / 25
-                        r, g, b = int(0 + (52-0)*p), int(188 + (168-188)*p), int(212 + (83-212)*p)
-                        conic_bg = f"conic-gradient(from 210deg, #00bcd4 0deg, rgb({r},{g},{b}) {current_deg}deg, #333 {current_deg}deg, #333 300deg, #1a1a1c 300deg, #1a1a1c 360deg)"
-                    elif gauge_pct <= 50:
-                        p = (gauge_pct - 25) / 25
-                        r, g, b = int(52 + (251-52)*p), int(168 + (188-168)*p), int(83 + (4-83)*p)
-                        conic_bg = f"conic-gradient(from 210deg, #00bcd4 0deg, #34a853 75deg, rgb({r},{g},{b}) {current_deg}deg, #333 {current_deg}deg, #333 300deg, #1a1a1c 300deg, #1a1a1c 360deg)"
-                    elif gauge_pct <= 75:
-                        p = (gauge_pct - 50) / 25
-                        r, g, b = int(251 + (255-251)*p), int(188 + (102-188)*p), int(4 + (0-4)*p)
-                        conic_bg = f"conic-gradient(from 210deg, #00bcd4 0deg, #34a853 75deg, #fbbc04 150deg, rgb({r},{g},{b}) {current_deg}deg, #333 {current_deg}deg, #333 300deg, #1a1a1c 300deg, #1a1a1c 360deg)"
-                    else:
-                        p = (gauge_pct - 75) / 25
-                        r, g, b = int(255 + (255-255)*p), int(102 + (59-102)*p), int(0 + (48-0)*p)
-                        conic_bg = f"conic-gradient(from 210deg, #00bcd4 0deg, #34a853 75deg, #fbbc04 150deg, #ff6600 225deg, rgb({r},{g},{b}) {current_deg}deg, #333 {current_deg}deg, #333 300deg, #1a1a1c 300deg, #1a1a1c 360deg)"
-                    
-                    current_color = f"rgb({r},{g},{b})"
-
-                    # バッジ用の短い称号
-                    flight_short = flight.replace(" ROLLER", "")
-
-                    # ダーツライブアプリ風 UIカード (直径1.3倍=325px, 太さ1.2倍のため内径277pxに設定)
-                    html_card = f"""
-<div style="background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 35px 10px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333; overflow: hidden;">
-  <div style="position: relative; width: 325px; height: 325px; margin: 0 auto; border-radius: 50%; background: {conic_bg}; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 25px rgba({r},{g},{b},0.3);">
-    <div style="width: 277px; height: 277px; background-color: #1a1a1c; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-direction: column; box-shadow: inset 0 0 20px rgba(0,0,0,0.9);">
-      <span style="color: {current_color}; font-size: 60px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif; line-height: 1; text-shadow: 0 0 20px {current_color};">{rt}</span>
-    </div>
-  </div>
-  <div style="text-align: center; margin-top: -45px; position: relative; z-index: 10; filter: drop-shadow(0 10px 10px rgba(0,0,0,0.8));">
-    <div style="display: inline-block; background: linear-gradient(135deg, #bf953f 0%, #fcf6ba 25%, #b38728 50%, #fbf5b7 75%, #aa771c 100%); padding: 12px 35px; clip-path: polygon(0 5%, 100% 0, 95% 95%, 5% 100%); border-radius: 2px;">
-      <span style="color: #1a1a1c; font-size: 32px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif; text-shadow: 1px 1px 0px #fff; transform: rotate(-2deg); display: inline-block; letter-spacing: 2px;">{flight_short}</span>
-    </div>
-  </div>
-  <div style="display: flex; justify-content: space-around; margin-top: 40px; align-items: center;">
-    <div style="text-align: center;">
-      <div style="color: #ff3b30; font-size: 14px; font-weight: 900; letter-spacing: 1.5px; text-shadow: 0 0 8px rgba(255,59,48,0.6);">AVE</div>
-      <div style="color: white; font-size: 32px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif;">{ave}</div>
-    </div>
-    <div style="text-align: center;">
-      <div style="color: #4285f4; font-size: 14px; font-weight: 900; letter-spacing: 1.5px; text-shadow: 0 0 8px rgba(66,133,244,0.6);">STRIKE</div>
-      <div style="color: white; font-size: 32px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif;">{st_rate}<span style="font-size: 18px;">%</span></div>
-    </div>
-    <div style="text-align: center;">
-      <div style="color: #34a853; font-size: 14px; font-weight: 900; letter-spacing: 1.5px; text-shadow: 0 0 8px rgba(52,168,83,0.6);">SPARE</div>
-      <div style="color: white; font-size: 32px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif;">{sp_rate}<span style="font-size: 18px;">%</span></div>
-    </div>
-  </div>
-</div>
-"""
-                    st.markdown(html_card, unsafe_allow_html=True)
-
-                    if player_games:
-                        # 古い順に並び替えて折れ線グラフ化
-                        chrono_games = list(reversed(player_games[:50]))
-                        
-                        # 横軸を「直近の50ゲーム（1, 2, 3...）」のカウントに変更
-                        x_vals = list(range(1, len(chrono_games) + 1))
-                        y_vals = [g['score'] for g in chrono_games]
-                        
-                        # グラフ用のダークコンテナ
-                        st.markdown("<div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 15px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333;'>", unsafe_allow_html=True)
-                        st.markdown("<div style='color: white; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif;'>SCORE / 50 games</div>", unsafe_allow_html=True)
-                        
-                        fig_trend = px.line(x=x_vals, y=y_vals, markers=True)
-                    with tab1:
-                    # ストライク率・スペア率の取得
-                    st_rate = p_awards.get("②1投目ストライク率", "0.0")
-                    sp_rate = p_awards.get("③2投目スペア率", "0.0")
-
-                    # ゲージの進捗パーセンテージ計算（MAXレーティングを18と仮定）
                     gauge_pct = min(100, int((rt / 18.0) * 100))
                     
                     # バッジ用の短い称号（例: "BB ROLLER" -> "BB"）
@@ -317,6 +238,7 @@ if app_mode == "📊 プレイヤー分析":
                         st.markdown("</div>", unsafe_allow_html=True)
                     else:
                         st.info("データがありません。")
+
 
                 
                 # ==========================================
