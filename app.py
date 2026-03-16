@@ -167,23 +167,45 @@ if app_mode == "📊 プレイヤー分析":
                     st_rate = p_awards.get("②1投目ストライク率", "0.0")
                     sp_rate = p_awards.get("③2投目スペア率", "0.0")
 
-                    # ゲージの進捗パーセンテージ計算（MAXレーティングを18と仮定）
-                    gauge_pct = min(100, int((rt / 18.0) * 100))
+                    # ゲージの進捗パーセンテージ計算（MAXレーティングを18、9をBB(50%)と仮定して計算）
+                    gauge_pct = min(100, max(0, int((rt / 18.0) * 100)))
                     
-                    # バッジ用の短い称号（例: "BB ROLLER" -> "BB"）
+                    # メーターと中央文字の現在色を計算
+                    if gauge_pct <= 50:
+                        # 緑(C: #34a853) から オレンジ(BB: #ff6600) へ
+                        r = int(52 + (255 - 52) * (gauge_pct / 50))
+                        g = int(168 + (102 - 168) * (gauge_pct / 50))
+                        b = int(83 + (0 - 83) * (gauge_pct / 50))
+                    else:
+                        # オレンジ(BB: #ff6600) から 赤(SA: #ff3b30) へ
+                        p = (gauge_pct - 50) / 50
+                        r = 255
+                        g = int(102 + (59 - 102) * p)
+                        b = int(0 + (48 - 0) * p)
+                    current_color = f"rgb({r},{g},{b})"
+
+                    # 8時(240度)スタート、合計240度分のグラデーション背景を生成
+                    total_deg = 240
+                    current_deg = int((gauge_pct / 100) * total_deg)
+                    if current_deg <= 120:
+                        conic_bg = f"conic-gradient(from 240deg, #34a853 0deg, {current_color} {current_deg}deg, #222 {current_deg}deg, #222 360deg)"
+                    else:
+                        conic_bg = f"conic-gradient(from 240deg, #34a853 0deg, #ff6600 120deg, {current_color} {current_deg}deg, #222 {current_deg}deg, #222 360deg)"
+
+                    # バッジ用の短い称号
                     flight_short = flight.replace(" ROLLER", "")
 
-                    # ダーツライブアプリ風 UIカード（エラー回避のため左詰め＆キラキラ効果追加）
+                    # ダーツライブアプリ風 UIカード
                     html_card = f"""
 <div style="background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 35px 10px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333;">
-  <div style="position: relative; width: 250px; height: 250px; margin: 0 auto; border-radius: 50%; background: conic-gradient(#ff6600 {gauge_pct}%, #222 {gauge_pct}% 100%); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 25px rgba(255,102,0,0.4), inset 0 0 15px rgba(0,0,0,0.8);">
+  <div style="position: relative; width: 250px; height: 250px; margin: 0 auto; border-radius: 50%; background: {conic_bg}; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 25px rgba({r},{g},{b},0.4), inset 0 0 15px rgba(0,0,0,0.8);">
     <div style="width: 210px; height: 210px; background-color: #1a1a1c; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-direction: column; box-shadow: inset 0 0 20px rgba(0,0,0,0.9);">
-      <span style="color: #ffffff; font-size: 76px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif; line-height: 1; text-shadow: 0 0 15px rgba(255,255,255,0.2);">{rt}</span>
+      <span style="color: {current_color}; font-size: 66px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif; line-height: 1; text-shadow: 0 0 20px {current_color};">{rt}</span>
     </div>
   </div>
-  <div style="text-align: center; margin-top: -25px; position: relative; z-index: 10;">
-    <div style="display: inline-block; background: linear-gradient(to bottom, #ff8c00, #ff4500); padding: 12px 28px 20px 28px; clip-path: polygon(0% 0%, 100% 0%, 100% 75%, 50% 100%, 0% 75%); box-shadow: 0 5px 15px rgba(255,69,0,0.6);">
-      <span style="color: #1a1a1c; font-size: 32px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif;">{flight_short}</span>
+  <div style="text-align: center; margin-top: -25px; position: relative; z-index: 10; filter: drop-shadow(0 10px 10px rgba(0,0,0,0.8));">
+    <div style="display: inline-block; background: linear-gradient(135deg, #bf953f 0%, #fcf6ba 25%, #b38728 50%, #fbf5b7 75%, #aa771c 100%); padding: 12px 35px; clip-path: polygon(0 5%, 100% 0, 95% 95%, 5% 100%); border-radius: 2px;">
+      <span style="color: #1a1a1c; font-size: 32px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif; text-shadow: 1px 1px 0px #fff; transform: rotate(-2deg); display: inline-block; letter-spacing: 2px;">{flight_short}</span>
     </div>
   </div>
   <div style="display: flex; justify-content: space-around; margin-top: 40px; align-items: center;">
