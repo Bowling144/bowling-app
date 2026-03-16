@@ -1466,7 +1466,7 @@ if st.session_state.analyzed_results:
                 match_status = "⚠️不一致"
 
             display_text = f"{date_str}_{start_time}_{end_time}_{game_name}｜トータル:{ai_total_str}_{match_status}"
-            is_checked = st.checkbox(display_text, value=True, key=f"check_{res['file_name']}_{local_idx}")
+            is_checked = st.checkbox(display_text, value=True, key=f"check_{img_idx}_{local_idx}")
 
             game_checkboxes.append({
                 "is_checked": is_checked,
