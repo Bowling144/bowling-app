@@ -167,43 +167,45 @@ if app_mode == "📊 プレイヤー分析":
                     st_rate = p_awards.get("②1投目ストライク率", "0.0")
                     sp_rate = p_awards.get("③2投目スペア率", "0.0")
 
-                    # ゲージの進捗パーセンテージ計算（MAXレーティングを18、9をBB(50%)と仮定して計算）
+                    # ゲージの進捗パーセンテージ計算（MAXレーティングを18と仮定）
                     gauge_pct = min(100, max(0, int((rt / 18.0) * 100)))
                     
-                    # メーターと中央文字の現在色を計算
-                    if gauge_pct <= 50:
-                        # 緑(C: #34a853) から オレンジ(BB: #ff6600) へ
-                        r = int(52 + (255 - 52) * (gauge_pct / 50))
-                        g = int(168 + (102 - 168) * (gauge_pct / 50))
-                        b = int(83 + (0 - 83) * (gauge_pct / 50))
-                    else:
-                        # オレンジ(BB: #ff6600) から 赤(SA: #ff3b30) へ
-                        p = (gauge_pct - 50) / 50
-                        r = 255
-                        g = int(102 + (59 - 102) * p)
-                        b = int(0 + (48 - 0) * p)
-                    current_color = f"rgb({r},{g},{b})"
-
-                    # 8時(240度)スタート、合計240度分のグラデーション背景を生成
-                    total_deg = 240
+                    # 7時(210度)からスタートし、5時(150度)で終わるため、全体の可動域は300度
+                    total_deg = 300
                     current_deg = int((gauge_pct / 100) * total_deg)
-                    if current_deg <= 120:
-                        conic_bg = f"conic-gradient(from 240deg, #34a853 0deg, {current_color} {current_deg}deg, #222 {current_deg}deg, #222 360deg)"
+
+                    # 水色(#00bcd4) → 緑(#34a853) → 黄色(#fbbc04) → オレンジ(#ff6600) → 赤(#ff3b30) の計算
+                    if gauge_pct <= 25:
+                        p = gauge_pct / 25
+                        r, g, b = int(0 + (52-0)*p), int(188 + (168-188)*p), int(212 + (83-212)*p)
+                        conic_bg = f"conic-gradient(from 210deg, #00bcd4 0deg, rgb({r},{g},{b}) {current_deg}deg, #333 {current_deg}deg, #333 300deg, #1a1a1c 300deg, #1a1a1c 360deg)"
+                    elif gauge_pct <= 50:
+                        p = (gauge_pct - 25) / 25
+                        r, g, b = int(52 + (251-52)*p), int(168 + (188-168)*p), int(83 + (4-83)*p)
+                        conic_bg = f"conic-gradient(from 210deg, #00bcd4 0deg, #34a853 75deg, rgb({r},{g},{b}) {current_deg}deg, #333 {current_deg}deg, #333 300deg, #1a1a1c 300deg, #1a1a1c 360deg)"
+                    elif gauge_pct <= 75:
+                        p = (gauge_pct - 50) / 25
+                        r, g, b = int(251 + (255-251)*p), int(188 + (102-188)*p), int(4 + (0-4)*p)
+                        conic_bg = f"conic-gradient(from 210deg, #00bcd4 0deg, #34a853 75deg, #fbbc04 150deg, rgb({r},{g},{b}) {current_deg}deg, #333 {current_deg}deg, #333 300deg, #1a1a1c 300deg, #1a1a1c 360deg)"
                     else:
-                        conic_bg = f"conic-gradient(from 240deg, #34a853 0deg, #ff6600 120deg, {current_color} {current_deg}deg, #222 {current_deg}deg, #222 360deg)"
+                        p = (gauge_pct - 75) / 25
+                        r, g, b = int(255 + (255-255)*p), int(102 + (59-102)*p), int(0 + (48-0)*p)
+                        conic_bg = f"conic-gradient(from 210deg, #00bcd4 0deg, #34a853 75deg, #fbbc04 150deg, #ff6600 225deg, rgb({r},{g},{b}) {current_deg}deg, #333 {current_deg}deg, #333 300deg, #1a1a1c 300deg, #1a1a1c 360deg)"
+                    
+                    current_color = f"rgb({r},{g},{b})"
 
                     # バッジ用の短い称号
                     flight_short = flight.replace(" ROLLER", "")
 
-                    # ダーツライブアプリ風 UIカード
+                    # ダーツライブアプリ風 UIカード (直径1.3倍=325px, 太さ1.2倍のため内径277pxに設定)
                     html_card = f"""
-<div style="background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 35px 10px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333;">
-  <div style="position: relative; width: 250px; height: 250px; margin: 0 auto; border-radius: 50%; background: {conic_bg}; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 25px rgba({r},{g},{b},0.4), inset 0 0 15px rgba(0,0,0,0.8);">
-    <div style="width: 210px; height: 210px; background-color: #1a1a1c; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-direction: column; box-shadow: inset 0 0 20px rgba(0,0,0,0.9);">
-      <span style="color: {current_color}; font-size: 66px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif; line-height: 1; text-shadow: 0 0 20px {current_color};">{rt}</span>
+<div style="background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 35px 10px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333; overflow: hidden;">
+  <div style="position: relative; width: 325px; height: 325px; margin: 0 auto; border-radius: 50%; background: {conic_bg}; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 25px rgba({r},{g},{b},0.3);">
+    <div style="width: 277px; height: 277px; background-color: #1a1a1c; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-direction: column; box-shadow: inset 0 0 20px rgba(0,0,0,0.9);">
+      <span style="color: {current_color}; font-size: 60px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif; line-height: 1; text-shadow: 0 0 20px {current_color};">{rt}</span>
     </div>
   </div>
-  <div style="text-align: center; margin-top: -25px; position: relative; z-index: 10; filter: drop-shadow(0 10px 10px rgba(0,0,0,0.8));">
+  <div style="text-align: center; margin-top: -45px; position: relative; z-index: 10; filter: drop-shadow(0 10px 10px rgba(0,0,0,0.8));">
     <div style="display: inline-block; background: linear-gradient(135deg, #bf953f 0%, #fcf6ba 25%, #b38728 50%, #fbf5b7 75%, #aa771c 100%); padding: 12px 35px; clip-path: polygon(0 5%, 100% 0, 95% 95%, 5% 100%); border-radius: 2px;">
       <span style="color: #1a1a1c; font-size: 32px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif; text-shadow: 1px 1px 0px #fff; transform: rotate(-2deg); display: inline-block; letter-spacing: 2px;">{flight_short}</span>
     </div>
@@ -254,6 +256,8 @@ if app_mode == "📊 プレイヤー分析":
                         st.markdown("</div>", unsafe_allow_html=True)
                     else:
                         st.info("データがありません。")
+
+                
                 # ==========================================
                 # タブ2：STATS（詳細データ・ピンスタッツ）
                 # ==========================================
