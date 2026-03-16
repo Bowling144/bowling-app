@@ -247,6 +247,61 @@ if app_mode == "📊 プレイヤー分析":
                         st.markdown("<div style='color: white; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif;'>SCORE / 50 games</div>", unsafe_allow_html=True)
                         
                         fig_trend = px.line(x=x_vals, y=y_vals, markers=True)
+                    with tab1:
+                    # ストライク率・スペア率の取得
+                    st_rate = p_awards.get("②1投目ストライク率", "0.0")
+                    sp_rate = p_awards.get("③2投目スペア率", "0.0")
+
+                    # ゲージの進捗パーセンテージ計算（MAXレーティングを18と仮定）
+                    gauge_pct = min(100, int((rt / 18.0) * 100))
+                    
+                    # バッジ用の短い称号（例: "BB ROLLER" -> "BB"）
+                    flight_short = flight.replace(" ROLLER", "")
+
+                    # ダーツライブアプリ風 UIカード（エラー回避のため左詰め＆キラキラ効果追加、旗の幅70%・V字キープ）
+                    html_card = f"""
+<div style="background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 35px 10px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333;">
+  <div style="position: relative; width: 250px; height: 250px; margin: 0 auto; border-radius: 50%; background: conic-gradient(#ff6600 {gauge_pct}%, #222 {gauge_pct}% 100%); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 25px rgba(255,102,0,0.4), inset 0 0 15px rgba(0,0,0,0.8);">
+    <div style="width: 210px; height: 210px; background-color: #1a1a1c; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-direction: column; box-shadow: inset 0 0 20px rgba(0,0,0,0.9);">
+      <span style="color: #ffffff; font-size: 76px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif; line-height: 1; text-shadow: 0 0 15px rgba(255,255,255,0.2);">{rt}</span>
+    </div>
+  </div>
+  <div style="text-align: center; margin-top: -25px; position: relative; z-index: 10;">
+    <div style="display: inline-block; background: linear-gradient(to bottom, #ff8c00, #ff4500); padding: 12px 20px 20px 20px; clip-path: polygon(0% 0%, 100% 0%, 100% 75%, 50% 100%, 0% 75%); box-shadow: 0 5px 15px rgba(255,69,0,0.6);">
+      <span style="color: #1a1a1c; font-size: 32px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif;">{flight_short}</span>
+    </div>
+  </div>
+  <div style="display: flex; justify-content: space-around; margin-top: 40px; align-items: center;">
+    <div style="text-align: center;">
+      <div style="color: #ff3b30; font-size: 14px; font-weight: 900; letter-spacing: 1.5px; text-shadow: 0 0 8px rgba(255,59,48,0.6);">AVE</div>
+      <div style="color: white; font-size: 32px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif;">{ave}</div>
+    </div>
+    <div style="text-align: center;">
+      <div style="color: #4285f4; font-size: 14px; font-weight: 900; letter-spacing: 1.5px; text-shadow: 0 0 8px rgba(66,133,244,0.6);">STRIKE</div>
+      <div style="color: white; font-size: 32px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif;">{st_rate}<span style="font-size: 18px;">%</span></div>
+    </div>
+    <div style="text-align: center;">
+      <div style="color: #34a853; font-size: 14px; font-weight: 900; letter-spacing: 1.5px; text-shadow: 0 0 8px rgba(52,168,83,0.6);">SPARE</div>
+      <div style="color: white; font-size: 32px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif;">{sp_rate}<span style="font-size: 18px;">%</span></div>
+    </div>
+  </div>
+</div>
+"""
+                    st.markdown(html_card, unsafe_allow_html=True)
+
+                    if player_games:
+                        # 古い順に並び替えて折れ線グラフ化
+                        chrono_games = list(reversed(player_games[:50]))
+                        
+                        # 横軸を「直近の50ゲーム（1, 2, 3...）」のカウントに変更
+                        x_vals = list(range(1, len(chrono_games) + 1))
+                        y_vals = [g['score'] for g in chrono_games]
+                        
+                        # グラフ用のダークコンテナ
+                        st.markdown("<div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 15px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333;'>", unsafe_allow_html=True)
+                        st.markdown("<div style='color: white; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif;'>SCORE / 50 games</div>", unsafe_allow_html=True)
+                        
+                        fig_trend = px.line(x=x_vals, y=y_vals, markers=True)
                         
                         # アプリ風にオレンジ色のグラフとダークテーマに設定
                         fig_trend.update_traces(line_color='#ff6600', marker=dict(color='#ff6600', size=6, line=dict(color='white', width=1)))
