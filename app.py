@@ -166,51 +166,110 @@ if app_mode == "📊 プレイヤー分析":
                 # ==========================================
                 # タブ1：HOME（総合ステータスとスコア推移）
                 # ==========================================
+# ==========================================
+                # タブ1：HOME（総合ステータスとスコア推移）
+                # ==========================================
                 with tab1:
-                    c1, c2 = st.columns([1, 1])
-                    
-                    with c1:
-                        # Plotly レーティングゲージチャート
-                        fig_gauge = go.Figure(go.Indicator(
-                            mode = "gauge+number",
-                            value = rt,
-                            title = {'text': "Rating (Rt.)", 'font': {'size': 20}},
-                            gauge = {
-                                'axis': {'range': [1, 18], 'tickwidth': 1},
-                                'bar': {'color': "gold"},
-                                'steps': [
-                                    {'range': [1, 5.99], 'color': "#ededed"},
-                                    {'range': [6, 9.99], 'color': "#c4c4c4"},
-                                    {'range': [10, 18], 'color': "#8a8a8a"}
-                                ],
-                            }
-                        ))
-                        fig_gauge.update_layout(height=250, margin=dict(l=20, r=20, t=40, b=20))
-                        st.plotly_chart(fig_gauge, use_container_width=True)
-                        
-                    with c2:
-                        # ストライク率とスペア率を大きく表示
-                        st.markdown("<div style='margin-top: 30px;'></div>", unsafe_allow_html=True)
-                        st_rate = p_awards.get("②1投目ストライク率", "0.0")
-                        sp_rate = p_awards.get("③2投目スペア率", "0.0")
-                        st.metric(label="🎳 1投目ストライク率", value=f"{st_rate} %")
-                        st.metric(label="🎳 2投目スペア率", value=f"{sp_rate} %")
+                    st_rate = p_awards.get("②1投目ストライク率", "0.0")
+                    sp_rate = p_awards.get("③2投目スペア率", "0.0")
 
-                    st.markdown("### 📈 直近50ゲーム スコア推移")
+                    # ダーツライブ風のプレイヤー情報カード
+                    card_html = f"""
+                    <div style="
+                        background-color: #1a202c;
+                        border: 2px solid #c9a44e;
+                        border-radius: 8px;
+                        padding: 15px;
+                        color: white;
+                        font-family: sans-serif;
+                        margin-bottom: 20px;
+                        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+                    ">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px;">
+                            <div>
+                                <div style="font-size: 20px; font-weight: bold; margin-bottom: 20px;">{selected_player}</div>
+                                <div style="font-size: 12px; color: #c9a44e; margin-bottom: 2px;">RATING</div>
+                                <div style="font-size: 46px; font-weight: bold; color: #c9a44e; line-height: 1;">{rt}</div>
+                            </div>
+                            <div style="text-align: right; margin-top: 40px;">
+                                <div style="display: flex; gap: 20px; justify-content: flex-end;">
+                                    <div style="text-align: center;">
+                                        <span style="font-size: 11px; color: #a0aec0;">AVERAGE</span><br>
+                                        <span style="font-size: 24px; font-weight: bold;">{ave}</span>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <span style="font-size: 11px; color: #a0aec0;">STRIKE</span><br>
+                                        <span style="font-size: 24px; font-weight: bold;">{st_rate}%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 10px; font-size: 11px; color: #a0aec0;">
+                            RECENT GAMES<br>
+                            <span style="color: white; font-size: 12px;">AVE {ave} &nbsp;&nbsp; STRIKE {st_rate}% &nbsp;&nbsp; SPARE {sp_rate}%</span>
+                        </div>
+                    </div>
+                    """
+                    st.markdown(card_html, unsafe_allow_html=True)
+
+                    # ダーツライブ風のグラフエリア
+                    st.markdown("""
+                    <div style="background-color: #1a202c; padding: 15px 15px 5px 15px; border-radius: 8px 8px 0 0; border-bottom: 1px solid #c9a44e;">
+                        <span style="color: white; font-weight: bold; font-size: 16px;">RATING HISTORY</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+
                     if player_games:
                         # 古い順に並び替えて折れ線グラフ化
                         chrono_games = list(reversed(player_games[:50]))
-                        x_vals = [f"{g['date'][5:]} {g['time']}" for g in chrono_games] # 年を省いて 月-日 時間 のみに
+                        
+                        # 横軸を1〜50のカウントに変更
+                        x_vals = list(range(1, len(chrono_games) + 1))
                         y_vals = [g['score'] for g in chrono_games]
                         
-                        fig_trend = px.line(x=x_vals, y=y_vals, markers=True)
+                        fig_trend = go.Figure()
+                        fig_trend.add_trace(go.Scatter(
+                            x=x_vals, y=y_vals,
+                            mode='lines+markers',
+                            line=dict(color='white', width=1.5),
+                            marker=dict(color='white', size=5, line=dict(color='#1a202c', width=1))
+                        ))
+                        
                         fig_trend.update_layout(
-                            xaxis_title="プレイ日時", 
-                            yaxis_title="スコア", 
+                            xaxis_title="Game Count", 
+                            yaxis_title="RATING", 
+                            yaxis=dict(
+                                range=[0, 300], 
+                                gridcolor='rgba(255,255,255,0.1)', 
+                                zerolinecolor='rgba(255,255,255,0.1)',
+                                tickfont=dict(color='#a0aec0')
+                            ),
+                            xaxis=dict(
+                                tickmode='linear', 
+                                tick0=1, 
+                                dtick=1 if len(chrono_games)<=20 else 5,
+                                gridcolor='rgba(255,255,255,0.1)',
+                                tickfont=dict(color='#a0aec0')
+                            ),
                             height=300,
-                            margin=dict(l=10, r=10, t=10, b=10)
+                            margin=dict(l=50, r=20, t=10, b=40),
+                            plot_bgcolor="#1a202c",
+                            paper_bgcolor="#1a202c",
+                            font=dict(color="#a0aec0", size=10)
                         )
-                        st.plotly_chart(fig_trend, use_container_width=True)
+                        st.plotly_chart(fig_trend, use_container_width=True, config={'displayModeBar': False})
+                        
+                        # グラフ下部のフッター情報
+                        if len(chrono_games) > 0:
+                            start_date = chrono_games[0]['date']
+                            end_date = chrono_games[-1]['date']
+                            footer_html = f"""
+                            <div style="background-color: #1a202c; padding: 10px 15px 15px 15px; border-radius: 0 0 8px 8px; display: flex; justify-content: space-between; font-size: 11px; color: #a0aec0; margin-top: -20px; position: relative; z-index: 10;">
+                                <div>Average RATING<br><span style="color: white; font-size: 15px;">{rt}</span></div>
+                                <div style="text-align: right;">Game Count (Recent {len(chrono_games)})<br><span style="color: white; font-size: 12px;">{start_date} - {end_date}</span></div>
+                            </div>
+                            """
+                            st.markdown(footer_html, unsafe_allow_html=True)
                     else:
                         st.info("データがありません。")
 
