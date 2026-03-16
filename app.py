@@ -47,7 +47,13 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
-st.markdown("<h1 style='color: turquoise; text-align: center;'> 🎳Eagle ROLLERS🎳</h1>", unsafe_allow_html=True)
+st.markdown("""
+<h1 style='text-align: center;'>
+    🎳
+    <span style='background: linear-gradient(135deg, #bf953f 0%, #fcf6ba 20%, #1a1a1c 35%, #b38728 55%, #ffffff 75%, #aa771c 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-family: "Arial Black", Impact, sans-serif; font-style: italic; filter: drop-shadow(2px 4px 4px rgba(0,0,0,0.8)); padding-right: 5px;'>EAGLE ROLLERS</span>
+    🎳
+</h1>
+""", unsafe_allow_html=True)
 
 # --- サイドバー：APIキー入力 ＆ モード切替 ---
 with st.sidebar:
