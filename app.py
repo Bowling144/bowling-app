@@ -167,83 +167,49 @@ if app_mode == "📊 プレイヤー分析":
                     sp_rate = p_awards.get("③2投目スペア率", "0.0")
                     
                     # Rt(最大18)からパーセンテージを計算（リングメーター用）
-                    rt_percent = min(100, max(0, (rt / 18.0) * 100))
+                    rt_percent = int(min(100, max(0, (rt / 18.0) * 100)))
+                    # Flight名から頭文字（A, BBなど）だけを抽出
+                    flight_letter = flight.split()[0] if flight else ""
                     
-                    # ダーツライブ風のプレイヤー情報カード（リングメーター付き）
+                    # 🎯 ダーツライブ風のプレイヤー情報カード（Markdown誤認対策としてカラーコードをrgbで指定）
                     card_html = f"""
-                    <div style="
-                        background-color: #1a202c;
-                        border: 2px solid #c9a44e;
-                        border-radius: 8px;
-                        padding: 15px;
-                        color: white;
-                        font-family: sans-serif;
-                        margin-bottom: 20px;
-                        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                    ">
-                        <div style="width: 100%; text-align: left; font-size: 14px; font-weight: bold; margin-bottom: 10px; color: #a0aec0;">
-                            {selected_player}
-                        </div>
+                    <div style="background-color: rgb(26,26,28); border-radius: 8px; padding: 20px 10px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
                         
-                        <div style="
-                            position: relative;
-                            width: 160px;
-                            height: 160px;
-                            border-radius: 50%;
-                            background: conic-gradient(#c9a44e {rt_percent}%, #333 {rt_percent}% 100%);
-                            display: flex;
-                            justify-content: center;
-                            align-items: center;
-                            margin-bottom: 15px;
-                        ">
-                            <div style="
-                                width: 140px;
-                                height: 140px;
-                                background-color: #1a202c;
-                                border-radius: 50%;
-                                display: flex;
-                                justify-content: center;
-                                align-items: center;
-                                flex-direction: column;
-                                text-align: center;
-                            ">
-                                <span style="font-size: 18px; font-weight: bold; font-style: italic; color: gold; line-height: 1.2;">
-                                    {flight.replace(' ', '<br>')}
-                                </span>
+                        <div style="position: relative; width: 220px; height: 220px; margin: 0 auto; border-radius: 50%; background: conic-gradient(rgb(255,102,0) {rt_percent}%, rgb(51,51,51) {rt_percent}% 100%); display: flex; align-items: center; justify-content: center;">
+                            <div style="width: 190px; height: 190px; background-color: rgb(26,26,28); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+                                <span style="color: white; font-size: 64px; font-weight: 900; font-family: 'Arial Black', sans-serif; line-height: 1;">{rt}</span>
                             </div>
                         </div>
                         
-                        <div style="display: flex; gap: 40px; justify-content: center; width: 100%; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px;">
+                        <div style="text-align: center; margin-top: -18px; position: relative; z-index: 10;">
+                            <div style="display: inline-block; background-color: rgb(255,102,0); padding: 10px 20px 15px 20px; clip-path: polygon(0% 0%, 100% 0%, 100% 75%, 50% 100%, 0% 75%);">
+                                <span style="color: rgb(26,26,28); font-size: 28px; font-weight: 900; font-family: 'Arial Black', sans-serif;">{flight_letter}</span>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; justify-content: space-around; margin-top: 20px; align-items: center;">
                             <div style="text-align: center;">
-                                <span style="font-size: 12px; color: #a0aec0;">RATING</span><br>
-                                <span style="font-size: 32px; font-weight: bold; color: #c9a44e; line-height: 1;">{rt}</span>
+                                <div style="color: rgb(255,59,48); font-size: 11px; font-weight: bold; letter-spacing: 1px;">AVE</div>
+                                <div style="color: white; font-size: 24px; font-weight: bold; font-family: sans-serif;">{ave}</div>
                             </div>
                             <div style="text-align: center;">
-                                <span style="font-size: 12px; color: #a0aec0;">AVERAGE</span><br>
-                                <span style="font-size: 32px; font-weight: bold; line-height: 1;">{ave}</span>
+                                <div style="color: rgb(66,133,244); font-size: 11px; font-weight: bold; letter-spacing: 1px;">STRIKE</div>
+                                <div style="color: white; font-size: 24px; font-weight: bold; font-family: sans-serif;">{st_rate}%</div>
                             </div>
-                        </div>
-                        
-                        <div style="margin-top: 10px; font-size: 11px; color: #a0aec0; width: 100%; text-align: left;">
-                            RECENT GAMES<br>
-                            <span style="color: white; font-size: 12px;">AVE {ave} &nbsp;&nbsp; STRIKE {st_rate}% &nbsp;&nbsp; SPARE {sp_rate}%</span>
+                            <div style="text-align: center;">
+                                <div style="color: rgb(52,168,83); font-size: 11px; font-weight: bold; letter-spacing: 1px;">SPARE</div>
+                                <div style="color: white; font-size: 24px; font-weight: bold; font-family: sans-serif;">{sp_rate}%</div>
+                            </div>
                         </div>
                     </div>
                     """
                     st.markdown(card_html, unsafe_allow_html=True)
 
-                    # ダーツライブ風のグラフエリア
-                    st.markdown("""
-                    <div style="background-color: #1a202c; padding: 15px 15px 5px 15px; border-radius: 8px 8px 0 0; border-bottom: 1px solid #c9a44e;">
-                        <span style="color: white; font-weight: bold; font-size: 16px;">RATING HISTORY</span>
-                    </div>
-                    """, unsafe_allow_html=True)
-
                     if player_games:
+                        # 古い順に並び替える（グラフの左が古く、右が新しくなるように）
                         chrono_games = list(reversed(player_games[:50]))
+                        
+                        # 横軸を 1〜50 のカウント形式に変更
                         x_vals = list(range(1, len(chrono_games) + 1))
                         y_vals = [g['score'] for g in chrono_games]
                         
@@ -251,44 +217,41 @@ if app_mode == "📊 プレイヤー分析":
                         fig_trend.add_trace(go.Scatter(
                             x=x_vals, y=y_vals,
                             mode='lines+markers',
-                            line=dict(color='white', width=1.5),
-                            marker=dict(color='white', size=5, line=dict(color='#1a202c', width=1))
+                            line=dict(color='rgb(255,102,0)', width=3), # オレンジの線
+                            marker=dict(color='rgb(255,102,0)', size=6)
                         ))
                         
                         fig_trend.update_layout(
-                            xaxis_title="Game Count", 
-                            yaxis_title="SCORE", 
+                            title=dict(
+                                text="SCORE / 50 games", 
+                                font=dict(color="white", size=14), 
+                                x=0.5,
+                                y=0.9
+                            ),
+                            xaxis_title="", 
+                            yaxis_title="", 
                             yaxis=dict(
-                                range=[0, 300], 
+                                range=[0, 300], # 縦軸をMAX300に固定
+                                dtick=50,
                                 gridcolor='rgba(255,255,255,0.1)', 
                                 zerolinecolor='rgba(255,255,255,0.1)',
-                                tickfont=dict(color='#a0aec0')
+                                tickfont=dict(color='rgb(136,136,136)')
                             ),
                             xaxis=dict(
+                                range=[1, 50],  # 横軸を50ゲームスケールに固定
                                 tickmode='linear', 
                                 tick0=1, 
-                                dtick=1 if len(chrono_games)<=20 else 5,
+                                dtick=5,
                                 gridcolor='rgba(255,255,255,0.1)',
-                                tickfont=dict(color='#a0aec0')
+                                tickfont=dict(color='rgb(136,136,136)')
                             ),
                             height=300,
-                            margin=dict(l=50, r=20, t=10, b=40),
-                            plot_bgcolor="#1a202c",
-                            paper_bgcolor="#1a202c",
-                            font=dict(color="#a0aec0", size=10)
+                            margin=dict(l=40, r=20, t=50, b=30),
+                            plot_bgcolor="rgb(36,36,46)", # ダーツライブ風のダーク背景
+                            paper_bgcolor="rgb(36,36,46)",
+                            showlegend=False
                         )
                         st.plotly_chart(fig_trend, use_container_width=True, config={'displayModeBar': False})
-                        
-                        if len(chrono_games) > 0:
-                            start_date = chrono_games[0]['date']
-                            end_date = chrono_games[-1]['date']
-                            footer_html = f"""
-                            <div style="background-color: #1a202c; padding: 10px 15px 15px 15px; border-radius: 0 0 8px 8px; display: flex; justify-content: space-between; font-size: 11px; color: #a0aec0; margin-top: -20px; position: relative; z-index: 10;">
-                                <div>Average RATING<br><span style="color: white; font-size: 15px;">{rt}</span></div>
-                                <div style="text-align: right;">Game Count (Recent {len(chrono_games)})<br><span style="color: white; font-size: 12px;">{start_date} - {end_date}</span></div>
-                            </div>
-                            """
-                            st.markdown(footer_html, unsafe_allow_html=True)
                     else:
                         st.info("データがありません。")
 
