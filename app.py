@@ -159,7 +159,7 @@ if app_mode == "📊 プレイヤー分析":
 
                 tab1, tab2, tab3, tab4 = st.tabs(["🏠 HOME", "📊 STATS", "🏆 AWARDS", "🌍 ENVIRONMENT"])
 
-                # ==========================================
+# ==========================================
                 # タブ1：HOME（総合ステータスとスコア推移）
                 # ==========================================
                 with tab1:
@@ -173,37 +173,35 @@ if app_mode == "📊 プレイヤー分析":
                     # バッジ用の短い称号（例: "BB ROLLER" -> "BB"）
                     flight_short = flight.replace(" ROLLER", "")
 
-                    # ダーツライブアプリ風 UIカード
+                    # ダーツライブアプリ風 UIカード（エラー回避のため左詰め＆キラキラ効果追加）
                     html_card = f"""
-                    <div style="background-color: rgb(26,26,28); padding: 30px 10px; border-radius: 10px; margin-bottom: 20px;">
-                        <div style="position: relative; width: 220px; height: 220px; margin: 0 auto; border-radius: 50%; background: conic-gradient(rgb(255,102,0) {gauge_pct}%, rgb(51,51,51) {gauge_pct}% 100%); display: flex; align-items: center; justify-content: center;">
-                            <div style="width: 190px; height: 190px; background-color: rgb(26,26,28); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-direction: column;">
-                                <span style="color: white; font-size: 64px; font-weight: 900; font-family: 'Arial Black', sans-serif; line-height: 1;">{rt}</span>
-                            </div>
-                        </div>
-
-                        <div style="text-align: center; margin-top: -18px; position: relative; z-index: 10;">
-                            <div style="display: inline-block; background-color: rgb(255,102,0); padding: 10px 20px 15px 20px; clip-path: polygon(0% 0%, 100% 0%, 100% 75%, 50% 100%, 0% 75%);">
-                                <span style="color: rgb(26,26,28); font-size: 28px; font-weight: 900; font-family: 'Arial Black', sans-serif;">{flight_short}</span>
-                            </div>
-                        </div>
-
-                        <div style="display: flex; justify-content: space-around; margin-top: 30px; align-items: center;">
-                            <div style="text-align: center;">
-                                <div style="color: rgb(255,59,48); font-size: 11px; font-weight: bold; letter-spacing: 1px;">AVE</div>
-                                <div style="color: white; font-size: 24px; font-weight: bold; font-family: sans-serif;">{ave}</div>
-                            </div>
-                            <div style="text-align: center;">
-                                <div style="color: rgb(66,133,244); font-size: 11px; font-weight: bold; letter-spacing: 1px;">STRIKE</div>
-                                <div style="color: white; font-size: 24px; font-weight: bold; font-family: sans-serif;">{st_rate}%</div>
-                            </div>
-                            <div style="text-align: center;">
-                                <div style="color: rgb(52,168,83); font-size: 11px; font-weight: bold; letter-spacing: 1px;">SPARE</div>
-                                <div style="color: white; font-size: 24px; font-weight: bold; font-family: sans-serif;">{sp_rate}%</div>
-                            </div>
-                        </div>
-                    </div>
-                    """
+<div style="background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 35px 10px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333;">
+  <div style="position: relative; width: 250px; height: 250px; margin: 0 auto; border-radius: 50%; background: conic-gradient(#ff6600 {gauge_pct}%, #222 {gauge_pct}% 100%); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 25px rgba(255,102,0,0.4), inset 0 0 15px rgba(0,0,0,0.8);">
+    <div style="width: 210px; height: 210px; background-color: #1a1a1c; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-direction: column; box-shadow: inset 0 0 20px rgba(0,0,0,0.9);">
+      <span style="color: #ffffff; font-size: 76px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif; line-height: 1; text-shadow: 0 0 15px rgba(255,255,255,0.2);">{rt}</span>
+    </div>
+  </div>
+  <div style="text-align: center; margin-top: -25px; position: relative; z-index: 10;">
+    <div style="display: inline-block; background: linear-gradient(to bottom, #ff8c00, #ff4500); padding: 12px 28px 20px 28px; clip-path: polygon(0% 0%, 100% 0%, 100% 75%, 50% 100%, 0% 75%); box-shadow: 0 5px 15px rgba(255,69,0,0.6);">
+      <span style="color: #1a1a1c; font-size: 32px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif;">{flight_short}</span>
+    </div>
+  </div>
+  <div style="display: flex; justify-content: space-around; margin-top: 40px; align-items: center;">
+    <div style="text-align: center;">
+      <div style="color: #ff3b30; font-size: 14px; font-weight: 900; letter-spacing: 1.5px; text-shadow: 0 0 8px rgba(255,59,48,0.6);">AVE</div>
+      <div style="color: white; font-size: 32px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif;">{ave}</div>
+    </div>
+    <div style="text-align: center;">
+      <div style="color: #4285f4; font-size: 14px; font-weight: 900; letter-spacing: 1.5px; text-shadow: 0 0 8px rgba(66,133,244,0.6);">STRIKE</div>
+      <div style="color: white; font-size: 32px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif;">{st_rate}<span style="font-size: 18px;">%</span></div>
+    </div>
+    <div style="text-align: center;">
+      <div style="color: #34a853; font-size: 14px; font-weight: 900; letter-spacing: 1.5px; text-shadow: 0 0 8px rgba(52,168,83,0.6);">SPARE</div>
+      <div style="color: white; font-size: 32px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif;">{sp_rate}<span style="font-size: 18px;">%</span></div>
+    </div>
+  </div>
+</div>
+"""
                     st.markdown(html_card, unsafe_allow_html=True)
 
                     if player_games:
@@ -215,13 +213,13 @@ if app_mode == "📊 プレイヤー分析":
                         y_vals = [g['score'] for g in chrono_games]
                         
                         # グラフ用のダークコンテナ
-                        st.markdown("<div style='background-color: rgb(34,34,38); padding: 15px; border-radius: 10px;'>", unsafe_allow_html=True)
-                        st.markdown("<div style='color: white; font-weight: bold; margin-bottom: 5px; font-size: 14px;'>SCORE / 50 games</div>", unsafe_allow_html=True)
+                        st.markdown("<div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 15px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333;'>", unsafe_allow_html=True)
+                        st.markdown("<div style='color: white; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif;'>SCORE / 50 games</div>", unsafe_allow_html=True)
                         
                         fig_trend = px.line(x=x_vals, y=y_vals, markers=True)
                         
                         # アプリ風にオレンジ色のグラフとダークテーマに設定
-                        fig_trend.update_traces(line_color='#ff6600', marker=dict(color='#ff6600', size=6))
+                        fig_trend.update_traces(line_color='#ff6600', marker=dict(color='#ff6600', size=6, line=dict(color='white', width=1)))
                         fig_trend.update_layout(
                             plot_bgcolor='rgba(0,0,0,0)',
                             paper_bgcolor='rgba(0,0,0,0)',
