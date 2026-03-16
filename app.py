@@ -48,7 +48,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 st.markdown("""
-<h1 style='text-align: center; font-size: 35px; white-space: nowrap;'>
+<h1 style='text-align: center; font-size: 37px; white-space: nowrap;'>
     🎳
     <span style='background: linear-gradient(135deg, #bf953f 0%, #fcf6ba 20%, #555555 35%, #b38728 55%, #ffffff 75%, #aa771c 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-family: "Arial Black", Impact, sans-serif; font-style: italic; filter: drop-shadow(2px 4px 4px rgba(0,0,0,0.8)); padding-right: 5px;'>  EAGLE  ROLLERS  </span>
     🎳
