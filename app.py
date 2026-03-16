@@ -14,7 +14,6 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 
 
-
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -49,9 +48,9 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 st.markdown("""
-<h1 style='text-align: center; font-size: 37px; white-space: nowrap;'>
+<h1 style='text-align: center; font-size: 26px; white-space: nowrap;'>
     🎳
-    <span style='background: linear-gradient(135deg, #bf953f 0%, #fcf6ba 20%, #555555 35%, #b38728 55%, #ffffff 75%, #aa771c 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-family: "Arial Black", Impact, sans-serif; font-style: italic; filter: drop-shadow(2px 4px 4px rgba(0,0,0,0.8)); padding-right: 5px;'>  EAGLE  ROLLERS  </span>
+    <span style='background: linear-gradient(135deg, #bf953f 0%, #fcf6ba 20%, #555555 35%, #b38728 55%, #ffffff 75%, #aa771c 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-family: "Arial Black", Impact, sans-serif; font-style: italic; filter: drop-shadow(2px 4px 4px rgba(0,0,0,0.8)); padding-right: 5px;'>Eagle ROLLERS</span>
     🎳
 </h1>
 """, unsafe_allow_html=True)
@@ -263,135 +262,6 @@ if app_mode == "📊 プレイヤー分析":
                         st.markdown("</div>", unsafe_allow_html=True)
                     else:
                         st.info("データがありません。")
-
-                
-                # ==========================================
-                # タブ2：STATS（詳細データ・ピンスタッツ）
-                # ==========================================
-                with tab2:
-                    st.markdown("### 🎯 鬼門ピン カバー率")
-                    c_7, c_10 = st.columns(2)
-                    
-                    # 7番ピンカバー率（ドーナツチャート）
-                    rate_7 = float(p_awards.get("④7番ピン", "0"))
-                    fig_7 = go.Figure(data=[go.Pie(labels=['Cover', 'Miss'], values=[rate_7, max(0, 100-rate_7)], hole=.7, marker_colors=['#00CC96', '#333333'])])
-                    fig_7.update_layout(title_text="7番ピン", title_x=0.5, showlegend=False, margin=dict(t=30, b=10, l=10, r=10), height=200)
-                    fig_7.add_annotation(text=f"{rate_7}%", x=0.5, y=0.5, font_size=20, showarrow=False)
-                    c_7.plotly_chart(fig_7, use_container_width=True)
-                    
-                    # 10番ピンカバー率（ドーナツチャート）
-                    rate_10 = float(p_awards.get("⑤10番ピン", "0"))
-                    fig_10 = go.Figure(data=[go.Pie(labels=['Cover', 'Miss'], values=[rate_10, max(0, 100-rate_10)], hole=.7, marker_colors=['#AB63FA', '#333333'])])
-                    fig_10.update_layout(title_text="10番ピン", title_x=0.5, showlegend=False, margin=dict(t=30, b=10, l=10, r=10), height=200)
-                    fig_10.add_annotation(text=f"{rate_10}%", x=0.5, y=0.5, font_size=20, showarrow=False)
-                    c_10.plotly_chart(fig_10, use_container_width=True)
-
-                    st.markdown("### 🎳 1投目 ピン別残存率")
-                    # 1〜10番ピンの残存率を取得して棒グラフ化
-                    pins = [str(i) for i in range(1, 11)]
-                    rates = [float(p_awards.get(f"⑬{i}番ピン残存率", "0")) for i in range(1, 11)]
-                    fig_pins = px.bar(x=pins, y=rates, labels={'x': 'ピン番号', 'y': '残存率 (%)'}, text=[f"{r}%" for r in rates])
-                    fig_pins.update_traces(marker_color='turquoise', textposition='outside')
-                    fig_pins.update_layout(height=300, margin=dict(t=10, b=10, l=10, r=10), yaxis=dict(range=[0, max(rates + [10]) * 1.2]))
-                    st.plotly_chart(fig_pins, use_container_width=True)
-
-                    st.markdown("### 🔥 連発力スタッツ")
-                    c_dbl, c_trk = st.columns(2)
-                    rate_double = p_awards.get("⑦ストライク後のストライク", "0.0")
-                    rate_turkey = p_awards.get("⑧ダブル後のストライク", "0.0")
-                    c_dbl.metric("ダブル率 (ストライク後)", f"{rate_double} %")
-                    c_trk.metric("ターキー率 (ダブル後)", f"{rate_turkey} %")
-                # ==========================================
-                # タブ3：AWARDS（称号・記録・スプリット）
-                # ==========================================
-                with tab3:
-                    st.markdown("### 🏆 ハイスコア & レコード")
-                    r_c1, r_c2, r_c3 = st.columns(3)
-                    r_c1.metric("最大連続ストライク", f"{p_awards.get('①最大連続ストライク', '0')} 回")
-                    r_c2.metric("パーフェクト(300)", f"{p_awards.get('①パーフェクト(300)', '0')} 回")
-                    r_c3.metric("250オーバー", f"{p_awards.get('①250オーバー', '0')} 回")
-                    
-                    r_c4, r_c5, _ = st.columns(3)
-                    r_c4.metric("220オーバー", f"{p_awards.get('①220オーバー', '0')} 回")
-                    r_c5.metric("200オーバー", f"{p_awards.get('①200オーバー', '0')} 回")
-
-                    st.markdown("### 🎳 スプリット・メイク コレクション")
-                    # スプリットのデータを抽出（マスターの集計から、スプリット名称、遭遇回数、成功数、確率を取得）
-                    split_records = []
-                    for row in award_data:
-                        if len(row) >= 7 and row[1] == selected_player and "⑥" in row[3]:
-                            name = row[3].replace("⑥", "")
-                            chances = row[4]
-                            success = row[5]
-                            rate = row[6]
-                            split_records.append({"スプリット名称": name, "遭遇回数": chances, "メイク数": success, "メイク率(%)": rate})
-                    
-                    if split_records:
-                        st.dataframe(split_records, use_container_width=True, hide_index=True)
-                    else:
-                        st.info("スプリットの記録がありません。")
-
-                # ==========================================
-                # タブ4：ENVIRONMENT（環境・レーン適性）
-                # ==========================================
-                with tab4:
-                    st.markdown("### 🏟️ 投球方式 適性")
-                    euro_ave = float(p_awards.get("⑨1レーン", "0"))
-                    am_ave = float(p_awards.get("⑨2レーン", "0"))
-                    fig_style = px.bar(
-                        x=["ヨーロピアン (1レーン)", "アメリカン (2レーン)"], 
-                        y=[euro_ave, am_ave],
-                        labels={"x": "投球方式", "y": "アベレージ"},
-                        text=[f"{euro_ave}", f"{am_ave}"],
-                        color_discrete_sequence=['#FFA15A']
-                    )
-                    fig_style.update_traces(textposition='outside')
-                    fig_style.update_layout(height=300, margin=dict(t=10, b=10, l=10, r=10), yaxis=dict(range=[0, max(euro_ave, am_ave, 150) * 1.2]))
-                    st.plotly_chart(fig_style, use_container_width=True)
-
-                    st.markdown("### 📏 オイル長 (Length) 適性")
-                    len_keys, len_aves = [], []
-                    for row in award_data:
-                        if len(row) >= 7 and row[1] == selected_player and "⑪" in row[3]:
-                            try:
-                                if float(row[4]) > 0: # プレイ回数が1回以上のものだけ抽出
-                                    len_keys.append(row[3].replace("⑪", ""))
-                                    len_aves.append(float(row[6]))
-                            except ValueError:
-                                pass
-                    if len_keys:
-                        fig_len = px.line(x=len_keys, y=len_aves, markers=True, labels={"x": "オイル長 (ft)", "y": "アベレージ"})
-                        fig_len.update_traces(line_color='#00CC96')
-                        fig_len.update_layout(height=300, margin=dict(t=10, b=10, l=10, r=10))
-                        st.plotly_chart(fig_len, use_container_width=True)
-                    else:
-                        st.info("オイル長のプレイデータがありません。")
-
-                    st.markdown("### 💧 オイル量 (Volume) 適性")
-                    vol_keys, vs) + 1))
-                        y_vals = [g['score'] for g in chrono_games]
-                        
-                        # グラフ用のダークコンテナ
-                        st.markdown("<div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 15px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333;'>", unsafe_allow_html=True)
-                        st.markdown("<div style='color: white; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif;'>SCORE / 50 games</div>", unsafe_allow_html=True)
-                        
-                        fig_trend = px.line(x=x_vals, y=y_vals, markers=True)
-                        
-                        # アプリ風にオレンジ色のグラフとダークテーマに設定
-                        fig_trend.update_traces(line_color='#ff6600', marker=dict(color='#ff6600', size=6, line=dict(color='white', width=1)))
-                        fig_trend.update_layout(
-                            plot_bgcolor='rgba(0,0,0,0)',
-                            paper_bgcolor='rgba(0,0,0,0)',
-                            xaxis=dict(title="", showgrid=True, gridcolor='#444', tickmode='linear', tick0=1, dtick=5, color='gray'),
-                            yaxis=dict(title="", range=[0, 300], showgrid=True, gridcolor='#444', color='gray'),
-                            height=280,
-                            margin=dict(l=10, r=10, t=10, b=10)
-                        )
-                        st.plotly_chart(fig_trend, use_container_width=True)
-                        st.markdown("</div>", unsafe_allow_html=True)
-                    else:
-                        st.info("データがありません。")
-
 
                 
                 # ==========================================
@@ -2460,6 +2330,24 @@ if st.session_state.analyzed_results:
                             move_count += 1
                             
                     st.success(f"📁 {move_count}枚の画像を「{PROCESSED_FOLDER_NAME}」フォルダへ移動しました！")
+                    
+                    # リセット処理（初期画面に戻す）
+                    st.session_state.analyzed_results = None
+                    st.session_state.raw_images_data = []
+                    st.session_state.sps_registered = False
+
+                    # 入力欄に残った古い記憶（レーン番号など）をすべて消去する
+                    keys_to_delete = []
+                    for key in st.session_state.keys():
+                        if "_" in key and any(char.isdigit() for char in key):
+                            keys_to_delete.append(key)
+                    for key in keys_to_delete:
+                        del st.session_state[key]
+
+                    time.sleep(2)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"移動エラーが発生しました: {e}")
                     
                     # リセット処理（初期画面に戻す）
                     st.session_state.analyzed_results = None
