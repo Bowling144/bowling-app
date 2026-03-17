@@ -296,8 +296,7 @@ if app_mode == "📊 プレイヤー分析":
                     # --- 円グラフ（ドーナツ）を描画する内部関数 ---
                     def draw_pin_pie(pin_num):
                         # すでにシステムが持っているパーセンテージをそのまま取得
-                        def draw_pin_pie(pin_num):
-                        # すでにシステムが持っているパーセンテージをそのまま取得
+                        
                         rate = float(p_awards.get(f"⑬{pin_num}番ピン残存率", "0"))
                         other_rate = 100.0 - rate if 100.0 - rate > 0 else 0.0
                         
