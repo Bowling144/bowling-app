@@ -273,7 +273,7 @@ if app_mode == "📊 プレイヤー分析":
                 # タブ2：STATS（詳細データ・ピンスタッツ）
                 # ==========================================
                 with tab2:
-                    st.markdown("### 🎯 鬼門ピン カバー率")
+                    st.markdown("### 🎯 SEVEN-TEN カバー率")
                     c_7, c_10 = st.columns(2)
                     
                     # 7番ピンカバー率（ドーナツチャート）
@@ -299,7 +299,7 @@ if app_mode == "📊 プレイヤー分析":
                     fig_pins.update_layout(height=300, margin=dict(t=10, b=10, l=10, r=10), yaxis=dict(range=[0, max(rates + [10]) * 1.2]))
                     st.plotly_chart(fig_pins, use_container_width=True)
 
-                    st.markdown("### 🔥 連発力スタッツ")
+                    st.markdown("### 🎳 連発力スタッツ")
                     c_dbl, c_trk = st.columns(2)
                     rate_double = p_awards.get("⑦ストライク後のストライク", "0.0")
                     rate_turkey = p_awards.get("⑧ダブル後のストライク", "0.0")
@@ -448,7 +448,7 @@ if app_mode == "📊 プレイヤー分析":
                     r_c4.metric("220オーバー", f"{p_awards.get('①220オーバー', '0')} 回")
                     r_c5.metric("200オーバー", f"{p_awards.get('①200オーバー', '0')} 回")
 
-                    st.markdown("### 🎳 スプリット・メイク コレクション")
+                    st.markdown("### 🎳 スプリット・メイク")
                     split_records = []
                     for row in award_data:
                         if len(row) >= 7 and row[1] == selected_player and "⑥" in row[3]:
@@ -466,7 +466,7 @@ if app_mode == "📊 プレイヤー分析":
                 # タブ4：ENVIRONMENT（環境・レーン適性）
                 # ==========================================
                 with tab4:
-                    st.markdown("### 🏟️ 投球方式 適性")
+                    st.markdown("### 🎳 投球方式 適性")
                     euro_ave = float(p_awards.get("⑨1レーン", "0"))
                     am_ave = float(p_awards.get("⑨2レーン", "0"))
                     fig_style = px.bar(
@@ -516,7 +516,7 @@ if app_mode == "📊 プレイヤー分析":
                     else:
                         st.info("オイル量のプレイデータがありません。")
                         
-                    st.markdown("### 🎯 レーン番号 相性")
+                    st.markdown("### 🎳 レーン毎データ")
                     lane_keys, lane_aves = [], []
                     for row in award_data:
                         if len(row) >= 7 and row[1] == selected_player and "⑩" in row[3]:
