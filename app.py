@@ -258,8 +258,9 @@ if app_mode == "📊 プレイヤー分析":
                         fig_trend.update_layout(
                             plot_bgcolor='rgba(0,0,0,0)',
                             paper_bgcolor='rgba(0,0,0,0)',
-                            xaxis=dict(title="", showgrid=True, gridcolor='#444', tickmode='linear', tick0=1, dtick=5, color='gray'),
-                            yaxis=dict(title="", range=[0, 300], showgrid=True, gridcolor='#444', color='gray'),
+                            # rangeを[50, 0]に設定することで左右を反転表示
+                            xaxis=dict(title="", range=[50, 0], showgrid=True, gridcolor='#444', tickmode='linear', tick0=0, dtick=5, color='gray', fixedrange=True),
+                            yaxis=dict(title="", range=[0, 300], showgrid=True, gridcolor='#444', tickmode='linear', tick0=0, dtick=50, color='gray', fixedrange=True),
                             height=280,
                             margin=dict(l=10, r=10, t=10, b=10)
                         )
