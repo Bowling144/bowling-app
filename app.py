@@ -309,7 +309,136 @@ if app_mode == "📊 プレイヤー分析":
                 # タブ3：AWARDS（称号・記録・スプリット）
                 # ==========================================
                 with tab3:
-                    st.markdown("### 🏆 ハイスコア & レコード")
+                    # --- 🎯 新機能：ダーツライブ風 トータル＆月別アワード集計 ---
+                    player_full_games = []
+                    for r in master_data[1:]:
+                        if len(r) >= 53 and r[1] == selected_player:
+                            is_710 = (len(r) > 54 and str(r[54]).strip().upper() == "TRUE")
+                            if not is_710:
+                                try:
+                                    date_str = str(r[2]).strip()
+                                    parts = date_str.split('/')
+                                    if len(parts) == 3:
+                                        yy = int(parts[0])
+                                        yyyy = 2000 + yy if yy < 100 else yy
+                                        mm = int(parts[1])
+                                        dd = int(parts[2])
+                                        month_key = f"{yyyy:04d}/{mm:02d}"
+                                    else:
+                                        continue
+                                        
+                                    score = int(r[52])
+                                    st_count = 0
+                                    sp_count = 0
+                                    
+                                    # 1〜9フレームのストライク・スペア判定
+                                    for f in range(9):
+                                        t1 = str(r[10+f*4]).upper()
+                                        t2 = str(r[12+f*4]).upper()
+                                        if 'X' in t1: st_count += 1
+                                        elif '/' in t2: sp_count += 1
+                                    
+                                    # 10フレーム目の判定
+                                    t10_1 = str(r[46]).upper() if len(r)>46 else ""
+                                    t10_2 = str(r[48]).upper() if len(r)>48 else ""
+                                    t10_3 = str(r[50]).upper() if len(r)>50 else ""
+                                    if 'X' in t10_1: st_count += 1
+                                    if 'X' in t10_2: st_count += 1
+                                    elif '/' in t10_2: sp_count += 1
+                                    if 'X' in t10_3: st_count += 1
+                                    elif '/' in t10_3: sp_count += 1
+
+                                    player_full_games.append({
+                                        "month_key": month_key,
+                                        "score": score,
+                                        "strikes": st_count,
+                                        "spares": sp_count,
+                                        "sort_key": f"{yyyy:04d}/{mm:02d}/{dd:02d}_{str(r[3]).strip()}_{str(r[6]).strip().zfill(3)}"
+                                    })
+                                except ValueError:
+                                    pass
+                                    
+                    # 古い順にソート（過去50ゲームのレーティング計算のため）
+                    player_full_games.sort(key=lambda x: x["sort_key"])
+                    
+                    total_g = 0
+                    total_st = 0
+                    total_sp = 0
+                    monthly_stats = {}
+                    history_scores = []
+                    
+                    for g in player_full_games:
+                        mk = g["month_key"]
+                        if mk not in monthly_stats:
+                            monthly_stats[mk] = {"g": 0, "st": 0, "sp": 0, "rt": 0.0}
+                        
+                        monthly_stats[mk]["g"] += 1
+                        monthly_stats[mk]["st"] += g["strikes"]
+                        monthly_stats[mk]["sp"] += g["spares"]
+                        
+                        total_g += 1
+                        total_st += g["strikes"]
+                        total_sp += g["spares"]
+                        
+                        history_scores.append(g["score"])
+                        # その時点の直近50ゲームを取得
+                        recent_50 = history_scores[-50:]
+                        rt_val, _, _ = calc_rating_flight(recent_50)
+                        # 月が変わるまで上書きされ続けるため、最終的に「その月の最終ゲーム終了時点のレーティング」になる
+                        monthly_stats[mk]["rt"] = rt_val
+                        
+                    # ダーツライブ風 UI描画
+                    st.markdown("### 🎯 TOTAL AWARDS")
+                    
+                    total_html = f"""
+                    <div style="background-color: #1a1a1c; border-top: 2px solid #333; border-bottom: 2px solid #333; padding: 15px; margin-bottom: 30px;">
+                        <div style="color: #bf953f; font-size: 14px; font-weight: bold; margin-bottom: 10px;">TOTAL</div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 8px;">
+                            <span style="color: white; font-size: 16px;">PLAY COUNT</span>
+                            <span style="color: white; font-size: 20px; font-weight: bold;">{total_g}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 8px;">
+                            <span style="color: white; font-size: 16px;">STRIKE</span>
+                            <span style="color: white; font-size: 20px; font-weight: bold;">{total_st}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="color: white; font-size: 16px;">SPARE</span>
+                            <span style="color: white; font-size: 20px; font-weight: bold;">{total_sp}</span>
+                        </div>
+                    </div>
+                    """
+                    st.markdown(total_html, unsafe_allow_html=True)
+                    
+                    st.markdown("### 📅 MONTHLY AWARDS")
+                    sorted_months = sorted(monthly_stats.keys(), reverse=True)
+                    for mk in sorted_months:
+                        m_data = monthly_stats[mk]
+                        month_html = f"""
+                        <div style="background-color: #2a2a2e; border-radius: 8px; padding: 15px; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <span style="color: white; font-size: 18px; font-weight: bold;">{mk}</span>
+                                <span style="color: #bf953f; font-size: 14px; font-weight: bold;">RATING <span style="color: white; font-size: 22px; margin-left: 5px;">{m_data['rt']:.2f}</span></span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; padding-bottom: 5px; margin-bottom: 5px;">
+                                <span style="color: #ccc; font-size: 14px;">PLAY COUNT</span>
+                                <span style="color: white; font-size: 16px; font-weight: bold;">{m_data['g']}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; padding-bottom: 5px; margin-bottom: 5px;">
+                                <span style="color: #ccc; font-size: 14px;">STRIKE</span>
+                                <span style="color: white; font-size: 16px; font-weight: bold;">{m_data['st']}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="color: #ccc; font-size: 14px;">SPARE</span>
+                                <span style="color: white; font-size: 16px; font-weight: bold;">{m_data['sp']}</span>
+                            </div>
+                        </div>
+                        """
+                        st.markdown(month_html, unsafe_allow_html=True)
+                        
+                    st.markdown("<br>", unsafe_allow_html=True)
+
+                    # --- 既存の「ハイスコア & レコード」「スプリット」を残す ---
+                    st.markdown("### 🏅 ハイスコア & レコード")
                     r_c1, r_c2, r_c3 = st.columns(3)
                     r_c1.metric("最大連続ストライク", f"{p_awards.get('①最大連続ストライク', '0')} 回")
                     r_c2.metric("パーフェクト(300)", f"{p_awards.get('①パーフェクト(300)', '0')} 回")
@@ -320,7 +449,6 @@ if app_mode == "📊 プレイヤー分析":
                     r_c5.metric("200オーバー", f"{p_awards.get('①200オーバー', '0')} 回")
 
                     st.markdown("### 🎳 スプリット・メイク コレクション")
-                    # スプリットのデータを抽出（マスターの集計から、スプリット名称、遭遇回数、成功数、確率を取得）
                     split_records = []
                     for row in award_data:
                         if len(row) >= 7 and row[1] == selected_player and "⑥" in row[3]:
@@ -334,7 +462,6 @@ if app_mode == "📊 プレイヤー分析":
                         st.dataframe(split_records, use_container_width=True, hide_index=True)
                     else:
                         st.info("スプリットの記録がありません。")
-
                 # ==========================================
                 # タブ4：ENVIRONMENT（環境・レーン適性）
                 # ==========================================
