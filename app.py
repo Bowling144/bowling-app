@@ -217,8 +217,8 @@ if app_mode == "📊 プレイヤー分析":
     </div>
   </div>
   <div style="text-align: center; margin-top: -45px; position: relative; z-index: 10; filter: drop-shadow(0 10px 10px rgba(0,0,0,0.8));">
-    <div style="display: inline-block; background: linear-gradient(135deg, #bf953f 0%, #fcf6ba 25%, #b38728 50%, #fbf5b7 75%, #aa771c 100%); padding: 12px 35px; clip-path: polygon(0 5%, 100% 0, 95% 95%, 5% 100%); border-radius: 2px;">
-      <span style="color: #1a1a1c; font-size: 39px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif; text-shadow: 1px 1px 0px #fff; transform: rotate(0deg); display: inline-block; letter-spacing: 2px;">{flight_short}</span>
+    <div style="display: inline-block; background: linear-gradient(135deg, #bf953f 0%, #fcf6ba 25%, #b38728 50%, #fbf5b7 75%, #aa771c 100%); padding: 12px 35px 25px 35px; clip-path: polygon(0% 0%, 100% 0%, 100% 75%, 50% 100%, 0% 75%); border-radius: 2px;">
+      <span style="color: #1a1a1c; font-size: 40px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif; text-shadow: 1px 1px 0px #fff; display: inline-block; letter-spacing: 2px;">{flight_short}</span>
     </div>
   </div>
   <div style="display: flex; justify-content: space-around; margin-top: 40px; align-items: center;">
