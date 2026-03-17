@@ -292,13 +292,50 @@ if app_mode == "📊 プレイヤー分析":
                     c_10.plotly_chart(fig_10, use_container_width=True, config={'displayModeBar': False})
 
                     st.markdown("### <span style='color: silver;'>🎳 1投目 残ピン率</span>", unsafe_allow_html=True)
-                    # 1〜10番ピンの残存率を取得して棒グラフ化
-                    pins = [str(i) for i in range(1, 11)]
-                    rates = [float(p_awards.get(f"⑬{i}番ピン残存率", "0")) for i in range(1, 11)]
-                    fig_pins = px.bar(x=pins, y=rates, labels={'x': 'ピン番号', 'y': '残存率 (%)'}, text=[f"{r}%" for r in rates])
-                    fig_pins.update_traces(marker_color='turquoise', textposition='outside')
-                    fig_pins.update_layout(height=300, margin=dict(t=10, b=10, l=10, r=10), yaxis=dict(range=[0, max(rates + [10]) * 1.2]))
-                    st.plotly_chart(fig_pins, use_container_width=True)
+                    # --- 円グラフ（ドーナツ）を描画する内部関数 ---
+                    def draw_pin_pie(pin_num):
+                        # すでにシステムが持っているパーセンテージをそのまま取得
+                        rate = float(p_awards.get(f"⑬{pin_num}番ピン残存率", "0"))
+                        other_rate = 100.0 - rate if 100.0 - rate > 0 else 0.0
+                        
+                        fig = go.Figure(data=[go.Pie(
+                            labels=[f"{pin_num}番ピン 残存", "その他"], 
+                            values=[rate, other_rate], 
+                            hole=.5, # ドーナツ型にする
+                            marker=dict(colors=['#EF553B', '#555555']) # 赤とグレー
+                        )])
+                        fig.update_traces(textinfo='none', hoverinfo='label+percent')
+                        # ドーナツの真ん中にピン番号とパーセンテージを表示
+                        fig.add_annotation(text=f"<b>{pin_num}番</b><br>{rate}%", x=0.5, y=0.5, font_size=12, showarrow=False)
+                        fig.update_layout(margin=dict(l=0, r=0, t=0, b=0), showlegend=False, height=120)
+                        return fig
+
+                    # --- ボウリングのピン配置に合わせて円グラフを並べる ---
+                    st.markdown("<div style='text-align: center; color: gray; font-size: 12px; margin-bottom: 10px;'>▼ レーン奥 ▼</div>", unsafe_allow_html=True)
+                    
+                    # 4段目 (7, 8, 9, 10)
+                    r1 = st.columns(4)
+                    with r1[0]: st.plotly_chart(draw_pin_pie(7), use_container_width=True, config={'displayModeBar': False})
+                    with r1[1]: st.plotly_chart(draw_pin_pie(8), use_container_width=True, config={'displayModeBar': False})
+                    with r1[2]: st.plotly_chart(draw_pin_pie(9), use_container_width=True, config={'displayModeBar': False})
+                    with r1[3]: st.plotly_chart(draw_pin_pie(10), use_container_width=True, config={'displayModeBar': False})
+                    
+                    # 3段目 (4, 5, 6)
+                    r2 = st.columns([0.5, 1, 1, 1, 0.5])
+                    with r2[1]: st.plotly_chart(draw_pin_pie(4), use_container_width=True, config={'displayModeBar': False})
+                    with r2[2]: st.plotly_chart(draw_pin_pie(5), use_container_width=True, config={'displayModeBar': False})
+                    with r2[3]: st.plotly_chart(draw_pin_pie(6), use_container_width=True, config={'displayModeBar': False})
+                    
+                    # 2段目 (2, 3)
+                    r3 = st.columns([1, 1, 1, 1])
+                    with r3[1]: st.plotly_chart(draw_pin_pie(2), use_container_width=True, config={'displayModeBar': False})
+                    with r3[2]: st.plotly_chart(draw_pin_pie(3), use_container_width=True, config={'displayModeBar': False})
+                    
+                    # 1段目 (1)
+                    r4 = st.columns([1.5, 1, 1.5])
+                    with r4[1]: st.plotly_chart(draw_pin_pie(1), use_container_width=True, config={'displayModeBar': False})
+
+                    st.markdown("<div style='text-align: center; color: gray; font-size: 12px; margin-top: 10px;'>▲ 手前 ▲</div>", unsafe_allow_html=True)
 
                     st.markdown("### 🎳 連発力スタッツ")
                     c_dbl, c_trk = st.columns(2)
