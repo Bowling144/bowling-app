@@ -625,7 +625,7 @@ if app_mode == "📊 プレイヤー分析":
                         
                         fig_710 = go.Figure(data=[go.Pie(labels=labels, values=values, marker_colors=colors, hole=.4, textinfo='label+percent')])
                         fig_710.update_layout(margin=dict(t=20, b=20, l=20, r=20), height=350, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-                        st.plotly_chart(fig_710, use_container_width=True)
+                        st.plotly_chart(fig_710, use_container_width=True, config={'displayModeBar': False})
 
                         # 用語解説
                         st.markdown("---")
