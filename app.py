@@ -141,13 +141,18 @@ if app_mode == "📊 プレイヤー分析":
                 # 1. マスターシートから「直近50ゲーム」のスコアを抽出
                 master_data = sh.worksheet("マスター").get_all_values()
                 player_games = []
+                player_710_rows = [] # 7-10G用のデータを分別格納
                 for row in master_data[1:]:
                     if len(row) >= 53 and row[1] == selected_player:
-                        try:
-                            score = int(row[52])
-                            player_games.append({"date": row[2], "time": row[3], "score": score})
-                        except ValueError:
-                            pass
+                        is_710_game = (len(row) > 54 and str(row[54]).strip().upper() == "TRUE")
+                        if is_710_game:
+                            player_710_rows.append(row)
+                        else:
+                            try:
+                                score = int(row[52])
+                                player_games.append({"date": row[2], "time": row[3], "score": score})
+                            except ValueError:
+                                pass
                             
                 # 日付・時間で降順ソートし、直近50件を抽出
                 player_games.sort(key=lambda x: (x["date"], x["time"]), reverse=True)
@@ -163,7 +168,7 @@ if app_mode == "📊 プレイヤー分析":
                 except Exception:
                     p_awards = {}
 
-                tab1, tab2, tab3, tab4 = st.tabs(["🏠 HOME", "📊 STATS", "🏆 AWARDS", "🌍 ENVIRONMENT"])
+                tab1, tab2, tab3, tab4, tab5 = st.tabs(["🏠 HOME", "📊 STATS", "🏆 AWARDS", "🌍 ENVIRONMENT", "🎳 7-10G"])
 
 # ==========================================
                 # タブ1：HOME（総合ステータスとスコア推移）
@@ -401,6 +406,117 @@ if app_mode == "📊 プレイヤー分析":
                         st.plotly_chart(fig_lane, use_container_width=True)
                     else:
                         st.info("レーン番号のプレイデータがありません。")
+
+
+
+                # ==========================================
+                # タブ5：7-10 GAME（特別ルールゲーム分析）
+                # ==========================================
+                with tab5:
+                    st.markdown("### 🎯 7-10 GAME 分析")
+                    if not player_710_rows:
+                        st.info("7-10 GAME のプレイデータがありません。")
+                    else:
+                        g_count = len(player_710_rows)
+                        f_count = 0
+                        success_c = 0
+                        nearpin_c = 0
+                        ponkotsu_c = 0
+
+                        # スコア文字列を数値化する内部関数
+                        def val(t, t_prev=0):
+                            t_str = str(t).strip().upper()
+                            if t_str == 'X': return 10
+                            if t_str == '/': return 10 - t_prev
+                            if t_str in ['G', '-', '']: return 0
+                            try: return int(t_str)
+                            except: return 0
+
+                        scores_710 = []
+
+                        for r in player_710_rows:
+                            try:
+                                s = int(r[52])
+                                scores_710.append({"date": r[2], "score": s})
+                            except:
+                                pass
+                                
+                            for f in range(10):
+                                f_count += 1
+                                if f < 9:
+                                    t1 = r[10 + f*4]
+                                    t2 = r[12 + f*4]
+                                else:
+                                    t1 = r[46]
+                                    t2 = r[48]
+                                
+                                v1 = val(t1)
+                                v2 = val(t2, v1)
+                                
+                                if v1 == 1 and v2 == 1:
+                                    success_c += 1
+                                elif (v1 == 1 and v2 == 2) or (v1 == 2 and v2 == 1):
+                                    nearpin_c += 1
+                                elif (v1 + v2) >= 8:
+                                    ponkotsu_c += 1
+                        
+                        other_c = f_count - (success_c + nearpin_c + ponkotsu_c)
+                        
+                        def fmt_pct(num, den):
+                            return f"{(num/den)*100:.1f}%" if den > 0 else "0.0%"
+                        
+                        # スコア低い順ソート（ワーストスコア抽出）
+                        scores_710.sort(key=lambda x: x["score"])
+                        mini_1 = f"{scores_710[0]['score']}点 ({scores_710[0]['date']})" if len(scores_710) > 0 else "-"
+                        mini_2 = f"{scores_710[1]['score']}点 ({scores_710[1]['date']})" if len(scores_710) > 1 else "-"
+                        mini_3 = f"{scores_710[2]['score']}点 ({scores_710[2]['date']})" if len(scores_710) > 2 else "-"
+
+                        # メトリクス表示
+                        c1, c2, c3, c4 = st.columns(4)
+                        c1.metric("① ゲーム数", f"{g_count} G")
+                        c2.metric("② チャレンジ数", f"{f_count} フレーム")
+                        c3.metric("③ 成功数", f"{success_c} 回")
+                        c4.metric("④ 成功率", fmt_pct(success_c, f_count))
+                        
+                        c5, c6, c7, c8 = st.columns(4)
+                        c5.metric("⑤ ニアピン数", f"{nearpin_c} 回")
+                        c6.metric("⑥ ニアピン率", fmt_pct(nearpin_c, f_count))
+                        c7.metric("⑦ ポンコツ数", f"{ponkotsu_c} 回")
+                        c8.metric("⑧ ポンコツ率", fmt_pct(ponkotsu_c, f_count))
+
+                        c9, c10, c11, _ = st.columns(4)
+                        c9.metric("⑨ MINI_1 (ワースト1位)", mini_1)
+                        c10.metric("⑩ MINI_2 (ワースト2位)", mini_2)
+                        c11.metric("⑪ MINI_3 (ワースト3位)", mini_3)
+
+                        # 円グラフ
+                        st.markdown("#### 📊 7-10 チャレンジ結果の割合")
+                        labels = ["成功 (Success)", "ニアピン (Nearpin)", "ポンコツ (Ponkotsu)", "その他 (Other)"]
+                        values = [success_c, nearpin_c, ponkotsu_c, other_c]
+                        colors = ['#FFD700', '#00CC96', '#EF553B', '#555555']
+                        
+                        fig_710 = go.Figure(data=[go.Pie(labels=labels, values=values, marker_colors=colors, hole=.4, textinfo='label+percent')])
+                        fig_710.update_layout(margin=dict(t=20, b=20, l=20, r=20), height=350, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+                        st.plotly_chart(fig_710, use_container_width=True)
+
+                        # 用語解説
+                        st.markdown("---")
+                        st.markdown("""
+                        <div style='font-size: 11px; color: gray; line-height: 1.6;'>
+                        <b>【7-10 GAME 用語解説】</b><br>
+                        ① 7-10ゲーム数：7-10 GAMEとしてチェック・登録された総ゲーム数<br>
+                        ② 7-10チャレンジ数：プレイした全フレーム数<br>
+                        ③ 7-10成功数：1投目も2投目もスコアが「1」だったフレーム数<br>
+                        ④ 7-10成功率：チャレンジ数に対する成功数の割合<br>
+                        ⑤ 7-10ニアピン数：1投目が1で2投目が2、または1投目が2で2投目が1だったフレーム数<br>
+                        ⑥ 7-10ニアピン率：チャレンジ数に対するニアピン数の割合<br>
+                        ⑦ 7-10ポンコツ数：2投の合計スコアが8本以上（ストライク・スペア含む）のフレーム数<br>
+                        ⑧ 7-10ポンコツ率：チャレンジ数に対するポンコツ数の割合<br>
+                        ⑨ MINI_1：過去の7-10 GAMEで最も低かったスコア（ワースト1位）<br>
+                        ⑩ MINI_2：過去の7-10 GAMEで2番目に低かったスコア（ワースト2位）<br>
+                        ⑪ MINI_3：過去の7-10 GAMEで3番目に低かったスコア（ワースト3位）
+                        </div>
+                        """, unsafe_allow_html=True)
         except Exception as e:
             st.error(f"データ取得エラー: {e}")
 
@@ -1261,7 +1377,7 @@ if st.session_state.analyzed_results is None:
             py1_local = parsed_data['py1_local']
             new_ref1 = parsed_data['new_ref1']
 
-            row_data = [""] * 51
+            row_data = [""] * 52
             row_data[0] = global_date
             row_data[1] = start_time
             row_data[2] = end_time 
@@ -1552,6 +1668,9 @@ if st.session_state.analyzed_results:
                 with c_end:
                     new_end = st.text_input("終了時刻", value=row[2], key=f"e_{img_idx}_{local_idx}")
 
+                st.markdown("**🎳 プレイスタイル**")
+                is_710_checked = st.checkbox("🎯 7-10G (セブン-テン ゲームとして登録)", value=bool(row[51]) if len(row) > 51 else False, key=f"710_{img_idx}_{local_idx}")
+
                 st.markdown("**🎳 投球結果と残ピン位置（1〜10番を選択）**")
                 new_throws = []
                 new_pins = []
@@ -1610,6 +1729,10 @@ if st.session_state.analyzed_results:
                     row[0] = new_date
                     row[1] = new_start
                     row[2] = new_end
+                    if len(row) > 51:
+                        row[51] = is_710_checked
+                    else:
+                        row.append(is_710_checked)
                     
                     for i in range(21):
                         row[throw_cols[i]] = new_throws[i]
@@ -1787,6 +1910,10 @@ if st.session_state.analyzed_results:
                     unique_id = f"{selected_player}_{new_date}_{new_start}_{new_game}"
                     formatted_row.append(unique_id)
                     
+                    # BC列 (インデックス54) に 7-10 GAME フラグを追加
+                    is_710_flag = row[51] if len(row) > 51 else False
+                    formatted_row.append("TRUE" if is_710_flag else "FALSE")
+                    
                     match_found = False
                     for i, ex_row in enumerate(existing_data):
                         if i == 0 or len(ex_row) < 7: 
@@ -1817,7 +1944,14 @@ if st.session_state.analyzed_results:
                 # === ▼▼▼ ここからAWARD集計機能の追加（全12項目対応・ブロック分割版） ▼▼▼ ===
                 all_master_data = worksheet.get_all_values()
                 
-                data_rows = [r for r in all_master_data[1:] if len(r) >= 53 and str(r[0]).strip()]
+                # 7-10G は通常のAWARD（統計）集計から除外する
+                data_rows = []
+                for r in all_master_data[1:]:
+                    if len(r) >= 53 and str(r[0]).strip():
+                        is_710_game = (len(r) > 54 and str(r[54]).strip().upper() == "TRUE")
+                        if not is_710_game:
+                            data_rows.append(r)
+                            
                 def sort_key(x):
                     d = str(x[2]).strip()
                     t = str(x[3]).strip()
