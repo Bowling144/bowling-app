@@ -258,12 +258,12 @@ if app_mode == "📊 プレイヤー分析":
                         fig_trend.update_layout(
                             plot_bgcolor='rgba(0,0,0,0)',
                             paper_bgcolor='rgba(0,0,0,0)',
-                            xaxis=dict(title="", showgrid=True, gridcolor='#444', tickmode='linear', tick0=1, dtick=5, color='gray'),
-                            yaxis=dict(title="", range=[0, 300], showgrid=True, gridcolor='#444', color='gray'),
+                            xaxis=dict(title="", range=[0, 50], showgrid=True, gridcolor='#444', tickmode='linear', tick0=0, dtick=5, color='gray', fixedrange=True),
+                            yaxis=dict(title="", range=[0, 300], showgrid=True, gridcolor='#444', tickmode='linear', tick0=0, dtick=50, color='gray', fixedrange=True),
                             height=280,
                             margin=dict(l=10, r=10, t=10, b=10)
                         )
-                        st.plotly_chart(fig_trend, use_container_width=True)
+                        st.plotly_chart(fig_trend, use_container_width=True, config={'displayModeBar': False})
                         st.markdown("</div>", unsafe_allow_html=True)
                     else:
                         st.info("データがありません。")
