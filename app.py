@@ -1219,13 +1219,13 @@ if st.session_state.analyzed_results is None:
         # 📍 【ブロック 9】 AIによるテキスト読み取り（スコア → 日時）
         # ---------------------------------------------------------
         status_text.info(f"⚙️ 画像 {img_idx+1}: AIがスコアを読み取り中...")
-        time.sleep(3) # APIの連続呼び出しを防ぐための短い待機
+        time.sleep(5) # 意図的なスリープ
 
         ai_score_data = {"lane": "", "games": []}
         success_score = False
         last_error = ""
         used_model = "FAILED"
-        max_retries = 5 
+        max_retries = 7  
 
         for attempt_model in fallback_models:
             for attempt in range(max_retries):
@@ -1251,10 +1251,11 @@ if st.session_state.analyzed_results is None:
                     error_msg = last_error.lower()
                     if any(err in error_msg for err in ["429", "too many requests", "quota", "503", "unavailable", "high demand", "overloaded"]):
                         if attempt < max_retries - 1:
-                            # Proモデルの厳しい1分間制限をクリアするため、長めに待機（警告は出さずインフォメーションのみ）
-                            wait_sec = 30
-                            status_text.info(f"⚙️ 画像 {img_idx+1}: APIの制限待ちです（約30秒）。そのままお待ちください... ({attempt+1}/{max_retries})")
+                            # エクスポネンシャル・バックオフ + ジッター
+                            wait_sec = (2 ** (attempt + 1)) + random.uniform(0, 1)
+                            status_text.warning(f"⚠️ サーバー高負荷/制限。{wait_sec:.1f}秒待機して再試行します... ({attempt+1}/{max_retries})")
                             time.sleep(wait_sec)
+                            status_text.info(f"⚙️ 画像 {img_idx+1}: AIがスコアを読み取り中... (再試行 {attempt+1})")
                             continue
                     break
             if success_score:
@@ -1264,7 +1265,7 @@ if st.session_state.analyzed_results is None:
             st.warning(f"⚠️ {file_name}: AIのスコア読み取りに失敗しました。理由: {last_error}")
 
         status_text.info(f"⚙️ 画像 {img_idx+1}: AIが日付・時刻・ゲーム数を取得中...")
-        time.sleep(3)
+        time.sleep(5) # 意図的なスリープ
 
         ai_meta_data = {"date": "日付不明", "start_time": "時刻不明", "end_time": "時刻不明", "start_game_num": 1, "lane": ""}
         success_meta = False
@@ -1292,9 +1293,11 @@ if st.session_state.analyzed_results is None:
                     error_msg = str(e).lower()
                     if any(err in error_msg for err in ["429", "too many requests", "quota", "503", "unavailable", "high demand", "overloaded"]):
                         if attempt < max_retries - 1:
-                            wait_sec = 30
-                            status_text.info(f"⚙️ 画像 {img_idx+1}: APIの制限待ちです（約30秒）。そのままお待ちください... ({attempt+1}/{max_retries})")
+                            # エクスポネンシャル・バックオフ + ジッター
+                            wait_sec = (2 ** (attempt + 1)) + random.uniform(0, 1)
+                            status_text.warning(f"⚠️ API制限/高負荷(日時取得)。{wait_sec:.1f}秒待機して再試行します... ({attempt+1}/{max_retries})")
                             time.sleep(wait_sec)
+                            status_text.info(f"⚙️ 画像 {img_idx+1}: AIが日付・時刻・ゲーム数を取得中... (再試行 {attempt+1})")
                             continue
                     break
             if success_meta:
