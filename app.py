@@ -292,6 +292,8 @@ if app_mode == "📊 プレイヤー分析":
                     c_10.plotly_chart(fig_10, use_container_width=True, config={'displayModeBar': False})
 
                     st.markdown("### <span style='color: silver;'>🎳 1投目 残ピン率</span>", unsafe_allow_html=True)
+                    
+                    # --- 円グラフ（ドーナツ）を描画する内部関数 ---
                     # --- 円グラフ（ドーナツ）を描画する内部関数 ---
                     def draw_pin_pie(pin_num):
                         # すでにシステムが持っているパーセンテージをそのまま取得
@@ -301,13 +303,16 @@ if app_mode == "📊 プレイヤー分析":
                         fig = go.Figure(data=[go.Pie(
                             labels=[f"{pin_num}番ピン 残存", "その他"], 
                             values=[rate, other_rate], 
-                            hole=.5, # ドーナツ型にする
+                            hole=.6, # 文字を大きく表示するためドーナツの穴を少し広げる
                             marker=dict(colors=['#EF553B', '#555555']) # 赤とグレー
                         )])
                         fig.update_traces(textinfo='none', hoverinfo='label+percent')
-                        # ドーナツの真ん中にピン番号とパーセンテージを表示
-                        fig.add_annotation(text=f"<b>{pin_num}番</b><br>{rate}%", x=0.5, y=0.5, font_size=12, showarrow=False)
-                        fig.update_layout(margin=dict(l=0, r=0, t=0, b=0), showlegend=False, height=120)
+                        
+                        # ピン番号を削除し、パーセンテージの文字サイズを拡大（font_size=20）
+                        fig.add_annotation(text=f"<b>{rate}%</b>", x=0.5, y=0.5, font_size=20, showarrow=False)
+                        
+                        # グラフの全体サイズを元の2/3（height=80）に縮小して端が切れないようにする
+                        fig.update_layout(margin=dict(l=0, r=0, t=0, b=0), showlegend=False, height=80)
                         return fig
 
                     # --- ボウリングのピン配置に合わせて円グラフを並べる ---
