@@ -213,12 +213,12 @@ if app_mode == "📊 プレイヤー分析":
 <div style="background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 35px 10px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333; overflow: hidden;">
   <div style="position: relative; width: 325px; height: 325px; margin: 0 auto; border-radius: 50%; background: {conic_bg}; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 25px rgba({r},{g},{b},0.3);">
     <div style="width: 277px; height: 277px; background-color: #1a1a1c; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-direction: column; box-shadow: inset 0 0 20px rgba(0,0,0,0.9);">
-      <span style="color: {current_color}; font-size: 60px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif; line-height: 1; text-shadow: 0 0 20px {current_color};">{rt}</span>
+      <span style="color: {current_color}; font-size: 75px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif; line-height: 1; text-shadow: 0 0 20px {current_color};">{rt}</span>
     </div>
   </div>
   <div style="text-align: center; margin-top: -45px; position: relative; z-index: 10; filter: drop-shadow(0 10px 10px rgba(0,0,0,0.8));">
     <div style="display: inline-block; background: linear-gradient(135deg, #bf953f 0%, #fcf6ba 25%, #b38728 50%, #fbf5b7 75%, #aa771c 100%); padding: 12px 35px; clip-path: polygon(0 5%, 100% 0, 95% 95%, 5% 100%); border-radius: 2px;">
-      <span style="color: #1a1a1c; font-size: 32px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif; text-shadow: 1px 1px 0px #fff; transform: rotate(-2deg); display: inline-block; letter-spacing: 2px;">{flight_short}</span>
+      <span style="color: #1a1a1c; font-size: 39px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif; text-shadow: 1px 1px 0px #fff; transform: rotate(0deg); display: inline-block; letter-spacing: 2px;">{flight_short}</span>
     </div>
   </div>
   <div style="display: flex; justify-content: space-around; margin-top: 40px; align-items: center;">
