@@ -282,14 +282,14 @@ if app_mode == "📊 プレイヤー分析":
                     fig_7 = go.Figure(data=[go.Pie(labels=['Cover', 'Miss'], values=[rate_7, max(0, 100-rate_7)], hole=.7, marker_colors=['#00CC96', '#333333'])])
                     fig_7.update_layout(title_text="7番ピン", title_x=0.5, showlegend=False, margin=dict(t=30, b=10, l=10, r=10), height=200)
                     fig_7.add_annotation(text=f"{rate_7}%", x=0.5, y=0.5, font_size=20, showarrow=False)
-                    c_7.plotly_chart(fig_7, use_container_width=True)
+                    c_7.plotly_chart(fig_7, use_container_width=True, config={'displayModeBar': False})
                     
                     # 10番ピンカバー率（ドーナツチャート）
                     rate_10 = float(p_awards.get("⑤10番ピン", "0"))
                     fig_10 = go.Figure(data=[go.Pie(labels=['Cover', 'Miss'], values=[rate_10, max(0, 100-rate_10)], hole=.7, marker_colors=['#AB63FA', '#333333'])])
                     fig_10.update_layout(title_text="10番ピン", title_x=0.5, showlegend=False, margin=dict(t=30, b=10, l=10, r=10), height=200)
                     fig_10.add_annotation(text=f"{rate_10}%", x=0.5, y=0.5, font_size=20, showarrow=False)
-                    c_10.plotly_chart(fig_10, use_container_width=True)
+                    c_10.plotly_chart(fig_10, use_container_width=True, config={'displayModeBar': False})
 
                     st.markdown("### 🎳 1投目 ピン別残存率")
                     # 1〜10番ピンの残存率を取得して棒グラフ化
