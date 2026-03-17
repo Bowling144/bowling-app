@@ -258,11 +258,10 @@ if app_mode == "📊 プレイヤー分析":
                         fig_trend.update_layout(
                             plot_bgcolor='rgba(0,0,0,0)',
                             paper_bgcolor='rgba(0,0,0,0)',
-                            # rangeを[50, 0]に設定することで左右を反転表示
-                            xaxis=dict(title="", range=[50, 0], showgrid=True, gridcolor='#444', tickmode='linear', tick0=0, dtick=5, color='gray', fixedrange=True),
-                            yaxis=dict(title="", range=[0, 300], showgrid=True, gridcolor='#444', tickmode='linear', tick0=0, dtick=50, color='gray', fixedrange=True),
+                            xaxis=dict(title="", showgrid=True, gridcolor='#444', tickmode='linear', tick0=1, dtick=5, color='gray'),
+                            yaxis=dict(title="", range=[0, 300], showgrid=True, gridcolor='#444', color='gray'),
                             height=280,
-                            margin=dict(l=10, r=10, t=10, b=10)
+                            margin=dict(l=40, r=20, t=10, b=10)  # l(左余白)とr(右余白)を広げました
                         )
                         st.plotly_chart(fig_trend, use_container_width=True, config={'displayModeBar': False})
                         st.markdown("</div>", unsafe_allow_html=True)
@@ -302,7 +301,7 @@ if app_mode == "📊 プレイヤー分析":
                         fig = go.Figure(data=[go.Pie(
                             labels=[f"{pin_num}番ピン 残存", "その他"], 
                             values=[rate, other_rate], 
-                            hole=.3, # 文字を大きく表示するためドーナツの穴を少し広げる
+                            hole=.0, # 文字を大きく表示するためドーナツの穴を少し広げる
                             marker=dict(colors=['#EF553B', '#555555']) # 赤とグレー
                         )])
                         fig.update_traces(textinfo='none', hoverinfo='label+percent')
