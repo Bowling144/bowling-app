@@ -311,7 +311,7 @@ if app_mode == "📊 プレイヤー分析":
                         fig.add_annotation(text=f"<b>{rate}%</b>", x=0.5, y=0.5, font_size=20, showarrow=False)
                         
                         # グラフの全体サイズを元の2/3（height=80）に縮小して端が切れないようにする
-                        fig.update_layout(margin=dict(l=0, r=0, t=0, b=0), showlegend=False, height=80)
+                        fig.update_layout(margin=dict(l=0, r=0, t=0, b=0), showlegend=False, height=50)
                         return fig
 
                     # --- ボウリングのピン配置に合わせて円グラフを並べる ---
