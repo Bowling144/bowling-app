@@ -243,22 +243,23 @@ if app_mode == "📊 プレイヤー分析":
                         # 古い順に並び替えて折れ線グラフ化
                         chrono_games = list(reversed(player_games[:50]))
                         
-                        # 横軸を「直近の50ゲーム（1, 2, 3...）」のカウントに変更
-                        x_vals = list(range(1, len(chrono_games) + 1))
+                        # 横軸を「〇ゲーム前（50, 49... 1）」のカウントに変更
+                        x_vals = list(range(len(chrono_games), 0, -1))
                         y_vals = [g['score'] for g in chrono_games]
-                        
+
                         # グラフ用のダークコンテナ
                         st.markdown("<div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 15px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333;'>", unsafe_allow_html=True)
                         st.markdown("<div style='color: white; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif;'>SCORE / 50 games</div>", unsafe_allow_html=True)
-                        
+
                         fig_trend = px.line(x=x_vals, y=y_vals, markers=True)
-                        
+
                         # アプリ風にオレンジ色のグラフとダークテーマに設定
                         fig_trend.update_traces(line_color='#ff6600', marker=dict(color='#ff6600', size=6, line=dict(color='white', width=1)))
                         fig_trend.update_layout(
                             plot_bgcolor='rgba(0,0,0,0)',
                             paper_bgcolor='rgba(0,0,0,0)',
-                            xaxis=dict(title="", range=[0, 50], showgrid=True, gridcolor='#444', tickmode='linear', tick0=0, dtick=5, color='gray', fixedrange=True),
+                            # rangeを[50, 0]に設定することで左右を反転表示
+                            xaxis=dict(title="", range=[50, 0], showgrid=True, gridcolor='#444', tickmode='linear', tick0=0, dtick=5, color='gray', fixedrange=True),
                             yaxis=dict(title="", range=[0, 300], showgrid=True, gridcolor='#444', tickmode='linear', tick0=0, dtick=50, color='gray', fixedrange=True),
                             height=280,
                             margin=dict(l=10, r=10, t=10, b=10)
