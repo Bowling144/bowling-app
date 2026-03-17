@@ -274,7 +274,7 @@ if app_mode == "📊 プレイヤー分析":
                 # タブ2：STATS（詳細データ・ピンスタッツ）
                 # ==========================================
                 with tab2:
-                    st.markdown("### <span style='color: #FFD700;'>🎯 SEVEN-TEN カバー率</span>", unsafe_allow_html=True)
+                    st.markdown("### <span style='color: gold;'>🎳 SEVEN-TEN カバー率</span>", unsafe_allow_html=True)
                     c_7, c_10 = st.columns(2)
                     
                     # 7番ピンカバー率（ドーナツチャート）
@@ -389,7 +389,7 @@ if app_mode == "📊 プレイヤー分析":
                         monthly_stats[mk]["rt"] = rt_val
                         
                     # ダーツライブ風 UI描画
-                    st.markdown("### 🎯 TOTAL AWARDS")
+                    st.markdown("### 🎳 TOTAL AWARDS")
                     
                     total_html = f"""
                     <div style="background-color: #1a1a1c; border-top: 2px solid #333; border-bottom: 2px solid #333; padding: 15px; margin-bottom: 30px;">
