@@ -261,7 +261,7 @@ if app_mode == "📊 プレイヤー分析":
                             xaxis=dict(title="", showgrid=True, gridcolor='#444', tickmode='linear', tick0=1, dtick=5, color='gray'),
                             yaxis=dict(title="", range=[0, 300], showgrid=True, gridcolor='#444', color='gray'),
                             height=280,
-                            margin=dict(l=40, r=20, t=10, b=10)  # l(左余白)とr(右余白)を広げました
+                            margin=dict(l=10, r=10, t=10, b=10)
                         )
                         st.plotly_chart(fig_trend, use_container_width=True, config={'displayModeBar': False})
                         st.markdown("</div>", unsafe_allow_html=True)
