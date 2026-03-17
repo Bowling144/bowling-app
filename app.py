@@ -274,7 +274,7 @@ if app_mode == "📊 プレイヤー分析":
                 # タブ2：STATS（詳細データ・ピンスタッツ）
                 # ==========================================
                 with tab2:
-                    st.markdown("### 🎳 SEVEN-TEN カバー率")
+                    st.markdown("### <span style='color: #FFD700;'>🎯 SEVEN-TEN カバー率</span>", unsafe_allow_html=True)
                     c_7, c_10 = st.columns(2)
                     
                     # 7番ピンカバー率（ドーナツチャート）
