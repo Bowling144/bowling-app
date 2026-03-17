@@ -291,7 +291,7 @@ if app_mode == "📊 プレイヤー分析":
                     fig_10.add_annotation(text=f"{rate_10}%", x=0.5, y=0.5, font_size=20, showarrow=False)
                     c_10.plotly_chart(fig_10, use_container_width=True, config={'displayModeBar': False})
 
-                    st.markdown("### 🎳 1投目 ピン別残存率")
+                    st.markdown("### <span style='color: silver;'>🎳 1投目 残ピン率</span>", unsafe_allow_html=True)
                     # 1〜10番ピンの残存率を取得して棒グラフ化
                     pins = [str(i) for i in range(1, 11)]
                     rates = [float(p_awards.get(f"⑬{i}番ピン残存率", "0")) for i in range(1, 11)]
