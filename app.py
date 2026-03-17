@@ -293,10 +293,9 @@ if app_mode == "📊 プレイヤー分析":
 
                     st.markdown("### <span style='color: silver;'>🎳 1投目 残ピン率</span>", unsafe_allow_html=True)
                     
-                    # --- 円グラフ（ドーナツ）を描画する内部関数 ---
+                    #--- 円グラフ（ドーナツ）を描画する内部関数 ---
                     def draw_pin_pie(pin_num):
                         # すでにシステムが持っているパーセンテージをそのまま取得
-                        
                         rate = float(p_awards.get(f"⑬{pin_num}番ピン残存率", "0"))
                         other_rate = 100.0 - rate if 100.0 - rate > 0 else 0.0
                         
@@ -311,9 +310,8 @@ if app_mode == "📊 プレイヤー分析":
                         # ピン番号を削除し、パーセンテージの文字サイズを拡大（font_size=20）
                         fig.add_annotation(text=f"<b>{rate}%</b>", x=0.5, y=0.5, font_size=20, showarrow=False)
                         
-                        # グラフの全体サイズを元の2/3（height=80）に縮小して端が切れないようにする
-                        # ★ 余白（lとr）を10に設定し、右端が切れるのを防ぎます
-                        fig.update_layout(margin=dict(l=10, r=10, t=0, b=0), showlegend=False, height=80)
+                        # ★ 左右の余白(lとr)を20に設定し、右端が切れるのを完全に防ぎます
+                        fig.update_layout(margin=dict(l=20, r=20, t=5, b=5), showlegend=False, height=90)
                         return fig
 
                     # --- ボウリングのピン配置に合わせて円グラフを並べる ---
