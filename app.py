@@ -545,7 +545,7 @@ if app_mode == "📊 プレイヤー分析":
                 # 【05】 STATS：連発力スタッツ
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_05_consecutive():
-                    st.markdown("### 🎳 連発力スタッツ")
+                    st.markdown("### <span style='color: silver;'>🎳 連発力スタッツ</span>", unsafe_allow_html=True)
                     c_dbl, c_trk = st.columns(2)
                     rate_double = p_awards.get("⑦ストライク後のストライク", "0.0")
                     rate_turkey = p_awards.get("⑧ダブル後のストライク", "0.0")
@@ -690,7 +690,7 @@ if app_mode == "📊 プレイヤー分析":
                 # 【07】 AWARDS：ハイスコア & レコード
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_07_high_scores():
-                    st.markdown("### 🏅 ハイスコア & レコード")
+                    st.markdown("### <span style='color: silver;'>🏅 ROLLERS RECORD</span>", unsafe_allow_html=True)
                     r_c1, r_c2, r_c3 = st.columns(3)
                     r_c1.metric("最大連続ストライク", f"{p_awards.get('①最大連続ストライク', '0')} 回")
                     r_c2.metric("パーフェクト(300)", f"{p_awards.get('①パーフェクト(300)', '0')} 回")
