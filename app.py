@@ -177,12 +177,11 @@ if app_mode == "📊 プレイヤー分析":
                 dashboard_layout = {
                     "🎳 STATS": [
                         "01_rating_card",
-                        "02_score_trend"
+                        "02_score_trend",
                     ],                    
-                    "🏆 AWARDS": [
-                        "05_consecutive",
+                    "🏆 AWARDS": [                                             
+                        "08_split_make",
                         "07_high_scores",
-                        "08_split_make"
                     ],
                     "📍 MONTHLY": [
                         "06_total_monthly",
@@ -190,7 +189,7 @@ if app_mode == "📊 プレイヤー分析":
                     "📊 ANALYSIS": [
                         "04_first_pitch_pins",
                         "03_seven_ten",                        
-                        
+                        "05_consecutive",
                     ],
                     "🎳 7-10GAME": [
                         "13_seven_ten_game"
