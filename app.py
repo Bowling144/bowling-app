@@ -501,16 +501,16 @@ if app_mode == "📊 プレイヤー分析":
                         fig = go.Figure(data=[go.Pie(
                             labels=[f"{pin_num}番ピン 残存", "その他"], 
                             values=[rate, other_rate], 
-                            hole=.0, # 文字を大きく表示するためドーナツの穴を少し広げる
-                            marker=dict(colors=['#EF553B', '#555555']) # 赤とグレー
+                            hole=.0, 
+                            marker=dict(colors=['#EF553B', '#555555']) 
                         )])
                         fig.update_traces(textinfo='none', hoverinfo='label+percent')
                         
-                        # ピン番号を削除し、パーセンテージの文字サイズを拡大（font_size=20）
-                        fig.add_annotation(text=f"<b>{rate}%</b>", x=0.5, y=0.5, font_size=20, showarrow=False)
+                        # ★スマホ幅に合わせて文字サイズを20から16へ調整
+                        fig.add_annotation(text=f"<b>{rate}%</b>", x=0.5, y=0.5, font_size=16, showarrow=False)
                         
-                        # ★ 左右の余白(lとr)を20に設定し、右端が切れるのを完全に防ぎます
-                        fig.update_layout(margin=dict(l=20, r=20, t=5, b=5), showlegend=False, height=90)
+                        # ★左右の余白(lとr)を0に設定し、描画領域を最大化して見切れを防ぐ
+                        fig.update_layout(margin=dict(l=0, r=0, t=0, b=0), showlegend=False, height=80)
                         return fig
 
                     # --- ボウリングのピン配置に合わせて円グラフを並べる ---
