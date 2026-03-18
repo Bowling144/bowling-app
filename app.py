@@ -175,27 +175,22 @@ if app_mode == "📊 プレイヤー分析":
                 # 順番を上下に入れ替えるだけで、画面の表示順が自動的に変わります。
                 # タブの名前（"🏠 HOME"など）も自由に変更・追加・削除可能です。
                 dashboard_layout = {
-                    "🏠 HOME": [
+                    "🎳 STATS": [
                         "01_rating_card",
                         "02_score_trend"
                     ],
-                    "📊 STATS": [
-                        "03_seven_ten",
-                        "04_first_pitch_pins",
-                        "05_consecutive"
-                    ],
+                    
                     "🏆 AWARDS": [
                         "06_total_monthly",
                         "07_high_scores",
                         "08_split_make"
                     ],
-                    "🌍 ENVIRONMENT": [
-                        "09_play_style",
-                        "10_oil_length",
-                        "11_oil_volume",
-                        "12_lane_data"
+                    "📊 ANALYSIS": [
+                        "04_first_pitch_pins",
+                        "03_seven_ten",                        
+                        "05_consecutive"
                     ],
-                    "🎳 7-10G": [
+                    "🎳 7-10GAME": [
                         "13_seven_ten_game"
                     ]
                 }
