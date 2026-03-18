@@ -490,7 +490,7 @@ if app_mode == "📊 プレイヤー分析":
                 # 【04】 STATS：1投目 残ピン率
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_04_first_pitch_pins():
-                    st.markdown("### <span style='color: silver;'>🎳 1投目 残ピン率</span>", unsafe_allow_html=True)
+                    st.markdown("### <span style='color: silver;'>🎳 一投目　残ピン率</span>", unsafe_allow_html=True)
                     
                     #--- 円グラフ（ドーナツ）を描画する内部関数 ---
                     def draw_pin_pie(pin_num):
@@ -506,11 +506,12 @@ if app_mode == "📊 プレイヤー分析":
                         )])
                         fig.update_traces(textinfo='none', hoverinfo='label+percent')
                         
-                        # ★スマホ幅に合わせて文字サイズを20から16へ調整
-                        fig.add_annotation(text=f"<b>{rate}%</b>", x=0.5, y=0.5, font_size=16, showarrow=False)
+                        # ★小さな円に収まるよう文字サイズを最適化
+                        fig.add_annotation(text=f"<b>{rate}%</b>", x=0.5, y=0.5, font_size=13, showarrow=False)
                         
-                        # ★左右の余白(lとr)を0に設定し、描画領域を最大化して見切れを防ぐ
-                        fig.update_layout(margin=dict(l=0, r=0, t=0, b=0), showlegend=False, height=80)
+                        # ★スマホの極狭い幅（約70px）でも円が枠をオーバーしないよう、高さを60に制限
+                        # ★わずかな余白(2px)を持たせて円周の切れを完全に防止
+                        fig.update_layout(margin=dict(l=2, r=2, t=2, b=2), showlegend=False, height=60)
                         return fig
 
                     # --- ボウリングのピン配置に合わせて円グラフを並べる ---
@@ -539,7 +540,6 @@ if app_mode == "📊 プレイヤー分析":
                     with r4[1]: st.plotly_chart(draw_pin_pie(1), use_container_width=True, config={'displayModeBar': False})
 
                     st.markdown("<div style='text-align: center; color: gray; font-size: 12px; margin-top: 10px;'>▲ 手前 ▲</div>", unsafe_allow_html=True)
-
 
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 # 【05】 STATS：連発力スタッツ
