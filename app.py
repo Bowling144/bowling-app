@@ -705,7 +705,7 @@ if app_mode == "📊 プレイヤー分析":
                 # 【08】 AWARDS：スプリット・メイク
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_08_split_make():
-                    st.markdown("### 🎳 スプリット・メイク")
+                    st.markdown("### <span style='color: silver;'>🎳 SPRIT DATA</span>", unsafe_allow_html=True)
                     split_records = []
                     for row in award_data:
                         if len(row) >= 7 and row[1] == selected_player and "⑥" in row[3]:
@@ -725,7 +725,7 @@ if app_mode == "📊 プレイヤー分析":
                 # 【09】 ENVIRONMENT：投球方式 適性
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_09_play_style():
-                    st.markdown("### 🎳 投球方式 適性")
+                    st.markdown("### <span style='color: silver;'>🎳 投球方式 適性</span>", unsafe_allow_html=True)
                     euro_ave = float(p_awards.get("⑨1レーン", "0"))
                     am_ave = float(p_awards.get("⑨2レーン", "0"))
                     fig_style = px.bar(
@@ -744,7 +744,7 @@ if app_mode == "📊 プレイヤー分析":
                 # 【10】 ENVIRONMENT：オイル長 適性
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_10_oil_length():
-                    st.markdown("### 📏 オイル長 (Length) 適性")
+                    st.markdown("### <span style='color: silver;'>📏 オイル長 (Length) 適性</span>", unsafe_allow_html=True)
                     len_keys, len_aves = [], []
                     for row in award_data:
                         if len(row) >= 7 and row[1] == selected_player and "⑪" in row[3]:
@@ -767,7 +767,7 @@ if app_mode == "📊 プレイヤー分析":
                 # 【11】 ENVIRONMENT：オイル量 適性
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_11_oil_volume():
-                    st.markdown("### 💧 オイル量 (Volume) 適性")
+                    st.markdown("### <span style='color: silver;'>💧 オイル量 (Volume) 適性</span>", unsafe_allow_html=True)
                     vol_keys, vol_aves = [], []
                     for row in award_data:
                         if len(row) >= 7 and row[1] == selected_player and "⑫" in row[3]:
@@ -790,7 +790,7 @@ if app_mode == "📊 プレイヤー分析":
                 # 【12】 ENVIRONMENT：レーン毎データ
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_12_lane_data():
-                    st.markdown("### 🎳 レーン毎データ")
+                    st.markdown("### <span style='color: silver;'>🎳 レーン毎データ</span>", unsafe_allow_html=True)
                     lane_keys, lane_aves = [], []
                     for row in award_data:
                         if len(row) >= 7 and row[1] == selected_player and "⑩" in row[3]:
@@ -813,7 +813,7 @@ if app_mode == "📊 プレイヤー分析":
                 # 【13】 7-10G：7-10 GAME 分析
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_13_seven_ten_game():
-                    st.markdown("### 🎯 7-10 GAME 分析")
+                    st.markdown("### <span style='color: silver;'>🎯 7-10 GAME 分析</span>", unsafe_allow_html=True)
                     if not player_710_rows:
                         st.info("7-10 GAME のプレイデータがありません。")
                     else:
