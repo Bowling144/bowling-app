@@ -168,12 +168,47 @@ if app_mode == "📊 プレイヤー分析":
                 except Exception:
                     p_awards = {}
 
-                tab1, tab2, tab3, tab4, tab5 = st.tabs(["🏠 HOME", "📊 STATS", "🏆 AWARDS", "🌍 ENVIRONMENT", "🎳 7-10G"])
+                # =========================================================
+                # ▼▼▼ ダッシュボード表示レイアウト設定 ▼▼▼
+                # =========================================================
+                # ここのリスト内の項目名（"01_rating_card"など）を別のタブに移動させたり、
+                # 順番を上下に入れ替えるだけで、画面の表示順が自動的に変わります。
+                # タブの名前（"🏠 HOME"など）も自由に変更・追加・削除可能です。
+                dashboard_layout = {
+                    "🏠 HOME": [
+                        "01_rating_card",
+                        "02_score_trend"
+                    ],
+                    "📊 STATS": [
+                        "03_seven_ten",
+                        "04_first_pitch_pins",
+                        "05_consecutive"
+                    ],
+                    "🏆 AWARDS": [
+                        "06_total_monthly",
+                        "07_high_scores",
+                        "08_split_make"
+                    ],
+                    "🌍 ENVIRONMENT": [
+                        "09_play_style",
+                        "10_oil_length",
+                        "11_oil_volume",
+                        "12_lane_data"
+                    ],
+                    "🎳 7-10G": [
+                        "13_seven_ten_game"
+                    ]
+                }
 
-# ==========================================
-                # タブ1：HOME（総合ステータスとスコア推移）
-                # ==========================================
-                with tab1:
+                # =========================================================
+                # ▼▼▼ 各分析項目のコード本体 ▼▼▼
+                # （各項目の見た目やロジックは一切変更していません）
+                # =========================================================
+
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                # 【01】 HOME：レーティングバッジ・ステータス
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                def render_01_rating_card():
                     # ストライク率・スペア率の取得
                     st_rate = p_awards.get("②1投目ストライク率", "0.0")
                     sp_rate = p_awards.get("③2投目スペア率", "0.0")
@@ -239,6 +274,11 @@ if app_mode == "📊 プレイヤー分析":
 """
                     st.markdown(html_card, unsafe_allow_html=True)
 
+
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                # 【02】 HOME：スコア推移グラフ
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                def render_02_score_trend():
                     if player_games:
                         # 古い順に並び替えて折れ線グラフ化
                         chrono_games = list(reversed(player_games[:50]))
@@ -269,11 +309,11 @@ if app_mode == "📊 プレイヤー分析":
                     else:
                         st.info("データがありません。")
 
-                
-                # ==========================================
-                # タブ2：STATS（詳細データ・ピンスタッツ）
-                # ==========================================
-                with tab2:
+
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                # 【03】 STATS：SEVEN-TEN カバー率
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                def render_03_seven_ten():
                     st.markdown("### <span style='color: silver;'>🎳 SEVEN-TEN カバー率</span>", unsafe_allow_html=True)
                     c_7, c_10 = st.columns(2)
                     
@@ -291,6 +331,11 @@ if app_mode == "📊 プレイヤー分析":
                     fig_10.add_annotation(text=f"{rate_10}%", x=0.5, y=0.5, font_size=20, showarrow=False)
                     c_10.plotly_chart(fig_10, use_container_width=True, config={'displayModeBar': False})
 
+
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                # 【04】 STATS：1投目 残ピン率
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                def render_04_first_pitch_pins():
                     st.markdown("### <span style='color: silver;'>🎳 1投目 残ピン率</span>", unsafe_allow_html=True)
                     
                     #--- 円グラフ（ドーナツ）を描画する内部関数 ---
@@ -341,16 +386,23 @@ if app_mode == "📊 プレイヤー分析":
 
                     st.markdown("<div style='text-align: center; color: gray; font-size: 12px; margin-top: 10px;'>▲ 手前 ▲</div>", unsafe_allow_html=True)
 
+
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                # 【05】 STATS：連発力スタッツ
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                def render_05_consecutive():
                     st.markdown("### 🎳 連発力スタッツ")
                     c_dbl, c_trk = st.columns(2)
                     rate_double = p_awards.get("⑦ストライク後のストライク", "0.0")
                     rate_turkey = p_awards.get("⑧ダブル後のストライク", "0.0")
                     c_dbl.metric("ダブル率 (ストライク後)", f"{rate_double} %")
                     c_trk.metric("ターキー率 (ダブル後)", f"{rate_turkey} %")
-                # ==========================================
-                # タブ3：AWARDS（称号・記録・スプリット）
-                # ==========================================
-                with tab3:
+
+
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                # 【06】 AWARDS：TOTAL & MONTHLY AWARDS
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                def render_06_total_monthly():
                     # --- 🎯 新機能：ダーツライブ風 トータル＆月別アワード集計 ---
                     player_full_games = []
                     for r in master_data[1:]:
@@ -479,7 +531,11 @@ if app_mode == "📊 プレイヤー分析":
                         
                     st.markdown("<br>", unsafe_allow_html=True)
 
-                    # --- 既存の「ハイスコア & レコード」「スプリット」を残す ---
+
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                # 【07】 AWARDS：ハイスコア & レコード
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                def render_07_high_scores():
                     st.markdown("### 🏅 ハイスコア & レコード")
                     r_c1, r_c2, r_c3 = st.columns(3)
                     r_c1.metric("最大連続ストライク", f"{p_awards.get('①最大連続ストライク', '0')} 回")
@@ -490,6 +546,11 @@ if app_mode == "📊 プレイヤー分析":
                     r_c4.metric("220オーバー", f"{p_awards.get('①220オーバー', '0')} 回")
                     r_c5.metric("200オーバー", f"{p_awards.get('①200オーバー', '0')} 回")
 
+
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                # 【08】 AWARDS：スプリット・メイク
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                def render_08_split_make():
                     st.markdown("### 🎳 スプリット・メイク")
                     split_records = []
                     for row in award_data:
@@ -504,10 +565,12 @@ if app_mode == "📊 プレイヤー分析":
                         st.dataframe(split_records, use_container_width=True, hide_index=True)
                     else:
                         st.info("スプリットの記録がありません。")
-                # ==========================================
-                # タブ4：ENVIRONMENT（環境・レーン適性）
-                # ==========================================
-                with tab4:
+
+
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                # 【09】 ENVIRONMENT：投球方式 適性
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                def render_09_play_style():
                     st.markdown("### 🎳 投球方式 適性")
                     euro_ave = float(p_awards.get("⑨1レーン", "0"))
                     am_ave = float(p_awards.get("⑨2レーン", "0"))
@@ -522,6 +585,11 @@ if app_mode == "📊 プレイヤー分析":
                     fig_style.update_layout(height=300, margin=dict(t=10, b=10, l=10, r=10), yaxis=dict(range=[0, max(euro_ave, am_ave, 150) * 1.2]))
                     st.plotly_chart(fig_style, use_container_width=True)
 
+
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                # 【10】 ENVIRONMENT：オイル長 適性
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                def render_10_oil_length():
                     st.markdown("### 📏 オイル長 (Length) 適性")
                     len_keys, len_aves = [], []
                     for row in award_data:
@@ -540,6 +608,11 @@ if app_mode == "📊 プレイヤー分析":
                     else:
                         st.info("オイル長のプレイデータがありません。")
 
+
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                # 【11】 ENVIRONMENT：オイル量 適性
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                def render_11_oil_volume():
                     st.markdown("### 💧 オイル量 (Volume) 適性")
                     vol_keys, vol_aves = [], []
                     for row in award_data:
@@ -557,7 +630,12 @@ if app_mode == "📊 プレイヤー分析":
                         st.plotly_chart(fig_vol, use_container_width=True)
                     else:
                         st.info("オイル量のプレイデータがありません。")
-                        
+
+
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                # 【12】 ENVIRONMENT：レーン毎データ
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                def render_12_lane_data():
                     st.markdown("### 🎳 レーン毎データ")
                     lane_keys, lane_aves = [], []
                     for row in award_data:
@@ -577,11 +655,10 @@ if app_mode == "📊 プレイヤー分析":
                         st.info("レーン番号のプレイデータがありません。")
 
 
-
-                # ==========================================
-                # タブ5：7-10 GAME（特別ルールゲーム分析）
-                # ==========================================
-                with tab5:
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                # 【13】 7-10G：7-10 GAME 分析
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                def render_13_seven_ten_game():
                     st.markdown("### 🎯 7-10 GAME 分析")
                     if not player_710_rows:
                         st.info("7-10 GAME のプレイデータがありません。")
@@ -686,6 +763,40 @@ if app_mode == "📊 プレイヤー分析":
                         ⑪ MINI_3：過去の7-10 GAMEで3番目に低かったスコア（ワースト3位）
                         </div>
                         """, unsafe_allow_html=True)
+
+
+                # =========================================================
+                # ▼▼▼ 設定に従って画面を描画する処理（ここは変更不要） ▼▼▼
+                # =========================================================
+                
+                # 全関数を辞書に登録
+                render_functions = {
+                    "01_rating_card": render_01_rating_card,
+                    "02_score_trend": render_02_score_trend,
+                    "03_seven_ten": render_03_seven_ten,
+                    "04_first_pitch_pins": render_04_first_pitch_pins,
+                    "05_consecutive": render_05_consecutive,
+                    "06_total_monthly": render_06_total_monthly,
+                    "07_high_scores": render_07_high_scores,
+                    "08_split_make": render_08_split_make,
+                    "09_play_style": render_09_play_style,
+                    "10_oil_length": render_10_oil_length,
+                    "11_oil_volume": render_11_oil_volume,
+                    "12_lane_data": render_12_lane_data,
+                    "13_seven_ten_game": render_13_seven_ten_game
+                }
+
+                # レイアウト辞書のキー（タブ名）からタブを生成
+                tab_titles = list(dashboard_layout.keys())
+                tabs = st.tabs(tab_titles)
+                
+                # 各タブの中に、指定された順序で関数を呼び出して描画
+                for i, tab_title in enumerate(tab_titles):
+                    with tabs[i]:
+                        for item_key in dashboard_layout[tab_title]:
+                            if item_key in render_functions:
+                                render_functions[item_key]()
+
         except Exception as e:
             st.error(f"データ取得エラー: {e}")
 
