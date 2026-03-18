@@ -773,32 +773,78 @@ if app_mode == "📊 プレイヤー分析":
 
                         # 画面表示用のHTML（ダークコンテナUI）
                         html = f"""
-                        <div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333;'>
+                        <div style="background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333; margin-bottom: 20px;">
                             <div style='color: silver; font-weight: 900; margin-bottom: 20px; font-size: 16px; font-family: Arial, sans-serif; text-align: center;'>ROLLERS RECORD</div>
+
+                            <div style="color: #bf953f; font-weight: 900; font-size: 16px; letter-spacing: 1px; margin-bottom: 12px; border-bottom: 2px solid #444; padding-bottom: 6px; display: flex; align-items: center;">
+                                <span style="font-size: 20px; margin-right: 8px;">🎯</span> TOTAL SCORE ACHIEVEMENTS
+                            </div>
                             
-                            <div style='color: #bf953f; font-weight: bold; font-size: 15px; margin-top: 10px; margin-bottom: 8px; border-bottom: 1px solid #444; padding-bottom: 4px;'>🎯 トータルスコア</div>
-                            <div style='color: white; font-size: 14px; line-height: 1.8; margin-left: 10px;'>
-                                ・100UP → {score_100}回 / {fmt_pct(score_100, total_g)}％<br>
-                                ・150UP → {score_150}回 / {fmt_pct(score_150, total_g)}％<br>
-                                ・200UP → {score_200}回 / {fmt_pct(score_200, total_g)}％<br>
-                                ・225UP → {score_225}回 / {fmt_pct(score_225, total_g)}％<br>
-                                ・250UP → {score_250}回 / {fmt_pct(score_250, total_g)}％<br>
-                                ・275UP → {score_275}回 / {fmt_pct(score_275, total_g)}％<br>
-                                ・PERFECT300 → {score_300}回 / {fmt_pct(score_300, total_g)}％
+                            <div style="margin-left: 5px; margin-bottom: 25px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 6px 0;">
+                                    <span style="color: silver; font-size: 14px; font-weight: bold;">100 UP</span>
+                                    <span style="color: white; font-size: 14px;"><span style="color: #ff6600; font-weight: bold; font-size: 16px;">{score_100}</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">({fmt_pct(score_100, total_g)}％)</span></span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 6px 0;">
+                                    <span style="color: silver; font-size: 14px; font-weight: bold;">150 UP</span>
+                                    <span style="color: white; font-size: 14px;"><span style="color: #ff6600; font-weight: bold; font-size: 16px;">{score_150}</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">({fmt_pct(score_150, total_g)}％)</span></span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 6px 0;">
+                                    <span style="color: silver; font-size: 14px; font-weight: bold;">200 UP</span>
+                                    <span style="color: white; font-size: 14px;"><span style="color: #ff6600; font-weight: bold; font-size: 16px;">{score_200}</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">({fmt_pct(score_200, total_g)}％)</span></span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 6px 0;">
+                                    <span style="color: silver; font-size: 14px; font-weight: bold;">225 UP</span>
+                                    <span style="color: white; font-size: 14px;"><span style="color: #ff6600; font-weight: bold; font-size: 16px;">{score_225}</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">({fmt_pct(score_225, total_g)}％)</span></span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 6px 0;">
+                                    <span style="color: silver; font-size: 14px; font-weight: bold;">250 UP</span>
+                                    <span style="color: white; font-size: 14px;"><span style="color: #ff6600; font-weight: bold; font-size: 16px;">{score_250}</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">({fmt_pct(score_250, total_g)}％)</span></span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 6px 0;">
+                                    <span style="color: silver; font-size: 14px; font-weight: bold;">275 UP</span>
+                                    <span style="color: white; font-size: 14px;"><span style="color: #ff6600; font-weight: bold; font-size: 16px;">{score_275}</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">({fmt_pct(score_275, total_g)}％)</span></span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0;">
+                                    <span style="color: #ff3b30; font-size: 14px; font-weight: bold;">PERFECT 300</span>
+                                    <span style="color: white; font-size: 14px;"><span style="color: #ff6600; font-weight: bold; font-size: 16px;">{score_300}</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">({fmt_pct(score_300, total_g)}％)</span></span>
+                                </div>
                             </div>
 
-                            <div style='color: #bf953f; font-weight: bold; font-size: 15px; margin-top: 25px; margin-bottom: 8px; border-bottom: 1px solid #444; padding-bottom: 4px;'>🔥 連続ストライク数</div>
-                            <div style='color: white; font-size: 14px; line-height: 1.8; margin-left: 10px;'>
+                            <div style="color: #bf953f; font-weight: 900; font-size: 16px; letter-spacing: 1px; margin-bottom: 12px; border-bottom: 2px solid #444; padding-bottom: 6px; display: flex; align-items: center;">
+                                <span style="font-size: 20px; margin-right: 8px;">🔥</span> CONSECUTIVE STRIKES
+                            </div>
+                            
+                            <div style="margin-left: 5px; margin-bottom: 25px;">
                         """
+                        
                         for i in range(2, 14):
                             cnt = len([l for l in strike_lengths if l >= i])
-                            html += f"        ・連続ストライク{i}回 → {cnt}回 / {fmt_pct(cnt, strike_base)}％<br>\n"
-                        
-                        html += f"""    </div>
+                            label_str = ""
+                            if i == 2: label_str = " (DOUBLE)"
+                            elif i == 3: label_str = " (TURKEY)"
+                            elif i == 12: label_str = " (PERFECT)"
+                            
+                            border_style = "border-bottom: 1px dashed #444;" if i < 13 else ""
+                            
+                            html += f"""
+                                <div style="display: flex; justify-content: space-between; align-items: center; {border_style} padding: 6px 0;">
+                                    <span style="color: silver; font-size: 14px; font-weight: bold;">連続 {i}回{label_str}</span>
+                                    <span style="color: white; font-size: 14px;"><span style="color: #4285f4; font-weight: bold; font-size: 16px;">{cnt}</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">({fmt_pct(cnt, strike_base)}％)</span></span>
+                                </div>
+                            """
 
-                            <div style='color: #bf953f; font-weight: bold; font-size: 15px; margin-top: 25px; margin-bottom: 8px; border-bottom: 1px solid #444; padding-bottom: 4px;'>✨ ノーミスゲーム数とゲーム率</div>
-                            <div style='color: white; font-size: 14px; line-height: 1.8; margin-left: 10px;'>
-                                ・ノーミスゲーム → {nomiss_count}回 / {fmt_pct(nomiss_count, total_g)}％
+                        html += f"""
+                            </div>
+                            
+                            <div style="color: #bf953f; font-weight: 900; font-size: 16px; letter-spacing: 1px; margin-bottom: 12px; border-bottom: 2px solid #444; padding-bottom: 6px; display: flex; align-items: center;">
+                                <span style="font-size: 20px; margin-right: 8px;">✨</span> NO-MISS GAMES
+                            </div>
+                            <div style="margin-left: 5px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0;">
+                                    <span style="color: silver; font-size: 14px; font-weight: bold;">ノーミスゲーム</span>
+                                    <span style="color: white; font-size: 14px;"><span style="color: #34a853; font-weight: bold; font-size: 16px;">{nomiss_count}</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">({fmt_pct(nomiss_count, total_g)}％)</span></span>
+                                </div>
                             </div>
                         </div>
                         """
