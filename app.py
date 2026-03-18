@@ -686,123 +686,96 @@ if app_mode == "📊 プレイヤー分析":
                     st.markdown("<br>", unsafe_allow_html=True)
 
 
-                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-                # 【07】 AWARDS：ハイスコア & レコード (ROLLERS RECORD)
-                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-                def render_07_high_scores():
-                    if player_games:
-                        total_g = len(player_games)
-                        score_100 = score_150 = score_200 = score_225 = score_250 = score_275 = score_300 = 0
-                        strike_lengths = []
-                        nomiss_count = 0
-
-                        for g in player_games:
-                            score = g['score']
-                            if score >= 100: score_100 += 1
-                            if score >= 150: score_150 += 1
-                            if score >= 200: score_200 += 1
-                            if score >= 225: score_225 += 1
-                            if score >= 250: score_250 += 1
-                            if score >= 275: score_275 += 1
-                            if score == 300: score_300 += 1
-
-                            r = g['row']
-                            
-                            # ▼ ノーミス判定 (オープンフレームがないかチェック)
-                            is_nomiss = True
-                            for f in range(9):
-                                t1 = str(r[10+f*4]).strip().upper()
-                                t2 = str(r[12+f*4]).strip().upper()
-                                if 'X' not in t1 and '/' not in t2:
-                                    is_nomiss = False
-                                    break
-                            if is_nomiss:
-                                t10_1 = str(r[46]).strip().upper() if len(r) > 46 else ""
-                                t10_2 = str(r[48]).strip().upper() if len(r) > 48 else ""
-                                if 'X' not in t10_1 and '/' not in t10_2:
-                                    is_nomiss = False
-                            if is_nomiss:
-                                nomiss_count += 1
-                                
-                            # ▼ 連続ストライク判定
-                            seq_len = 0
-                            # 1〜9フレーム
-                            for f in range(9):
-                                t1 = str(r[10+f*4]).strip().upper()
-                                if 'X' in t1:
-                                    seq_len += 1
-                                else:
-                                    if seq_len > 0:
-                                        strike_lengths.append(seq_len)
-                                        seq_len = 0
-                            # 10フレーム
-                            t10_1 = str(r[46]).strip().upper() if len(r) > 46 else ""
-                            t10_2 = str(r[48]).strip().upper() if len(r) > 48 else ""
-                            t10_3 = str(r[50]).strip().upper() if len(r) > 50 else ""
-
-                            if 'X' in t10_1:
-                                seq_len += 1
-                                if 'X' in t10_2:
-                                    seq_len += 1
-                                    if 'X' in t10_3:
-                                        seq_len += 1
-                                    else:
-                                        if seq_len > 0:
-                                            strike_lengths.append(seq_len)
-                                            seq_len = 0
-                                else:
-                                    if seq_len > 0:
-                                        strike_lengths.append(seq_len)
-                                        seq_len = 0
-                            else:
-                                if seq_len > 0:
-                                    strike_lengths.append(seq_len)
-                                    seq_len = 0
-
-                            if seq_len > 0:
-                                strike_lengths.append(seq_len)
-
-                        # ストライクが発生した回数（群の数）を母数とする
-                        strike_base = len(strike_lengths)
-
-                        # パーセンテージ計算用の内部関数
-                        def fmt_pct(count, base):
-                            return f"{(count/base*100):.1f}" if base > 0 else "0.0"
-
-                        # 画面表示用のHTML（ダークコンテナUI）
-                        html = f"""
-                        <div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333;'>
-                            <div style='color: silver; font-weight: 900; margin-bottom: 20px; font-size: 16px; font-family: Arial, sans-serif; text-align: center;'>ROLLERS RECORD</div>
-                            
-                            <div style='color: #bf953f; font-weight: bold; font-size: 15px; margin-top: 10px; margin-bottom: 8px; border-bottom: 1px solid #444; padding-bottom: 4px;'>🎯 トータルスコア</div>
-                            <div style='color: white; font-size: 14px; line-height: 1.8; margin-left: 10px;'>
-                                ・100UP → {score_100}回 / {fmt_pct(score_100, total_g)}％<br>
-                                ・150UP → {score_150}回 / {fmt_pct(score_150, total_g)}％<br>
-                                ・200UP → {score_200}回 / {fmt_pct(score_200, total_g)}％<br>
-                                ・225UP → {score_225}回 / {fmt_pct(score_225, total_g)}％<br>
-                                ・250UP → {score_250}回 / {fmt_pct(score_250, total_g)}％<br>
-                                ・275UP → {score_275}回 / {fmt_pct(score_275, total_g)}％<br>
-                                ・PERFECT300 → {score_300}回 / {fmt_pct(score_300, total_g)}％
-                            </div>
-
-                            <div style='color: #bf953f; font-weight: bold; font-size: 15px; margin-top: 25px; margin-bottom: 8px; border-bottom: 1px solid #444; padding-bottom: 4px;'>🔥 連続ストライク数</div>
-                            <div style='color: white; font-size: 14px; line-height: 1.8; margin-left: 10px;'>
-                        """
-                        for i in range(2, 14):
-                            cnt = len([l for l in strike_lengths if l >= i])
-                            html += f"        ・連続ストライク{i}回 → {cnt}回 / {fmt_pct(cnt, strike_base)}％<br>\n"
+                st.markdown("""
+                    <div style="background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333; margin-bottom: 20px;">
                         
-                        html += f"""    </div>
-
-                            <div style='color: #bf953f; font-weight: bold; font-size: 15px; margin-top: 25px; margin-bottom: 8px; border-bottom: 1px solid #444; padding-bottom: 4px;'>✨ ノーミスゲーム数とゲーム率</div>
-                            <div style='color: white; font-size: 14px; line-height: 1.8; margin-left: 10px;'>
-                                ・ノーミスゲーム → {nomiss_count}回 / {fmt_pct(nomiss_count, total_g)}％
+                        <div style="color: #bf953f; font-weight: 900; font-size: 16px; letter-spacing: 1px; margin-bottom: 12px; border-bottom: 2px solid #444; padding-bottom: 6px; display: flex; align-items: center;">
+                            <span style="font-size: 20px; margin-right: 8px;">🎯</span> TOTAL SCORE ACHIEVEMENTS
+                        </div>
+                        
+                        <div style="margin-left: 5px; margin-bottom: 25px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 6px 0;">
+                                <span style="color: silver; font-size: 14px; font-weight: bold;">100 UP</span>
+                                <span style="color: white; font-size: 14px;"><span style="color: #ff6600; font-weight: bold; font-size: 16px;">120</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">(100.0％)</span></span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 6px 0;">
+                                <span style="color: silver; font-size: 14px; font-weight: bold;">150 UP</span>
+                                <span style="color: white; font-size: 14px;"><span style="color: #ff6600; font-weight: bold; font-size: 16px;">102</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">(85.0％)</span></span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 6px 0;">
+                                <span style="color: silver; font-size: 14px; font-weight: bold;">200 UP</span>
+                                <span style="color: white; font-size: 14px;"><span style="color: #ff6600; font-weight: bold; font-size: 16px;">18</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">(15.0％)</span></span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 6px 0;">
+                                <span style="color: silver; font-size: 14px; font-weight: bold;">225 UP</span>
+                                <span style="color: white; font-size: 14px;"><span style="color: #ff6600; font-weight: bold; font-size: 16px;">5</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">(4.2％)</span></span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 6px 0;">
+                                <span style="color: silver; font-size: 14px; font-weight: bold;">250 UP</span>
+                                <span style="color: white; font-size: 14px;"><span style="color: #ff6600; font-weight: bold; font-size: 16px;">0</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">(0.0％)</span></span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 6px 0;">
+                                <span style="color: silver; font-size: 14px; font-weight: bold;">275 UP</span>
+                                <span style="color: white; font-size: 14px;"><span style="color: #ff6600; font-weight: bold; font-size: 16px;">0</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">(0.0％)</span></span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0;">
+                                <span style="color: #ff3b30; font-size: 14px; font-weight: bold;">PERFECT 300</span>
+                                <span style="color: white; font-size: 14px;"><span style="color: #ff6600; font-weight: bold; font-size: 16px;">0</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">(0.0％)</span></span>
                             </div>
                         </div>
-                        """
-                        st.markdown(html, unsafe_allow_html=True)
-                    else:
-                        st.info("データがありません。")
+
+                        <div style="color: #bf953f; font-weight: 900; font-size: 16px; letter-spacing: 1px; margin-bottom: 12px; border-bottom: 2px solid #444; padding-bottom: 6px; display: flex; align-items: center;">
+                            <span style="font-size: 20px; margin-right: 8px;">🔥</span> CONSECUTIVE STRIKES
+                        </div>
+                        
+                        <div style="margin-left: 5px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 6px 0;">
+                                <span style="color: silver; font-size: 14px; font-weight: bold;">連続 2回 (DOUBLE)</span>
+                                <span style="color: white; font-size: 14px;"><span style="color: #4285f4; font-weight: bold; font-size: 16px;">102</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">(37.2％)</span></span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 6px 0;">
+                                <span style="color: silver; font-size: 14px; font-weight: bold;">連続 3回 (TURKEY)</span>
+                                <span style="color: white; font-size: 14px;"><span style="color: #4285f4; font-weight: bold; font-size: 16px;">35</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">(12.8％)</span></span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 6px 0;">
+                                <span style="color: silver; font-size: 14px; font-weight: bold;">連続 4回</span>
+                                <span style="color: white; font-size: 14px;"><span style="color: #4285f4; font-weight: bold; font-size: 16px;">10</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">(3.6％)</span></span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 6px 0;">
+                                <span style="color: silver; font-size: 14px; font-weight: bold;">連続 5回</span>
+                                <span style="color: white; font-size: 14px;"><span style="color: #4285f4; font-weight: bold; font-size: 16px;">5</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">(1.8％)</span></span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 6px 0;">
+                                <span style="color: silver; font-size: 14px; font-weight: bold;">連続 6回</span>
+                                <span style="color: white; font-size: 14px;"><span style="color: #4285f4; font-weight: bold; font-size: 16px;">0</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">(0.0％)</span></span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 6px 0;">
+                                <span style="color: silver; font-size: 14px; font-weight: bold;">連続 7回</span>
+                                <span style="color: white; font-size: 14px;"><span style="color: #4285f4; font-weight: bold; font-size: 16px;">0</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">(0.0％)</span></span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 6px 0;">
+                                <span style="color: silver; font-size: 14px; font-weight: bold;">連続 8回</span>
+                                <span style="color: white; font-size: 14px;"><span style="color: #4285f4; font-weight: bold; font-size: 16px;">0</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">(0.0％)</span></span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 6px 0;">
+                                <span style="color: silver; font-size: 14px; font-weight: bold;">連続 9回</span>
+                                <span style="color: white; font-size: 14px;"><span style="color: #4285f4; font-weight: bold; font-size: 16px;">0</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">(0.0％)</span></span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 6px 0;">
+                                <span style="color: silver; font-size: 14px; font-weight: bold;">連続 10回</span>
+                                <span style="color: white; font-size: 14px;"><span style="color: #4285f4; font-weight: bold; font-size: 16px;">0</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">(0.0％)</span></span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 6px 0;">
+                                <span style="color: silver; font-size: 14px; font-weight: bold;">連続 11回</span>
+                                <span style="color: white; font-size: 14px;"><span style="color: #4285f4; font-weight: bold; font-size: 16px;">0</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">(0.0％)</span></span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0;">
+                                <span style="color: #ff3b30; font-size: 14px; font-weight: bold;">連続 12回 (PERFECT)</span>
+                                <span style="color: white; font-size: 14px;"><span style="color: #4285f4; font-weight: bold; font-size: 16px;">0</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">(0.0％)</span></span>
+                            </div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
 
                 
