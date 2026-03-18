@@ -178,17 +178,19 @@ if app_mode == "📊 プレイヤー分析":
                     "🎳 STATS": [
                         "01_rating_card",
                         "02_score_trend"
-                    ],
-                    
+                    ],                    
                     "🏆 AWARDS": [
-                        "06_total_monthly",
+                        "05_consecutive",
                         "07_high_scores",
                         "08_split_make"
                     ],
+                    "📍 MONTHLY": [
+                        "06_total_monthly",
+                    ]
                     "📊 ANALYSIS": [
                         "04_first_pitch_pins",
                         "03_seven_ten",                        
-                        "05_consecutive"
+                        
                     ],
                     "🎳 7-10GAME": [
                         "13_seven_ten_game"
