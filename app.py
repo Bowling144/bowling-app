@@ -127,6 +127,34 @@ if app_mode == "📊 プレイヤー分析":
             settings_data = sh.worksheet("プレイヤー設定").get_all_values()
             players = [row[1] for row in settings_data[1:] if len(row) >= 2 and row[1]]
 
+            # 先にマスターデータを取得し、全員の現在のレーティングを計算する
+            master_data = sh.worksheet("マスター").get_all_values()
+            
+            player_options = [""]
+            player_name_map = {}
+            
+            for p_name in players:
+                p_games = []
+                for row in master_data[1:]:
+                    if len(row) >= 53 and row[1] == p_name:
+                        is_710_game = (len(row) > 54 and str(row[54]).strip().upper() == "TRUE")
+                        if not is_710_game:
+                            try:
+                                score = int(row[52])
+                                p_games.append({"date": row[2], "time": row[3], "score": score})
+                            except ValueError:
+                                pass
+                p_games.sort(key=lambda x: (x["date"], x["time"]), reverse=True)
+                tmp_recent_50 = [g["score"] for g in p_games[:50]]
+                rt_val, _, _ = calc_rating_flight(tmp_recent_50)
+                
+                # ドロップダウン用の表示名を作成（レーティング数値を付与）
+                rt_str = f"{rt_val:.2f}" if rt_val > 0 else "---"
+                display_name = f"{p_name} (RT: {rt_str})"
+                player_options.append(display_name)
+                # 選択された表示名から、元のプレイヤー名を逆引きできるようにマッピング
+                player_name_map[display_name] = p_name
+
             st.markdown("""
             <style>
             div[data-testid="stSelectbox"] > div > div {
@@ -135,13 +163,15 @@ if app_mode == "📊 プレイヤー分析":
             }
             </style>
             """, unsafe_allow_html=True)
-            selected_player = st.selectbox(" ", [""] + players, label_visibility="collapsed")
+            
+            # 選択肢をレーティング付きの表示名にする
+            selected_display = st.selectbox(" ", player_options, label_visibility="collapsed")
+            selected_player = player_name_map.get(selected_display, "")
 
             if selected_player:
-                # 1. マスターシートから「直近50ゲーム」のスコアを抽出
-                master_data = sh.worksheet("マスター").get_all_values()
+                # 1. マスターシートから選択されたプレイヤーの「直近50ゲーム」と「7-10G」を抽出
                 player_games = []
-                player_710_rows = [] # 7-10G用のデータを分別格納
+                player_710_rows = [] 
                 for row in master_data[1:]:
                     if len(row) >= 53 and row[1] == selected_player:
                         is_710_game = (len(row) > 54 and str(row[54]).strip().upper() == "TRUE")
@@ -157,7 +187,6 @@ if app_mode == "📊 プレイヤー分析":
                 # 日付・時間で降順ソートし、直近50件を抽出
                 player_games.sort(key=lambda x: (x["date"], x["time"]), reverse=True)
                 recent_50 = [g["score"] for g in player_games[:50]]
-
                 # 2. レーティング計算
                 rt, flight, ave = calc_rating_flight(recent_50)
 
