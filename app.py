@@ -180,8 +180,8 @@ if app_mode == "📊 プレイヤー分析":
                         "02_score_trend",
                     ],                    
                     "🏆 AWARDS": [                                             
-                        "08_split_make",
                         "07_high_scores",
+                        "08_split_make",
                     ],
                     "📍 MONTHLY": [
                         "06_total_monthly",
