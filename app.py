@@ -687,18 +687,122 @@ if app_mode == "📊 プレイヤー分析":
 
 
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-                # 【07】 AWARDS：ハイスコア & レコード
+                # 【07】 AWARDS：ハイスコア & レコード (ROLLERS RECORD)
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_07_high_scores():
-                    st.markdown("### <span style='color: silver;'>🏅 ROLLERS RECORD</span>", unsafe_allow_html=True)
-                    r_c1, r_c2, r_c3 = st.columns(3)
-                    r_c1.metric("最大連続ストライク", f"{p_awards.get('①最大連続ストライク', '0')} 回")
-                    r_c2.metric("パーフェクト(300)", f"{p_awards.get('①パーフェクト(300)', '0')} 回")
-                    r_c3.metric("250オーバー", f"{p_awards.get('①250オーバー', '0')} 回")
-                    
-                    r_c4, r_c5, _ = st.columns(3)
-                    r_c4.metric("220オーバー", f"{p_awards.get('①220オーバー', '0')} 回")
-                    r_c5.metric("200オーバー", f"{p_awards.get('①200オーバー', '0')} 回")
+                    if player_games:
+                        total_g = len(player_games)
+                        score_100 = score_150 = score_200 = score_225 = score_250 = score_275 = score_300 = 0
+                        strike_lengths = []
+                        nomiss_count = 0
+
+                        for g in player_games:
+                            score = g['score']
+                            if score >= 100: score_100 += 1
+                            if score >= 150: score_150 += 1
+                            if score >= 200: score_200 += 1
+                            if score >= 225: score_225 += 1
+                            if score >= 250: score_250 += 1
+                            if score >= 275: score_275 += 1
+                            if score == 300: score_300 += 1
+
+                            r = g['row']
+                            
+                            # ▼ ノーミス判定 (オープンフレームがないかチェック)
+                            is_nomiss = True
+                            for f in range(9):
+                                t1 = str(r[10+f*4]).strip().upper()
+                                t2 = str(r[12+f*4]).strip().upper()
+                                if 'X' not in t1 and '/' not in t2:
+                                    is_nomiss = False
+                                    break
+                            if is_nomiss:
+                                t10_1 = str(r[46]).strip().upper() if len(r) > 46 else ""
+                                t10_2 = str(r[48]).strip().upper() if len(r) > 48 else ""
+                                if 'X' not in t10_1 and '/' not in t10_2:
+                                    is_nomiss = False
+                            if is_nomiss:
+                                nomiss_count += 1
+                                
+                            # ▼ 連続ストライク判定
+                            seq_len = 0
+                            # 1〜9フレーム
+                            for f in range(9):
+                                t1 = str(r[10+f*4]).strip().upper()
+                                if 'X' in t1:
+                                    seq_len += 1
+                                else:
+                                    if seq_len > 0:
+                                        strike_lengths.append(seq_len)
+                                        seq_len = 0
+                            # 10フレーム
+                            t10_1 = str(r[46]).strip().upper() if len(r) > 46 else ""
+                            t10_2 = str(r[48]).strip().upper() if len(r) > 48 else ""
+                            t10_3 = str(r[50]).strip().upper() if len(r) > 50 else ""
+
+                            if 'X' in t10_1:
+                                seq_len += 1
+                                if 'X' in t10_2:
+                                    seq_len += 1
+                                    if 'X' in t10_3:
+                                        seq_len += 1
+                                    else:
+                                        if seq_len > 0:
+                                            strike_lengths.append(seq_len)
+                                            seq_len = 0
+                                else:
+                                    if seq_len > 0:
+                                        strike_lengths.append(seq_len)
+                                        seq_len = 0
+                            else:
+                                if seq_len > 0:
+                                    strike_lengths.append(seq_len)
+                                    seq_len = 0
+
+                            if seq_len > 0:
+                                strike_lengths.append(seq_len)
+
+                        # ストライクが発生した回数（群の数）を母数とする
+                        strike_base = len(strike_lengths)
+
+                        # パーセンテージ計算用の内部関数
+                        def fmt_pct(count, base):
+                            return f"{(count/base*100):.1f}" if base > 0 else "0.0"
+
+                        # 画面表示用のHTML（ダークコンテナUI）
+                        html = f"""
+                        <div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333;'>
+                            <div style='color: silver; font-weight: 900; margin-bottom: 20px; font-size: 16px; font-family: Arial, sans-serif; text-align: center;'>ROLLERS RECORD</div>
+                            
+                            <div style='color: #bf953f; font-weight: bold; font-size: 15px; margin-top: 10px; margin-bottom: 8px; border-bottom: 1px solid #444; padding-bottom: 4px;'>🎯 トータルスコア</div>
+                            <div style='color: white; font-size: 14px; line-height: 1.8; margin-left: 10px;'>
+                                ・100UP → {score_100}回 / {fmt_pct(score_100, total_g)}％<br>
+                                ・150UP → {score_150}回 / {fmt_pct(score_150, total_g)}％<br>
+                                ・200UP → {score_200}回 / {fmt_pct(score_200, total_g)}％<br>
+                                ・225UP → {score_225}回 / {fmt_pct(score_225, total_g)}％<br>
+                                ・250UP → {score_250}回 / {fmt_pct(score_250, total_g)}％<br>
+                                ・275UP → {score_275}回 / {fmt_pct(score_275, total_g)}％<br>
+                                ・PERFECT300 → {score_300}回 / {fmt_pct(score_300, total_g)}％
+                            </div>
+
+                            <div style='color: #bf953f; font-weight: bold; font-size: 15px; margin-top: 25px; margin-bottom: 8px; border-bottom: 1px solid #444; padding-bottom: 4px;'>🔥 連続ストライク数</div>
+                            <div style='color: white; font-size: 14px; line-height: 1.8; margin-left: 10px;'>
+                        """
+                        for i in range(2, 14):
+                            cnt = len([l for l in strike_lengths if l >= i])
+                            html += f"        ・連続ストライク{i}回 → {cnt}回 / {fmt_pct(cnt, strike_base)}％<br>\n"
+                        
+                        html += f"""    </div>
+
+                            <div style='color: #bf953f; font-weight: bold; font-size: 15px; margin-top: 25px; margin-bottom: 8px; border-bottom: 1px solid #444; padding-bottom: 4px;'>✨ ノーミスゲーム数とゲーム率</div>
+                            <div style='color: white; font-size: 14px; line-height: 1.8; margin-left: 10px;'>
+                                ・ノーミスゲーム → {nomiss_count}回 / {fmt_pct(nomiss_count, total_g)}％
+                            </div>
+                        </div>
+                        """
+                        st.markdown(html, unsafe_allow_html=True)
+                    else:
+                        st.info("データがありません。")
 
 
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
