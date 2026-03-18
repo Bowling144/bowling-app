@@ -208,6 +208,7 @@ if app_mode == "📊 プレイヤー分析":
                     "🎳 STATS": [
                         "01_rating_card",
                         "02_score_trend",
+                        "14_top10_scores",
                     ],                    
                     "🏆 AWARDS": [                                             
                         "07_high_scores",
@@ -918,6 +919,65 @@ if app_mode == "📊 プレイヤー分析":
                         """, unsafe_allow_html=True)
 
 
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                # 【14】 AWARDS：歴代スコアトップ10
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                def render_14_top10_scores():
+                    if player_games:
+                        from collections import Counter
+                        
+                        # 全ゲームのスコアを取得
+                        all_scores = [g['score'] for g in player_games]
+                        
+                        # スコアの出現回数をカウント
+                        score_counts = Counter(all_scores)
+                        
+                        # スコアを降順（高い順）にソートしてトップ10種類を抽出
+                        sorted_unique_scores = sorted(score_counts.keys(), reverse=True)
+                        top_10_scores = sorted_unique_scores[:10]
+                        
+                        y_vals = []
+                        x_vals = []
+                        text_vals = []
+                        
+                        for i, score in enumerate(top_10_scores):
+                            y_vals.append(f"{i+1}位 ")
+                            x_vals.append(score)
+                            count = score_counts[score]
+                            if count > 1:
+                                text_vals.append(f"{score} ({count}回)")
+                            else:
+                                text_vals.append(f"{score}")
+
+                        # グラフ用のダークコンテナ（50Gスコア推移と同じスタイル）
+                        st.markdown("<div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 15px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333;'>", unsafe_allow_html=True)
+                        st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif; text-align: center;'>ALL-TIME TOP 10 SCORES</div>", unsafe_allow_html=True)
+
+                        # 横向きの棒グラフ作成
+                        fig_top10 = px.bar(x=x_vals, y=y_vals, orientation='h', text=text_vals)
+
+                        fig_top10.update_traces(
+                            marker_color='#ff6600', 
+                            textposition='inside',
+                            insidetextanchor='middle',
+                            textfont=dict(color='white', size=14, family='Arial Black')
+                        )
+                        
+                        fig_top10.update_layout(
+                            plot_bgcolor='rgba(0,0,0,0)',
+                            paper_bgcolor='rgba(0,0,0,0)',
+                            xaxis=dict(title="", range=[0, 300], showgrid=True, gridcolor='#444', tickmode='linear', tick0=0, dtick=50, color='gray', fixedrange=True),
+                            yaxis=dict(title="", autorange="reversed", color='silver', tickfont=dict(size=14, family='Arial, sans-serif'), fixedrange=True),
+                            height=350,
+                            margin=dict(l=40, r=30, t=10, b=10)
+                        )
+                        
+                        st.plotly_chart(fig_top10, use_container_width=True, config={'displayModeBar': False})
+                        st.markdown("</div>", unsafe_allow_html=True)
+                    else:
+                        st.info("データがありません。")
+
+                
                 # =========================================================
                 # ▼▼▼ 設定に従って画面を描画する処理（ここは変更不要） ▼▼▼
                 # =========================================================
@@ -936,7 +996,8 @@ if app_mode == "📊 プレイヤー分析":
                     "10_oil_length": render_10_oil_length,
                     "11_oil_volume": render_11_oil_volume,
                     "12_lane_data": render_12_lane_data,
-                    "13_seven_ten_game": render_13_seven_ten_game
+                    "13_seven_ten_game": render_13_seven_ten_game,
+                    "14_top10_scores": render_14_top10_scores
                 }
 
                 # レイアウト辞書のキー（タブ名）からタブを生成
