@@ -772,7 +772,7 @@ if app_mode == "📊 プレイヤー分析":
                         html = f"""<div style="background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333; margin-bottom: 20px;">
 <div style='color: silver; font-weight: 900; margin-bottom: 20px; font-size: 16px; font-family: Arial, sans-serif; text-align: center;'>ROLLERS RECORD</div>
 <div style="color: #bf953f; font-weight: 900; font-size: 16px; letter-spacing: 1px; margin-bottom: 12px; border-bottom: 2px solid #444; padding-bottom: 6px; display: flex; align-items: center;">
-<span style="font-size: 20px; margin-right: 8px;">🎯</span> TOTAL SCORE ACHIEVEMENTS
+<span style="font-size: 20px; margin-right: 8px;">🎳</span> TOTAL SCORE ACHIEVEMENTS
 </div>
 <div style="margin-left: 5px; margin-bottom: 25px;">
 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 6px 0;">
@@ -814,7 +814,7 @@ if app_mode == "📊 プレイヤー分析":
                             label_str = ""
                             if i == 2: label_str = " (DOUBLE)"
                             elif i == 3: label_str = " (TURKEY)"
-                            elif i == 12: label_str = " (PERFECT)"
+                            elif i == 13: label_str = " (PERFECT)"
                             
                             border_style = "border-bottom: 1px dashed #444;" if i < 13 else ""
                             
