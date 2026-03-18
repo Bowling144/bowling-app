@@ -384,7 +384,7 @@ if app_mode == "📊 プレイヤー分析":
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_02_score_trend():
                     if player_games:
-                        # 古い順に並び替えて折れ線・棒グラフ化
+                        # 古い順に並び替えて折れ線グラフ化
                         chrono_games = list(reversed(player_games[:50]))
                         
                         # 横軸を「〇ゲーム前（50, 49... 1）」のカウントに変更
@@ -422,14 +422,13 @@ if app_mode == "📊 プレイヤー分析":
                         # グラフ用のダークコンテナ
                         st.markdown("<div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 15px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333;'>", unsafe_allow_html=True)
                         
-                        # ▼ 1つ目のグラフ：スコア推移 (★ここを折れ線から棒グラフに変更)
+                        # ▼ 1つ目のグラフ：スコア推移
                         st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif; text-align: center;'>RECENT 50 GAMES SCORE TREND</div>", unsafe_allow_html=True)
 
-                        # px.line から px.bar に変更
-                        fig_trend = px.bar(x=x_vals, y=y_vals)
+                        fig_trend = px.line(x=x_vals, y=y_vals, markers=True)
 
-                        # アプリ風にオレンジ色のグラフとダークテーマに設定（棒グラフ用に marker_color を指定）
-                        fig_trend.update_traces(marker_color='#ff6600')
+                        # アプリ風にオレンジ色のグラフとダークテーマに設定
+                        fig_trend.update_traces(line_color='#ff6600', marker=dict(color='#ff6600', size=6, line=dict(color='white', width=1)))
                         fig_trend.update_layout(
                             plot_bgcolor='rgba(0,0,0,0)',
                             paper_bgcolor='rgba(0,0,0,0)',
@@ -445,7 +444,7 @@ if app_mode == "📊 プレイヤー分析":
                         st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif; text-align: center;'>STRIKES & SPARES TREND</div>", unsafe_allow_html=True)
 
                         fig_st_sp = go.Figure()
-                        # modeを 'lines' にして線のみ表示（前回変更分）
+                        # ★modeを 'lines' に変更し、markerの設定を削除
                         fig_st_sp.add_trace(go.Scatter(x=x_vals, y=st_vals, mode='lines', name='STRIKE', line=dict(color='#4285f4', width=2)))
                         fig_st_sp.add_trace(go.Scatter(x=x_vals, y=sp_vals, mode='lines', name='SPARE', line=dict(color='#34a853', width=2)))
                         
