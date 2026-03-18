@@ -150,7 +150,7 @@ if app_mode == "📊 プレイヤー分析":
                 
                 # ドロップダウン用の表示名を作成（レーティング数値を付与）
                 rt_str = f"{rt_val:.2f}" if rt_val > 0 else "---"
-                display_name = f"{p_name} (RT: {rt_str})"
+                display_name = f"{p_name}  〔RT: {rt_str}〕"
                 player_options.append(display_name)
                 # 選択された表示名から、元のプレイヤー名を逆引きできるようにマッピング
                 player_name_map[display_name] = p_name
@@ -180,7 +180,8 @@ if app_mode == "📊 プレイヤー分析":
                         else:
                             try:
                                 score = int(row[52])
-                                player_games.append({"date": row[2], "time": row[3], "score": score})
+                                # 直近50Gのスタッツ計算用に "row" データも保持するよう追加
+                                player_games.append({"date": row[2], "time": row[3], "score": score, "row": row})
                             except ValueError:
                                 pass
                             
@@ -234,9 +235,63 @@ if app_mode == "📊 プレイヤー分析":
                 # 【01】 HOME：レーティングバッジ・ステータス
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_01_rating_card():
-                    # ストライク率・スペア率の取得
-                    st_rate = p_awards.get("②1投目ストライク率", "0.0")
-                    sp_rate = p_awards.get("③2投目スペア率", "0.0")
+                    # 通算ストライク率・スペア率の取得
+                    all_st_rate = p_awards.get("②1投目ストライク率", "0.0")
+                    all_sp_rate = p_awards.get("③2投目スペア率", "0.0")
+                    
+                    # 通算AVEの計算
+                    all_games_scores = [g["score"] for g in player_games]
+                    all_ave = round(sum(all_games_scores) / len(all_games_scores), 1) if all_games_scores else 0.0
+
+                    # 直近50ゲームのストライク率・スペア率の計算
+                    recent_50_st_chances = 0
+                    recent_50_st_success = 0
+                    recent_50_sp_chances = 0
+                    recent_50_sp_success = 0
+
+                    for g in player_games[:50]:
+                        r = g["row"]
+                        # 1〜9フレーム
+                        for f in range(9):
+                            res1 = str(r[10 + f*4]).strip().upper()
+                            res2 = str(r[12 + f*4]).strip().upper()
+                            
+                            recent_50_st_chances += 1
+                            if "X" in res1:
+                                recent_50_st_success += 1
+                            else:
+                                recent_50_sp_chances += 1
+                                if "/" in res2:
+                                    recent_50_sp_success += 1
+                                    
+                        # 10フレーム
+                        res10_1 = str(r[46]).strip().upper() if len(r) > 46 else ""
+                        res10_2 = str(r[48]).strip().upper() if len(r) > 48 else ""
+                        res10_3 = str(r[50]).strip().upper() if len(r) > 50 else ""
+                        
+                        recent_50_st_chances += 1
+                        if "X" in res10_1:
+                            recent_50_st_success += 1
+                            recent_50_st_chances += 1
+                            if "X" in res10_2:
+                                recent_50_st_success += 1
+                                recent_50_st_chances += 1
+                                if "X" in res10_3:
+                                    recent_50_st_success += 1
+                            else:
+                                recent_50_sp_chances += 1
+                                if "/" in res10_3:
+                                    recent_50_sp_success += 1
+                        else:
+                            recent_50_sp_chances += 1
+                            if "/" in res10_2:
+                                recent_50_sp_success += 1
+                                recent_50_st_chances += 1
+                                if "X" in res10_3:
+                                    recent_50_st_success += 1
+                            
+                    st_rate = round((recent_50_st_success / recent_50_st_chances) * 100, 1) if recent_50_st_chances > 0 else 0.0
+                    sp_rate = round((recent_50_sp_success / recent_50_sp_chances) * 100, 1) if recent_50_sp_chances > 0 else 0.0
 
                     # ゲージの進捗パーセンテージ計算（MAXレーティングを18と仮定）
                     gauge_pct = min(100, max(0, int((rt / 18.0) * 100)))
@@ -281,7 +336,11 @@ if app_mode == "📊 プレイヤー分析":
       <span style="color: #1a1a1c; font-size: 40px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif; text-shadow: 1px 1px 0px #fff; display: inline-block; letter-spacing: 2px;">{flight_short}</span>
     </div>
   </div>
-  <div style="display: flex; justify-content: space-around; margin-top: 40px; align-items: center;">
+  
+  <div style="text-align: center; margin-top: 40px; margin-bottom: 20px;">
+    <div style="color: silver; font-size: 14px; font-weight: 900; letter-spacing: 1.5px; text-shadow: 0 0 8px rgba(192,192,192,0.6);">LAST 50 GAMES DATA</div>
+  </div>
+  <div style="display: flex; justify-content: space-around; align-items: center;">
     <div style="text-align: center;">
       <div style="color: #ff3b30; font-size: 14px; font-weight: 900; letter-spacing: 1.5px; text-shadow: 0 0 8px rgba(255,59,48,0.6);">AVE</div>
       <div style="color: white; font-size: 32px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif;">{ave}</div>
@@ -293,6 +352,26 @@ if app_mode == "📊 プレイヤー分析":
     <div style="text-align: center;">
       <div style="color: #34a853; font-size: 14px; font-weight: 900; letter-spacing: 1.5px; text-shadow: 0 0 8px rgba(52,168,83,0.6);">SPARE</div>
       <div style="color: white; font-size: 32px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif;">{sp_rate}<span style="font-size: 18px;">%</span></div>
+    </div>
+  </div>
+
+  <hr style="border-top: 1px solid #444; margin: 25px 20px;">
+
+  <div style="text-align: center; margin-bottom: 20px;">
+    <div style="color: silver; font-size: 14px; font-weight: 900; letter-spacing: 1.5px; text-shadow: 0 0 8px rgba(192,192,192,0.6);">ALL DATA</div>
+  </div>
+  <div style="display: flex; justify-content: space-around; margin-bottom: 10px; align-items: center;">
+    <div style="text-align: center;">
+      <div style="color: #ff3b30; font-size: 14px; font-weight: 900; letter-spacing: 1.5px; text-shadow: 0 0 8px rgba(255,59,48,0.6);">AVE</div>
+      <div style="color: white; font-size: 32px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif;">{all_ave}</div>
+    </div>
+    <div style="text-align: center;">
+      <div style="color: #4285f4; font-size: 14px; font-weight: 900; letter-spacing: 1.5px; text-shadow: 0 0 8px rgba(66,133,244,0.6);">STRIKE</div>
+      <div style="color: white; font-size: 32px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif;">{all_st_rate}<span style="font-size: 18px;">%</span></div>
+    </div>
+    <div style="text-align: center;">
+      <div style="color: #34a853; font-size: 14px; font-weight: 900; letter-spacing: 1.5px; text-shadow: 0 0 8px rgba(52,168,83,0.6);">SPARE</div>
+      <div style="color: white; font-size: 32px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif;">{all_sp_rate}<span style="font-size: 18px;">%</span></div>
     </div>
   </div>
 </div>
