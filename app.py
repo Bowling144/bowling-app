@@ -444,8 +444,9 @@ if app_mode == "📊 プレイヤー分析":
                         st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif; text-align: center;'>STRIKES & SPARES TREND</div>", unsafe_allow_html=True)
 
                         fig_st_sp = go.Figure()
-                        fig_st_sp.add_trace(go.Scatter(x=x_vals, y=st_vals, mode='lines+markers', name='STRIKE', line=dict(color='#4285f4', width=2), marker=dict(color='#4285f4', size=6, line=dict(color='white', width=1))))
-                        fig_st_sp.add_trace(go.Scatter(x=x_vals, y=sp_vals, mode='lines+markers', name='SPARE', line=dict(color='#34a853', width=2), marker=dict(color='#34a853', size=6, line=dict(color='white', width=1))))
+                        # ★modeを 'lines' に変更し、markerの設定を削除
+                        fig_st_sp.add_trace(go.Scatter(x=x_vals, y=st_vals, mode='lines', name='STRIKE', line=dict(color='#4285f4', width=2)))
+                        fig_st_sp.add_trace(go.Scatter(x=x_vals, y=sp_vals, mode='lines', name='SPARE', line=dict(color='#34a853', width=2)))
                         
                         fig_st_sp.update_layout(
                             plot_bgcolor='rgba(0,0,0,0)',
@@ -461,7 +462,6 @@ if app_mode == "📊 プレイヤー分析":
                         st.markdown("</div>", unsafe_allow_html=True)
                     else:
                         st.info("データがありません。")
-
 
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 # 【03】 STATS：SEVEN-TEN カバー率
