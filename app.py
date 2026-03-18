@@ -186,7 +186,7 @@ if app_mode == "📊 プレイヤー分析":
                     ],
                     "📍 MONTHLY": [
                         "06_total_monthly",
-                    ]
+                    ],
                     "📊 ANALYSIS": [
                         "04_first_pitch_pins",
                         "03_seven_ten",                        
