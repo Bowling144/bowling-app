@@ -949,8 +949,8 @@ if app_mode == "📊 プレイヤー分析":
                             else:
                                 text_vals.append(f"{score}")
 
-                        # グラフ用のダークコンテナ（50Gスコア推移と同じスタイル）
-                        st.markdown("<div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 15px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333;'>", unsafe_allow_html=True)
+                        # ★ 空のボックス（ダークコンテナ）を削除し、グラフ間と同じグレーの横線を挿入
+                        st.markdown("<hr style='border-top: 1px solid #444; margin: 20px 0px;'>", unsafe_allow_html=True)
                         st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif; text-align: center;'>ALL-TIME TOP 10 SCORES</div>", unsafe_allow_html=True)
 
                         # 横向きの棒グラフ作成
@@ -973,7 +973,7 @@ if app_mode == "📊 プレイヤー分析":
                         )
                         
                         st.plotly_chart(fig_top10, use_container_width=True, config={'displayModeBar': False})
-                        st.markdown("</div>", unsafe_allow_html=True)
+                        # ★ 末尾にあった </div> の閉じタグも削除済み
                     else:
                         st.info("データがありません。")
 
