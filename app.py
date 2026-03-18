@@ -490,57 +490,72 @@ if app_mode == "📊 プレイヤー分析":
                 # 【04】 STATS：1投目 残ピン率
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_04_first_pitch_pins():
-                    st.markdown("### <span style='color: silver;'>🎳 一投目　残ピン率</span>", unsafe_allow_html=True)
+                    st.markdown("### <span style='color: silver;'>🎳 1投目 残ピン率</span>", unsafe_allow_html=True)
                     
-                    #--- 円グラフ（ドーナツ）を描画する内部関数 ---
+                    #--- 円グラフをHTML/CSSで直接描画する内部関数（Plotlyのiframe切れ問題を根本解決） ---
                     def draw_pin_pie(pin_num):
-                        # すでにシステムが持っているパーセンテージをそのまま取得
-                        rate = float(p_awards.get(f"⑬{pin_num}番ピン残存率", "0"))
-                        other_rate = 100.0 - rate if 100.0 - rate > 0 else 0.0
+                        rate_str = p_awards.get(f"⑬{pin_num}番ピン残存率", "0")
+                        try:
+                            rate = float(rate_str)
+                        except ValueError:
+                            rate = 0.0
                         
-                        fig = go.Figure(data=[go.Pie(
-                            labels=[f"{pin_num}番ピン 残存", "その他"], 
-                            values=[rate, other_rate], 
-                            hole=.0, 
-                            marker=dict(colors=['#EF553B', '#555555']) 
-                        )])
-                        fig.update_traces(textinfo='none', hoverinfo='label+percent')
-                        
-                        # ★小さな円に収まるよう文字サイズを最適化
-                        fig.add_annotation(text=f"<b>{rate}%</b>", x=0.5, y=0.5, font_size=13, showarrow=False)
-                        
-                        # ★スマホの極狭い幅（約70px）でも円が枠をオーバーしないよう、高さを60に制限
-                        # ★わずかな余白(2px)を持たせて円周の切れを完全に防止
-                        fig.update_layout(margin=dict(l=2, r=2, t=2, b=2), showlegend=False, height=60)
-                        return fig
+                        # conic-gradientを使用して、枠切れせず文字も潰れないレスポンシブな円グラフを生成
+                        html = f"""
+                        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 8px;">
+                            <div style="
+                                position: relative;
+                                width: 100%; 
+                                max-width: 65px; 
+                                aspect-ratio: 1 / 1; 
+                                border-radius: 50%; 
+                                background: conic-gradient(#EF553B 0% {rate}%, #555555 {rate}% 100%);
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                box-shadow: inset 0 0 4px rgba(0,0,0,0.3), 0 2px 5px rgba(0,0,0,0.5);
+                                border: 1px solid #222;
+                            ">
+                                <span style="
+                                    color: white; 
+                                    font-size: 11px; 
+                                    font-weight: bold; 
+                                    font-family: Arial, sans-serif;
+                                    text-shadow: 1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black;
+                                ">{rate}%</span>
+                            </div>
+                        </div>
+                        """
+                        return html
 
                     # --- ボウリングのピン配置に合わせて円グラフを並べる ---
                     st.markdown("<div style='text-align: center; color: gray; font-size: 12px; margin-bottom: 10px;'>▼ レーン奥 ▼</div>", unsafe_allow_html=True)
                     
                     # 4段目 (7, 8, 9, 10)
                     r1 = st.columns(4)
-                    with r1[0]: st.plotly_chart(draw_pin_pie(7), use_container_width=True, config={'displayModeBar': False})
-                    with r1[1]: st.plotly_chart(draw_pin_pie(8), use_container_width=True, config={'displayModeBar': False})
-                    with r1[2]: st.plotly_chart(draw_pin_pie(9), use_container_width=True, config={'displayModeBar': False})
-                    with r1[3]: st.plotly_chart(draw_pin_pie(10), use_container_width=True, config={'displayModeBar': False})
+                    with r1[0]: st.markdown(draw_pin_pie(7), unsafe_allow_html=True)
+                    with r1[1]: st.markdown(draw_pin_pie(8), unsafe_allow_html=True)
+                    with r1[2]: st.markdown(draw_pin_pie(9), unsafe_allow_html=True)
+                    with r1[3]: st.markdown(draw_pin_pie(10), unsafe_allow_html=True)
                     
                     # 3段目 (4, 5, 6)
                     r2 = st.columns([0.5, 1, 1, 1, 0.5])
-                    with r2[1]: st.plotly_chart(draw_pin_pie(4), use_container_width=True, config={'displayModeBar': False})
-                    with r2[2]: st.plotly_chart(draw_pin_pie(5), use_container_width=True, config={'displayModeBar': False})
-                    with r2[3]: st.plotly_chart(draw_pin_pie(6), use_container_width=True, config={'displayModeBar': False})
+                    with r2[1]: st.markdown(draw_pin_pie(4), unsafe_allow_html=True)
+                    with r2[2]: st.markdown(draw_pin_pie(5), unsafe_allow_html=True)
+                    with r2[3]: st.markdown(draw_pin_pie(6), unsafe_allow_html=True)
                     
                     # 2段目 (2, 3)
                     r3 = st.columns([1, 1, 1, 1])
-                    with r3[1]: st.plotly_chart(draw_pin_pie(2), use_container_width=True, config={'displayModeBar': False})
-                    with r3[2]: st.plotly_chart(draw_pin_pie(3), use_container_width=True, config={'displayModeBar': False})
+                    with r3[1]: st.markdown(draw_pin_pie(2), unsafe_allow_html=True)
+                    with r3[2]: st.markdown(draw_pin_pie(3), unsafe_allow_html=True)
                     
                     # 1段目 (1)
                     r4 = st.columns([1.5, 1, 1.5])
-                    with r4[1]: st.plotly_chart(draw_pin_pie(1), use_container_width=True, config={'displayModeBar': False})
+                    with r4[1]: st.markdown(draw_pin_pie(1), unsafe_allow_html=True)
 
                     st.markdown("<div style='text-align: center; color: gray; font-size: 12px; margin-top: 10px;'>▲ 手前 ▲</div>", unsafe_allow_html=True)
 
+                
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 # 【05】 STATS：連発力スタッツ
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
