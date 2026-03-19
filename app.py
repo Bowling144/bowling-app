@@ -827,7 +827,6 @@ if app_mode == "📊 プレイヤー分析":
                 # 【08】 AWARDS：スプリット・メイク
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_08_split_make():
-                    # SPRIT のスペルミスを SPLIT に修正し、見出しの色も統一
                     st.markdown("### <span style='color: silver;'>🎳 SPLIT DATA</span>", unsafe_allow_html=True)
                     
                     split_records = []
@@ -869,56 +868,47 @@ if app_mode == "📊 プレイヤー分析":
 
                     # ④ 難易度別の文字色設定
                     def get_split_color(split_name):
-                        # 激ムズ（赤とオレンジの中間）
                         if any(x in split_name for x in ["スネークアイ", "ビッグフォー", "グリークチャーチ", "4・5ピン"]):
                             return "#ff5722" 
-                        # 難しい（黄色）
                         elif any(x in split_name for x in ["リリー", "ビッグディボット", "フォーシックス", "3ピン"]):
                             return "#fbbc04" 
-                        # 簡単め（緑）
                         elif any(x in split_name for x in ["ベビースプリット", "2ピン"]):
                             return "#34a853" 
                         else:
                             return "white"
 
-                    # スタイリッシュなダークコンテナとHTMLテーブルの生成（①②の要件）
-                    html = """
-                    <div style="background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333; margin-bottom: 20px;">
-                        <div style="color: #bf953f; font-weight: 900; font-size: 16px; letter-spacing: 1px; margin-bottom: 12px; border-bottom: 2px solid #444; padding-bottom: 6px; display: flex; align-items: center;">
-                            <span style="font-size: 20px; margin-right: 8px;">🎳</span> SPLIT MAKE DATA
-                        </div>
-                        <table style="width: 100%; text-align: left; border-collapse: collapse;">
-                            <thead>
-                                <tr style="border-bottom: 1px solid #555; color: silver; font-size: 12px;">
-                                    <th style="padding: 8px 5px; font-weight: normal;">スプリット名称</th>
-                                    <th style="padding: 8px 5px; text-align: center; font-weight: normal;">遭遇</th>
-                                    <th style="padding: 8px 5px; text-align: center; font-weight: normal;">メイク</th>
-                                    <th style="padding: 8px 5px; text-align: right; font-weight: normal;">メイク率</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                    """
+                    # Markdownの誤作動を防ぐため、HTML内のインデント（行頭の空白）を完全に排除
+                    html = """<div style="background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333; margin-bottom: 20px;">
+<div style="color: #bf953f; font-weight: 900; font-size: 16px; letter-spacing: 1px; margin-bottom: 12px; border-bottom: 2px solid #444; padding-bottom: 6px; display: flex; align-items: center;">
+<span style="font-size: 20px; margin-right: 8px;">🎳</span> SPLIT MAKE DATA
+</div>
+<table style="width: 100%; text-align: left; border-collapse: collapse;">
+<thead>
+<tr style="border-bottom: 1px solid #555; color: silver; font-size: 12px;">
+<th style="padding: 8px 5px; font-weight: normal;">スプリット名称</th>
+<th style="padding: 8px 5px; text-align: center; font-weight: normal;">遭遇</th>
+<th style="padding: 8px 5px; text-align: center; font-weight: normal;">メイク</th>
+<th style="padding: 8px 5px; text-align: right; font-weight: normal;">メイク率</th>
+</tr>
+</thead>
+<tbody>"""
                     
                     for rec in all_records:
                         color = get_split_color(rec["name"])
                         html += f"""
-                                <tr style="border-bottom: 1px dashed #444;">
-                                    <td style="padding: 10px 5px; color: {color}; font-weight: bold; font-size: 14px;">{rec['name']}</td>
-                                    <td style="padding: 10px 5px; color: white; text-align: center; font-size: 14px;">{rec['chances']}</td>
-                                    <td style="padding: 10px 5px; color: white; text-align: center; font-size: 14px;">{rec['success']}</td>
-                                    <td style="padding: 10px 5px; color: white; text-align: right; font-size: 14px; font-weight: bold;">{rec['rate']:.1f}%</td>
-                                </tr>
-                        """
+<tr style="border-bottom: 1px dashed #444;">
+<td style="padding: 10px 5px; color: {color}; font-weight: bold; font-size: 14px;">{rec['name']}</td>
+<td style="padding: 10px 5px; color: white; text-align: center; font-size: 14px;">{rec['chances']}</td>
+<td style="padding: 10px 5px; color: white; text-align: center; font-size: 14px;">{rec['success']}</td>
+<td style="padding: 10px 5px; color: white; text-align: right; font-size: 14px; font-weight: bold;">{rec['rate']:.1f}%</td>
+</tr>"""
                         
                     html += """
-                            </tbody>
-                        </table>
-                    </div>
-                    """
+</tbody>
+</table>
+</div>"""
                     
-                    # Markdownでの不要なインデントによるエラーを防ぐため、HTMLをそのまま出力
                     st.markdown(html, unsafe_allow_html=True)
-
 
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 # 【09】 ENVIRONMENT：投球方式 適性
