@@ -532,7 +532,7 @@ if app_mode == "📊 プレイヤー分析":
                     st.markdown("<div style='text-align: center; color: gray; font-size: 12px; margin-bottom: 10px;'>▼ レーン奥 ▼</div>", unsafe_allow_html=True)
                     
                     # 4段目 (7, 8, 9, 10)
-                    r1 = st.columns([0.5, 1, 1, 1, 1, 0.5])
+                    r1 = st.columns([1, 1, 1, 1, 1, 1])
                     with r1[0]: st.markdown(draw_pin_pie(7), unsafe_allow_html=True)
                     with r1[1]: st.markdown(draw_pin_pie(8), unsafe_allow_html=True)
                     with r1[2]: st.markdown(draw_pin_pie(9), unsafe_allow_html=True)
@@ -546,7 +546,7 @@ if app_mode == "📊 プレイヤー分析":
                     with r2[3]: st.markdown(draw_pin_pie(6), unsafe_allow_html=True)
                     
                     # 2段目 (2, 3)
-                    r3 = st.columns([1.3, 1, 1, 1.3])
+                    r3 = st.columns([1.5, 1, 1, 1.5])
                     with r3[1]: st.markdown(draw_pin_pie(2), unsafe_allow_html=True)
                     with r3[2]: st.markdown(draw_pin_pie(3), unsafe_allow_html=True)
                     
