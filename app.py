@@ -48,13 +48,8 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
-st.markdown("""
-<h1 style='text-align: center; font-size: 36px; white-space: nowrap;'>
-    🎳
-    <span style='background: linear-gradient(135deg, #bf953f 0%, #fcf6ba 20%, #555555 35%, #b38728 55%, #ffffff 75%, #aa771c 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-family: "Arial Black", Impact, sans-serif; font-style: italic; filter: drop-shadow(2px 4px 4px rgba(0,0,0,0.8)); padding-right: 5px;'> EAGLE ROLLERS</span>
-    🎳
-</h1>
-""", unsafe_allow_html=True)
+st.markdown("<h5 style='text-align: center; color: silver; margin-bottom: 0px;'>Eagle Bowl</h5>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center; color: white; margin-top: 0px; margin-bottom: 16px; font-size: 32px; font-weight: bold;'>🎳EAGLE ROLLERS🎳</div>", unsafe_allow_html=True)
 
 # --- サイドバー：APIキー入力 ＆ モード切替 ---
 with st.sidebar:
