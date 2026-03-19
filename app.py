@@ -538,7 +538,7 @@ if app_mode == "📊 プレイヤー分析":
                     
                     st.markdown(row4 + row3 + row2 + row1, unsafe_allow_html=True)
 
-                    st.markdown("<div style='text-align: center; color: gray; font-size: 12px; margin-top: 5px;'>▲ 手前 ▲</div>", unsafe_allow_html=True)                    
+                    st.markdown("<div style='text-align: center; color: gray; font-size: 12px; margin-top: 5px;'>▲ 手前 ▲</div>", unsafe_allow_html=True)
                 
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 # 【05】 STATS：連発力スタッツ
