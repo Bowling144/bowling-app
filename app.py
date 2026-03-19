@@ -493,7 +493,7 @@ if app_mode == "📊 プレイヤー分析":
                 def render_04_first_pitch_pins():
                     st.markdown("### <span style='color: silver;'>🎳 1投目 残ピン率</span>", unsafe_allow_html=True)
                     
-                    #--- 円グラフとピン番号をHTML/CSSで直接描画する内部関数 ---
+                    #--- 円グラフをHTML/CSSで直接描画する内部関数 ---
                     def draw_pin_pie(pin_num):
                         rate_str = p_awards.get(f"⑬{pin_num}番ピン残存率", "0")
                         try:
@@ -501,18 +501,15 @@ if app_mode == "📊 プレイヤー分析":
                         except ValueError:
                             rate = 0.0
                         
-                        # ★Markdownの誤作動を防ぐため、HTML内のインデント（行頭の空白）を完全に排除
                         html = f"""<div style="width: 22%; max-width: 70px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
 <div style="position: relative; width: 100%; aspect-ratio: 1 / 1; border-radius: 50%; background: conic-gradient(#EF553B 0% {rate}%, #555555 {rate}% 100%); display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 4px rgba(0,0,0,0.3), 0 2px 5px rgba(0,0,0,0.5); border: 1px solid #222;">
 <span style="color: white; font-size: 12px; font-weight: bold; font-family: Arial, sans-serif; text-shadow: 1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black;">{rate}%</span>
 </div>
-<div style="color: silver; font-size: 11px; margin-top: 6px; font-weight: bold;">{pin_num}番ピン</div>
 </div>"""
                         return html
 
                     st.markdown("<div style='text-align: center; color: gray; font-size: 12px; margin-bottom: 15px;'>▼ レーン奥 ▼</div>", unsafe_allow_html=True)
                     
-                    # Streamlitのst.columnsを排除し、HTMLのFlexboxで各段をグループ化して等間隔・中央揃えに強制
                     row4 = f"<div style='display: flex; justify-content: center; gap: 4%; margin-bottom: 12px;'>{draw_pin_pie(7)}{draw_pin_pie(8)}{draw_pin_pie(9)}{draw_pin_pie(10)}</div>"
                     row3 = f"<div style='display: flex; justify-content: center; gap: 4%; margin-bottom: 12px;'>{draw_pin_pie(4)}{draw_pin_pie(5)}{draw_pin_pie(6)}</div>"
                     row2 = f"<div style='display: flex; justify-content: center; gap: 4%; margin-bottom: 12px;'>{draw_pin_pie(2)}{draw_pin_pie(3)}</div>"
@@ -521,6 +518,8 @@ if app_mode == "📊 プレイヤー分析":
                     st.markdown(row4 + row3 + row2 + row1, unsafe_allow_html=True)
 
                     st.markdown("<div style='text-align: center; color: gray; font-size: 12px; margin-top: 5px;'>▲ 手前 ▲</div>", unsafe_allow_html=True)
+
+
                 
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 # 【05】 STATS：連発力スタッツ
