@@ -1200,12 +1200,11 @@ if app_mode == "📊 プレイヤー分析":
                         st.info("データがありません。")
 
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-                # 【15】月別集計（MONTHLY STATS）機能
+                # 【14】月別集計（MONTHLY STATS）機能
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_monthly_stats():
                     st.markdown("### <span style='color: silver;'>📅 MONTHLY STATS</span>", unsafe_allow_html=True)
 
-                    # ▼▼▼ この辞書定義を追加 ▼▼▼
                     named_splits = {
                         "7-10": ("2P", "スネークアイ"),
                         "2-7": ("2P", "ベビースプリット"),
@@ -1226,12 +1225,9 @@ if app_mode == "📊 プレイヤー分析":
                         "4-6-7-8-10": ("4_5P", "グリークチャーチ"),
                         "4-6-7-9-10": ("4_5P", "ワシントン条約")
                     }
-                    # ▲▲▲ 追加ここまで ▲▲▲
 
                     monthly_data = {}
-                    monthly_data = {}
                     
-                    # 倒ピン計算用ヘルパー
                     def get_pins(val):
                         v = str(val).replace("R:", "").strip().upper()
                         if v == "X": return 10
@@ -1273,9 +1269,9 @@ if app_mode == "📊 プレイヤー分析":
                         is_710 = str(row[54]).strip().upper() == "TRUE"
                         if is_710:
                             m_stat["game_710_c"] += 1
-                            if str(row[52]).strip() == "10": # 7-10メイク成功時
+                            if str(row[52]).strip() == "10":
                                 m_stat["game_710_s"] += 1
-                            continue # 7-10は通常集計から除外
+                            continue
                             
                         # ゲーム数・スコア
                         m_stat["games"] += 1
@@ -1333,10 +1329,9 @@ if app_mode == "📊 プレイヤー分析":
                                     miss_flag = True
                                     m_stat["pin_falls"] += (p1 + get_pins(res2))
                                     
-                                # スプリット・特定ピン
                                 is_split = False
                                 rem1_sorted = ",".join(sorted(rem1.replace(" ", "").split(",")))
-                                if rem1_sorted in named_splits: # 前のコードで定義したホワイトリスト
+                                if rem1_sorted in named_splits:
                                     m_stat["split_c"] += 1
                                     if is_spare(res2): m_stat["split_s"] += 1
                                     
@@ -1351,7 +1346,7 @@ if app_mode == "📊 プレイヤー分析":
                         res10_1 = str(row[46])
                         rem10_1 = str(row[47])
                         res10_2 = str(row[48])
-                        rem10_2 = str(row[49])
+                        res10_2_rem = str(row[49])
                         res10_3 = str(row[50])
                         
                         m_stat["pitches"] += 1
@@ -1417,7 +1412,6 @@ if app_mode == "📊 プレイヤー分析":
                         if not miss_flag:
                             m_stat["no_miss_games"] += 1
 
-                        # 連続ストライク（重複なし）
                         current_streak = 0
                         for pitch in game_seq:
                             if pitch == "X":
@@ -1435,62 +1429,116 @@ if app_mode == "📊 プレイヤー分析":
                         st.info("集計可能な月別データがありません。")
                         return
 
-                    # データ整形（表用）
-                    sorted_months = sorted(monthly_data.keys())
+                    # 全期間の合計を算出するためのデータセット作成
+                    total_data = {
+                        "games": 0, "pitches": 0, "pin_falls": 0, "total_score": 0,
+                        "high_score": 0, "score_300": 0, "score_275": 0, "score_250": 0,
+                        "score_225": 0, "score_200": 0, "no_miss_games": 0,
+                        "strikes": 0, "strike_chances": 0, "spares": 0, "spare_chances": 0,
+                        "no_head": 0, "no_head_chances": 0,
+                        "pin7_s": 0, "pin7_c": 0, "pin10_s": 0, "pin10_c": 0,
+                        "split_s": 0, "split_c": 0,
+                        "streak": {i: 0 for i in range(3, 13)},
+                        "games_by_num": {i: {"score": 0, "count": 0} for i in range(1, 14)},
+                        "game_710_c": 0, "game_710_s": 0
+                    }
+                    
+                    for m_stat in monthly_data.values():
+                        total_data["games"] += m_stat["games"]
+                        total_data["pitches"] += m_stat["pitches"]
+                        total_data["pin_falls"] += m_stat["pin_falls"]
+                        total_data["total_score"] += m_stat["total_score"]
+                        total_data["high_score"] = max(total_data["high_score"], m_stat["high_score"])
+                        total_data["score_300"] += m_stat["score_300"]
+                        total_data["score_275"] += m_stat["score_275"]
+                        total_data["score_250"] += m_stat["score_250"]
+                        total_data["score_225"] += m_stat["score_225"]
+                        total_data["score_200"] += m_stat["score_200"]
+                        total_data["no_miss_games"] += m_stat["no_miss_games"]
+                        total_data["strikes"] += m_stat["strikes"]
+                        total_data["strike_chances"] += m_stat["strike_chances"]
+                        total_data["spares"] += m_stat["spares"]
+                        total_data["spare_chances"] += m_stat["spare_chances"]
+                        total_data["no_head"] += m_stat["no_head"]
+                        total_data["no_head_chances"] += m_stat["no_head_chances"]
+                        total_data["pin7_s"] += m_stat["pin7_s"]
+                        total_data["pin7_c"] += m_stat["pin7_c"]
+                        total_data["pin10_s"] += m_stat["pin10_s"]
+                        total_data["pin10_c"] += m_stat["pin10_c"]
+                        total_data["split_s"] += m_stat["split_s"]
+                        total_data["split_c"] += m_stat["split_c"]
+                        for i in range(3, 13):
+                            total_data["streak"][i] += m_stat["streak"][i]
+                        for i in range(1, 14):
+                            total_data["games_by_num"][i]["score"] += m_stat["games_by_num"][i]["score"]
+                            total_data["games_by_num"][i]["count"] += m_stat["games_by_num"][i]["count"]
+                        total_data["game_710_c"] += m_stat["game_710_c"]
+                        total_data["game_710_s"] += m_stat["game_710_s"]
+
+                    # ① 年月を降順（新しい順）に並べ替え
+                    sorted_months = sorted(monthly_data.keys(), reverse=True)
                     
                     def safe_rate(s, c): return f"{(s/c*100):.1f}%" if c > 0 else "-"
                     def safe_ave(s, c): return f"{(s/c):.1f}" if c > 0 else "-"
 
+                    # ③ 名称を短くコンパクトに
                     rows = [
-                        {"label": "ゲーム数", "key": "games", "fmt": lambda x: f"{x['games']}"},
+                        {"label": "G数", "key": "games", "fmt": lambda x: f"{x['games']}"},
                         {"label": "投球数", "key": "pitches", "fmt": lambda x: f"{x['pitches']}"},
-                        {"label": "倒ピン数", "key": "pin_falls", "fmt": lambda x: f"{x['pin_falls']}"},
-                        {"label": "スコアアベレージ", "key": "score_ave", "fmt": lambda x: safe_ave(x['total_score'], x['games'])},
-                        {"label": "ハイスコア", "key": "high_score", "fmt": lambda x: f"{x['high_score']}"},
-                        {"label": "パーフェクト", "key": "score_300", "fmt": lambda x: f"{x['score_300']}"},
-                        {"label": "スコア275以上", "key": "score_275", "fmt": lambda x: f"{x['score_275']}"},
-                        {"label": "スコア250以上", "key": "score_250", "fmt": lambda x: f"{x['score_250']}"},
-                        {"label": "スコア225以上", "key": "score_225", "fmt": lambda x: f"{x['score_225']}"},
-                        {"label": "スコア200以上", "key": "score_200", "fmt": lambda x: f"{x['score_200']}"},
-                        {"label": "ノーミスゲーム数", "key": "no_miss_games", "fmt": lambda x: f"{x['no_miss_games']}"},
-                        {"label": "ストライク数", "key": "strikes", "fmt": lambda x: f"{x['strikes']}"},
-                        {"label": "ストライク率", "key": "strike_rate", "fmt": lambda x: safe_rate(x['strikes'], x['strike_chances'])},
-                        {"label": "スペア数", "key": "spares", "fmt": lambda x: f"{x['spares']}"},
-                        {"label": "スペア率", "key": "spare_rate", "fmt": lambda x: safe_rate(x['spares'], x['spare_chances'])},
-                        {"label": "ノーヘッド回数(1番残)", "key": "no_head", "fmt": lambda x: f"{x['no_head']}"},
-                        {"label": "ノーヘッド率", "key": "no_head_rate", "fmt": lambda x: safe_rate(x['no_head'], x['no_head_chances'])},
-                        {"label": "7番ピンカバー率", "key": "pin7_rate", "fmt": lambda x: safe_rate(x['pin7_s'], x['pin7_c'])},
-                        {"label": "10番ピンカバー率", "key": "pin10_rate", "fmt": lambda x: safe_rate(x['pin10_s'], x['pin10_c'])},
-                        {"label": "スプリットカバー率", "key": "split_rate", "fmt": lambda x: safe_rate(x['split_s'], x['split_c'])},
+                        {"label": "倒ピン", "key": "pin_falls", "fmt": lambda x: f"{x['pin_falls']}"},
+                        {"label": "AVE", "key": "score_ave", "fmt": lambda x: safe_ave(x['total_score'], x['games'])},
+                        {"label": "HIGH", "key": "high_score", "fmt": lambda x: f"{x['high_score']}"},
+                        {"label": "300", "key": "score_300", "fmt": lambda x: f"{x['score_300']}"},
+                        {"label": "275+", "key": "score_275", "fmt": lambda x: f"{x['score_275']}"},
+                        {"label": "250+", "key": "score_250", "fmt": lambda x: f"{x['score_250']}"},
+                        {"label": "225+", "key": "score_225", "fmt": lambda x: f"{x['score_225']}"},
+                        {"label": "200+", "key": "score_200", "fmt": lambda x: f"{x['score_200']}"},
+                        {"label": "ノーミス", "key": "no_miss_games", "fmt": lambda x: f"{x['no_miss_games']}"},
+                        {"label": "ST数", "key": "strikes", "fmt": lambda x: f"{x['strikes']}"},
+                        {"label": "ST率", "key": "strike_rate", "fmt": lambda x: safe_rate(x['strikes'], x['strike_chances'])},
+                        {"label": "SP数", "key": "spares", "fmt": lambda x: f"{x['spares']}"},
+                        {"label": "SP率", "key": "spare_rate", "fmt": lambda x: safe_rate(x['spares'], x['spare_chances'])},
+                        {"label": "NO HEAD", "key": "no_head", "fmt": lambda x: f"{x['no_head']}"},
+                        {"label": "NO HEAD率", "key": "no_head_rate", "fmt": lambda x: safe_rate(x['no_head'], x['no_head_chances'])},
+                        {"label": "7ピン率", "key": "pin7_rate", "fmt": lambda x: safe_rate(x['pin7_s'], x['pin7_c'])},
+                        {"label": "10ピン率", "key": "pin10_rate", "fmt": lambda x: safe_rate(x['pin10_s'], x['pin10_c'])},
+                        {"label": "SPLIT率", "key": "split_rate", "fmt": lambda x: safe_rate(x['split_s'], x['split_c'])},
                     ]
                     
                     for i in range(3, 13):
-                        rows.append({"label": f"連続ストライク{i}回", "key": f"streak_{i}", "fmt": lambda x, idx=i: f"{x['streak'][idx]}"})
+                        rows.append({"label": f"{i}連ST", "key": f"streak_{i}", "fmt": lambda x, idx=i: f"{x['streak'][idx]}"})
                         
                     for i in range(1, 13):
-                        rows.append({"label": f"{i}ゲーム目アベレージ", "key": f"g{i}_ave", "fmt": lambda x, idx=i: safe_ave(x['games_by_num'][idx]['score'], x['games_by_num'][idx]['count'])})
-                    rows.append({"label": "13ゲーム目以降アベレージ", "key": "g13_ave", "fmt": lambda x: safe_ave(x['games_by_num'][13]['score'], x['games_by_num'][13]['count'])})
+                        rows.append({"label": f"G{i} AVE", "key": f"g{i}_ave", "fmt": lambda x, idx=i: safe_ave(x['games_by_num'][idx]['score'], x['games_by_num'][idx]['count'])})
+                    rows.append({"label": "G13+ AVE", "key": "g13_ave", "fmt": lambda x: safe_ave(x['games_by_num'][13]['score'], x['games_by_num'][13]['count'])})
                     
-                    rows.append({"label": "7-10ゲーム回数", "key": "game_710_c", "fmt": lambda x: f"{x['game_710_c']}"})
-                    rows.append({"label": "7-10成功回数", "key": "game_710_s", "fmt": lambda x: f"{x['game_710_s']}"})
+                    rows.append({"label": "7-10 G数", "key": "game_710_c", "fmt": lambda x: f"{x['game_710_c']}"})
+                    rows.append({"label": "7-10 MAKE", "key": "game_710_s", "fmt": lambda x: f"{x['game_710_s']}"})
 
-                    # 表HTML生成 (改行禁止でコンパクトに)
+                    # ② 項目とTOTALを左側に固定（CSSで追従）させる
                     html = """<div style="background: #1e1e1e; padding: 15px; border-radius: 10px; overflow-x: auto; margin-bottom: 20px;">
-<table style="width: 100%; border-collapse: collapse; white-space: nowrap; font-size: 13px;">
+<table style="width: 100%; border-collapse: separate; border-spacing: 0; white-space: nowrap; font-size: 13px;">
 <thead>
-<tr style="border-bottom: 2px solid #555; color: silver;">
-<th style="padding: 4px 10px; position: sticky; left: 0; background: #1e1e1e; z-index: 2;">項目</th>"""
+<tr style="color: silver;">
+<th style="padding: 4px 8px; position: sticky; left: 0; background: #2a2a2e; z-index: 3; border-bottom: 2px solid #555; width: 85px; min-width: 85px; max-width: 85px;">項目</th>
+<th style="padding: 4px 8px; position: sticky; left: 85px; background: #2a2a2e; z-index: 3; border-bottom: 2px solid #555; border-right: 2px solid #555; width: 65px; min-width: 65px; max-width: 65px; text-align: right; color: #bf953f;">TOTAL</th>"""
                     
                     for m in sorted_months:
-                        html += f'<th style="padding: 4px 10px; text-align: right;">{m}</th>'
+                        html += f'<th style="padding: 4px 10px; text-align: right; border-bottom: 2px solid #555;">{m}</th>'
                     html += "</tr></thead><tbody>"
 
                     for r in rows:
-                        html += f'<tr style="border-bottom: 1px dashed #444;">'
-                        html += f'<td style="padding: 4px 10px; position: sticky; left: 0; background: #1e1e1e; font-weight: bold; color: #ddd;">{r["label"]}</td>'
+                        html += f'<tr>'
+                        # 固定列1：項目名
+                        html += f'<td style="padding: 4px 8px; position: sticky; left: 0; background: #2a2a2e; z-index: 2; font-weight: bold; color: #ddd; border-bottom: 1px dashed #444;">{r["label"]}</td>'
+                        # 固定列2：TOTALデータ
+                        val_total = r["fmt"](total_data)
+                        html += f'<td style="padding: 4px 8px; position: sticky; left: 85px; background: #2a2a2e; z-index: 2; text-align: right; font-weight: bold; color: #bf953f; border-bottom: 1px dashed #444; border-right: 2px solid #555;">{val_total}</td>'
+                        
+                        # スクロール列：月別データ
                         for m in sorted_months:
                             val = r["fmt"](monthly_data[m])
-                            html += f'<td style="padding: 4px 10px; text-align: right; color: white;">{val}</td>'
+                            html += f'<td style="padding: 4px 10px; text-align: right; color: white; border-bottom: 1px dashed #444;">{val}</td>'
                         html += "</tr>"
                     html += "</tbody></table></div>"
                     
@@ -1505,9 +1553,10 @@ if app_mode == "📊 プレイヤー分析":
                         import plotly.graph_objects as go
                         target_row = next(r for r in rows if r["label"] == selected_graph)
                         
-                        x_vals = sorted_months
+                        # グラフ用の横軸は時系列（古い→新しい）に再ソートして表示
+                        x_vals_graph = sorted(monthly_data.keys())
                         y_vals = []
-                        for m in x_vals:
+                        for m in x_vals_graph:
                             val_str = target_row["fmt"](monthly_data[m]).replace("%", "")
                             try:
                                 y_vals.append(float(val_str))
@@ -1515,7 +1564,7 @@ if app_mode == "📊 プレイヤー分析":
                                 y_vals.append(0.0)
                                 
                         fig = go.Figure()
-                        fig.add_trace(go.Scatter(x=x_vals, y=y_vals, mode='lines+markers', line=dict(color='#bf953f', width=3), marker=dict(size=8, color='white')))
+                        fig.add_trace(go.Scatter(x=x_vals_graph, y=y_vals, mode='lines+markers', line=dict(color='#bf953f', width=3), marker=dict(size=8, color='white')))
                         fig.update_layout(
                             title=dict(text=f"{selected_graph} の推移", font=dict(color='white')),
                             plot_bgcolor='#1e1e1e', paper_bgcolor='#1e1e1e',
@@ -1525,7 +1574,6 @@ if app_mode == "📊 プレイヤー分析":
                             height=350
                         )
                         st.plotly_chart(fig, use_container_width=True)
-
                 
                 # =========================================================
                 # ▼▼▼ 設定に従って画面を描画する処理（ここは変更不要） ▼▼▼
