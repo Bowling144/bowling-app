@@ -884,12 +884,11 @@ if app_mode == "📊 プレイヤー分析":
                         active_pins = pins_str.split("-")
                         
                         def pin_html(p_num):
-                            bg_color = "#ff3b30" if str(p_num) in active_pins else "#333333"
+                            bg_color = "#ff2d55" if str(p_num) in active_pins else "#333333"
                             border_color = "#ffaaaa" if str(p_num) in active_pins else "#555555"
                             return f'<div style="width: 14px; height: 14px; border-radius: 50%; background-color: {bg_color}; border: 1px solid {border_color}; margin: 2px;"></div>'
 
-                        html = f"""
-<div style="display: flex; flex-direction: column; align-items: center; background-color: #1a1a1c; padding: 10px; border-radius: 8px; border: 1px solid #444;">
+                        html = f"""<div style="display: flex; flex-direction: column; align-items: center; background-color: #1a1a1c; padding: 10px; border-radius: 8px; border: 1px solid #444;">
 <div style="color: silver; font-size: 10px; margin-bottom: 5px; font-weight: bold;">{pins_str}</div>
 <div style="display: flex; justify-content: center;">{pin_html(7)}{pin_html(8)}{pin_html(9)}{pin_html(10)}</div>
 <div style="display: flex; justify-content: center;">{pin_html(4)}{pin_html(5)}{pin_html(6)}</div>
@@ -919,11 +918,13 @@ if app_mode == "📊 プレイヤー分析":
                     for rec in split_records:
                         color = get_split_color(rec["name"])
                         tooltip_html = draw_tooltip_pins(rec['pins'])
+                        # ★ 名前とピン番号を結合して表示用の文字列を作成
+                        display_name = f"{rec['name']} ({rec['pins']})" if rec['pins'] else rec['name']
                         
                         html += f"""
 <tr style="border-bottom: 1px dashed #444;">
 <td style="padding: 7px 5px; color: {color}; font-weight: bold; font-size: 14px; display: flex; align-items: center;">
-{rec['name']}
+{display_name}
 <div class="tooltip-container">
 <span style="filter: hue-rotate(300deg) saturate(200%); font-size: 14px;">🎳</span>
 <div class="tooltip-content">{tooltip_html}</div>
