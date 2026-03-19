@@ -827,7 +827,7 @@ if app_mode == "📊 プレイヤー分析":
                 # 【08】 AWARDS：スプリット・メイク
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_08_split_make():
-                    st.markdown("### <span style='color: silver;'>🎳 SPLIT DATA</span>", unsafe_allow_html=True)
+                    st.markdown("### <span style='color: silver;'>🎳 SPLIT MAKE DATA</span>", unsafe_allow_html=True)
                     
                     split_records = []
                     others_records = []
@@ -843,7 +843,7 @@ if app_mode == "📊 プレイヤー分析":
                             except ValueError:
                                 continue
                             
-                            # ③ OTHERSの処理（名称変更と並び順の設定）
+                            # ③ OTHERSの処理（4ピン・5ピンを分割）
                             if name == "Others":
                                 if "2P" in category:
                                     name = "Others (2ピン)"
@@ -851,9 +851,12 @@ if app_mode == "📊 プレイヤー分析":
                                 elif "3P" in category:
                                     name = "Others (3ピン)"
                                     order = 2
-                                else:
-                                    name = "Others (4・5ピン)"
+                                elif "4P" in category:
+                                    name = "Others (4ピン)"
                                     order = 3
+                                else:
+                                    name = "Others (5ピン)"
+                                    order = 4
                                 others_records.append({"name": name, "chances": chances, "success": success, "rate": rate, "order": order})
                             else:
                                 split_records.append({"name": name, "chances": chances, "success": success, "rate": rate})
@@ -862,33 +865,47 @@ if app_mode == "📊 プレイヤー分析":
                         st.info("スプリットの記録がありません。")
                         return
 
-                    # Othersを 2ピン→3ピン→4・5ピン の順にソートし、一般スプリットの後ろに結合
+                    # ② 難易度（階層）を判定する内部関数
+                    def get_split_tier(split_name):
+                        if any(x in split_name for x in ["ベビースプリット", "2ピン"]):
+                            return 1 # 簡単（緑）
+                        elif any(x in split_name for x in ["リリー", "ビッグディボット", "フォーシックス", "3ピン"]):
+                            return 2 # 中くらい（黄）
+                        elif any(x in split_name for x in ["スネークアイ", "ビッグフォー", "グリークチャーチ", "4ピン", "5ピン"]):
+                            return 3 # 難しい（赤オレンジ）
+                        else:
+                            return 2
+
+                    # 一般スプリットを難易度の低い順（上から簡単なもの）にソート
+                    split_records.sort(key=lambda x: get_split_tier(x["name"]))
+
+                    # Othersを並び替え、一般スプリットの後ろに結合
                     others_records.sort(key=lambda x: x["order"])
                     all_records = split_records + others_records
 
-                    # ④ 難易度別の文字色設定
+                    # 文字色の判定
                     def get_split_color(split_name):
-                        if any(x in split_name for x in ["スネークアイ", "ビッグフォー", "グリークチャーチ", "4・5ピン"]):
-                            return "#ff5722" 
-                        elif any(x in split_name for x in ["リリー", "ビッグディボット", "フォーシックス", "3ピン"]):
-                            return "#fbbc04" 
-                        elif any(x in split_name for x in ["ベビースプリット", "2ピン"]):
-                            return "#34a853" 
+                        if "Others" in split_name:
+                            return "#aaaaaa" # 薄いグレー
+                        elif get_split_tier(split_name) == 3:
+                            return "#ff5722" # 赤とオレンジの中間
+                        elif get_split_tier(split_name) == 2:
+                            return "#fbbc04" # 黄色
+                        elif get_split_tier(split_name) == 1:
+                            return "#34a853" # 緑
                         else:
                             return "white"
 
-                    # Markdownの誤作動を防ぐため、HTML内のインデント（行頭の空白）を完全に排除
+                    # ① 行の間隔(padding)を元の10pxの70%である7pxに縮小
+                    # ④ 表の内側にあった2重のタイトル記述を削除
                     html = """<div style="background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333; margin-bottom: 20px;">
-<div style="color: #bf953f; font-weight: 900; font-size: 16px; letter-spacing: 1px; margin-bottom: 12px; border-bottom: 2px solid #444; padding-bottom: 6px; display: flex; align-items: center;">
-<span style="font-size: 20px; margin-right: 8px;">🎳</span> SPLIT MAKE DATA
-</div>
 <table style="width: 100%; text-align: left; border-collapse: collapse;">
 <thead>
 <tr style="border-bottom: 1px solid #555; color: silver; font-size: 12px;">
-<th style="padding: 8px 5px; font-weight: normal;">スプリット名称</th>
-<th style="padding: 8px 5px; text-align: center; font-weight: normal;">遭遇</th>
-<th style="padding: 8px 5px; text-align: center; font-weight: normal;">メイク</th>
-<th style="padding: 8px 5px; text-align: right; font-weight: normal;">メイク率</th>
+<th style="padding: 5px; font-weight: normal;">スプリット名称</th>
+<th style="padding: 5px; text-align: center; font-weight: normal;">遭遇</th>
+<th style="padding: 5px; text-align: center; font-weight: normal;">メイク</th>
+<th style="padding: 5px; text-align: right; font-weight: normal;">メイク率</th>
 </tr>
 </thead>
 <tbody>"""
@@ -897,10 +914,10 @@ if app_mode == "📊 プレイヤー分析":
                         color = get_split_color(rec["name"])
                         html += f"""
 <tr style="border-bottom: 1px dashed #444;">
-<td style="padding: 10px 5px; color: {color}; font-weight: bold; font-size: 14px;">{rec['name']}</td>
-<td style="padding: 10px 5px; color: white; text-align: center; font-size: 14px;">{rec['chances']}</td>
-<td style="padding: 10px 5px; color: white; text-align: center; font-size: 14px;">{rec['success']}</td>
-<td style="padding: 10px 5px; color: white; text-align: right; font-size: 14px; font-weight: bold;">{rec['rate']:.1f}%</td>
+<td style="padding: 7px 5px; color: {color}; font-weight: bold; font-size: 14px;">{rec['name']}</td>
+<td style="padding: 7px 5px; color: white; text-align: center; font-size: 14px;">{rec['chances']}</td>
+<td style="padding: 7px 5px; color: white; text-align: center; font-size: 14px;">{rec['success']}</td>
+<td style="padding: 7px 5px; color: white; text-align: right; font-size: 14px; font-weight: bold;">{rec['rate']:.1f}%</td>
 </tr>"""
                         
                     html += """
