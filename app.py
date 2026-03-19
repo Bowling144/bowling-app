@@ -539,7 +539,7 @@ if app_mode == "📊 プレイヤー分析":
                     with r1[3]: st.markdown(draw_pin_pie(10), unsafe_allow_html=True)
                     
                     # 3段目 (4, 5, 6)
-                    r2 = st.columns([0.5, 1, 1, 1, 0.5])
+                    r2 = st.columns([0.4, 1, 1, 1, 0.4])
                     with r2[1]: st.markdown(draw_pin_pie(4), unsafe_allow_html=True)
                     with r2[2]: st.markdown(draw_pin_pie(5), unsafe_allow_html=True)
                     with r2[3]: st.markdown(draw_pin_pie(6), unsafe_allow_html=True)
