@@ -757,31 +757,31 @@ if app_mode == "📊 プレイヤー分析":
 <div style="margin-left: 5px; margin-bottom: 25px;">
 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 6px 0;">
 <span style="color: silver; font-size: 14px; font-weight: bold;">100 UP</span>
-<span style="color: white; font-size: 14px;"><span style="color: #ff6600; font-weight: bold; font-size: 16px;">{score_100}</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">({fmt_pct(score_100, total_g)}％)</span></span>
+<span style="color: white; font-size: 14px;"><span style="color: #ff6600; font-weight: bold; font-size: 16px;">{score_100}</span> G <span style="color: gray; font-size: 12px; margin-left: 5px;">({fmt_pct(score_100, total_g)}％)</span></span>
 </div>
 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 6px 0;">
 <span style="color: silver; font-size: 14px; font-weight: bold;">150 UP</span>
-<span style="color: white; font-size: 14px;"><span style="color: #ff6600; font-weight: bold; font-size: 16px;">{score_150}</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">({fmt_pct(score_150, total_g)}％)</span></span>
+<span style="color: white; font-size: 14px;"><span style="color: #ff6600; font-weight: bold; font-size: 16px;">{score_150}</span> G <span style="color: gray; font-size: 12px; margin-left: 5px;">({fmt_pct(score_150, total_g)}％)</span></span>
 </div>
 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 6px 0;">
 <span style="color: silver; font-size: 14px; font-weight: bold;">200 UP</span>
-<span style="color: white; font-size: 14px;"><span style="color: #ff6600; font-weight: bold; font-size: 16px;">{score_200}</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">({fmt_pct(score_200, total_g)}％)</span></span>
+<span style="color: white; font-size: 14px;"><span style="color: #ff6600; font-weight: bold; font-size: 16px;">{score_200}</span> G <span style="color: gray; font-size: 12px; margin-left: 5px;">({fmt_pct(score_200, total_g)}％)</span></span>
 </div>
 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 6px 0;">
 <span style="color: silver; font-size: 14px; font-weight: bold;">225 UP</span>
-<span style="color: white; font-size: 14px;"><span style="color: #ff6600; font-weight: bold; font-size: 16px;">{score_225}</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">({fmt_pct(score_225, total_g)}％)</span></span>
+<span style="color: white; font-size: 14px;"><span style="color: #ff6600; font-weight: bold; font-size: 16px;">{score_225}</span> G <span style="color: gray; font-size: 12px; margin-left: 5px;">({fmt_pct(score_225, total_g)}％)</span></span>
 </div>
 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 6px 0;">
 <span style="color: silver; font-size: 14px; font-weight: bold;">250 UP</span>
-<span style="color: white; font-size: 14px;"><span style="color: #ff6600; font-weight: bold; font-size: 16px;">{score_250}</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">({fmt_pct(score_250, total_g)}％)</span></span>
+<span style="color: white; font-size: 14px;"><span style="color: #ff6600; font-weight: bold; font-size: 16px;">{score_250}</span> G <span style="color: gray; font-size: 12px; margin-left: 5px;">({fmt_pct(score_250, total_g)}％)</span></span>
 </div>
 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 6px 0;">
 <span style="color: silver; font-size: 14px; font-weight: bold;">275 UP</span>
-<span style="color: white; font-size: 14px;"><span style="color: #ff6600; font-weight: bold; font-size: 16px;">{score_275}</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">({fmt_pct(score_275, total_g)}％)</span></span>
+<span style="color: white; font-size: 14px;"><span style="color: #ff6600; font-weight: bold; font-size: 16px;">{score_275}</span> G <span style="color: gray; font-size: 12px; margin-left: 5px;">({fmt_pct(score_275, total_g)}％)</span></span>
 </div>
 <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0;">
 <span style="color: #ff3b30; font-size: 14px; font-weight: bold;">PERFECT 300</span>
-<span style="color: white; font-size: 14px;"><span style="color: #ff6600; font-weight: bold; font-size: 16px;">{score_300}</span> 回 <span style="color: gray; font-size: 12px; margin-left: 5px;">({fmt_pct(score_300, total_g)}％)</span></span>
+<span style="color: white; font-size: 14px;"><span style="color: #ff6600; font-weight: bold; font-size: 16px;">{score_300}</span> G <span style="color: gray; font-size: 12px; margin-left: 5px;">({fmt_pct(score_300, total_g)}％)</span></span>
 </div>
 </div>
 <div style="color: #bf953f; font-weight: 900; font-size: 16px; letter-spacing: 1px; margin-bottom: 12px; border-bottom: 2px solid #444; padding-bottom: 6px; display: flex; align-items: center;">
