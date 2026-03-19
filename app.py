@@ -841,7 +841,6 @@ if app_mode == "📊 プレイヤー分析":
                             except ValueError:
                                 continue
                             
-                            # Othersはもう来ないが念のため弾く
                             if name != "Others":
                                 split_records.append({"name": name, "chances": chances, "success": success, "rate": rate})
                     
@@ -884,9 +883,6 @@ if app_mode == "📊 プレイヤー分析":
 <tbody>"""
                     
                     for rec in split_records:
-                        # ★遭遇0回のスプリットは表に表示しない
-                        if rec['chances'] == 0:
-                            continue
                         color = get_split_color(rec["name"])
                         html += f"""
 <tr style="border-bottom: 1px dashed #444;">
@@ -902,7 +898,6 @@ if app_mode == "📊 プレイヤー分析":
 </div>"""
                     
                     st.markdown(html, unsafe_allow_html=True)
-
                 
 
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
