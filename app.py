@@ -2327,7 +2327,7 @@ if st.session_state.analyzed_results:
                     new_end = st.text_input("終了時刻", value=row[2], key=f"e_{img_idx}_{local_idx}")
 
                 st.markdown("**🎳 プレイスタイル**")
-                is_710_checked = st.checkbox("🎯 7-10G (セブン-テン ゲームとして登録)", value=bool(row[51]) if len(row) > 51 else False, key=f"710_{img_idx}_{local_idx}")
+                is_710_checked = st.checkbox("🎳 7-10G (セブン-テン ゲームとして登録)", value=bool(row[51]) if len(row) > 51 else False, key=f"710_{img_idx}_{local_idx}")
 
                 st.markdown("**🎳 投球結果と残ピン位置（1〜10番を選択）**")
                 new_throws = []
