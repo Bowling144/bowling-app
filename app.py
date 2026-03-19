@@ -492,7 +492,7 @@ if app_mode == "📊 プレイヤー分析":
                 def render_04_first_pitch_pins():
                     st.markdown("### <span style='color: silver;'>🎳 1投目 残ピン率</span>", unsafe_allow_html=True)
                     
-                    #--- 円グラフとピン番号をHTML/CSSで直接描画する内部関数 ---
+                    #--- 円グラフをHTML/CSSで直接描画する内部関数（Plotlyのiframe切れ問題を根本解決） ---
                     def draw_pin_pie(pin_num):
                         rate_str = p_awards.get(f"⑬{pin_num}番ピン残存率", "0")
                         try:
@@ -500,12 +500,13 @@ if app_mode == "📊 プレイヤー分析":
                         except ValueError:
                             rate = 0.0
                         
-                        # グラフと文字をひとまとめにしたコンテナ
+                        # conic-gradientを使用して、枠切れせず文字も潰れないレスポンシブな円グラフを生成
                         html = f"""
-                        <div style="width: 22%; max-width: 70px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 8px;">
                             <div style="
                                 position: relative;
                                 width: 100%; 
+                                max-width: 65px; 
                                 aspect-ratio: 1 / 1; 
                                 border-radius: 50%; 
                                 background: conic-gradient(#EF553B 0% {rate}%, #555555 {rate}% 100%);
@@ -517,17 +518,17 @@ if app_mode == "📊 プレイヤー分析":
                             ">
                                 <span style="
                                     color: white; 
-                                    font-size: 12px; 
+                                    font-size: 11px; 
                                     font-weight: bold; 
                                     font-family: Arial, sans-serif;
                                     text-shadow: 1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black;
                                 ">{rate}%</span>
                             </div>
-                            <div style="color: silver; font-size: 11px; margin-top: 6px; font-weight: bold;">{pin_num}番ピン</div>
                         </div>
                         """
                         return html
 
+                    # --- ボウリングのピン配置に合わせて円グラフを並べる ---
                     st.markdown("<div style='text-align: center; color: gray; font-size: 12px; margin-bottom: 15px;'>▼ レーン奥 ▼</div>", unsafe_allow_html=True)
                     
                     # Streamlitのst.columnsを排除し、HTMLのFlexboxで各段をグループ化して等間隔・中央揃えに強制
@@ -539,6 +540,7 @@ if app_mode == "📊 プレイヤー分析":
                     st.markdown(row4 + row3 + row2 + row1, unsafe_allow_html=True)
 
                     st.markdown("<div style='text-align: center; color: gray; font-size: 12px; margin-top: 5px;'>▲ 手前 ▲</div>", unsafe_allow_html=True)
+
                 
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 # 【05】 STATS：連発力スタッツ
