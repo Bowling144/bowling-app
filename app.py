@@ -835,7 +835,7 @@ if app_mode == "📊 プレイヤー分析":
                     for row in award_data:
                         if len(row) >= 7 and row[1] == selected_player and "⑥" in row[3]:
                             name = row[3].replace("⑥", "")
-                            category = row[2] # "4.2Pスプリット" などのカテゴリ名が入っている列
+                            category = row[2] 
                             try:
                                 chances = int(row[4])
                                 success = int(row[5])
@@ -843,7 +843,6 @@ if app_mode == "📊 プレイヤー分析":
                             except ValueError:
                                 continue
                             
-                            # ③ OTHERSの処理（4ピン・5ピンを分割）
                             if name == "Others":
                                 if "2P" in category:
                                     name = "Others (2ピン)"
@@ -865,39 +864,33 @@ if app_mode == "📊 プレイヤー分析":
                         st.info("スプリットの記録がありません。")
                         return
 
-                    # ② 難易度（階層）を判定する内部関数
                     def get_split_tier(split_name):
-                        if any(x in split_name for x in ["ベビースプリット", "2ピン"]):
+                        # ★追加したスプリット名の難易度も判定に組み込む
+                        if any(x in split_name for x in ["ベビースプリット", "ダイムストア", "2ピン"]):
                             return 1 # 簡単（緑）
-                        elif any(x in split_name for x in ["リリー", "ビッグディボット", "フォーシックス", "3ピン"]):
+                        elif any(x in split_name for x in ["リリー", "ビッグディボット", "フォーシックス", "クリスマスツリー", "ムース", "3ピン"]):
                             return 2 # 中くらい（黄）
-                        elif any(x in split_name for x in ["スネークアイ", "ビッグフォー", "グリークチャーチ", "4ピン", "5ピン"]):
+                        elif any(x in split_name for x in ["スネークアイ", "ビッグフォー", "グリークチャーチ", "ワシントン条約", "マイティマイト", "4ピン", "5ピン"]):
                             return 3 # 難しい（赤オレンジ）
                         else:
                             return 2
 
-                    # 一般スプリットを難易度の低い順（上から簡単なもの）にソート
                     split_records.sort(key=lambda x: get_split_tier(x["name"]))
-
-                    # Othersを並び替え、一般スプリットの後ろに結合
                     others_records.sort(key=lambda x: x["order"])
                     all_records = split_records + others_records
 
-                    # 文字色の判定
                     def get_split_color(split_name):
                         if "Others" in split_name:
-                            return "#aaaaaa" # 薄いグレー
+                            return "#aaaaaa" 
                         elif get_split_tier(split_name) == 3:
-                            return "#ff5722" # 赤とオレンジの中間
+                            return "#ff5722" 
                         elif get_split_tier(split_name) == 2:
-                            return "#fbbc04" # 黄色
+                            return "#fbbc04" 
                         elif get_split_tier(split_name) == 1:
-                            return "#34a853" # 緑
+                            return "#34a853" 
                         else:
                             return "white"
 
-                    # ① 行の間隔(padding)を元の10pxの70%である7pxに縮小
-                    # ④ 表の内側にあった2重のタイトル記述を削除
                     html = """<div style="background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333; margin-bottom: 20px;">
 <table style="width: 100%; text-align: left; border-collapse: collapse;">
 <thead>
@@ -926,6 +919,9 @@ if app_mode == "📊 プレイヤー分析":
 </div>"""
                     
                     st.markdown(html, unsafe_allow_html=True)
+
+
+                
 
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 # 【09】 ENVIRONMENT：投球方式 適性
@@ -2946,16 +2942,26 @@ if st.session_state.analyzed_results:
                         
                     # --- ⑥ スプリット形状ごと ---
                     named_splits = {
+                        # --- ⑥ スプリット形状ごと ---
+                    named_splits = {
                         "7-10": ("2P", "スネークアイ"),
                         "2-7": ("2P", "ベビースプリット"),
                         "3-10": ("2P", "ベビースプリット"),
                         "4-6": ("2P", "フォーシックス"),
                         "4-9": ("2P", "ビッグディボット"),
                         "6-8": ("2P", "ビッグディボット"),
+                        "5-7": ("2P", "ダイムストア"),       # 追加
+                        "5-10": ("2P", "ダイムストア"),      # 追加
+                        "7-9": ("2P", "ムース"),             # 追加
+                        "8-10": ("2P", "ムース"),            # 追加
                         "5-7-10": ("3P", "リリー"),
+                        "2-7-10": ("3P", "クリスマスツリー"), # 追加
+                        "3-7-10": ("3P", "クリスマスツリー"), # 追加
+                        "4-7-9": ("3P", "マイティマイト"),    # 追加
+                        "6-7-10": ("3P", "マイティマイト"),   # 追加
                         "4-6-7-10": ("4_5P", "ビッグフォー"),
-                        "4-6-7-9-10": ("4_5P", "グリークチャーチ"),
-                        "4-6-7-8-10": ("4_5P", "グリークチャーチ")
+                        "4-6-7-8-10": ("4_5P", "グリークチャーチ"),
+                        "4-6-7-9-10": ("4_5P", "ワシントン条約") # 変更・追加
                     }
                     
                     split_stats = {
