@@ -14,7 +14,6 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 
 
-
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
