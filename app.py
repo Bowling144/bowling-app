@@ -216,7 +216,6 @@ if app_mode == "📊 プレイヤー分析":
                         "08_split_make",
                     ],
                     "📍 MONTHLY": [
-                        "06_total_monthly",
                         "15_monthly_stats",
                     ],
                     "📊 ANALYSIS": [
@@ -1201,7 +1200,7 @@ if app_mode == "📊 プレイヤー分析":
                         st.info("データがありません。")
 
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-                # 月別集計（MONTHLY STATS）機能
+                # 【15】月別集計（MONTHLY STATS）機能
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_monthly_stats():
                     st.markdown("### <span style='color: silver;'>📅 MONTHLY STATS</span>", unsafe_allow_html=True)
