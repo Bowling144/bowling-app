@@ -532,21 +532,20 @@ if app_mode == "📊 プレイヤー分析":
                     st.markdown("<div style='text-align: center; color: gray; font-size: 12px; margin-bottom: 10px;'>▼ レーン奥 ▼</div>", unsafe_allow_html=True)
                     
                     # 4段目 (7, 8, 9, 10)
-                    r1 = st.columns([1, 1, 1, 1, 1, 1])
+                    r1 = st.columns(4)
                     with r1[0]: st.markdown(draw_pin_pie(7), unsafe_allow_html=True)
                     with r1[1]: st.markdown(draw_pin_pie(8), unsafe_allow_html=True)
                     with r1[2]: st.markdown(draw_pin_pie(9), unsafe_allow_html=True)
                     with r1[3]: st.markdown(draw_pin_pie(10), unsafe_allow_html=True)
                     
                     # 3段目 (4, 5, 6)
-                    # ★ 両端の比率を0.5から0.4に下げ、4・6番ピンを外側に広げて間隔を整える
-                    r2 = st.columns([1, 1, 1, 1, 1])
+                    r2 = st.columns([0.5, 1, 1, 1, 0.5])
                     with r2[1]: st.markdown(draw_pin_pie(4), unsafe_allow_html=True)
                     with r2[2]: st.markdown(draw_pin_pie(5), unsafe_allow_html=True)
                     with r2[3]: st.markdown(draw_pin_pie(6), unsafe_allow_html=True)
                     
                     # 2段目 (2, 3)
-                    r3 = st.columns([1.5, 1, 1, 1.5])
+                    r3 = st.columns([1, 1, 1, 1])
                     with r3[1]: st.markdown(draw_pin_pie(2), unsafe_allow_html=True)
                     with r3[2]: st.markdown(draw_pin_pie(3), unsafe_allow_html=True)
                     
