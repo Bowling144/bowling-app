@@ -492,7 +492,7 @@ if app_mode == "📊 プレイヤー分析":
                 def render_04_first_pitch_pins():
                     st.markdown("### <span style='color: silver;'>🎳 1投目 残ピン率</span>", unsafe_allow_html=True)
                     
-                    #--- 円グラフをHTML/CSSで直接描画する内部関数（Plotlyのiframe切れ問題を根本解決） ---
+                    #--- 円グラフとピン番号をHTML/CSSで直接描画する内部関数 ---
                     def draw_pin_pie(pin_num):
                         rate_str = p_awards.get(f"⑬{pin_num}番ピン残存率", "0")
                         try:
@@ -500,13 +500,12 @@ if app_mode == "📊 プレイヤー分析":
                         except ValueError:
                             rate = 0.0
                         
-                        # conic-gradientを使用して、枠切れせず文字も潰れないレスポンシブな円グラフを生成
+                        # グラフと文字をひとまとめにしたコンテナ
                         html = f"""
-                        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 8px;">
+                        <div style="width: 22%; max-width: 70px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
                             <div style="
                                 position: relative;
                                 width: 100%; 
-                                max-width: 65px; 
                                 aspect-ratio: 1 / 1; 
                                 border-radius: 50%; 
                                 background: conic-gradient(#EF553B 0% {rate}%, #555555 {rate}% 100%);
@@ -518,43 +517,28 @@ if app_mode == "📊 プレイヤー分析":
                             ">
                                 <span style="
                                     color: white; 
-                                    font-size: 11px; 
+                                    font-size: 12px; 
                                     font-weight: bold; 
                                     font-family: Arial, sans-serif;
                                     text-shadow: 1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black;
                                 ">{rate}%</span>
                             </div>
+                            <div style="color: silver; font-size: 11px; margin-top: 6px; font-weight: bold;">{pin_num}番ピン</div>
                         </div>
                         """
                         return html
 
-                    # --- ボウリングのピン配置に合わせて円グラフを並べる ---
-                    st.markdown("<div style='text-align: center; color: gray; font-size: 12px; margin-bottom: 10px;'>▼ レーン奥 ▼</div>", unsafe_allow_html=True)
+                    st.markdown("<div style='text-align: center; color: gray; font-size: 12px; margin-bottom: 15px;'>▼ レーン奥 ▼</div>", unsafe_allow_html=True)
                     
-                    # 4段目 (7, 8, 9, 10)
-                    r1 = st.columns(4)
-                    with r1[0]: st.markdown(draw_pin_pie(7), unsafe_allow_html=True)
-                    with r1[1]: st.markdown(draw_pin_pie(8), unsafe_allow_html=True)
-                    with r1[2]: st.markdown(draw_pin_pie(9), unsafe_allow_html=True)
-                    with r1[3]: st.markdown(draw_pin_pie(10), unsafe_allow_html=True)
+                    # Streamlitのst.columnsを排除し、HTMLのFlexboxで各段をグループ化して等間隔・中央揃えに強制
+                    row4 = f"<div style='display: flex; justify-content: center; gap: 4%; margin-bottom: 12px;'>{draw_pin_pie(7)}{draw_pin_pie(8)}{draw_pin_pie(9)}{draw_pin_pie(10)}</div>"
+                    row3 = f"<div style='display: flex; justify-content: center; gap: 4%; margin-bottom: 12px;'>{draw_pin_pie(4)}{draw_pin_pie(5)}{draw_pin_pie(6)}</div>"
+                    row2 = f"<div style='display: flex; justify-content: center; gap: 4%; margin-bottom: 12px;'>{draw_pin_pie(2)}{draw_pin_pie(3)}</div>"
+                    row1 = f"<div style='display: flex; justify-content: center; margin-bottom: 12px;'>{draw_pin_pie(1)}</div>"
                     
-                    # 3段目 (4, 5, 6)
-                    r2 = st.columns([1, 1, 1, 1, 1])
-                    with r2[1]: st.markdown(draw_pin_pie(4), unsafe_allow_html=True)
-                    with r2[2]: st.markdown(draw_pin_pie(5), unsafe_allow_html=True)
-                    with r2[3]: st.markdown(draw_pin_pie(6), unsafe_allow_html=True)
-                    
-                    # 2段目 (2, 3)
-                    r3 = st.columns([1, 1, 1, 1])
-                    with r3[1]: st.markdown(draw_pin_pie(2), unsafe_allow_html=True)
-                    with r3[2]: st.markdown(draw_pin_pie(3), unsafe_allow_html=True)
-                    
-                    # 1段目 (1)
-                    r4 = st.columns([1.5, 1, 1.5])
-                    with r4[1]: st.markdown(draw_pin_pie(1), unsafe_allow_html=True)
+                    st.markdown(row4 + row3 + row2 + row1, unsafe_allow_html=True)
 
-                    st.markdown("<div style='text-align: center; color: gray; font-size: 12px; margin-top: 10px;'>▲ 手前 ▲</div>", unsafe_allow_html=True)
-                    
+                    st.markdown("<div style='text-align: center; color: gray; font-size: 12px; margin-top: 5px;'>▲ 手前 ▲</div>", unsafe_allow_html=True)                    
                 
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 # 【05】 STATS：連発力スタッツ
