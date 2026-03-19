@@ -833,7 +833,15 @@ if app_mode == "📊 プレイヤー分析":
                     
                     for row in award_data:
                         if len(row) >= 7 and row[1] == selected_player and "⑥" in row[3]:
-                            name = row[3].replace("⑥", "")
+                            name_part = row[3].replace("⑥", "")
+                            # name_part は "スネークアイ (7-10)" のような形式なので、名前とピン配置に分割
+                            if " (" in name_part and ")" in name_part:
+                                s_name = name_part.split(" (")[0]
+                                s_pins = name_part.split(" (")[1].replace(")", "")
+                            else:
+                                s_name = name_part
+                                s_pins = ""
+                                
                             try:
                                 chances = int(row[4])
                                 success = int(row[5])
@@ -841,8 +849,8 @@ if app_mode == "📊 プレイヤー分析":
                             except ValueError:
                                 continue
                             
-                            if name != "Others":
-                                split_records.append({"name": name, "chances": chances, "success": success, "rate": rate})
+                            if s_name != "Others":
+                                split_records.append({"name": s_name, "pins": s_pins, "chances": chances, "success": success, "rate": rate})
                     
                     if not split_records:
                         st.info("スプリットの記録がありません。")
@@ -870,7 +878,33 @@ if app_mode == "📊 プレイヤー分析":
                         else:
                             return "white"
 
-                    html = """<div style="background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333; margin-bottom: 20px;">
+                    # ツールチップ内でピン配置図を描画する関数
+                    def draw_tooltip_pins(pins_str):
+                        if not pins_str: return ""
+                        active_pins = pins_str.split("-")
+                        
+                        def pin_html(p_num):
+                            bg_color = "#ff3b30" if str(p_num) in active_pins else "#333333"
+                            border_color = "#ffaaaa" if str(p_num) in active_pins else "#555555"
+                            return f'<div style="width: 14px; height: 14px; border-radius: 50%; background-color: {bg_color}; border: 1px solid {border_color}; margin: 2px;"></div>'
+
+                        html = f"""
+<div style="display: flex; flex-direction: column; align-items: center; background-color: #1a1a1c; padding: 10px; border-radius: 8px; border: 1px solid #444;">
+<div style="color: silver; font-size: 10px; margin-bottom: 5px; font-weight: bold;">{pins_str}</div>
+<div style="display: flex; justify-content: center;">{pin_html(7)}{pin_html(8)}{pin_html(9)}{pin_html(10)}</div>
+<div style="display: flex; justify-content: center;">{pin_html(4)}{pin_html(5)}{pin_html(6)}</div>
+<div style="display: flex; justify-content: center;">{pin_html(2)}{pin_html(3)}</div>
+<div style="display: flex; justify-content: center;">{pin_html(1)}</div>
+</div>"""
+                        return html
+
+                    # CSSでツールチップの動きを定義
+                    html = """<style>
+.tooltip-container { position: relative; display: inline-block; cursor: pointer; margin-left: 5px; }
+.tooltip-container .tooltip-content { visibility: hidden; width: max-content; background-color: transparent; text-align: center; border-radius: 8px; position: absolute; z-index: 100; bottom: 125%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+.tooltip-container:hover .tooltip-content, .tooltip-container:active .tooltip-content { visibility: visible; opacity: 1; }
+</style>
+<div style="background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333; margin-bottom: 20px;">
 <table style="width: 100%; text-align: left; border-collapse: collapse;">
 <thead>
 <tr style="border-bottom: 1px solid #555; color: silver; font-size: 12px;">
@@ -884,9 +918,17 @@ if app_mode == "📊 プレイヤー分析":
                     
                     for rec in split_records:
                         color = get_split_color(rec["name"])
+                        tooltip_html = draw_tooltip_pins(rec['pins'])
+                        
                         html += f"""
 <tr style="border-bottom: 1px dashed #444;">
-<td style="padding: 7px 5px; color: {color}; font-weight: bold; font-size: 14px;">{rec['name']}</td>
+<td style="padding: 7px 5px; color: {color}; font-weight: bold; font-size: 14px; display: flex; align-items: center;">
+{rec['name']}
+<div class="tooltip-container">
+<span style="filter: hue-rotate(300deg) saturate(200%); font-size: 14px;">🎳</span>
+<div class="tooltip-content">{tooltip_html}</div>
+</div>
+</td>
 <td style="padding: 7px 5px; color: white; text-align: center; font-size: 14px;">{rec['chances']}</td>
 <td style="padding: 7px 5px; color: white; text-align: center; font-size: 14px;">{rec['success']}</td>
 <td style="padding: 7px 5px; color: white; text-align: right; font-size: 14px; font-weight: bold;">{rec['rate']:.1f}%</td>
