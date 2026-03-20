@@ -1548,22 +1548,17 @@ if app_mode == "📊 プレイヤー分析":
                     st.markdown("<h4 style='color: silver; margin-top: 10px;'>📊 項目別グラフ</h4>", unsafe_allow_html=True)
                     graph_options = [r["label"] for r in rows]
                     
-                    # ★selectboxの代わりに、キーボードが出ない「popover（展開窓）」を使用
                     if "monthly_graph_sel" not in st.session_state:
                         st.session_state.monthly_graph_sel = graph_options[0]
 
                     with st.popover(f"🔽 グラフ表示： {st.session_state.monthly_graph_sel}", use_container_width=True):
-                        # 窓の中にラジオボタンを配置（文字入力ができないためキーボードは出ません）
-                        selected_val = st.radio(
-                            "項目", 
-                            graph_options, 
-                            index=graph_options.index(st.session_state.monthly_graph_sel), 
-                            label_visibility="collapsed"
-                        )
-                        # 別の項目がタップされたら状態を更新して即座に再描画（窓が自動で閉じます）
-                        if selected_val != st.session_state.monthly_graph_sel:
-                            st.session_state.monthly_graph_sel = selected_val
-                            st.rerun()
+                        # ラジオボタンの代わりにボタンを縦に並べる
+                        for opt in graph_options:
+                            # 現在選択されている項目には目印（✅）をつける
+                            label = f"✅ {opt}" if st.session_state.monthly_graph_sel == opt else opt
+                            if st.button(label, key=f"btn_monthly_{opt}", use_container_width=True):
+                                st.session_state.monthly_graph_sel = opt
+                                st.rerun()
 
                     selected_graph = st.session_state.monthly_graph_sel
                     
