@@ -1592,7 +1592,8 @@ if app_mode == "📊 プレイヤー分析":
                             margin=dict(l=20, r=20, t=40, b=20),
                             height=350
                         )
-                        st.plotly_chart(fig, use_container_width=True)
+                        # ★ config={'displayModeBar': False} を追加して右上のアイコンを全消去
+                        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
                 
                 # =========================================================
                 # ▼▼▼ 設定に従って画面を描画する処理（ここは変更不要） ▼▼▼
