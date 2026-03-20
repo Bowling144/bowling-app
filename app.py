@@ -1853,7 +1853,7 @@ if app_mode == "📊 プレイヤー分析":
                     "12_lane_data": render_12_lane_data,
                     "13_seven_ten_game": render_13_seven_ten_game,
                     "14_top10_scores": render_14_top10_scores,
-                    "15_monthly_stats": render_monthly_stats
+                    "15_monthly_stats": render_monthly_stats,
                     "16_rating_trend": render_16_rating_trend
                 }
 
