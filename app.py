@@ -597,103 +597,103 @@ if app_mode == "📊 プレイヤー分析":
                     diff_1_2 = ave_g2 - ave_g1
                     diff_2_3 = ave_g3 - ave_g2
 
-                    # --- UI描画 ---
-                    st.markdown("<div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333; margin-bottom: 20px;'>", unsafe_allow_html=True)
+                    # --- UI描画（上下に配置） ---
                     
-                    c1, c2 = st.columns(2)
-
-                    with c1:
-                        st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 10px; font-size: 14px; text-align: center;'>🔥 連続ストライク率 (直近50G)</div>", unsafe_allow_html=True)
-                        
-                        labels_st = ['ターキー後', 'ダブル後', 'ストライク率']
-                        values_st = [tk_st_rate, db_st_rate, st_rate]
-
-                        fig_st = go.Figure(go.Bar(
-                            x=values_st,
-                            y=labels_st,
-                            orientation='h',
-                            text=[f"{v:.1f}%" for v in values_st],
-                            textposition='inside',
-                            marker=dict(color=['#9932CC', '#ff6600', '#4285f4'])
-                        ))
-                        fig_st.update_layout(
-                            xaxis=dict(range=[0, 80], showgrid=True, gridcolor='#444'),
-                            yaxis=dict(showgrid=False, color='silver', tickfont=dict(weight='bold')), # ★ここを font から tickfont に修正
-                            plot_bgcolor='rgba(0,0,0,0)',
-                            paper_bgcolor='rgba(0,0,0,0)',
-                            margin=dict(l=10, r=10, t=10, b=10),
-                            height=250
-                        )
-                        st.plotly_chart(fig_st, use_container_width=True, config={'displayModeBar': False})
-
-                    with c2:
-                        st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 10px; font-size: 14px; text-align: center;'>📈 ゲーム別アベレージ (直近50G)</div>", unsafe_allow_html=True)
-                        
-                        labels_ave = ['3G目Ave', '2G目Ave', '1G目Ave', '50G Ave']
-                        values_ave = [ave_g3, ave_g2, ave_g1, ave_50]
-                        colors_ave = ['#00bcd4', '#00bcd4', '#00bcd4', '#bf953f']
-
-                        fig_ave = go.Figure(go.Bar(
-                            x=values_ave,
-                            y=labels_ave,
-                            orientation='h',
-                            text=[f"{v:.1f}" for v in values_ave],
-                            textposition='inside',
-                            marker=dict(color=colors_ave)
-                        ))
-
-                        max_val = max(values_ave) if max(values_ave) > 0 else 150
-                        annot_x = max_val + 35
-
-                        color_1_2 = '#34a853' if diff_1_2 >= 0 else '#ff3b30'
-                        sign_1_2 = "+" if diff_1_2 > 0 else ""
-                        fig_ave.add_annotation(
-                            x=annot_x, y=1.5,
-                            text=f"{sign_1_2}{diff_1_2:.1f}",
-                            showarrow=False,
-                            font=dict(size=14, color=color_1_2, family="Arial Black"),
-                            align="center",
-                            bgcolor="rgba(0,0,0,0.5)",
-                            bordercolor=color_1_2,
-                            borderwidth=1,
-                            borderpad=3
-                        )
-                        fig_ave.add_annotation(
-                            x=annot_x - 18, y=1.1, ax=annot_x - 18, ay=1.9,
-                            xref='x', yref='y', axref='x', ayref='y',
-                            showarrow=True, arrowhead=2, arrowsize=1, arrowwidth=2, arrowcolor=color_1_2
-                        )
-
-                        color_2_3 = '#34a853' if diff_2_3 >= 0 else '#ff3b30'
-                        sign_2_3 = "+" if diff_2_3 > 0 else ""
-                        fig_ave.add_annotation(
-                            x=annot_x, y=0.5,
-                            text=f"{sign_2_3}{diff_2_3:.1f}",
-                            showarrow=False,
-                            font=dict(size=14, color=color_2_3, family="Arial Black"),
-                            align="center",
-                            bgcolor="rgba(0,0,0,0.5)",
-                            bordercolor=color_2_3,
-                            borderwidth=1,
-                            borderpad=3
-                        )
-                        fig_ave.add_annotation(
-                            x=annot_x - 18, y=0.1, ax=annot_x - 18, ay=0.9,
-                            xref='x', yref='y', axref='x', ayref='y',
-                            showarrow=True, arrowhead=2, arrowsize=1, arrowwidth=2, arrowcolor=color_2_3
-                        )
-
-                        fig_ave.update_layout(
-                            xaxis=dict(range=[0, annot_x + 25], showgrid=True, gridcolor='#444'),
-                            yaxis=dict(showgrid=False, color='silver', tickfont=dict(weight='bold')), # ★ここも font から tickfont に修正
-                            plot_bgcolor='rgba(0,0,0,0)',
-                            paper_bgcolor='rgba(0,0,0,0)',
-                            margin=dict(l=10, r=10, t=10, b=10),
-                            height=250
-                        )
-                        st.plotly_chart(fig_ave, use_container_width=True, config={'displayModeBar': False})
+                    # ▼ 1つ目のグラフ（ストライク率）
+                    st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 5px; margin-top: 10px; font-size: 16px;'>🔥 連続ストライク率 (直近50G)</div>", unsafe_allow_html=True)
                     
-                    st.markdown("</div>", unsafe_allow_html=True)
+                    labels_st = ['ターキー後', 'ダブル後', 'ストライク率']
+                    values_st = [tk_st_rate, db_st_rate, st_rate]
+
+                    fig_st = go.Figure(go.Bar(
+                        x=values_st,
+                        y=labels_st,
+                        orientation='h',
+                        text=[f"{v:.1f}%" for v in values_st],
+                        textposition='inside',
+                        marker=dict(color=['#9932CC', '#ff6600', '#4285f4'])
+                    ))
+                    fig_st.update_layout(
+                        xaxis=dict(range=[0, 80], showgrid=True, gridcolor='#444'),
+                        yaxis=dict(showgrid=False, color='silver', tickfont=dict(weight='bold')),
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        margin=dict(l=10, r=10, t=10, b=10),
+                        height=200
+                    )
+                    # ★ staticPlot: True で操作を無効化（固定化）
+                    st.plotly_chart(fig_st, use_container_width=True, config={'displayModeBar': False, 'staticPlot': True})
+
+
+                    # ▼ 2つ目のグラフ（アベレージとアジャスト）
+                    st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 5px; margin-top: 30px; font-size: 16px;'>📈 ゲーム別アベレージ (直近50G)</div>", unsafe_allow_html=True)
+                    
+                    labels_ave = ['3G目Ave', '2G目Ave', '1G目Ave', '50G Ave']
+                    values_ave = [ave_g3, ave_g2, ave_g1, ave_50]
+                    colors_ave = ['#00bcd4', '#00bcd4', '#00bcd4', '#bf953f']
+
+                    fig_ave = go.Figure(go.Bar(
+                        x=values_ave,
+                        y=labels_ave,
+                        orientation='h',
+                        text=[f"{v:.1f}" for v in values_ave],
+                        textposition='inside',
+                        marker=dict(color=colors_ave)
+                    ))
+
+                    max_val = max(values_ave) if max(values_ave) > 0 else 150
+                    annot_x = max_val + 35
+
+                    # 1G -> 2G の差分
+                    color_1_2 = '#34a853' if diff_1_2 >= 0 else '#ff3b30'
+                    sign_1_2 = "+" if diff_1_2 > 0 else ""
+                    fig_ave.add_annotation(
+                        x=annot_x, y=1.5,
+                        text=f"{sign_1_2}{diff_1_2:.1f}",
+                        showarrow=False,
+                        font=dict(size=14, color=color_1_2, family="Arial Black"),
+                        align="center",
+                        bgcolor="rgba(0,0,0,0.5)",
+                        bordercolor=color_1_2,
+                        borderwidth=1,
+                        borderpad=3
+                    )
+                    fig_ave.add_annotation(
+                        x=annot_x - 18, y=1.1, ax=annot_x - 18, ay=1.9,
+                        xref='x', yref='y', axref='x', ayref='y',
+                        showarrow=True, arrowhead=2, arrowsize=1, arrowwidth=2, arrowcolor=color_1_2
+                    )
+
+                    # 2G -> 3G の差分
+                    color_2_3 = '#34a853' if diff_2_3 >= 0 else '#ff3b30'
+                    sign_2_3 = "+" if diff_2_3 > 0 else ""
+                    fig_ave.add_annotation(
+                        x=annot_x, y=0.5,
+                        text=f"{sign_2_3}{diff_2_3:.1f}",
+                        showarrow=False,
+                        font=dict(size=14, color=color_2_3, family="Arial Black"),
+                        align="center",
+                        bgcolor="rgba(0,0,0,0.5)",
+                        bordercolor=color_2_3,
+                        borderwidth=1,
+                        borderpad=3
+                    )
+                    fig_ave.add_annotation(
+                        x=annot_x - 18, y=0.1, ax=annot_x - 18, ay=0.9,
+                        xref='x', yref='y', axref='x', ayref='y',
+                        showarrow=True, arrowhead=2, arrowsize=1, arrowwidth=2, arrowcolor=color_2_3
+                    )
+
+                    fig_ave.update_layout(
+                        xaxis=dict(range=[0, annot_x + 25], showgrid=True, gridcolor='#444'),
+                        yaxis=dict(showgrid=False, color='silver', tickfont=dict(weight='bold')),
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        margin=dict(l=10, r=10, t=10, b=10),
+                        height=250
+                    )
+                    # ★ staticPlot: True で操作を無効化（固定化）
+                    st.plotly_chart(fig_ave, use_container_width=True, config={'displayModeBar': False, 'staticPlot': True})
 
 
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
