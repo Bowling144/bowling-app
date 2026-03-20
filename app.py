@@ -1551,14 +1551,20 @@ if app_mode == "📊 プレイヤー分析":
                     if "monthly_graph_sel" not in st.session_state:
                         st.session_state.monthly_graph_sel = graph_options[0]
 
-                    with st.popover(f"🔽 グラフ表示： {st.session_state.monthly_graph_sel}", use_container_width=True):
-                        # ラジオボタンの代わりにボタンを縦に並べる
-                        for opt in graph_options:
-                            # 現在選択されている項目には目印（✅）をつける
+                    # ★ポップオーバーの代わりにダイアログ（ポップアップ）機能を使用
+                    @st.dialog("📊 グラフ化する項目を選択")
+                    def open_graph_selector():
+                        # スマホでもスクロールが減るように2列に分けて配置
+                        cols = st.columns(2)
+                        for i, opt in enumerate(graph_options):
                             label = f"✅ {opt}" if st.session_state.monthly_graph_sel == opt else opt
-                            if st.button(label, key=f"btn_monthly_{opt}", use_container_width=True):
+                            if cols[i % 2].button(label, key=f"dlg_btn_{opt}", use_container_width=True):
                                 st.session_state.monthly_graph_sel = opt
                                 st.rerun()
+
+                    # 窓を開くためのメインボタン
+                    if st.button(f"🔽 グラフ表示を変更： {st.session_state.monthly_graph_sel}", use_container_width=True):
+                        open_graph_selector()
 
                     selected_graph = st.session_state.monthly_graph_sel
                     
