@@ -608,13 +608,14 @@ if app_mode == "📊 プレイヤー分析":
                         labels_st = ['ターキー後', 'ダブル後', 'ストライク率']
                         values_st = [tk_st_rate, db_st_rate, st_rate]
 
+                        # ★ ここを修正：marker_color ではなく marker=dict(color=...) に変更
                         fig_st = go.Figure(go.Bar(
                             x=values_st,
                             y=labels_st,
                             orientation='h',
                             text=[f"{v:.1f}%" for v in values_st],
                             textposition='inside',
-                            marker_color=['#9932CC', '#ff6600', '#4285f4']
+                            marker=dict(color=['#9932CC', '#ff6600', '#4285f4'])
                         ))
                         fig_st.update_layout(
                             xaxis=dict(range=[0, 80], showgrid=True, gridcolor='#444'),
@@ -633,20 +634,19 @@ if app_mode == "📊 プレイヤー分析":
                         values_ave = [ave_g3, ave_g2, ave_g1, ave_50]
                         colors_ave = ['#00bcd4', '#00bcd4', '#00bcd4', '#bf953f']
 
+                        # ★ ここを修正：marker_color ではなく marker=dict(color=...) に変更
                         fig_ave = go.Figure(go.Bar(
                             x=values_ave,
                             y=labels_ave,
                             orientation='h',
                             text=[f"{v:.1f}" for v in values_ave],
                             textposition='inside',
-                            marker_color=colors_ave
+                            marker=dict(color=colors_ave)
                         ))
 
-                        # アジャスト差分の矢印とラベルを描画
                         max_val = max(values_ave) if max(values_ave) > 0 else 150
-                        annot_x = max_val + 35  # 右側に余白を確保
+                        annot_x = max_val + 35
 
-                        # 1G -> 2G の差分
                         color_1_2 = '#34a853' if diff_1_2 >= 0 else '#ff3b30'
                         sign_1_2 = "+" if diff_1_2 > 0 else ""
                         fig_ave.add_annotation(
@@ -660,14 +660,12 @@ if app_mode == "📊 プレイヤー分析":
                             borderwidth=1,
                             borderpad=3
                         )
-                        # 下向き（次ゲームへの）矢印
                         fig_ave.add_annotation(
                             x=annot_x - 18, y=1.1, ax=annot_x - 18, ay=1.9,
                             xref='x', yref='y', axref='x', ayref='y',
                             showarrow=True, arrowhead=2, arrowsize=1, arrowwidth=2, arrowcolor=color_1_2
                         )
 
-                        # 2G -> 3G の差分
                         color_2_3 = '#34a853' if diff_2_3 >= 0 else '#ff3b30'
                         sign_2_3 = "+" if diff_2_3 > 0 else ""
                         fig_ave.add_annotation(
@@ -681,7 +679,6 @@ if app_mode == "📊 プレイヤー分析":
                             borderwidth=1,
                             borderpad=3
                         )
-                        # 下向き（次ゲームへの）矢印
                         fig_ave.add_annotation(
                             x=annot_x - 18, y=0.1, ax=annot_x - 18, ay=0.9,
                             xref='x', yref='y', axref='x', ayref='y',
