@@ -1278,9 +1278,10 @@ if app_mode == "📊 プレイヤー分析":
                         # アクセントカラー：ゴールド、ティールグリーン、テラコッタレッド、モカグレー
                         colors = ['#D4AF37', '#45B39D', '#CB4335', '#5D6D7E']
                         
+                        # ★ここを修正：textfont から weight='bold' を削除
                         fig_710 = go.Figure(data=[go.Pie(
                             labels=labels, values=values, marker=dict(colors=colors), 
-                            hole=.55, textinfo='percent', textfont=dict(color='white', size=14, weight='bold'),
+                            hole=.55, textinfo='percent', textfont=dict(color='white', size=14),
                             hoverinfo='label+value+percent'
                         )])
                         fig_710.update_layout(
