@@ -1679,7 +1679,6 @@ if app_mode == "📊 プレイヤー分析":
                         {"label": "NO HEAD率", "key": "no_head_rate", "fmt": lambda x: safe_rate(x['no_head'], x['no_head_chances'])},
                         {"label": "7ピン率", "key": "pin7_rate", "fmt": lambda x: safe_rate(x['pin7_s'], x['pin7_c'])},
                         {"label": "10ピン率", "key": "pin10_rate", "fmt": lambda x: safe_rate(x['pin10_s'], x['pin10_c'])},
-                        {"label": "SPLIT率", "key": "split_rate", "fmt": lambda x: safe_rate(x['split_s'], x['split_c'])},
                     ]
                     
                     for i in range(3, 13):
