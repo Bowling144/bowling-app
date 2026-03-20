@@ -1197,8 +1197,6 @@ if app_mode == "📊 プレイヤー分析":
                 def render_13_seven_ten_game():
                     st.markdown("### <span style='color: #E2DCC8;'>🎯 7-10 GAME 分析</span>", unsafe_allow_html=True)
                     
-                    import plotly.graph_objects as go  # ★ エラー防止のため明示的にインポート
-                    
                     if not player_710_rows:
                         st.info("7-10 GAME のプレイデータがありません。")
                         return
@@ -1245,8 +1243,6 @@ if app_mode == "📊 プレイヤー分析":
                             elif (v1 + v2) >= 8:
                                 ponkotsu_c += 1
                     
-                    other_c = f_count - (success_c + nearpin_c + ponkotsu_c)
-                    
                     def fmt_pct(num, den):
                         return f"{(num/den)*100:.1f}%" if den > 0 else "0.0%"
                     
@@ -1254,6 +1250,7 @@ if app_mode == "📊 プレイヤー分析":
 
                     # ＝＝＝ UI描画 ＝＝＝
 
+                    # ① サマリーリボン
                     st.markdown(f"""
                     <div style='display: flex; justify-content: space-around; background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 15px; border-radius: 10px; border: 1px solid #444; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);'>
                         <div style='text-align: center;'>
@@ -1267,57 +1264,37 @@ if app_mode == "📊 プレイヤー分析":
                     </div>
                     """, unsafe_allow_html=True)
 
-                    c1, c2 = st.columns([6, 5])
+                    # ② 詳細カード（円グラフを廃止し、3枚のカードを横に並べてバランスを整える）
+                    c1, c2, c3 = st.columns(3)
                     
                     with c1:
-                        labels = ["成功 (Success)", "ニアピン (Nearpin)", "ポンコツ (Ponkotsu)", "その他 (Other)"]
-                        values = [success_c, nearpin_c, ponkotsu_c, other_c]
-                        colors = ['#D4AF37', '#45B39D', '#CB4335', '#5D6D7E']
-                        
-                        # ★ domain を使ってグラフ本体を「左(0〜70%)」「下(0〜90%)」に押し込む
-                        fig_710 = go.Figure(data=[go.Pie(
-                            labels=labels, values=values, marker=dict(colors=colors), 
-                            hole=.55, textinfo='percent', textfont=dict(color='white', size=14),
-                            hoverinfo='label+value+percent',
-                            domain=dict(x=[0, 0.7], y=[0, 0.9])
-                        )])
-                        
-                        # ★ 凡例(legend)は右側の空いたスペース(x=0.7)の中央(y=0.5)に固定
-                        fig_710.update_layout(
-                            margin=dict(t=0, b=0, l=0, r=0), 
-                            height=250, 
-                            plot_bgcolor='rgba(0,0,0,0)', 
-                            paper_bgcolor='rgba(0,0,0,0)',
-                            showlegend=True,
-                            legend=dict(
-                                font=dict(color="silver"),
-                                orientation="v",
-                                x=0.7,
-                                y=0.5,
-                                xanchor="left",
-                                yanchor="middle"
-                            )
-                        )
-                        st.plotly_chart(fig_710, use_container_width=True, config={'displayModeBar': False})
-
-                    with c2:
+                        # おしゃれな青（SteelBlue系）
                         st.markdown(f"""
-                        <div style='display: flex; flex-direction: column; gap: 12px; margin-top: 5px;'>
-                            <div style='background: rgba(212, 175, 55, 0.1); border-left: 5px solid #D4AF37; padding: 12px 15px; border-radius: 5px;'>
-                                <div style='color: #D4AF37; font-size: 13px; font-weight: bold;'>🏆 成功 (1本 - 1本)</div>
-                                <div style='color: white; font-size: 22px; font-weight: bold; margin-top: 2px;'>{success_c} <span style='font-size: 14px; color: silver;'>回</span> <span style='float: right; color: #D4AF37;'>{fmt_pct(success_c, f_count)}</span></div>
-                            </div>
-                            <div style='background: rgba(69, 179, 157, 0.1); border-left: 5px solid #45B39D; padding: 12px 15px; border-radius: 5px;'>
-                                <div style='color: #45B39D; font-size: 13px; font-weight: bold;'>惜しい! ニアピン (1本 - 2本など)</div>
-                                <div style='color: white; font-size: 22px; font-weight: bold; margin-top: 2px;'>{nearpin_c} <span style='font-size: 14px; color: silver;'>回</span> <span style='float: right; color: #45B39D;'>{fmt_pct(nearpin_c, f_count)}</span></div>
-                            </div>
-                            <div style='background: rgba(203, 67, 53, 0.1); border-left: 5px solid #CB4335; padding: 12px 15px; border-radius: 5px;'>
-                                <div style='color: #CB4335; font-size: 13px; font-weight: bold;'>💥 ポンコツ (合計8本以上)</div>
-                                <div style='color: white; font-size: 22px; font-weight: bold; margin-top: 2px;'>{ponkotsu_c} <span style='font-size: 14px; color: silver;'>回</span> <span style='float: right; color: #CB4335;'>{fmt_pct(ponkotsu_c, f_count)}</span></div>
-                            </div>
+                        <div style='background: rgba(74, 144, 226, 0.1); border-left: 5px solid #4A90E2; padding: 12px 15px; border-radius: 5px; height: 100%;'>
+                            <div style='color: #4A90E2; font-size: 13px; font-weight: bold;'>🏆 成功 (1本 - 1本)</div>
+                            <div style='color: white; font-size: 22px; font-weight: bold; margin-top: 5px;'>{success_c} <span style='font-size: 14px; color: silver;'>回</span> <span style='float: right; color: #4A90E2;'>{fmt_pct(success_c, f_count)}</span></div>
                         </div>
                         """, unsafe_allow_html=True)
 
+                    with c2:
+                        # 淡いおしゃれな青（スモーキーなライトブルー系）
+                        st.markdown(f"""
+                        <div style='background: rgba(138, 180, 248, 0.1); border-left: 5px solid #8AB4F8; padding: 12px 15px; border-radius: 5px; height: 100%;'>
+                            <div style='color: #8AB4F8; font-size: 13px; font-weight: bold;'>惜しい! ニアピン</div>
+                            <div style='color: white; font-size: 22px; font-weight: bold; margin-top: 5px;'>{nearpin_c} <span style='font-size: 14px; color: silver;'>回</span> <span style='float: right; color: #8AB4F8;'>{fmt_pct(nearpin_c, f_count)}</span></div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                    with c3:
+                        # おしゃれな赤（少しトーンを落としたテラコッタレッド系）
+                        st.markdown(f"""
+                        <div style='background: rgba(224, 102, 102, 0.1); border-left: 5px solid #E06666; padding: 12px 15px; border-radius: 5px; height: 100%;'>
+                            <div style='color: #E06666; font-size: 13px; font-weight: bold;'>💥 ポンコツ (計8本以上)</div>
+                            <div style='color: white; font-size: 22px; font-weight: bold; margin-top: 5px;'>{ponkotsu_c} <span style='font-size: 14px; color: silver;'>回</span> <span style='float: right; color: #E06666;'>{fmt_pct(ponkotsu_c, f_count)}</span></div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                    # ③ ワーストスコア (MINI) ランキング
                     st.markdown("<div style='color: #E2DCC8; font-weight: 900; margin-bottom: 10px; margin-top: 25px; font-size: 15px;'>📉 ワーストスコア (MINI) トップ3</div>", unsafe_allow_html=True)
                     
                     def get_mini_html(rank, color, score_data):
@@ -1325,12 +1302,14 @@ if app_mode == "📊 プレイヤー分析":
                             return f"<div style='flex: 1; background: #1e1e1e; border-top: 3px solid #444; padding: 12px; text-align: center; border-radius: 6px;'><div style='color: gray; font-size: 12px; font-weight: bold;'>MINI {rank}</div><div style='color: #555; font-size: 20px; font-weight: bold; margin: 5px 0;'>-</div><div style='color: transparent; font-size: 11px;'>-</div></div>"
                         return f"<div style='flex: 1; background: #2a2a2e; border-top: 3px solid {color}; padding: 12px; text-align: center; border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);'><div style='color: silver; font-size: 12px; font-weight: bold;'>MINI {rank}</div><div style='color: white; font-size: 22px; font-weight: bold; margin: 5px 0;'>{score_data['score']}<span style='font-size: 12px; color: gray;'> 点</span></div><div style='color: #A07855; font-size: 11px;'>{score_data['date']}</div></div>"
 
-                    m1 = get_mini_html(1, '#CB4335', scores_710[0] if len(scores_710) > 0 else None)
-                    m2 = get_mini_html(2, '#E67E22', scores_710[1] if len(scores_710) > 1 else None)
-                    m3 = get_mini_html(3, '#F1C40F', scores_710[2] if len(scores_710) > 2 else None)
+                    # ランキングの色合いも全体に合わせて微調整
+                    m1 = get_mini_html(1, '#E06666', scores_710[0] if len(scores_710) > 0 else None)
+                    m2 = get_mini_html(2, '#D4AF37', scores_710[1] if len(scores_710) > 1 else None)
+                    m3 = get_mini_html(3, '#A07855', scores_710[2] if len(scores_710) > 2 else None)
 
                     st.markdown(f"<div style='display: flex; gap: 15px; margin-bottom: 25px;'>{m1}{m2}{m3}</div>", unsafe_allow_html=True)
 
+                    # ④ 用語解説エリア
                     st.markdown("""
                     <div style='background: #1c1c1e; padding: 15px; border-radius: 8px; border: 1px dashed #555;'>
                         <div style='color: #A07855; font-weight: bold; font-size: 13px; margin-bottom: 10px;'>📖 7-10 GAME 用語解説</div>
