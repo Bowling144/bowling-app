@@ -1197,6 +1197,8 @@ if app_mode == "📊 プレイヤー分析":
                 def render_13_seven_ten_game():
                     st.markdown("### <span style='color: #E2DCC8;'>🎯 7-10 GAME 分析</span>", unsafe_allow_html=True)
                     
+                    import plotly.graph_objects as go  # ★ エラー防止のため明示的にインポート
+                    
                     if not player_710_rows:
                         st.info("7-10 GAME のプレイデータがありません。")
                         return
@@ -1207,7 +1209,6 @@ if app_mode == "📊 プレイヤー分析":
                     nearpin_c = 0
                     ponkotsu_c = 0
 
-                    # スコア文字列を数値化する内部関数（ロジック変更なし）
                     def val(t, t_prev=0):
                         t_str = str(t).strip().upper()
                         if t_str == 'X': return 10
@@ -1249,12 +1250,10 @@ if app_mode == "📊 プレイヤー分析":
                     def fmt_pct(num, den):
                         return f"{(num/den)*100:.1f}%" if den > 0 else "0.0%"
                     
-                    # スコア低い順ソート（ワーストスコア抽出）
                     scores_710.sort(key=lambda x: x["score"])
 
                     # ＝＝＝ UI描画 ＝＝＝
 
-                    # ① サマリーリボン（ゲーム数・チャレンジ数）
                     st.markdown(f"""
                     <div style='display: flex; justify-content: space-around; background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 15px; border-radius: 10px; border: 1px solid #444; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);'>
                         <div style='text-align: center;'>
@@ -1268,34 +1267,32 @@ if app_mode == "📊 プレイヤー分析":
                     </div>
                     """, unsafe_allow_html=True)
 
-                    # ② チャートと詳細カードの左右配置
-                    c1, c2 = st.columns([1.2, 1])
+                    # ★ 小数点(1.2)だとエラーになるStreamlitのバージョンのため、整数(6,5)に変更
+                    c1, c2 = st.columns([6, 5])
                     
                     with c1:
-                        # ドーナツチャート
                         labels = ["成功 (Success)", "ニアピン (Nearpin)", "ポンコツ (Ponkotsu)", "その他 (Other)"]
                         values = [success_c, nearpin_c, ponkotsu_c, other_c]
-                        # アクセントカラー：ゴールド、ティールグリーン、テラコッタレッド、モカグレー
                         colors = ['#D4AF37', '#45B39D', '#CB4335', '#5D6D7E']
                         
-                        # ★ここを修正：textfont から weight='bold' を削除
                         fig_710 = go.Figure(data=[go.Pie(
                             labels=labels, values=values, marker=dict(colors=colors), 
                             hole=.55, textinfo='percent', textfont=dict(color='white', size=14),
                             hoverinfo='label+value+percent'
                         )])
+                        
+                        # ★ 凡例の設定を最もシンプルな形に修正
                         fig_710.update_layout(
                             margin=dict(t=0, b=0, l=0, r=0), 
                             height=250, 
                             plot_bgcolor='rgba(0,0,0,0)', 
                             paper_bgcolor='rgba(0,0,0,0)',
                             showlegend=True,
-                            legend=dict(orientation="v", yanchor="center", y=0.5, xanchor="left", x=1.0, font=dict(color="silver"))
+                            legend=dict(font=dict(color="silver"))
                         )
                         st.plotly_chart(fig_710, use_container_width=True, config={'displayModeBar': False})
 
                     with c2:
-                        # 詳細カード群（縦積み）
                         st.markdown(f"""
                         <div style='display: flex; flex-direction: column; gap: 12px; margin-top: 5px;'>
                             <div style='background: rgba(212, 175, 55, 0.1); border-left: 5px solid #D4AF37; padding: 12px 15px; border-radius: 5px;'>
@@ -1313,7 +1310,6 @@ if app_mode == "📊 プレイヤー分析":
                         </div>
                         """, unsafe_allow_html=True)
 
-                    # ③ ワーストスコア (MINI) ランキング
                     st.markdown("<div style='color: #E2DCC8; font-weight: 900; margin-bottom: 10px; margin-top: 25px; font-size: 15px;'>📉 ワーストスコア (MINI) トップ3</div>", unsafe_allow_html=True)
                     
                     def get_mini_html(rank, color, score_data):
@@ -1327,7 +1323,6 @@ if app_mode == "📊 プレイヤー分析":
 
                     st.markdown(f"<div style='display: flex; gap: 15px; margin-bottom: 25px;'>{m1}{m2}{m3}</div>", unsafe_allow_html=True)
 
-                    # ④ 用語解説エリア（スッキリとボックス内に収納）
                     st.markdown("""
                     <div style='background: #1c1c1e; padding: 15px; border-radius: 8px; border: 1px dashed #555;'>
                         <div style='color: #A07855; font-weight: bold; font-size: 13px; margin-bottom: 10px;'>📖 7-10 GAME 用語解説</div>
