@@ -1274,20 +1274,29 @@ if app_mode == "📊 プレイヤー分析":
                         values = [success_c, nearpin_c, ponkotsu_c, other_c]
                         colors = ['#D4AF37', '#45B39D', '#CB4335', '#5D6D7E']
                         
+                        # ★ domain を使ってグラフ本体を「左(0〜70%)」「下(0〜90%)」に押し込む
                         fig_710 = go.Figure(data=[go.Pie(
                             labels=labels, values=values, marker=dict(colors=colors), 
                             hole=.55, textinfo='percent', textfont=dict(color='white', size=14),
-                            hoverinfo='label+value+percent'
+                            hoverinfo='label+value+percent',
+                            domain=dict(x=[0, 0.7], y=[0, 0.9])
                         )])
                         
-                        # ★ 円グラフの修正点: margin の右側(r)を 30 に増やして凡例スペースを確保
+                        # ★ 凡例(legend)は右側の空いたスペース(x=0.7)の中央(y=0.5)に固定
                         fig_710.update_layout(
-                            margin=dict(t=10, b=10, l=10, r=30), # 上下も少し調整、右を30に
+                            margin=dict(t=0, b=0, l=0, r=0), 
                             height=250, 
                             plot_bgcolor='rgba(0,0,0,0)', 
                             paper_bgcolor='rgba(0,0,0,0)',
                             showlegend=True,
-                            legend=dict(font=dict(color="silver"))
+                            legend=dict(
+                                font=dict(color="silver"),
+                                orientation="v",
+                                x=0.7,
+                                y=0.5,
+                                xanchor="left",
+                                yanchor="middle"
+                            )
                         )
                         st.plotly_chart(fig_710, use_container_width=True, config={'displayModeBar': False})
 
@@ -1322,7 +1331,6 @@ if app_mode == "📊 プレイヤー分析":
 
                     st.markdown(f"<div style='display: flex; gap: 15px; margin-bottom: 25px;'>{m1}{m2}{m3}</div>", unsafe_allow_html=True)
 
-                    # ★ 説明文の修正点: 左右分割(grid)を廃止し、縦一列に統合
                     st.markdown("""
                     <div style='background: #1c1c1e; padding: 15px; border-radius: 8px; border: 1px dashed #555;'>
                         <div style='color: #A07855; font-weight: bold; font-size: 13px; margin-bottom: 10px;'>📖 7-10 GAME 用語解説</div>
