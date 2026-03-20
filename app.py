@@ -1382,6 +1382,8 @@ if app_mode == "📊 プレイヤー分析":
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_16_rating_trend():
                     if player_games:
+                        import plotly.graph_objects as go
+                        
                         # 古い順のゲームリスト
                         chrono_games = list(reversed(player_games))
                         
@@ -1419,14 +1421,49 @@ if app_mode == "📊 プレイヤー分析":
                         num_months = len(recent_50_months)
                         x_vals = list(range(num_months - 1, -1, -1))
                         
-                        # グラフ用のダークコンテナ
-                        st.markdown("<div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 15px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333; margin-top: 20px;'>", unsafe_allow_html=True)
+                        # ★ 空欄の元凶だった背景付きdivを削除し、横線のみでスマートに区切る
+                        st.markdown("<hr style='border-top: 1px solid #444; margin: 20px 0px;'>", unsafe_allow_html=True)
                         st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif; text-align: center;'>RECENT 50 MONTHS RATING TREND</div>", unsafe_allow_html=True)
 
-                        fig_rt = px.line(x=x_vals, y=y_vals, markers=True)
+                        fig_rt = go.Figure()
 
-                        # アプリ風にオレンジ色のグラフとダークテーマに設定
-                        fig_rt.update_traces(line_color='#ff6600', marker=dict(color='#ff6600', size=6, line=dict(color='white', width=1)))
+                        # レーティングランクに応じた色（ダーツライブ準拠）を返す関数
+                        def get_rt_color(rt):
+                            if rt >= 16: return "#ff3b30"     # SA: 赤
+                            elif rt >= 13: return "#ff6600"   # AA: オレンジ
+                            elif rt >= 10: return "#fbbc04"   # A: 黄色
+                            elif rt >= 8: return "#34a853"    # BB: 緑
+                            elif rt >= 6: return "#00bcd4"    # B: 水色
+                            elif rt >= 4: return "#4285f4"    # CC: 青
+                            else: return "#9c27b0"            # C: 紫
+
+                        # ★ 線分（セグメント）ごとにランクの色を変えて描画する
+                        for i in range(len(x_vals) - 1):
+                            x0, x1 = x_vals[i], x_vals[i+1]
+                            y0, y1 = y_vals[i], y_vals[i+1]
+                            
+                            # 新しい方の月（x1側）のランクを基準に色を決定
+                            color = get_rt_color(y1)
+                            
+                            fig_rt.add_trace(go.Scatter(
+                                x=[x0, x1],
+                                y=[y0, y1],
+                                mode='lines',  # ★ 点(マーカー)を描画せず、線だけにする
+                                line=dict(color=color, width=3),
+                                showlegend=False,
+                                hoverinfo="skip"
+                            ))
+
+                        # タップ時に数値を表示するための透明なカバーレイヤー
+                        fig_rt.add_trace(go.Scatter(
+                            x=x_vals,
+                            y=y_vals,
+                            mode='lines',
+                            line=dict(color='rgba(0,0,0,0)', width=0),
+                            showlegend=False,
+                            hovertemplate="<b>%{x}ヶ月前</b><br>Rt: %{y:.2f}<extra></extra>"
+                        ))
+
                         fig_rt.update_layout(
                             plot_bgcolor='rgba(0,0,0,0)',
                             paper_bgcolor='rgba(0,0,0,0)',
@@ -1436,7 +1473,6 @@ if app_mode == "📊 プレイヤー分析":
                             margin=dict(l=30, r=30, t=10, b=10)
                         )
                         st.plotly_chart(fig_rt, use_container_width=True, config={'displayModeBar': False})
-                        st.markdown("</div>", unsafe_allow_html=True)
 
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 # 【14】月別集計（MONTHLY STATS）機能
