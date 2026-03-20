@@ -1545,7 +1545,7 @@ if app_mode == "📊 プレイヤー分析":
                     st.markdown(html, unsafe_allow_html=True)
 
                     # グラフ展開エリア
-                    st.markdown("<h4 style='color: silver; margin-top: 10px;'>📊 項目別グラフ</h4>", unsafe_allow_html=True)
+                    st.markdown("<h4 style='color: silver; margin-top: 10px;'>📊 ｇgraph</h4>", unsafe_allow_html=True)
                     graph_options = [r["label"] for r in rows]
                     selected_graph = st.selectbox("グラフ化する項目を選択してください", graph_options, label_visibility="collapsed")
                     
