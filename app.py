@@ -210,6 +210,7 @@ if app_mode == "📊 プレイヤー分析":
                         "01_rating_card",
                         "02_score_trend",
                         "14_top10_scores",
+                        "16_rating_trend",
                     ],                    
                     "🏆 AWARDS": [                                             
                         "07_high_scores",
@@ -1375,6 +1376,67 @@ if app_mode == "📊 プレイヤー分析":
                         # ★ 末尾にあった </div> の閉じタグも削除済み
                     else:
                         st.info("データがありません。")
+
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                # 【16】 STATS：レーティング推移（直近50ヶ月）
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                def render_16_rating_trend():
+                    if player_games:
+                        # 古い順のゲームリスト
+                        chrono_games = list(reversed(player_games))
+                        
+                        monthly_rt = {}
+                        history_scores = []
+                        
+                        for g in chrono_games:
+                            date_str = str(g["date"]).strip()
+                            parts = date_str.split('/')
+                            if len(parts) >= 2:
+                                yy = int(parts[0])
+                                yyyy = 2000 + yy if yy < 100 else yy
+                                mm = int(parts[1])
+                                month_key = f"{yyyy:04d}/{mm:02d}"
+                            else:
+                                continue
+                                
+                            history_scores.append(g["score"])
+                            recent_50 = history_scores[-50:]
+                            rt_val, _, _ = calc_rating_flight(recent_50)
+                            
+                            # 月が変わるまで上書きされ続けるため、その月の最終レーティングになる
+                            monthly_rt[month_key] = rt_val
+                            
+                        # 月別レーティングを新しい順にソートして、最大50ヶ月分を取得
+                        sorted_months = sorted(monthly_rt.keys(), reverse=True)
+                        recent_50_months = sorted_months[:50]
+                        
+                        # グラフ描画用に、古い順（左から右へ）に戻す
+                        recent_50_months.reverse()
+                        
+                        y_vals = [monthly_rt[m] for m in recent_50_months]
+                        
+                        # 横軸（ヶ月前）。最新月を0とする。
+                        num_months = len(recent_50_months)
+                        x_vals = list(range(num_months - 1, -1, -1))
+                        
+                        # グラフ用のダークコンテナ
+                        st.markdown("<div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 15px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333; margin-top: 20px;'>", unsafe_allow_html=True)
+                        st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif; text-align: center;'>RECENT 50 MONTHS RATING TREND</div>", unsafe_allow_html=True)
+
+                        fig_rt = px.line(x=x_vals, y=y_vals, markers=True)
+
+                        # アプリ風にオレンジ色のグラフとダークテーマに設定
+                        fig_rt.update_traces(line_color='#ff6600', marker=dict(color='#ff6600', size=6, line=dict(color='white', width=1)))
+                        fig_rt.update_layout(
+                            plot_bgcolor='rgba(0,0,0,0)',
+                            paper_bgcolor='rgba(0,0,0,0)',
+                            xaxis=dict(title="（ヶ月前）", range=[50, 0], showgrid=True, gridcolor='#444', tickmode='linear', tick0=0, dtick=5, color='gray', fixedrange=True),
+                            yaxis=dict(title="Rt", range=[0.0, 18.0], showgrid=True, gridcolor='#444', tickmode='linear', tick0=0, dtick=2, color='gray', fixedrange=True),
+                            height=280,
+                            margin=dict(l=30, r=30, t=10, b=10)
+                        )
+                        st.plotly_chart(fig_rt, use_container_width=True, config={'displayModeBar': False})
+                        st.markdown("</div>", unsafe_allow_html=True)
 
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 # 【14】月別集計（MONTHLY STATS）機能
