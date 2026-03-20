@@ -1421,34 +1421,40 @@ if app_mode == "📊 プレイヤー分析":
                         num_months = len(recent_50_months)
                         x_vals = list(range(num_months - 1, -1, -1))
                         
-                        # ★ 空欄の元凶だった背景付きdivを削除し、横線のみでスマートに区切る
+                        # 空欄の元凶だった背景付きdivを削除し、横線のみでスマートに区切る
                         st.markdown("<hr style='border-top: 1px solid #444; margin: 20px 0px;'>", unsafe_allow_html=True)
                         st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif; text-align: center;'>RECENT 50 MONTHS RATING TREND</div>", unsafe_allow_html=True)
 
                         fig_rt = go.Figure()
 
-                        # レーティングランクに応じた色（ダーツライブ準拠）を返す関数
+                        # ★ HOME画面のレーティングカードと【全く同じグラデーション計算】を行う関数
                         def get_rt_color(rt):
-                            if rt >= 16: return "#ff3b30"     # SA: 赤
-                            elif rt >= 13: return "#ff6600"   # AA: オレンジ
-                            elif rt >= 10: return "#fbbc04"   # A: 黄色
-                            elif rt >= 8: return "#34a853"    # BB: 緑
-                            elif rt >= 6: return "#00bcd4"    # B: 水色
-                            elif rt >= 4: return "#4285f4"    # CC: 青
-                            else: return "#9c27b0"            # C: 紫
+                            gauge_pct = min(100, max(0, int((rt / 18.0) * 100)))
+                            if gauge_pct <= 25:
+                                p = gauge_pct / 25
+                                r, g, b = int(0 + (52-0)*p), int(188 + (168-188)*p), int(212 + (83-212)*p)
+                            elif gauge_pct <= 50:
+                                p = (gauge_pct - 25) / 25
+                                r, g, b = int(52 + (251-52)*p), int(168 + (188-168)*p), int(83 + (4-83)*p)
+                            elif gauge_pct <= 75:
+                                p = (gauge_pct - 50) / 25
+                                r, g, b = int(251 + (255-251)*p), int(188 + (102-188)*p), int(4 + (0-4)*p)
+                            else:
+                                p = (gauge_pct - 75) / 25
+                                r, g, b = int(255 + (255-255)*p), int(102 + (59-102)*p), int(0 + (48-0)*p)
+                            return f"rgb({r},{g},{b})"
 
-                        # ★ 線分（セグメント）ごとにランクの色を変えて描画する
+                        # 線分ごとに、その月のレーティングカラーをHOME画面と完全一致させて描画
                         for i in range(len(x_vals) - 1):
                             x0, x1 = x_vals[i], x_vals[i+1]
                             y0, y1 = y_vals[i], y_vals[i+1]
                             
-                            # 新しい方の月（x1側）のランクを基準に色を決定
                             color = get_rt_color(y1)
                             
                             fig_rt.add_trace(go.Scatter(
                                 x=[x0, x1],
                                 y=[y0, y1],
-                                mode='lines',  # ★ 点(マーカー)を描画せず、線だけにする
+                                mode='lines',  # ★ 点を消して線のみ
                                 line=dict(color=color, width=3),
                                 showlegend=False,
                                 hoverinfo="skip"
