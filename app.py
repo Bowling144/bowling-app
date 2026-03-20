@@ -1195,110 +1195,158 @@ if app_mode == "📊 プレイヤー分析":
                 # 【13】 7-10G：7-10 GAME 分析
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_13_seven_ten_game():
-                    st.markdown("### <span style='color: silver;'>🎯 7-10 GAME 分析</span>", unsafe_allow_html=True)
+                    st.markdown("### <span style='color: #E2DCC8;'>🎯 7-10 GAME 分析</span>", unsafe_allow_html=True)
+                    
                     if not player_710_rows:
                         st.info("7-10 GAME のプレイデータがありません。")
-                    else:
-                        g_count = len(player_710_rows)
-                        f_count = 0
-                        success_c = 0
-                        nearpin_c = 0
-                        ponkotsu_c = 0
+                        return
 
-                        # スコア文字列を数値化する内部関数
-                        def val(t, t_prev=0):
-                            t_str = str(t).strip().upper()
-                            if t_str == 'X': return 10
-                            if t_str == '/': return 10 - t_prev
-                            if t_str in ['G', '-', '']: return 0
-                            try: return int(t_str)
-                            except: return 0
+                    g_count = len(player_710_rows)
+                    f_count = 0
+                    success_c = 0
+                    nearpin_c = 0
+                    ponkotsu_c = 0
 
-                        scores_710 = []
+                    # スコア文字列を数値化する内部関数（ロジック変更なし）
+                    def val(t, t_prev=0):
+                        t_str = str(t).strip().upper()
+                        if t_str == 'X': return 10
+                        if t_str == '/': return 10 - t_prev
+                        if t_str in ['G', '-', '']: return 0
+                        try: return int(t_str)
+                        except: return 0
 
-                        for r in player_710_rows:
-                            try:
-                                s = int(r[52])
-                                scores_710.append({"date": r[2], "score": s})
-                            except:
-                                pass
-                                
-                            for f in range(10):
-                                f_count += 1
-                                if f < 9:
-                                    t1 = r[10 + f*4]
-                                    t2 = r[12 + f*4]
-                                else:
-                                    t1 = r[46]
-                                    t2 = r[48]
-                                
-                                v1 = val(t1)
-                                v2 = val(t2, v1)
-                                
-                                if v1 == 1 and v2 == 1:
-                                    success_c += 1
-                                elif (v1 == 1 and v2 == 2) or (v1 == 2 and v2 == 1):
-                                    nearpin_c += 1
-                                elif (v1 + v2) >= 8:
-                                    ponkotsu_c += 1
-                        
-                        other_c = f_count - (success_c + nearpin_c + ponkotsu_c)
-                        
-                        def fmt_pct(num, den):
-                            return f"{(num/den)*100:.1f}%" if den > 0 else "0.0%"
-                        
-                        # スコア低い順ソート（ワーストスコア抽出）
-                        scores_710.sort(key=lambda x: x["score"])
-                        mini_1 = f"{scores_710[0]['score']}点 ({scores_710[0]['date']})" if len(scores_710) > 0 else "-"
-                        mini_2 = f"{scores_710[1]['score']}点 ({scores_710[1]['date']})" if len(scores_710) > 1 else "-"
-                        mini_3 = f"{scores_710[2]['score']}点 ({scores_710[2]['date']})" if len(scores_710) > 2 else "-"
+                    scores_710 = []
 
-                        # メトリクス表示
-                        c1, c2, c3, c4 = st.columns(4)
-                        c1.metric("① ゲーム数", f"{g_count} G")
-                        c2.metric("② チャレンジ数", f"{f_count} フレーム")
-                        c3.metric("③ 成功数", f"{success_c} 回")
-                        c4.metric("④ 成功率", fmt_pct(success_c, f_count))
-                        
-                        c5, c6, c7, c8 = st.columns(4)
-                        c5.metric("⑤ ニアピン数", f"{nearpin_c} 回")
-                        c6.metric("⑥ ニアピン率", fmt_pct(nearpin_c, f_count))
-                        c7.metric("⑦ ポンコツ数", f"{ponkotsu_c} 回")
-                        c8.metric("⑧ ポンコツ率", fmt_pct(ponkotsu_c, f_count))
+                    for r in player_710_rows:
+                        try:
+                            s = int(r[52])
+                            scores_710.append({"date": r[2], "score": s})
+                        except:
+                            pass
+                            
+                        for f in range(10):
+                            f_count += 1
+                            if f < 9:
+                                t1 = r[10 + f*4]
+                                t2 = r[12 + f*4]
+                            else:
+                                t1 = r[46]
+                                t2 = r[48]
+                            
+                            v1 = val(t1)
+                            v2 = val(t2, v1)
+                            
+                            if v1 == 1 and v2 == 1:
+                                success_c += 1
+                            elif (v1 == 1 and v2 == 2) or (v1 == 2 and v2 == 1):
+                                nearpin_c += 1
+                            elif (v1 + v2) >= 8:
+                                ponkotsu_c += 1
+                    
+                    other_c = f_count - (success_c + nearpin_c + ponkotsu_c)
+                    
+                    def fmt_pct(num, den):
+                        return f"{(num/den)*100:.1f}%" if den > 0 else "0.0%"
+                    
+                    # スコア低い順ソート（ワーストスコア抽出）
+                    scores_710.sort(key=lambda x: x["score"])
 
-                        c9, c10, c11, _ = st.columns(4)
-                        c9.metric("⑨ MINI_1 (ワースト1位)", mini_1)
-                        c10.metric("⑩ MINI_2 (ワースト2位)", mini_2)
-                        c11.metric("⑪ MINI_3 (ワースト3位)", mini_3)
+                    # ＝＝＝ UI描画 ＝＝＝
 
-                        # 円グラフ
-                        st.markdown("#### 📊 7-10 チャレンジ結果の割合")
+                    # ① サマリーリボン（ゲーム数・チャレンジ数）
+                    st.markdown(f"""
+                    <div style='display: flex; justify-content: space-around; background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 15px; border-radius: 10px; border: 1px solid #444; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);'>
+                        <div style='text-align: center;'>
+                            <div style='color: #A07855; font-size: 13px; font-weight: bold;'>プレイゲーム数</div>
+                            <div style='color: white; font-size: 28px; font-weight: bold;'>{g_count}<span style='font-size: 16px; color: silver;'> G</span></div>
+                        </div>
+                        <div style='text-align: center;'>
+                            <div style='color: #A07855; font-size: 13px; font-weight: bold;'>総チャレンジ数 (フレーム)</div>
+                            <div style='color: white; font-size: 28px; font-weight: bold;'>{f_count}<span style='font-size: 16px; color: silver;'> 回</span></div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    # ② チャートと詳細カードの左右配置
+                    c1, c2 = st.columns([1.2, 1])
+                    
+                    with c1:
+                        # ドーナツチャート
                         labels = ["成功 (Success)", "ニアピン (Nearpin)", "ポンコツ (Ponkotsu)", "その他 (Other)"]
                         values = [success_c, nearpin_c, ponkotsu_c, other_c]
-                        colors = ['#FFD700', '#00CC96', '#EF553B', '#555555']
+                        # アクセントカラー：ゴールド、ティールグリーン、テラコッタレッド、モカグレー
+                        colors = ['#D4AF37', '#45B39D', '#CB4335', '#5D6D7E']
                         
-                        fig_710 = go.Figure(data=[go.Pie(labels=labels, values=values, marker_colors=colors, hole=.4, textinfo='label+percent')])
-                        fig_710.update_layout(margin=dict(t=20, b=20, l=20, r=20), height=350, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+                        fig_710 = go.Figure(data=[go.Pie(
+                            labels=labels, values=values, marker=dict(colors=colors), 
+                            hole=.55, textinfo='percent', textfont=dict(color='white', size=14, weight='bold'),
+                            hoverinfo='label+value+percent'
+                        )])
+                        fig_710.update_layout(
+                            margin=dict(t=0, b=0, l=0, r=0), 
+                            height=250, 
+                            plot_bgcolor='rgba(0,0,0,0)', 
+                            paper_bgcolor='rgba(0,0,0,0)',
+                            showlegend=True,
+                            legend=dict(orientation="v", yanchor="center", y=0.5, xanchor="left", x=1.0, font=dict(color="silver"))
+                        )
                         st.plotly_chart(fig_710, use_container_width=True, config={'displayModeBar': False})
 
-                        # 用語解説
-                        st.markdown("---")
-                        st.markdown("""
-                        <div style='font-size: 11px; color: gray; line-height: 1.6;'>
-                        <b>【7-10 GAME 用語解説】</b><br>
-                        ① 7-10ゲーム数：7-10 GAMEとしてチェック・登録された総ゲーム数<br>
-                        ② 7-10チャレンジ数：プレイした全フレーム数<br>
-                        ③ 7-10成功数：1投目も2投目もスコアが「1」だったフレーム数<br>
-                        ④ 7-10成功率：チャレンジ数に対する成功数の割合<br>
-                        ⑤ 7-10ニアピン数：1投目が1で2投目が2、または1投目が2で2投目が1だったフレーム数<br>
-                        ⑥ 7-10ニアピン率：チャレンジ数に対するニアピン数の割合<br>
-                        ⑦ 7-10ポンコツ数：2投の合計スコアが8本以上（ストライク・スペア含む）のフレーム数<br>
-                        ⑧ 7-10ポンコツ率：チャレンジ数に対するポンコツ数の割合<br>
-                        ⑨ MINI_1：過去の7-10 GAMEで最も低かったスコア（ワースト1位）<br>
-                        ⑩ MINI_2：過去の7-10 GAMEで2番目に低かったスコア（ワースト2位）<br>
-                        ⑪ MINI_3：過去の7-10 GAMEで3番目に低かったスコア（ワースト3位）
+                    with c2:
+                        # 詳細カード群（縦積み）
+                        st.markdown(f"""
+                        <div style='display: flex; flex-direction: column; gap: 12px; margin-top: 5px;'>
+                            <div style='background: rgba(212, 175, 55, 0.1); border-left: 5px solid #D4AF37; padding: 12px 15px; border-radius: 5px;'>
+                                <div style='color: #D4AF37; font-size: 13px; font-weight: bold;'>🏆 成功 (1本 - 1本)</div>
+                                <div style='color: white; font-size: 22px; font-weight: bold; margin-top: 2px;'>{success_c} <span style='font-size: 14px; color: silver;'>回</span> <span style='float: right; color: #D4AF37;'>{fmt_pct(success_c, f_count)}</span></div>
+                            </div>
+                            <div style='background: rgba(69, 179, 157, 0.1); border-left: 5px solid #45B39D; padding: 12px 15px; border-radius: 5px;'>
+                                <div style='color: #45B39D; font-size: 13px; font-weight: bold;'>惜しい! ニアピン (1本 - 2本など)</div>
+                                <div style='color: white; font-size: 22px; font-weight: bold; margin-top: 2px;'>{nearpin_c} <span style='font-size: 14px; color: silver;'>回</span> <span style='float: right; color: #45B39D;'>{fmt_pct(nearpin_c, f_count)}</span></div>
+                            </div>
+                            <div style='background: rgba(203, 67, 53, 0.1); border-left: 5px solid #CB4335; padding: 12px 15px; border-radius: 5px;'>
+                                <div style='color: #CB4335; font-size: 13px; font-weight: bold;'>💥 ポンコツ (合計8本以上)</div>
+                                <div style='color: white; font-size: 22px; font-weight: bold; margin-top: 2px;'>{ponkotsu_c} <span style='font-size: 14px; color: silver;'>回</span> <span style='float: right; color: #CB4335;'>{fmt_pct(ponkotsu_c, f_count)}</span></div>
+                            </div>
                         </div>
                         """, unsafe_allow_html=True)
+
+                    # ③ ワーストスコア (MINI) ランキング
+                    st.markdown("<div style='color: #E2DCC8; font-weight: 900; margin-bottom: 10px; margin-top: 25px; font-size: 15px;'>📉 ワーストスコア (MINI) トップ3</div>", unsafe_allow_html=True)
+                    
+                    def get_mini_html(rank, color, score_data):
+                        if not score_data:
+                            return f"<div style='flex: 1; background: #1e1e1e; border-top: 3px solid #444; padding: 12px; text-align: center; border-radius: 6px;'><div style='color: gray; font-size: 12px; font-weight: bold;'>MINI {rank}</div><div style='color: #555; font-size: 20px; font-weight: bold; margin: 5px 0;'>-</div><div style='color: transparent; font-size: 11px;'>-</div></div>"
+                        return f"<div style='flex: 1; background: #2a2a2e; border-top: 3px solid {color}; padding: 12px; text-align: center; border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);'><div style='color: silver; font-size: 12px; font-weight: bold;'>MINI {rank}</div><div style='color: white; font-size: 22px; font-weight: bold; margin: 5px 0;'>{score_data['score']}<span style='font-size: 12px; color: gray;'> 点</span></div><div style='color: #A07855; font-size: 11px;'>{score_data['date']}</div></div>"
+
+                    m1 = get_mini_html(1, '#CB4335', scores_710[0] if len(scores_710) > 0 else None)
+                    m2 = get_mini_html(2, '#E67E22', scores_710[1] if len(scores_710) > 1 else None)
+                    m3 = get_mini_html(3, '#F1C40F', scores_710[2] if len(scores_710) > 2 else None)
+
+                    st.markdown(f"<div style='display: flex; gap: 15px; margin-bottom: 25px;'>{m1}{m2}{m3}</div>", unsafe_allow_html=True)
+
+                    # ④ 用語解説エリア（スッキリとボックス内に収納）
+                    st.markdown("""
+                    <div style='background: #1c1c1e; padding: 15px; border-radius: 8px; border: 1px dashed #555;'>
+                        <div style='color: #A07855; font-weight: bold; font-size: 13px; margin-bottom: 10px;'>📖 7-10 GAME 用語解説</div>
+                        <div style='font-size: 11px; color: #aaa; line-height: 1.6; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;'>
+                            <div>
+                                <b>① 7-10ゲーム数：</b>7-10 GAMEとして登録された総G数<br>
+                                <b>② 7-10チャレンジ数：</b>プレイした全フレーム数<br>
+                                <b>③ 7-10成功数：</b>1投目も2投目もスコアが「1」だった回数<br>
+                                <b>④ 7-10成功率：</b>チャレンジ数に対する成功数の割合<br>
+                                <b>⑤ 7-10ニアピン数：</b>1投目「1」で2投目「2」（逆も含む）の回数
+                            </div>
+                            <div>
+                                <b>⑥ 7-10ニアピン率：</b>チャレンジ数に対するニアピンの割合<br>
+                                <b>⑦ 7-10ポンコツ数：</b>2投の合計スコアが8本以上の回数<br>
+                                <b>⑧ 7-10ポンコツ率：</b>チャレンジ数に対するポンコツの割合<br>
+                                <b>⑨ MINI_1~3：</b>過去の7-10 GAMEで最も低かったスコア（ワースト1位〜3位）
+                            </div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
 
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
