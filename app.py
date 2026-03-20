@@ -522,15 +522,183 @@ if app_mode == "📊 プレイヤー分析":
 
                 
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-                # 【05】 STATS：連発力スタッツ
+                # 【05】 STATS：持続力・適応力 分析（50G）
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_05_consecutive():
-                    st.markdown("### <span style='color: silver;'>🎳 連発力スタッツ</span>", unsafe_allow_html=True)
-                    c_dbl, c_trk = st.columns(2)
-                    rate_double = p_awards.get("⑦ストライク後のストライク", "0.0")
-                    rate_turkey = p_awards.get("⑧ダブル後のストライク", "0.0")
-                    c_dbl.metric("ダブル率 (ストライク後)", f"{rate_double} %")
-                    c_trk.metric("ターキー率 (ダブル後)", f"{rate_turkey} %")
+                    st.markdown("### <span style='color: silver;'>🎳 持続力・適応力 分析（50G）</span>", unsafe_allow_html=True)
+                    
+                    if not player_games:
+                        st.info("データがありません。")
+                        return
+
+                    # 最新50ゲームを取得
+                    recent_50_games = player_games[:50]
+
+                    # --- 1. ストライク率の計算 ---
+                    st_chances = 0
+                    strikes = 0
+                    chances_after_db = 0
+                    st_after_db = 0
+                    chances_after_tk = 0
+                    st_after_tk = 0
+
+                    for g in recent_50_games:
+                        r = g['row']
+                        full_rack_shots = []
+                        
+                        # 1〜9フレーム
+                        for f in range(9):
+                            t1 = str(r[10+f*4]).strip().upper()
+                            full_rack_shots.append('X' if 'X' in t1 else '-')
+
+                        # 10フレーム
+                        t10_1 = str(r[46]).strip().upper() if len(r) > 46 else ""
+                        t10_2 = str(r[48]).strip().upper() if len(r) > 48 else ""
+                        t10_3 = str(r[50]).strip().upper() if len(r) > 50 else ""
+
+                        full_rack_shots.append('X' if 'X' in t10_1 else '-')
+                        if 'X' in t10_1:
+                            full_rack_shots.append('X' if 'X' in t10_2 else '-')
+                            if 'X' in t10_2:
+                                full_rack_shots.append('X' if 'X' in t10_3 else '-')
+                        elif '/' in t10_2:
+                            full_rack_shots.append('X' if 'X' in t10_3 else '-')
+
+                        for i in range(len(full_rack_shots)):
+                            st_chances += 1
+                            if full_rack_shots[i] == 'X':
+                                strikes += 1
+
+                            if i > 1 and full_rack_shots[i-1] == 'X' and full_rack_shots[i-2] == 'X':
+                                chances_after_db += 1
+                                if full_rack_shots[i] == 'X':
+                                    st_after_db += 1
+
+                            if i > 2 and full_rack_shots[i-1] == 'X' and full_rack_shots[i-2] == 'X' and full_rack_shots[i-3] == 'X':
+                                chances_after_tk += 1
+                                if full_rack_shots[i] == 'X':
+                                    st_after_tk += 1
+
+                    st_rate = (strikes / st_chances * 100) if st_chances > 0 else 0
+                    db_st_rate = (st_after_db / chances_after_db * 100) if chances_after_db > 0 else 0
+                    tk_st_rate = (st_after_tk / chances_after_tk * 100) if chances_after_tk > 0 else 0
+
+                    # --- 2. アベレージの計算 ---
+                    scores_50 = [g['score'] for g in recent_50_games]
+                    scores_g1 = [g['score'] for g in recent_50_games if str(g['row'][6]).strip().upper().replace("G", "") == '1']
+                    scores_g2 = [g['score'] for g in recent_50_games if str(g['row'][6]).strip().upper().replace("G", "") == '2']
+                    scores_g3 = [g['score'] for g in recent_50_games if str(g['row'][6]).strip().upper().replace("G", "") == '3']
+
+                    ave_50 = sum(scores_50) / len(scores_50) if scores_50 else 0
+                    ave_g1 = sum(scores_g1) / len(scores_g1) if scores_g1 else 0
+                    ave_g2 = sum(scores_g2) / len(scores_g2) if scores_g2 else 0
+                    ave_g3 = sum(scores_g3) / len(scores_g3) if scores_g3 else 0
+
+                    diff_1_2 = ave_g2 - ave_g1
+                    diff_2_3 = ave_g3 - ave_g2
+
+                    # --- UI描画 ---
+                    st.markdown("<div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333; margin-bottom: 20px;'>", unsafe_allow_html=True)
+                    
+                    c1, c2 = st.columns(2)
+
+                    with c1:
+                        st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 10px; font-size: 14px; text-align: center;'>🔥 連続ストライク率 (直近50G)</div>", unsafe_allow_html=True)
+                        
+                        labels_st = ['ターキー後', 'ダブル後', 'ストライク率']
+                        values_st = [tk_st_rate, db_st_rate, st_rate]
+
+                        fig_st = go.Figure(go.Bar(
+                            x=values_st,
+                            y=labels_st,
+                            orientation='h',
+                            text=[f"{v:.1f}%" for v in values_st],
+                            textposition='inside',
+                            marker_color=['#9932CC', '#ff6600', '#4285f4']
+                        ))
+                        fig_st.update_layout(
+                            xaxis=dict(range=[0, 80], showgrid=True, gridcolor='#444'),
+                            yaxis=dict(showgrid=False, color='silver', font=dict(weight='bold')),
+                            plot_bgcolor='rgba(0,0,0,0)',
+                            paper_bgcolor='rgba(0,0,0,0)',
+                            margin=dict(l=10, r=10, t=10, b=10),
+                            height=250
+                        )
+                        st.plotly_chart(fig_st, use_container_width=True, config={'displayModeBar': False})
+
+                    with c2:
+                        st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 10px; font-size: 14px; text-align: center;'>📈 ゲーム別アベレージ (直近50G)</div>", unsafe_allow_html=True)
+                        
+                        labels_ave = ['3G目Ave', '2G目Ave', '1G目Ave', '50G Ave']
+                        values_ave = [ave_g3, ave_g2, ave_g1, ave_50]
+                        colors_ave = ['#00bcd4', '#00bcd4', '#00bcd4', '#bf953f']
+
+                        fig_ave = go.Figure(go.Bar(
+                            x=values_ave,
+                            y=labels_ave,
+                            orientation='h',
+                            text=[f"{v:.1f}" for v in values_ave],
+                            textposition='inside',
+                            marker_color=colors_ave
+                        ))
+
+                        # アジャスト差分の矢印とラベルを描画
+                        max_val = max(values_ave) if max(values_ave) > 0 else 150
+                        annot_x = max_val + 35  # 右側に余白を確保
+
+                        # 1G -> 2G の差分
+                        color_1_2 = '#34a853' if diff_1_2 >= 0 else '#ff3b30'
+                        sign_1_2 = "+" if diff_1_2 > 0 else ""
+                        fig_ave.add_annotation(
+                            x=annot_x, y=1.5,
+                            text=f"{sign_1_2}{diff_1_2:.1f}",
+                            showarrow=False,
+                            font=dict(size=14, color=color_1_2, family="Arial Black"),
+                            align="center",
+                            bgcolor="rgba(0,0,0,0.5)",
+                            bordercolor=color_1_2,
+                            borderwidth=1,
+                            borderpad=3
+                        )
+                        # 下向き（次ゲームへの）矢印
+                        fig_ave.add_annotation(
+                            x=annot_x - 18, y=1.1, ax=annot_x - 18, ay=1.9,
+                            xref='x', yref='y', axref='x', ayref='y',
+                            showarrow=True, arrowhead=2, arrowsize=1, arrowwidth=2, arrowcolor=color_1_2
+                        )
+
+                        # 2G -> 3G の差分
+                        color_2_3 = '#34a853' if diff_2_3 >= 0 else '#ff3b30'
+                        sign_2_3 = "+" if diff_2_3 > 0 else ""
+                        fig_ave.add_annotation(
+                            x=annot_x, y=0.5,
+                            text=f"{sign_2_3}{diff_2_3:.1f}",
+                            showarrow=False,
+                            font=dict(size=14, color=color_2_3, family="Arial Black"),
+                            align="center",
+                            bgcolor="rgba(0,0,0,0.5)",
+                            bordercolor=color_2_3,
+                            borderwidth=1,
+                            borderpad=3
+                        )
+                        # 下向き（次ゲームへの）矢印
+                        fig_ave.add_annotation(
+                            x=annot_x - 18, y=0.1, ax=annot_x - 18, ay=0.9,
+                            xref='x', yref='y', axref='x', ayref='y',
+                            showarrow=True, arrowhead=2, arrowsize=1, arrowwidth=2, arrowcolor=color_2_3
+                        )
+
+                        fig_ave.update_layout(
+                            xaxis=dict(range=[0, annot_x + 25], showgrid=True, gridcolor='#444'),
+                            yaxis=dict(showgrid=False, color='silver', font=dict(weight='bold')),
+                            plot_bgcolor='rgba(0,0,0,0)',
+                            paper_bgcolor='rgba(0,0,0,0)',
+                            margin=dict(l=10, r=10, t=10, b=10),
+                            height=250
+                        )
+                        st.plotly_chart(fig_ave, use_container_width=True, config={'displayModeBar': False})
+                    
+                    st.markdown("</div>", unsafe_allow_html=True)
 
 
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
