@@ -1267,7 +1267,6 @@ if app_mode == "📊 プレイヤー分析":
                     </div>
                     """, unsafe_allow_html=True)
 
-                    # ★ 小数点(1.2)だとエラーになるStreamlitのバージョンのため、整数(6,5)に変更
                     c1, c2 = st.columns([6, 5])
                     
                     with c1:
@@ -1281,9 +1280,9 @@ if app_mode == "📊 プレイヤー分析":
                             hoverinfo='label+value+percent'
                         )])
                         
-                        # ★ 凡例の設定を最もシンプルな形に修正
+                        # ★ 円グラフの修正点: margin の右側(r)を 30 に増やして凡例スペースを確保
                         fig_710.update_layout(
-                            margin=dict(t=0, b=0, l=0, r=0), 
+                            margin=dict(t=10, b=10, l=10, r=30), # 上下も少し調整、右を30に
                             height=250, 
                             plot_bgcolor='rgba(0,0,0,0)', 
                             paper_bgcolor='rgba(0,0,0,0)',
@@ -1323,18 +1322,17 @@ if app_mode == "📊 プレイヤー分析":
 
                     st.markdown(f"<div style='display: flex; gap: 15px; margin-bottom: 25px;'>{m1}{m2}{m3}</div>", unsafe_allow_html=True)
 
+                    # ★ 説明文の修正点: 左右分割(grid)を廃止し、縦一列に統合
                     st.markdown("""
                     <div style='background: #1c1c1e; padding: 15px; border-radius: 8px; border: 1px dashed #555;'>
                         <div style='color: #A07855; font-weight: bold; font-size: 13px; margin-bottom: 10px;'>📖 7-10 GAME 用語解説</div>
-                        <div style='font-size: 11px; color: #aaa; line-height: 1.6; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;'>
+                        <div style='font-size: 11px; color: #aaa; line-height: 1.6; gap: 10px;'>
                             <div>
                                 <b>① 7-10ゲーム数：</b>7-10 GAMEとして登録された総G数<br>
                                 <b>② 7-10チャレンジ数：</b>プレイした全フレーム数<br>
                                 <b>③ 7-10成功数：</b>1投目も2投目もスコアが「1」だった回数<br>
                                 <b>④ 7-10成功率：</b>チャレンジ数に対する成功数の割合<br>
-                                <b>⑤ 7-10ニアピン数：</b>1投目「1」で2投目「2」（逆も含む）の回数
-                            </div>
-                            <div>
+                                <b>⑤ 7-10ニアピン数：</b>1投目「1」で2投目「2」（逆も含む）の回数<br>
                                 <b>⑥ 7-10ニアピン率：</b>チャレンジ数に対するニアピンの割合<br>
                                 <b>⑦ 7-10ポンコツ数：</b>2投の合計スコアが8本以上の回数<br>
                                 <b>⑧ 7-10ポンコツ率：</b>チャレンジ数に対するポンコツの割合<br>
