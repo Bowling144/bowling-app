@@ -608,7 +608,6 @@ if app_mode == "📊 プレイヤー分析":
                         labels_st = ['ターキー後', 'ダブル後', 'ストライク率']
                         values_st = [tk_st_rate, db_st_rate, st_rate]
 
-                        # ★ ここを修正：marker_color ではなく marker=dict(color=...) に変更
                         fig_st = go.Figure(go.Bar(
                             x=values_st,
                             y=labels_st,
@@ -619,7 +618,7 @@ if app_mode == "📊 プレイヤー分析":
                         ))
                         fig_st.update_layout(
                             xaxis=dict(range=[0, 80], showgrid=True, gridcolor='#444'),
-                            yaxis=dict(showgrid=False, color='silver', font=dict(weight='bold')),
+                            yaxis=dict(showgrid=False, color='silver', tickfont=dict(weight='bold')), # ★ここを font から tickfont に修正
                             plot_bgcolor='rgba(0,0,0,0)',
                             paper_bgcolor='rgba(0,0,0,0)',
                             margin=dict(l=10, r=10, t=10, b=10),
@@ -634,7 +633,6 @@ if app_mode == "📊 プレイヤー分析":
                         values_ave = [ave_g3, ave_g2, ave_g1, ave_50]
                         colors_ave = ['#00bcd4', '#00bcd4', '#00bcd4', '#bf953f']
 
-                        # ★ ここを修正：marker_color ではなく marker=dict(color=...) に変更
                         fig_ave = go.Figure(go.Bar(
                             x=values_ave,
                             y=labels_ave,
@@ -687,7 +685,7 @@ if app_mode == "📊 プレイヤー分析":
 
                         fig_ave.update_layout(
                             xaxis=dict(range=[0, annot_x + 25], showgrid=True, gridcolor='#444'),
-                            yaxis=dict(showgrid=False, color='silver', font=dict(weight='bold')),
+                            yaxis=dict(showgrid=False, color='silver', tickfont=dict(weight='bold')), # ★ここも font から tickfont に修正
                             plot_bgcolor='rgba(0,0,0,0)',
                             paper_bgcolor='rgba(0,0,0,0)',
                             margin=dict(l=10, r=10, t=10, b=10),
