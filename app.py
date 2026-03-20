@@ -1196,7 +1196,7 @@ if app_mode == "📊 プレイヤー分析":
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_13_seven_ten_game():
                     # ★ タイトルをシルバーに統一し、ダーツから2本のピン(🎳🎳)のイメージに変更
-                    st.markdown("### <span style='color: silver;'>🎳🎳 7-10 GAME 分析</span>", unsafe_allow_html=True)
+                    st.markdown("### <span style='color: silver;'>🎳 7-10 GAME 分析</span>", unsafe_allow_html=True)
                     
                     if not player_710_rows:
                         st.info("7-10 GAME のプレイデータがありません。")
@@ -1273,7 +1273,7 @@ if app_mode == "📊 プレイヤー分析":
                             <div style='color: white; font-size: 22px; font-weight: bold; margin-top: 5px;'>{success_c} <span style='font-size: 14px; color: silver;'>回</span> <span style='float: right; color: #4A90E2;'>{fmt_pct(success_c, f_count)}</span></div>
                         </div>
                         <div style='background: rgba(138, 180, 248, 0.1); border-left: 5px solid #8AB4F8; padding: 12px 15px; border-radius: 5px;'>
-                            <div style='color: #8AB4F8; font-size: 13px; font-weight: bold;'>惜しい! ニアピン</div>
+                            <div style='color: #8AB4F8; font-size: 13px; font-weight: bold;'>惜しい! ニアピン（1本-2本、2本- 1本）</div>
                             <div style='color: white; font-size: 22px; font-weight: bold; margin-top: 5px;'>{nearpin_c} <span style='font-size: 14px; color: silver;'>回</span> <span style='float: right; color: #8AB4F8;'>{fmt_pct(nearpin_c, f_count)}</span></div>
                         </div>
                         <div style='background: rgba(224, 102, 102, 0.1); border-left: 5px solid #E06666; padding: 12px 15px; border-radius: 5px;'>
@@ -1283,8 +1283,8 @@ if app_mode == "📊 プレイヤー分析":
                     </div>
                     """, unsafe_allow_html=True)
 
-                    # ③ ワーストスコア (MINI) ランキング
-                    st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 10px; margin-top: 25px; font-size: 15px;'>📉 ワーストスコア (MINI) トップ3</div>", unsafe_allow_html=True)
+                    # ③ MINI SCORE RANKING
+                    st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 10px; margin-top: 25px; font-size: 15px;'>📉 MINI SCORE TOP3</div>", unsafe_allow_html=True)
                     
                     def get_mini_html(rank, color, score_data):
                         if not score_data:
@@ -1304,14 +1304,14 @@ if app_mode == "📊 プレイヤー分析":
                         <div style='font-size: 11px; color: #aaa; line-height: 1.6; gap: 10px;'>
                             <div>
                                 <b>① 7-10ゲーム数：</b>7-10 GAMEとして登録された総G数<br>
-                                <b>② 7-10チャレンジ数：</b>プレイした全フレーム数<br>
+                                <b>② 7-10総チャレンジ数：</b>プレイした全フレーム数<br>
                                 <b>③ 7-10成功数：</b>1投目も2投目もスコアが「1」だった回数<br>
                                 <b>④ 7-10成功率：</b>チャレンジ数に対する成功数の割合<br>
                                 <b>⑤ 7-10ニアピン数：</b>1投目「1」で2投目「2」（逆も含む）の回数<br>
                                 <b>⑥ 7-10ニアピン率：</b>チャレンジ数に対するニアピンの割合<br>
                                 <b>⑦ 7-10ポンコツ数：</b>2投の合計スコアが8本以上の回数<br>
                                 <b>⑧ 7-10ポンコツ率：</b>チャレンジ数に対するポンコツの割合<br>
-                                <b>⑨ MINI_1~3：</b>過去の7-10 GAMEで最も低かったスコア（ワースト1位〜3位）
+                                <b>⑨ MINI_1~3：</b>過去の7-10 GAMEで最も低かったスコア（1位〜3位）
                             </div>
                         </div>
                     </div>
