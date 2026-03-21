@@ -224,6 +224,7 @@ if app_mode == "📊 プレイヤー分析":
                         "03_seven_ten",                        
                         "05_consecutive",
                         "12_lane_data",
+                        "17_env_scatter",
                     ],
                     "🎳 7-10GAME": [
                         "13_seven_ten_game"
@@ -1667,6 +1668,98 @@ if app_mode == "📊 プレイヤー分析":
                         st.plotly_chart(fig_rt, use_container_width=True, config={'displayModeBar': False})
 
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                # 【17】 ANALYSIS：ENVIRONMENT 適性分布（点グラフ）
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                def render_17_env_scatter():
+                    st.markdown("<hr style='border-top: 1px solid #444; margin: 30px 0px 20px 0px;'>", unsafe_allow_html=True)
+                    st.markdown("### <span style='color: #E2DCC8;'>🌍 ENVIRONMENT 適性分布</span>", unsafe_allow_html=True)
+                    
+                    if not player_games:
+                        st.info("データがありません。")
+                        return
+
+                    import plotly.graph_objects as go
+
+                    len_x = []
+                    len_y = []
+                    vol_x = []
+                    vol_y = []
+
+                    # データの抽出とフィルタリング
+                    for g in player_games:
+                        score = g.get('score', 0)
+                        row = g.get('row', [])
+                        
+                        # オイル長 (通常インデックス8)
+                        if len(row) > 8:
+                            try:
+                                l_str = str(row[8]).replace('ft', '').replace('フィート', '').strip()
+                                if l_str:
+                                    l_val = float(l_str)
+                                    if 30 <= l_val <= 45:
+                                        len_x.append(l_val)
+                                        len_y.append(score)
+                            except:
+                                pass
+                                
+                        # オイル量 (通常インデックス9)
+                        if len(row) > 9:
+                            try:
+                                v_str = str(row[9]).replace('ml', '').replace('cc', '').strip()
+                                if v_str:
+                                    v_val = float(v_str)
+                                    if 20 <= v_val <= 35:
+                                        vol_x.append(v_val)
+                                        vol_y.append(score)
+                            except:
+                                pass
+
+                    # ▼ 1つ目のグラフ：オイル長 適性
+                    fig_len = go.Figure()
+                    fig_len.add_trace(go.Scatter(
+                        x=len_x, y=len_y,
+                        mode='markers',
+                        marker=dict(color='#00E5FF', size=10, opacity=0.6, line=dict(color='white', width=1)),
+                        name='オイル長',
+                        hovertemplate="オイル長: %{x}ft<br>スコア: %{y}<extra></extra>"
+                    ))
+                    fig_len.update_layout(
+                        title=dict(text="オイル長 (ft) vs スコア", font=dict(color='silver', size=14)),
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        xaxis=dict(title="オイル長 (ft)", range=[29, 46], color='silver', gridcolor='#444', dtick=1),
+                        yaxis=dict(title="Score", range=[0, 320], color='silver', gridcolor='#444', dtick=50),
+                        margin=dict(l=10, r=10, t=40, b=10),
+                        height=350
+                    )
+
+                    # ▼ 2つ目のグラフ：オイル量 適性
+                    fig_vol = go.Figure()
+                    fig_vol.add_trace(go.Scatter(
+                        x=vol_x, y=vol_y,
+                        mode='markers',
+                        marker=dict(color='#FF007F', size=10, opacity=0.6, line=dict(color='white', width=1)),
+                        name='オイル量',
+                        hovertemplate="オイル量: %{x}ml<br>スコア: %{y}<extra></extra>"
+                    ))
+                    fig_vol.update_layout(
+                        title=dict(text="オイル量 (ml) vs スコア", font=dict(color='silver', size=14)),
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        xaxis=dict(title="オイル量 (ml)", range=[19, 36], color='silver', gridcolor='#444', dtick=1),
+                        yaxis=dict(title="Score", range=[0, 320], color='silver', gridcolor='#444', dtick=50),
+                        margin=dict(l=10, r=10, t=40, b=10),
+                        height=350
+                    )
+
+                    # 描画
+                    st.plotly_chart(fig_len, use_container_width=True, config={'displayModeBar': False})
+                    st.markdown("<hr style='border-top: 1px dashed #444; margin: 10px 0px;'>", unsafe_allow_html=True)
+                    st.plotly_chart(fig_vol, use_container_width=True, config={'displayModeBar': False})
+
+                
+
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 # 【14】月別集計（MONTHLY STATS）機能
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_monthly_stats():
@@ -2082,7 +2175,8 @@ if app_mode == "📊 プレイヤー分析":
                     "13_seven_ten_game": render_13_seven_ten_game,
                     "14_top10_scores": render_14_top10_scores,
                     "15_monthly_stats": render_monthly_stats,
-                    "16_rating_trend": render_16_rating_trend
+                    "16_rating_trend": render_16_rating_trend,
+                    "17_env_scatter": render_17_env_scatter
                 }
 
                 # レイアウト辞書のキー（タブ名）からタブを生成
