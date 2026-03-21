@@ -223,6 +223,7 @@ if app_mode == "📊 プレイヤー分析":
                         "04_first_pitch_pins",
                         "03_seven_ten",                        
                         "05_consecutive",
+                        "12_lane_data",
                     ],
                     "🎳 7-10GAME": [
                         "13_seven_ten_game"
@@ -1170,26 +1171,117 @@ if app_mode == "📊 プレイヤー分析":
 
 
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-                # 【12】 ENVIRONMENT：レーン毎データ
+                # 【12】 STATS：レーン相性分析
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_12_lane_data():
-                    st.markdown("### <span style='color: silver;'>🎳 レーン毎データ</span>", unsafe_allow_html=True)
-                    lane_keys, lane_aves = [], []
-                    for row in award_data:
-                        if len(row) >= 7 and row[1] == selected_player and "⑩" in row[3]:
+                    st.markdown("### <span style='color: #E2DCC8;'>🧭 レーン相性分析</span>", unsafe_allow_html=True)
+                    
+                    if not player_games:
+                        st.info("データがありません。")
+                        return
+
+                    import plotly.graph_objects as go
+
+                    # 横軸のレーンリスト（1, 2, 1-2, 3, 4, 3-4 ... 17-18 まで固定で生成）
+                    target_lanes = []
+                    for i in range(1, 18, 2):
+                        target_lanes.extend([str(i), str(i+1), f"{i}-{i+1}"])
+
+                    # レーンごとのスコアを格納する辞書（新しい順に処理するため）
+                    lane_scores = {lane: [] for lane in target_lanes}
+
+                    for g in player_games:
+                        try:
+                            # 通常、レーン番号はインデックス7に格納されています
+                            lane_raw = str(g['row'][7]).strip().upper()
+                        except:
+                            continue
+                        
+                        if not lane_raw:
+                            continue
+
+                        # "2-1" などを "1-2" に自動統合
+                        if "-" in lane_raw:
+                            parts = lane_raw.split("-")
+                            if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
+                                p1, p2 = int(parts[0]), int(parts[1])
+                                lane_val = f"{min(p1, p2)}-{max(p1, p2)}"
+                            else:
+                                lane_val = lane_raw
+                        else:
+                            lane_val = lane_raw
+
+                        # ターゲットのレーン一覧に含まれている場合のみスコアを追加
+                        if lane_val in lane_scores:
                             try:
-                                if float(row[4]) > 0: # プレイ回数が1回以上のものだけ抽出
-                                    lane_keys.append(row[3].replace("⑩", "").replace(" レーン", ""))
-                                    lane_aves.append(float(row[6]))
-                            except ValueError:
+                                score = int(g['score'])
+                                lane_scores[lane_val].append(score)
+                            except:
                                 pass
-                    if lane_keys:
-                        fig_lane = px.bar(x=lane_keys, y=lane_aves, labels={"x": "レーン番号", "y": "アベレージ"}, text=[f"{a}" for a in lane_aves])
-                        fig_lane.update_traces(marker_color='#636EFA', textposition='outside')
-                        fig_lane.update_layout(height=300, margin=dict(t=10, b=10, l=10, r=10), yaxis=dict(range=[0, max(lane_aves + [150]) * 1.2]))
-                        st.plotly_chart(fig_lane, use_container_width=True)
-                    else:
-                        st.info("レーン番号のプレイデータがありません。")
+
+                    # 各レーンの「最新50G」のアベレージを計算
+                    averages = []
+                    for lane in target_lanes:
+                        # player_gamesは新しい順なので、先頭から最大50件を取得
+                        recent_50_scores = lane_scores[lane][:50]
+                        if recent_50_scores:
+                            avg = sum(recent_50_scores) / len(recent_50_scores)
+                            averages.append(avg)
+                        else:
+                            averages.append(0)  # データがない場合は0
+
+                    # 色分け（ヨーロピアン: カフェブラウン, アメリカン: マスタードゴールド）
+                    colors = []
+                    for lane in target_lanes:
+                        if "-" in lane:
+                            colors.append("#D4AF37")  # アメリカン
+                        else:
+                            colors.append("#A07855")  # ヨーロピアン
+
+                    # UI描画
+                    st.markdown("<div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 15px; border-radius: 10px; border: 1px solid #444; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);'>", unsafe_allow_html=True)
+                    st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 15px; font-size: 14px; text-align: center;'>LANE AFFINITY (RECENT 50G AVE)</div>", unsafe_allow_html=True)
+
+                    fig = go.Figure(go.Bar(
+                        x=target_lanes,
+                        y=averages,
+                        marker=dict(color=colors),
+                        text=[f"{val:.1f}" if val > 0 else "" for val in averages],
+                        textposition='outside',
+                        textfont=dict(size=10, color='white', weight='bold')
+                    ))
+
+                    # グラフを隙間なく詰めて、スクロールなしで1画面に収める設定
+                    fig.update_layout(
+                        bargap=0.15,  # 棒の間隔を詰める
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        xaxis=dict(
+                            type='category',
+                            categoryorder='array',
+                            categoryarray=target_lanes,
+                            tickangle=-90,  # ラベルを縦向きにして重なりを防ぐ
+                            color='silver',
+                            showgrid=False,
+                            fixedrange=True, # スクロール・ズーム禁止
+                            tickfont=dict(size=11, weight='bold')
+                        ),
+                        yaxis=dict(
+                            range=[0, 300],  # 縦軸は0〜300固定
+                            color='silver',
+                            gridcolor='#444',
+                            fixedrange=True, # スクロール・ズーム禁止
+                            tick0=0,
+                            dtick=50
+                        ),
+                        margin=dict(l=10, r=10, t=20, b=10),
+                        height=300
+                    )
+                    
+                    # staticPlot: True でタップやスクロールによる予期せぬ挙動を完全にシャットアウト
+                    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False, 'staticPlot': True})
+                    
+                    st.markdown("</div>", unsafe_allow_html=True)
 
 
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
