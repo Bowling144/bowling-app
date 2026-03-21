@@ -1245,7 +1245,6 @@ if app_mode == "📊 プレイヤー分析":
                     st.markdown("<hr style='border-top: 1px solid #444; margin: 20px 0px;'>", unsafe_allow_html=True)
                     st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif; text-align: center;'>LANE AFFINITY (RECENT 50G AVE)</div>", unsafe_allow_html=True)
 
-                    # ★ アベレージと(ゲーム数)を横に並べて1行で表示するように修正
                     bar_texts = []
                     for val, cnt in zip(averages, game_counts):
                         if cnt > 0:
@@ -1259,7 +1258,8 @@ if app_mode == "📊 プレイヤー分析":
                         marker=dict(color=colors),
                         text=bar_texts,
                         textposition='outside',
-                        textfont=dict(size=12, color='white', weight='bold') # ★ 下のレーン番号と同じ12pxに拡大
+                        textangle=-90,
+                        textfont=dict(size=12, color='white', weight='bold')
                     ))
 
                     # グラフを隙間なく詰めて、スクロールなしで1画面に収める設定
@@ -1280,14 +1280,14 @@ if app_mode == "📊 プレイヤー分析":
                             tickfont=dict(size=12)
                         ),
                         yaxis=dict(
-                            range=[0, 340],  # ★ 文字が上に見切れないよう340へ拡張
+                            range=[0, 360],
                             color='silver',
                             gridcolor='#444',
                             fixedrange=True,
-                            tick0=0,
-                            dtick=50
+                            tickmode='array',  # ★ 指定した目盛りのみを強制的に表示するモード
+                            tickvals=[0, 50, 100, 150, 200, 250, 300]  # ★ ボウリングの上限である300までしか目盛りを描画しない
                         ),
-                        margin=dict(l=10, r=10, t=30, b=10), # ★ 上部余白(t)も少し広げて見切れを完全防止
+                        margin=dict(l=10, r=10, t=30, b=10),
                         height=300
                     )
                     
