@@ -1174,7 +1174,8 @@ if app_mode == "📊 プレイヤー分析":
                 # 【12】 STATS：レーン相性分析
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_12_lane_data():
-                    st.markdown("### <span style='color: #E2DCC8;'>🧭 レーン相性分析</span>", unsafe_allow_html=True)
+                    # ★ タイトルの大きさを「レーンアジャスト指数」と同じ16pxのdivタグに統一
+                    st.markdown("<div style='color: #E2DCC8; font-weight: 900; margin-bottom: 15px; margin-top: 10px; font-size: 16px;'>🧭 レーン相性分析</div>", unsafe_allow_html=True)
                     
                     if not player_games:
                         st.info("データがありません。")
@@ -1220,7 +1221,7 @@ if app_mode == "📊 プレイヤー分析":
 
                     # 各レーンの「最新50G」のアベレージとゲーム数を計算
                     averages = []
-                    game_counts = []  # ★ ゲーム数を記録するリストを追加
+                    game_counts = []
                     for lane in target_lanes:
                         recent_50_scores = lane_scores[lane][:50]
                         count = len(recent_50_scores)
@@ -1233,21 +1234,23 @@ if app_mode == "📊 プレイヤー分析":
 
                     # 色分け（ヨーロピアン: カフェブラウン, アメリカン: マスタードゴールド）
                     colors = []
+                    tick_texts = []  # ★ 横軸の文字色を個別に設定するためのリスト
                     for lane in target_lanes:
                         if "-" in lane:
                             colors.append("#D4AF37")  # アメリカン
+                            tick_texts.append(f"<b style='color: #D4AF37;'>{lane}</b>")
                         else:
                             colors.append("#A07855")  # ヨーロピアン
+                            tick_texts.append(f"<b style='color: #A07855;'>{lane}</b>")
 
                     st.markdown("<hr style='border-top: 1px solid #444; margin: 20px 0px;'>", unsafe_allow_html=True)
                     st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif; text-align: center;'>LANE AFFINITY (RECENT 50G AVE)</div>", unsafe_allow_html=True)
 
-                    # ★ グラフの上に表示するテキストを作成（アベレージの下にゲーム数を小さく表示）
+                    # ★ ゲーム数の（）を外し、文字サイズを少し大きく（11px）して見やすく修正
                     bar_texts = []
                     for val, cnt in zip(averages, game_counts):
                         if cnt > 0:
-                            # PlotlyはHTMLタグが使えるため、改行と文字色・サイズ調整を行う
-                            bar_texts.append(f"{val:.1f}<br><span style='font-size:9px; color:#aaaaaa;'>({cnt}G)</span>")
+                            bar_texts.append(f"{val:.1f}<br><span style='font-size:11px; color:#cccccc;'>{cnt}G</span>")
                         else:
                             bar_texts.append("")
 
@@ -1257,7 +1260,7 @@ if app_mode == "📊 プレイヤー分析":
                         marker=dict(color=colors),
                         text=bar_texts,
                         textposition='outside',
-                        textfont=dict(size=10, color='white', weight='bold')
+                        textfont=dict(size=11, color='white', weight='bold') # 全体のベースフォントも少し大きく
                     ))
 
                     # グラフを隙間なく詰めて、スクロールなしで1画面に収める設定
@@ -1269,21 +1272,23 @@ if app_mode == "📊 プレイヤー分析":
                             type='category',
                             categoryorder='array',
                             categoryarray=target_lanes,
-                            tickangle=-90,  # ラベルを縦向きにして重なりを防ぐ
-                            color='silver',
+                            tickmode='array',        # ★ 個別の色を適用するための設定
+                            tickvals=target_lanes,   # ★ 個別の色を適用するための設定
+                            ticktext=tick_texts,     # ★ 色付きのHTMLテキストを適用
+                            tickangle=-90,
                             showgrid=False,
                             fixedrange=True, # スクロール・ズーム禁止
-                            tickfont=dict(size=11, weight='bold')
+                            tickfont=dict(size=12)   # 横軸の文字サイズ
                         ),
                         yaxis=dict(
-                            range=[0, 320],  # ★ 2行分のテキストが上に突き抜けないよう、最大値を320に少し拡張
+                            range=[0, 320],
                             color='silver',
                             gridcolor='#444',
                             fixedrange=True, # スクロール・ズーム禁止
                             tick0=0,
                             dtick=50
                         ),
-                        margin=dict(l=10, r=10, t=25, b=10), # 上部のマージン(t)も少し広げてテキスト見切れ防止
+                        margin=dict(l=10, r=10, t=25, b=10),
                         height=300
                     )
                     
