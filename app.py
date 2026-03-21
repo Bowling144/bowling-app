@@ -1668,11 +1668,12 @@ if app_mode == "📊 プレイヤー分析":
                         st.plotly_chart(fig_rt, use_container_width=True, config={'displayModeBar': False})
 
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-                # 【17】 ANALYSIS：ENVIRONMENT 適性分布（点グラフ）
+                # 【17】 ANALYSIS：オイル長さ・オイル量 相性分析（点グラフ）
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_17_env_scatter():
                     st.markdown("<hr style='border-top: 1px solid #444; margin: 30px 0px 20px 0px;'>", unsafe_allow_html=True)
-                    st.markdown("### <span style='color: #E2DCC8;'>🌍 ENVIRONMENT 適性分布</span>", unsafe_allow_html=True)
+                    # ★ タイトルを変更
+                    st.markdown("### <span style='color: #E2DCC8;'>🌍 オイル長さ・オイル量 相性分析</span>", unsafe_allow_html=True)
                     
                     if not player_games:
                         st.info("データがありません。")
@@ -1690,10 +1691,10 @@ if app_mode == "📊 プレイヤー分析":
                         score = g.get('score', 0)
                         row = g.get('row', [])
                         
-                        # オイル長 (通常インデックス8)
-                        if len(row) > 8:
+                        # ★ 修正: オイル長はインデックス 7、オイル量はインデックス 8 に変更
+                        if len(row) > 7:
                             try:
-                                l_str = str(row[8]).replace('ft', '').replace('フィート', '').strip()
+                                l_str = str(row[7]).replace('ft', '').replace('フィート', '').strip()
                                 if l_str:
                                     l_val = float(l_str)
                                     if 30 <= l_val <= 45:
@@ -1702,10 +1703,9 @@ if app_mode == "📊 プレイヤー分析":
                             except:
                                 pass
                                 
-                        # オイル量 (通常インデックス9)
-                        if len(row) > 9:
+                        if len(row) > 8:
                             try:
-                                v_str = str(row[9]).replace('ml', '').replace('cc', '').strip()
+                                v_str = str(row[8]).replace('ml', '').replace('cc', '').strip()
                                 if v_str:
                                     v_val = float(v_str)
                                     if 20 <= v_val <= 35:
@@ -1714,21 +1714,22 @@ if app_mode == "📊 プレイヤー分析":
                             except:
                                 pass
 
-                    # ▼ 1つ目のグラフ：オイル長 適性
+                    # ▼ 1つ目のグラフ：オイル長さ 適性
                     fig_len = go.Figure()
                     fig_len.add_trace(go.Scatter(
                         x=len_x, y=len_y,
                         mode='markers',
                         marker=dict(color='#00E5FF', size=10, opacity=0.6, line=dict(color='white', width=1)),
-                        name='オイル長',
-                        hovertemplate="オイル長: %{x}ft<br>スコア: %{y}<extra></extra>"
+                        name='オイル長さ',
+                        hovertemplate="オイル長さ: %{x}ft<br>スコア: %{y}<extra></extra>"
                     ))
                     fig_len.update_layout(
-                        title=dict(text="オイル長 (ft) vs スコア", font=dict(color='silver', size=14)),
+                        title=dict(text="オイル長さとスコアの関係", font=dict(color='silver', size=14)),  # ★ 名称変更
                         plot_bgcolor='rgba(0,0,0,0)',
                         paper_bgcolor='rgba(0,0,0,0)',
-                        xaxis=dict(title="オイル長 (ft)", range=[29, 46], color='silver', gridcolor='#444', dtick=1),
-                        yaxis=dict(title="Score", range=[0, 320], color='silver', gridcolor='#444', dtick=50),
+                        # ★ fixedrange=True を追加してズームやスクロールを完全に禁止
+                        xaxis=dict(title="オイル長さ (ft)", range=[29, 46], color='silver', gridcolor='#444', dtick=1, fixedrange=True),
+                        yaxis=dict(title="Score", range=[0, 320], color='silver', gridcolor='#444', dtick=50, fixedrange=True),
                         margin=dict(l=10, r=10, t=40, b=10),
                         height=350
                     )
@@ -1743,16 +1744,17 @@ if app_mode == "📊 プレイヤー分析":
                         hovertemplate="オイル量: %{x}ml<br>スコア: %{y}<extra></extra>"
                     ))
                     fig_vol.update_layout(
-                        title=dict(text="オイル量 (ml) vs スコア", font=dict(color='silver', size=14)),
+                        title=dict(text="オイル量とスコアの関係", font=dict(color='silver', size=14)),  # ★ 名称変更
                         plot_bgcolor='rgba(0,0,0,0)',
                         paper_bgcolor='rgba(0,0,0,0)',
-                        xaxis=dict(title="オイル量 (ml)", range=[19, 36], color='silver', gridcolor='#444', dtick=1),
-                        yaxis=dict(title="Score", range=[0, 320], color='silver', gridcolor='#444', dtick=50),
+                        # ★ fixedrange=True を追加してズームやスクロールを完全に禁止
+                        xaxis=dict(title="オイル量 (ml)", range=[19, 36], color='silver', gridcolor='#444', dtick=1, fixedrange=True),
+                        yaxis=dict(title="Score", range=[0, 320], color='silver', gridcolor='#444', dtick=50, fixedrange=True),
                         margin=dict(l=10, r=10, t=40, b=10),
                         height=350
                     )
 
-                    # 描画
+                    # 描画 (タップ時のポップアップを残しつつ、操作メニューを非表示に)
                     st.plotly_chart(fig_len, use_container_width=True, config={'displayModeBar': False})
                     st.markdown("<hr style='border-top: 1px dashed #444; margin: 10px 0px;'>", unsafe_allow_html=True)
                     st.plotly_chart(fig_vol, use_container_width=True, config={'displayModeBar': False})
