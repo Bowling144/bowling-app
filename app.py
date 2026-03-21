@@ -1187,13 +1187,13 @@ if app_mode == "📊 プレイヤー分析":
                     for i in range(1, 18, 2):
                         target_lanes.extend([str(i), str(i+1), f"{i}-{i+1}"])
 
-                    # レーンごとのスコアを格納する辞書（新しい順に処理するため）
+                    # レーンごとのスコアを格納する辞書
                     lane_scores = {lane: [] for lane in target_lanes}
 
                     for g in player_games:
                         try:
-                            # 通常、レーン番号はインデックス7に格納されています
-                            lane_raw = str(g['row'][7]).strip().upper()
+                            # ★ 修正: マスターデータの「レーン」列はインデックス 5
+                            lane_raw = str(g['row'][5]).strip().upper()
                         except:
                             continue
                         
@@ -1211,7 +1211,6 @@ if app_mode == "📊 プレイヤー分析":
                         else:
                             lane_val = lane_raw
 
-                        # ターゲットのレーン一覧に含まれている場合のみスコアを追加
                         if lane_val in lane_scores:
                             try:
                                 score = int(g['score'])
@@ -1222,7 +1221,6 @@ if app_mode == "📊 プレイヤー分析":
                     # 各レーンの「最新50G」のアベレージを計算
                     averages = []
                     for lane in target_lanes:
-                        # player_gamesは新しい順なので、先頭から最大50件を取得
                         recent_50_scores = lane_scores[lane][:50]
                         if recent_50_scores:
                             avg = sum(recent_50_scores) / len(recent_50_scores)
@@ -1238,9 +1236,9 @@ if app_mode == "📊 プレイヤー分析":
                         else:
                             colors.append("#A07855")  # ヨーロピアン
 
-                    # UI描画
-                    st.markdown("<div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 15px; border-radius: 10px; border: 1px solid #444; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);'>", unsafe_allow_html=True)
-                    st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 15px; font-size: 14px; text-align: center;'>LANE AFFINITY (RECENT 50G AVE)</div>", unsafe_allow_html=True)
+                    # ★ 修正: 空のグレーボックスが出る原因だった <div> を廃止し、横線のみでスマートに区切る
+                    st.markdown("<hr style='border-top: 1px solid #444; margin: 20px 0px;'>", unsafe_allow_html=True)
+                    st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif; text-align: center;'>LANE AFFINITY (RECENT 50G AVE)</div>", unsafe_allow_html=True)
 
                     fig = go.Figure(go.Bar(
                         x=target_lanes,
@@ -1278,10 +1276,7 @@ if app_mode == "📊 プレイヤー分析":
                         height=300
                     )
                     
-                    # staticPlot: True でタップやスクロールによる予期せぬ挙動を完全にシャットアウト
                     st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False, 'staticPlot': True})
-                    
-                    st.markdown("</div>", unsafe_allow_html=True)
 
 
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
