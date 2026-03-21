@@ -1174,7 +1174,6 @@ if app_mode == "📊 プレイヤー分析":
                 # 【12】 STATS：レーン相性分析
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_12_lane_data():
-                    # ★ タイトルの大きさを「レーンアジャスト指数」と同じ16pxのdivタグに統一
                     st.markdown("<div style='color: #E2DCC8; font-weight: 900; margin-bottom: 15px; margin-top: 10px; font-size: 16px;'>🧭 レーン相性分析</div>", unsafe_allow_html=True)
                     
                     if not player_games:
@@ -1234,7 +1233,7 @@ if app_mode == "📊 プレイヤー分析":
 
                     # 色分け（ヨーロピアン: カフェブラウン, アメリカン: マスタードゴールド）
                     colors = []
-                    tick_texts = []  # ★ 横軸の文字色を個別に設定するためのリスト
+                    tick_texts = []
                     for lane in target_lanes:
                         if "-" in lane:
                             colors.append("#D4AF37")  # アメリカン
@@ -1246,11 +1245,11 @@ if app_mode == "📊 プレイヤー分析":
                     st.markdown("<hr style='border-top: 1px solid #444; margin: 20px 0px;'>", unsafe_allow_html=True)
                     st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif; text-align: center;'>LANE AFFINITY (RECENT 50G AVE)</div>", unsafe_allow_html=True)
 
-                    # ★ ゲーム数の（）を外し、文字サイズを少し大きく（11px）して見やすく修正
+                    # ★ アベレージと(ゲーム数)を横に並べて1行で表示するように修正
                     bar_texts = []
                     for val, cnt in zip(averages, game_counts):
                         if cnt > 0:
-                            bar_texts.append(f"{val:.1f}<br><span style='font-size:11px; color:#cccccc;'>{cnt}G</span>")
+                            bar_texts.append(f"{val:.1f}({cnt}G)")
                         else:
                             bar_texts.append("")
 
@@ -1260,35 +1259,35 @@ if app_mode == "📊 プレイヤー分析":
                         marker=dict(color=colors),
                         text=bar_texts,
                         textposition='outside',
-                        textfont=dict(size=11, color='white', weight='bold') # 全体のベースフォントも少し大きく
+                        textfont=dict(size=12, color='white', weight='bold') # ★ 下のレーン番号と同じ12pxに拡大
                     ))
 
                     # グラフを隙間なく詰めて、スクロールなしで1画面に収める設定
                     fig.update_layout(
-                        bargap=0.15,  # 棒の間隔を詰める
+                        bargap=0.15,
                         plot_bgcolor='rgba(0,0,0,0)',
                         paper_bgcolor='rgba(0,0,0,0)',
                         xaxis=dict(
                             type='category',
                             categoryorder='array',
                             categoryarray=target_lanes,
-                            tickmode='array',        # ★ 個別の色を適用するための設定
-                            tickvals=target_lanes,   # ★ 個別の色を適用するための設定
-                            ticktext=tick_texts,     # ★ 色付きのHTMLテキストを適用
+                            tickmode='array',
+                            tickvals=target_lanes,
+                            ticktext=tick_texts,
                             tickangle=-90,
                             showgrid=False,
-                            fixedrange=True, # スクロール・ズーム禁止
-                            tickfont=dict(size=12)   # 横軸の文字サイズ
+                            fixedrange=True,
+                            tickfont=dict(size=12)
                         ),
                         yaxis=dict(
-                            range=[0, 320],
+                            range=[0, 340],  # ★ 文字が上に見切れないよう340へ拡張
                             color='silver',
                             gridcolor='#444',
-                            fixedrange=True, # スクロール・ズーム禁止
+                            fixedrange=True,
                             tick0=0,
                             dtick=50
                         ),
-                        margin=dict(l=10, r=10, t=25, b=10),
+                        margin=dict(l=10, r=10, t=30, b=10), # ★ 上部余白(t)も少し広げて見切れを完全防止
                         height=300
                     )
                     
