@@ -1192,7 +1192,7 @@ if app_mode == "📊 プレイヤー分析":
 
                     for g in player_games:
                         try:
-                            # ★ 修正: マスターデータの「レーン」列はインデックス 5
+                            # マスターデータの「レーン」列はインデックス 5
                             lane_raw = str(g['row'][5]).strip().upper()
                         except:
                             continue
@@ -1218,15 +1218,18 @@ if app_mode == "📊 プレイヤー分析":
                             except:
                                 pass
 
-                    # 各レーンの「最新50G」のアベレージを計算
+                    # 各レーンの「最新50G」のアベレージとゲーム数を計算
                     averages = []
+                    game_counts = []  # ★ ゲーム数を記録するリストを追加
                     for lane in target_lanes:
                         recent_50_scores = lane_scores[lane][:50]
-                        if recent_50_scores:
-                            avg = sum(recent_50_scores) / len(recent_50_scores)
+                        count = len(recent_50_scores)
+                        game_counts.append(count)
+                        if count > 0:
+                            avg = sum(recent_50_scores) / count
                             averages.append(avg)
                         else:
-                            averages.append(0)  # データがない場合は0
+                            averages.append(0)
 
                     # 色分け（ヨーロピアン: カフェブラウン, アメリカン: マスタードゴールド）
                     colors = []
@@ -1236,15 +1239,23 @@ if app_mode == "📊 プレイヤー分析":
                         else:
                             colors.append("#A07855")  # ヨーロピアン
 
-                    # ★ 修正: 空のグレーボックスが出る原因だった <div> を廃止し、横線のみでスマートに区切る
                     st.markdown("<hr style='border-top: 1px solid #444; margin: 20px 0px;'>", unsafe_allow_html=True)
                     st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif; text-align: center;'>LANE AFFINITY (RECENT 50G AVE)</div>", unsafe_allow_html=True)
+
+                    # ★ グラフの上に表示するテキストを作成（アベレージの下にゲーム数を小さく表示）
+                    bar_texts = []
+                    for val, cnt in zip(averages, game_counts):
+                        if cnt > 0:
+                            # PlotlyはHTMLタグが使えるため、改行と文字色・サイズ調整を行う
+                            bar_texts.append(f"{val:.1f}<br><span style='font-size:9px; color:#aaaaaa;'>({cnt}G)</span>")
+                        else:
+                            bar_texts.append("")
 
                     fig = go.Figure(go.Bar(
                         x=target_lanes,
                         y=averages,
                         marker=dict(color=colors),
-                        text=[f"{val:.1f}" if val > 0 else "" for val in averages],
+                        text=bar_texts,
                         textposition='outside',
                         textfont=dict(size=10, color='white', weight='bold')
                     ))
@@ -1265,14 +1276,14 @@ if app_mode == "📊 プレイヤー分析":
                             tickfont=dict(size=11, weight='bold')
                         ),
                         yaxis=dict(
-                            range=[0, 300],  # 縦軸は0〜300固定
+                            range=[0, 320],  # ★ 2行分のテキストが上に突き抜けないよう、最大値を320に少し拡張
                             color='silver',
                             gridcolor='#444',
                             fixedrange=True, # スクロール・ズーム禁止
                             tick0=0,
                             dtick=50
                         ),
-                        margin=dict(l=10, r=10, t=20, b=10),
+                        margin=dict(l=10, r=10, t=25, b=10), # 上部のマージン(t)も少し広げてテキスト見切れ防止
                         height=300
                     )
                     
