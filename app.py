@@ -1691,7 +1691,7 @@ if app_mode == "📊 プレイヤー分析":
                         score = g.get('score', 0)
                         row = g.get('row', [])
                         
-                        # ★ 修正: オイル長はインデックス 7、オイル量はインデックス 8 に変更
+                        # オイル長はインデックス 7、オイル量はインデックス 8 に変更
                         if len(row) > 7:
                             try:
                                 l_str = str(row[7]).replace('ft', '').replace('フィート', '').strip()
@@ -1719,15 +1719,16 @@ if app_mode == "📊 プレイヤー分析":
                     fig_len.add_trace(go.Scatter(
                         x=len_x, y=len_y,
                         mode='markers',
-                        marker=dict(color='#00E5FF', size=10, opacity=0.6, line=dict(color='white', width=1)),
+                        # ★ 点のサイズを3.3(約1/3)にし、白い枠線(line)の指定を削除
+                        marker=dict(color='#00E5FF', size=3.3, opacity=0.6),
                         name='オイル長さ',
                         hovertemplate="オイル長さ: %{x}ft<br>スコア: %{y}<extra></extra>"
                     ))
                     fig_len.update_layout(
-                        title=dict(text="オイル長さとスコアの関係", font=dict(color='silver', size=14)),  # ★ 名称変更
+                        title=dict(text="オイル長さとスコアの関係", font=dict(color='silver', size=14)),
                         plot_bgcolor='rgba(0,0,0,0)',
                         paper_bgcolor='rgba(0,0,0,0)',
-                        # ★ fixedrange=True を追加してズームやスクロールを完全に禁止
+                        # fixedrange=True でズームやスクロールを完全に禁止
                         xaxis=dict(title="オイル長さ (ft)", range=[29, 46], color='silver', gridcolor='#444', dtick=1, fixedrange=True),
                         yaxis=dict(title="Score", range=[0, 320], color='silver', gridcolor='#444', dtick=50, fixedrange=True),
                         margin=dict(l=10, r=10, t=40, b=10),
@@ -1739,15 +1740,16 @@ if app_mode == "📊 プレイヤー分析":
                     fig_vol.add_trace(go.Scatter(
                         x=vol_x, y=vol_y,
                         mode='markers',
-                        marker=dict(color='#FF007F', size=10, opacity=0.6, line=dict(color='white', width=1)),
+                        # ★ 点のサイズを3.3(約1/3)にし、白い枠線(line)の指定を削除
+                        marker=dict(color='#FF007F', size=3.3, opacity=0.6),
                         name='オイル量',
                         hovertemplate="オイル量: %{x}ml<br>スコア: %{y}<extra></extra>"
                     ))
                     fig_vol.update_layout(
-                        title=dict(text="オイル量とスコアの関係", font=dict(color='silver', size=14)),  # ★ 名称変更
+                        title=dict(text="オイル量とスコアの関係", font=dict(color='silver', size=14)),
                         plot_bgcolor='rgba(0,0,0,0)',
                         paper_bgcolor='rgba(0,0,0,0)',
-                        # ★ fixedrange=True を追加してズームやスクロールを完全に禁止
+                        # fixedrange=True でズームやスクロールを完全に禁止
                         xaxis=dict(title="オイル量 (ml)", range=[19, 36], color='silver', gridcolor='#444', dtick=1, fixedrange=True),
                         yaxis=dict(title="Score", range=[0, 320], color='silver', gridcolor='#444', dtick=50, fixedrange=True),
                         margin=dict(l=10, r=10, t=40, b=10),
