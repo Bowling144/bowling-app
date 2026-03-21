@@ -495,7 +495,7 @@ if app_mode == "📊 プレイヤー分析":
                 def render_04_first_pitch_pins():
                     st.markdown("### <span style='color: silver;'>🎳 1投目 残ピン率</span>", unsafe_allow_html=True)
                     
-                    #--- 円グラフをHTML/CSSで直接描画する内部関数 ---
+                    #--- 円グラフをHTML/CSSで直接描画する内部関数（既存用） ---
                     def draw_pin_pie(pin_num):
                         rate_str = p_awards.get(f"⑬{pin_num}番ピン残存率", "0")
                         try:
@@ -510,17 +510,98 @@ if app_mode == "📊 プレイヤー分析":
 </div>"""
                         return html
 
-                    st.markdown("<div style='text-align: center; color: gray; font-size: 12px; margin-bottom: 15px;'>▼ レーン奥 ▼</div>", unsafe_allow_html=True)
-                    
+                    #--- 円グラフをHTML/CSSで直接描画する内部関数（新規計算用） ---
+                    def draw_custom_pin_pie(rate):
+                        html = f"""<div style="width: 22%; max-width: 70px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+<div style="position: relative; width: 100%; aspect-ratio: 1 / 1; border-radius: 50%; background: conic-gradient(#EF553B 0% {rate}%, #555555 {rate}% 100%); display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 4px rgba(0,0,0,0.3), 0 2px 5px rgba(0,0,0,0.5); border: 1px solid #222;">
+<span style="color: white; font-size: 12px; font-weight: bold; font-family: Arial, sans-serif; text-shadow: 1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black;">{rate:.1f}%</span>
+</div>
+</div>"""
+                        return html
+
+                    # ▼① 今の図（奥・手前の文字を削除）
                     row4 = f"<div style='display: flex; justify-content: center; gap: 4%; margin-bottom: 12px;'>{draw_pin_pie(7)}{draw_pin_pie(8)}{draw_pin_pie(9)}{draw_pin_pie(10)}</div>"
                     row3 = f"<div style='display: flex; justify-content: center; gap: 4%; margin-bottom: 12px;'>{draw_pin_pie(4)}{draw_pin_pie(5)}{draw_pin_pie(6)}</div>"
                     row2 = f"<div style='display: flex; justify-content: center; gap: 4%; margin-bottom: 12px;'>{draw_pin_pie(2)}{draw_pin_pie(3)}</div>"
-                    row1 = f"<div style='display: flex; justify-content: center; margin-bottom: 12px;'>{draw_pin_pie(1)}</div>"
+                    row1 = f"<div style='display: flex; justify-content: center; margin-bottom: 30px;'>{draw_pin_pie(1)}</div>"
                     
                     st.markdown(row4 + row3 + row2 + row1, unsafe_allow_html=True)
+                    
+                    # ▼ 新機能：ヘッドピン条件別のデータ集計処理
+                    head_hit_total = 0
+                    head_hit_pins = {i: 0 for i in range(1, 11)}
+                    head_miss_total = 0
+                    head_miss_pins = {i: 0 for i in range(1, 11)}
 
-                    st.markdown("<div style='text-align: center; color: gray; font-size: 12px; margin-top: 5px;'>▲ 手前 ▲</div>", unsafe_allow_html=True)
+                    import re
+                    def process_pitch(res_val, pin_val):
+                        nonlocal head_hit_total, head_miss_total, head_hit_pins, head_miss_pins
+                        res = str(res_val).strip().upper()
+                        left_pins = []
+                        if "X" not in res: 
+                            left_pins = [int(p) for p in re.findall(r'\d+', str(pin_val)) if 1 <= int(p) <= 10]
+                        
+                        # 1番ピンが残っていない（ヘッドピンが倒れた）
+                        if 1 not in left_pins:
+                            head_hit_total += 1
+                            for p in left_pins:
+                                head_hit_pins[p] += 1
+                        # 1番ピンが残っている（ヘッドピンを外した）
+                        else:
+                            head_miss_total += 1
+                            for p in left_pins:
+                                head_miss_pins[p] += 1
 
+                    # 全ゲームの投球履歴から、すべての「ラックリセット時の1投目」を抽出して集計
+                    for g in player_games:
+                        r = g['row']
+                        # 1〜9フレーム
+                        for f in range(9):
+                            process_pitch(r[10+f*4], r[11+f*4])
+                            
+                        # 10フレーム
+                        res10_1 = str(r[46]).strip().upper() if len(r) > 46 else ""
+                        pin10_1 = str(r[47]).strip() if len(r) > 47 else ""
+                        process_pitch(res10_1, pin10_1)
+                        
+                        # 1投目がストライクなら2投目も新たなラックでの1投目として集計
+                        if "X" in res10_1:
+                            res10_2 = str(r[48]).strip().upper() if len(r) > 48 else ""
+                            pin10_2 = str(r[49]).strip() if len(r) > 49 else ""
+                            process_pitch(res10_2, pin10_2)
+                            # 2投目もストライクなら3投目も新たなラックでの1投目として集計
+                            if "X" in res10_2:
+                                res10_3 = str(r[50]).strip().upper() if len(r) > 50 else ""
+                                pin10_3 = str(r[51]).strip() if len(r) > 51 else ""
+                                process_pitch(res10_3, pin10_3)
+
+                    # 確率を計算する関数
+                    def get_hit_rate(p):
+                        return (head_hit_pins[p] / head_hit_total * 100) if head_hit_total > 0 else 0.0
+                    def get_miss_rate(p):
+                        return (head_miss_pins[p] / head_miss_total * 100) if head_miss_total > 0 else 0.0
+
+                    # ▼② ヘッドピンが倒れた場合の残ピン率
+                    st.markdown("<hr style='border-top: 1px dashed #444; margin: 20px 0;'>", unsafe_allow_html=True)
+                    st.markdown("<div style='color: #aaaaaa; font-size: 12px; text-align: center; margin-bottom: 15px;'>ヘッドピンが倒れた場合の残ピン率</div>", unsafe_allow_html=True)
+                    
+                    h_row4 = f"<div style='display: flex; justify-content: center; gap: 4%; margin-bottom: 12px;'>{draw_custom_pin_pie(get_hit_rate(7))}{draw_custom_pin_pie(get_hit_rate(8))}{draw_custom_pin_pie(get_hit_rate(9))}{draw_custom_pin_pie(get_hit_rate(10))}</div>"
+                    h_row3 = f"<div style='display: flex; justify-content: center; gap: 4%; margin-bottom: 12px;'>{draw_custom_pin_pie(get_hit_rate(4))}{draw_custom_pin_pie(get_hit_rate(5))}{draw_custom_pin_pie(get_hit_rate(6))}</div>"
+                    h_row2 = f"<div style='display: flex; justify-content: center; gap: 4%; margin-bottom: 12px;'>{draw_custom_pin_pie(get_hit_rate(2))}{draw_custom_pin_pie(get_hit_rate(3))}</div>"
+                    h_row1 = f"<div style='display: flex; justify-content: center; margin-bottom: 30px;'>{draw_custom_pin_pie(get_hit_rate(1))}</div>"
+                    
+                    st.markdown(h_row4 + h_row3 + h_row2 + h_row1, unsafe_allow_html=True)
+
+                    # ▼③ ヘッドピンを外した場合の残ピン率
+                    st.markdown("<hr style='border-top: 1px dashed #444; margin: 20px 0;'>", unsafe_allow_html=True)
+                    st.markdown("<div style='color: #aaaaaa; font-size: 12px; text-align: center; margin-bottom: 15px;'>ヘッドピンを外した場合の残ピン率</div>", unsafe_allow_html=True)
+
+                    m_row4 = f"<div style='display: flex; justify-content: center; gap: 4%; margin-bottom: 12px;'>{draw_custom_pin_pie(get_miss_rate(7))}{draw_custom_pin_pie(get_miss_rate(8))}{draw_custom_pin_pie(get_miss_rate(9))}{draw_custom_pin_pie(get_miss_rate(10))}</div>"
+                    m_row3 = f"<div style='display: flex; justify-content: center; gap: 4%; margin-bottom: 12px;'>{draw_custom_pin_pie(get_miss_rate(4))}{draw_custom_pin_pie(get_miss_rate(5))}{draw_custom_pin_pie(get_miss_rate(6))}</div>"
+                    m_row2 = f"<div style='display: flex; justify-content: center; gap: 4%; margin-bottom: 12px;'>{draw_custom_pin_pie(get_miss_rate(2))}{draw_custom_pin_pie(get_miss_rate(3))}</div>"
+                    m_row1 = f"<div style='display: flex; justify-content: center; margin-bottom: 10px;'>{draw_custom_pin_pie(get_miss_rate(1))}</div>"
+
+                    st.markdown(m_row4 + m_row3 + m_row2 + m_row1, unsafe_allow_html=True)
 
                 
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
