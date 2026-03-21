@@ -1248,7 +1248,7 @@ if app_mode == "📊 プレイヤー分析":
                     bar_texts = []
                     for val, cnt in zip(averages, game_counts):
                         if cnt > 0:
-                            # ★ Plotlyの設定エラーを避けるため、文字の太字化はHTMLタグで行う
+                            # HTMLタグで太字化を維持
                             bar_texts.append(f"<b>{val:.1f}({cnt}G)</b>")
                         else:
                             bar_texts.append("")
@@ -1260,13 +1260,13 @@ if app_mode == "📊 プレイヤー分析":
                         text=bar_texts,
                         textposition='outside',
                         textangle=-90,
-                        textfont=dict(size=12, color='white'), # ★ ここはサイズのみ指定
-                        cliponaxis=False # ★ 文字が描画エリア外にはみ出ても省略させない
+                        textfont=dict(size=12, color='#cccccc'), # ★ 文字色を白(white)から薄いグレー(#cccccc)に変更
+                        cliponaxis=False
                     ))
 
                     # グラフを隙間なく詰めて、スクロールなしで1画面に収める設定
                     fig.update_layout(
-                        uniformtext=dict(minsize=12, mode='show'), # ★ Plotlyによる自動縮小を完全にブロックし、12pxを死守する
+                        uniformtext=dict(minsize=12, mode='show'),
                         bargap=0.15,
                         plot_bgcolor='rgba(0,0,0,0)',
                         paper_bgcolor='rgba(0,0,0,0)',
