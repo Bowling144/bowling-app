@@ -2243,6 +2243,58 @@ if fetch_button:
             )
             drive_service = build('drive', 'v3', credentials=creds)
 
+            # 🌟 [追加] SPSの定期バックアップ機能 (週1回・月曜以降の初回)
+            try:
+                import datetime
+                # 現在時刻 (JST) と 今週の月曜日を取得
+                JST = datetime.timezone(datetime.timedelta(hours=9), 'JST')
+                now_jst = datetime.datetime.now(JST)
+                monday_date = now_jst.date() - datetime.timedelta(days=now_jst.weekday()) # 月曜=0, 日曜=6
+                monday_dt_jst = datetime.datetime.combine(monday_date, datetime.time.min).replace(tzinfo=JST)
+                monday_utc_iso = monday_dt_jst.astimezone(datetime.timezone.utc).isoformat().replace('+00:00', 'Z')
+
+                FOLDER_ID = "1PjzUPZNZYl2vKBnJjG0YVSh3NRyxlbEX"
+                BACKUP_FOLDER_NAME = "バックアップ"
+
+                # バックアップフォルダの検索・作成
+                query_backup_folder = f"'{FOLDER_ID}' in parents and name = '{BACKUP_FOLDER_NAME}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+                res_backup_folder = drive_service.files().list(q=query_backup_folder, fields="files(id)").execute()
+                folders = res_backup_folder.get('files', [])
+                
+                if not folders:
+                    folder_metadata = {
+                        'name': BACKUP_FOLDER_NAME,
+                        'mimeType': 'application/vnd.google-apps.folder',
+                        'parents': [FOLDER_ID]
+                    }
+                    created_folder = drive_service.files().create(body=folder_metadata, fields='id').execute()
+                    backup_folder_id = created_folder.get('id')
+                else:
+                    backup_folder_id = folders[0]['id']
+
+                # 今週月曜日以降に作成されたバックアップがあるか確認
+                query_recent_backup = f"'{backup_folder_id}' in parents and createdTime >= '{monday_utc_iso}' and trashed = false"
+                res_recent = drive_service.files().list(q=query_recent_backup, fields="files(id)").execute()
+                
+                if not res_recent.get('files', []):
+                    # 今週のバックアップが存在しない場合、SPSをコピー
+                    query_sps = "name = 'EagleBowl_ROLLERS' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"
+                    res_sps = drive_service.files().list(q=query_sps, fields="files(id)").execute()
+                    sps_files = res_sps.get('files', [])
+                    if sps_files:
+                        sps_id = sps_files[0]['id']
+                        yymmdd = now_jst.strftime('%y%m%d')
+                        backup_filename = f"EagleBowl_ROLLERS {yymmdd}"
+                        copy_metadata = {
+                            'name': backup_filename,
+                            'parents': [backup_folder_id]
+                        }
+                        drive_service.files().copy(fileId=sps_id, body=copy_metadata).execute()
+                        st.toast("✅ 今週のSPSバックアップを自動作成しました！")
+            except Exception as backup_e:
+                st.warning(f"⚠️ バックアップ処理に失敗しました（画像の取込は継続します）: {backup_e}")
+            # 🌟 [追加おわり]
+
             # ▼ Bowling_Appフォルダ内のみ検索
             FOLDER_ID = "1PjzUPZNZYl2vKBnJjG0YVSh3NRyxlbEX"
             query = f"'{FOLDER_ID}' in parents and mimeType='image/jpeg' and trashed=false"
