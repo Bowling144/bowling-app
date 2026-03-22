@@ -2253,27 +2253,11 @@ if fetch_button:
                 monday_dt_jst = datetime.datetime.combine(monday_date, datetime.time.min).replace(tzinfo=JST)
                 monday_utc_iso = monday_dt_jst.astimezone(datetime.timezone.utc).isoformat().replace('+00:00', 'Z')
 
-                FOLDER_ID = "1PjzUPZNZYl2vKBnJjG0YVSh3NRyxlbEX"
-                BACKUP_FOLDER_NAME = "バックアップ"
-
-                # バックアップフォルダの検索・作成
-                query_backup_folder = f"'{FOLDER_ID}' in parents and name = '{BACKUP_FOLDER_NAME}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-                res_backup_folder = drive_service.files().list(q=query_backup_folder, fields="files(id)").execute()
-                folders = res_backup_folder.get('files', [])
-                
-                if not folders:
-                    folder_metadata = {
-                        'name': BACKUP_FOLDER_NAME,
-                        'mimeType': 'application/vnd.google-apps.folder',
-                        'parents': [FOLDER_ID]
-                    }
-                    created_folder = drive_service.files().create(body=folder_metadata, fields='id').execute()
-                    backup_folder_id = created_folder.get('id')
-                else:
-                    backup_folder_id = folders[0]['id']
+                # ★ 事前に作成した「バックアップ」フォルダのIDを直接指定
+                BACKUP_FOLDER_ID = "https://drive.google.com/drive/folders/1ONqsfeWmt6mT248fD7OuMhUdiqdQuoLa"
 
                 # 今週月曜日以降に作成されたバックアップがあるか確認
-                query_recent_backup = f"'{backup_folder_id}' in parents and createdTime >= '{monday_utc_iso}' and trashed = false"
+                query_recent_backup = f"'{BACKUP_FOLDER_ID}' in parents and createdTime >= '{monday_utc_iso}' and trashed = false"
                 res_recent = drive_service.files().list(q=query_recent_backup, fields="files(id)").execute()
                 
                 if not res_recent.get('files', []):
@@ -2287,7 +2271,7 @@ if fetch_button:
                         backup_filename = f"EagleBowl_ROLLERS {yymmdd}"
                         copy_metadata = {
                             'name': backup_filename,
-                            'parents': [backup_folder_id]
+                            'parents': [BACKUP_FOLDER_ID]
                         }
                         drive_service.files().copy(fileId=sps_id, body=copy_metadata).execute()
                         st.toast("✅ 今週のSPSバックアップを自動作成しました！")
