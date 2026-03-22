@@ -2295,7 +2295,7 @@ status_text = st.empty()
 # =========================================================
 prompt_metadata = """
 画像はボウリングのスコアシートの全体写真です。
-この画像から「日付」「最初のゲーム数」「開始時刻」「終了時刻」「レーン番号」を探し出し、以下のJSON形式で出力してください。
+この画像から「日付」「最初のゲーム数」「開始時刻」「終了時刻」「レーン番号」「プレイヤーネーム」を探し出し、以下のJSON形式で出力してください。
 
 【ルール】
 1. 日付: 中央上部にある黒い文字。「YY/MM/DD」の形式で "date" に出力。
@@ -2303,7 +2303,8 @@ prompt_metadata = """
 3. 開始時刻: 1枚のスコアシートの日付の右下に記載。1ゲーム目の開始時刻と終了時刻が左右に並んでいて、その左側の時刻が開始時刻。"HH:MM" 形式で "start_time" に出力。見つからなければ "時刻不明" にする。
 4. 終了時刻: 1枚のスコアシートの一番最後のゲームの9フレーム目のスコア欄の上部に記載。開始時刻と終了時刻が左右に並んでいて、その右側の時刻が終了時刻。"HH:MM" 形式で "end_time" に出力。見つからなければ "時刻不明" にする。
 5. レーン番号: 「ゲーム日付」の右側にある「使用レーン」の右に記載されている数字。1から18までの単独の整数か、「1-2」「3-4」「5-6」「7-8」「9-10」「11-12」「13-14」「15-16」「17-18」または、その逆の「2-1」から「18-17」までの文字列を "lane" に出力。見つからなければ空文字にする。
-6. Markdownの記号などは一切含めず、純粋なJSON文字列だけを出力してください。
+6. プレイヤーネーム: 一番上のゲームのスコア欄の左上の「プレーヤ ネーム」の文字の右側に書かれている名前を "player_name" に出力。見つからなければ空文字にする。
+7. Markdownの記号などは一切含めず、純粋なJSON文字列だけを出力してください。
 
 【出力フォーマット例】
 {
@@ -2311,7 +2312,8 @@ prompt_metadata = """
   "start_game_num": 1,
   "start_time": "14:12",
   "end_time": "15:30",
-  "lane": "1-2"
+  "lane": "1-2",
+  "player_name": "TARO"
 }
 """
 
@@ -2945,7 +2947,7 @@ if st.session_state.analyzed_results is None:
         status_text.info(f"⚙️ 画像 {img_idx+1}: AIが日付・時刻・ゲーム数を取得中...")
         time.sleep(5) # 意図的なスリープ
 
-        ai_meta_data = {"date": "日付不明", "start_time": "時刻不明", "end_time": "時刻不明", "start_game_num": 1, "lane": ""}
+        ai_meta_data = {"date": "日付不明", "start_time": "時刻不明", "end_time": "時刻不明", "start_game_num": 1, "lane": "", "player_name": ""}
         success_meta = False
         
         for attempt_model in fallback_models:
@@ -3213,6 +3215,7 @@ if st.session_state.analyzed_results:
                 sheets = results.get('files', [])
                 
                 fetched_players = []
+                player_nickname_map = {} # ★追加: ゲームネームとプレイヤー名の紐付け
                 if sheets:
                     sh = gc.open_by_key(sheets[0]['id'])
                     settings_sheet = sh.worksheet("プレイヤー設定")
@@ -3221,22 +3224,53 @@ if st.session_state.analyzed_results:
                     # 2行目以降のB列（インデックス1: プレイヤー名）を取得
                     for row in settings_data[1:]:
                         if len(row) >= 2 and row[1].strip():
-                            fetched_players.append(row[1].strip())
+                            p_name = row[1].strip()
+                            fetched_players.append(p_name)
+                            # ★追加: E列(インデックス4)からL列(インデックス11)のゲームネームを取得
+                            for i in range(4, min(12, len(row))):
+                                nickname = row[i].strip()
+                                if nickname:
+                                    player_nickname_map[nickname] = p_name
                 
                 # 取得できたらセッションに保存、空ならフォールバック
                 if fetched_players:
                     st.session_state.dynamic_player_list = fetched_players
+                    st.session_state.player_nickname_map = player_nickname_map # ★追加
                 else:
                     st.session_state.dynamic_player_list = ["999_ゲスト"] 
+                    st.session_state.player_nickname_map = {} # ★追加
             except Exception as e:
                 st.warning(f"⚠️ プレイヤー設定の読み込みに失敗しました: {e}")
                 st.session_state.dynamic_player_list = ["999_ゲスト"]
+                st.session_state.player_nickname_map = {} # ★追加
 
+    
     player_list = st.session_state.dynamic_player_list
-    # ★要望5：プレイヤー名が消える不具合を修正（不要な設定を削除）
-    selected_player = st.selectbox("👤プレイヤー選択👤", player_list)
+    
+    # ★追加: AIが読み取ったプレイヤーネームから初期選択を決定
+    default_player_index = 0
+    ai_player_name = ""
+    if st.session_state.analyzed_results and len(st.session_state.analyzed_results) > 0:
+        ai_player_name = st.session_state.analyzed_results[0].get("meta_data", {}).get("player_name", "").strip()
+
+    if ai_player_name and "player_nickname_map" in st.session_state:
+        # 完全一致を探す
+        matched_player = st.session_state.player_nickname_map.get(ai_player_name)
+        if not matched_player:
+            # 揺れに対応するため部分一致も探す（AI読取名があだ名に含まれる、または逆）
+            for nick, p_name in st.session_state.player_nickname_map.items():
+                if ai_player_name in nick or nick in ai_player_name:
+                    matched_player = p_name
+                    break
+        
+        if matched_player and matched_player in player_list:
+            default_player_index = player_list.index(matched_player)
+
+    # ★要望5：プレイヤー名が消える不具合を修正（不要な設定を削除）＋ AIによる自動選択(index)を設定
+    selected_player = st.selectbox("👤プレイヤー選択👤", player_list, index=default_player_index)
 
     st.markdown("---")
+    
     register_all = st.checkbox("全てのゲームをマスターに登録する", value=True)
     st.markdown("---")
 
