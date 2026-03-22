@@ -64,51 +64,6 @@ with st.sidebar:
     st.markdown("---")
     app_mode = st.radio("🚀 モード選択", ["📝 スコア登録", "📊 プレイヤー分析"], index=1)
 
-    # 🌟 ここから一時的に追加（原因特定とゴミ箱消去）
-    st.markdown("---")
-    if st.button("⚠️【再検証】サービスアカウントの全容量確認とゴミ箱消去"):
-        try:
-            scopes = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']
-            import json
-            creds_json_str = st.secrets["google_credentials"]
-            creds_info = json.loads(creds_json_str, strict=False)
-            if "private_key" in creds_info:
-                creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
-                
-            from google.oauth2 import service_account
-            from googleapiclient.discovery import build
-            creds = service_account.Credentials.from_service_account_info(creds_info, scopes=scopes)
-            drive_service = build('drive', 'v3', credentials=creds)
-
-            # 1. サービスアカウントの「ゴミ箱」を強制的に空にする
-            st.info("🗑️ ゴミ箱を完全に空にしています...")
-            drive_service.files().emptyTrash().execute()
-            st.success("✅ ゴミ箱の完全消去が完了しました。")
-
-            # 2. 現在の実際の容量状況を取得
-            about = drive_service.about().get(fields="storageQuota").execute()
-            quota = about.get('storageQuota', {})
-            limit_gb = int(quota.get('limit', 0)) / (1024**3)
-            usage_gb = int(quota.get('usage', 0)) / (1024**3)
-            
-            st.warning(f"📊 【現在のサービスアカウントの容量状況】\n使用量: {usage_gb:.2f} GB / 上限: {limit_gb:.2f} GB")
-
-            # 3. 容量を食っている上位ファイルを確認する
-            response = drive_service.files().list(
-                q="'me' in owners and trashed=false",
-                orderBy="quotaBytesUsed desc",
-                pageSize=10,
-                fields="files(name, mimeType, quotaBytesUsed)"
-            ).execute()
-            
-            st.write("🔍 【現在容量を消費しているファイル TOP10】")
-            for f in response.get('files', []):
-                size_mb = int(f.get('quotaBytesUsed', 0)) / (1024**2)
-                st.write(f"- ファイル名: {f.get('name')} ({size_mb:.2f} MB)")
-
-        except Exception as e:
-            st.error(f"エラーが発生しました: {e}")
-    # 🌟 追加ここまで
 # =========================================================
 # 📊 【新機能】プレイヤー分析ダッシュボード
 # =========================================================
@@ -2288,61 +2243,6 @@ if fetch_button:
             )
             drive_service = build('drive', 'v3', credentials=creds)
 
-            # 🌟 [追加] SPSの定期バックアップ機能 (週1回・月曜以降の初回)
-            try:
-                import datetime
-                # 現在時刻 (JST) と 今週の月曜日を取得
-                JST = datetime.timezone(datetime.timedelta(hours=9), 'JST')
-                now_jst = datetime.datetime.now(JST)
-                monday_date = now_jst.date() - datetime.timedelta(days=now_jst.weekday()) # 月曜=0, 日曜=6
-                monday_dt_jst = datetime.datetime.combine(monday_date, datetime.time.min).replace(tzinfo=JST)
-                monday_utc_iso = monday_dt_jst.astimezone(datetime.timezone.utc).isoformat().replace('+00:00', 'Z')
-
-                # ★ 事前に作成した「バックアップ」フォルダのIDを直接指定
-                BACKUP_FOLDER_ID = "1ONqsfeWmt6mT248fD7OuMhUdiqdQuoLa"
-
-                # 今週月曜日以降に作成されたバックアップがあるか確認 (共有ドライブ対応)
-                query_recent_backup = f"'{BACKUP_FOLDER_ID}' in parents and createdTime >= '{monday_utc_iso}' and trashed = false"
-                res_recent = drive_service.files().list(
-                    q=query_recent_backup, 
-                    fields="files(id)",
-                    supportsAllDrives=True,
-                    includeItemsFromAllDrives=True
-                ).execute()
-                
-                if not res_recent.get('files', []):
-                    # 今週のバックアップが存在しない場合、SPSをコピー
-                    query_sps = "name = 'EagleBowl_ROLLERS' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"
-                    res_sps = drive_service.files().list(
-                        q=query_sps, 
-                        fields="files(id)",
-                        supportsAllDrives=True,
-                        includeItemsFromAllDrives=True
-                    ).execute()
-                    
-                    sps_files = res_sps.get('files', [])
-                    if sps_files:
-                        sps_id = sps_files[0]['id']
-                        yymmdd = now_jst.strftime('%y%m%d')
-                        backup_filename = f"EagleBowl_ROLLERS {yymmdd}"
-                        copy_metadata = {
-                            'name': backup_filename,
-                            'parents': [BACKUP_FOLDER_ID]
-                        }
-                        drive_service.files().copy(
-                            fileId=sps_id, 
-                            body=copy_metadata,
-                            supportsAllDrives=True
-                        ).execute()
-                        st.toast("✅ 今週のSPSバックアップを自動作成しました！")
-            except Exception as backup_e:
-                import traceback
-                err_detail = traceback.format_exc()
-                st.warning(f"⚠️ バックアップ処理に失敗しました: {backup_e}")
-                with st.expander("🔍 エラーの詳細（原因特定のヒント）"):
-                    st.code(err_detail)
-            # 🌟 [追加おわり]
-
             # ▼ Bowling_Appフォルダ内のみ検索
             FOLDER_ID = "1PjzUPZNZYl2vKBnJjG0YVSh3NRyxlbEX"
             query = f"'{FOLDER_ID}' in parents and mimeType='image/jpeg' and trashed=false"
@@ -4165,4 +4065,5 @@ if st.session_state.analyzed_results:
                     st.rerun()
                 except Exception as e:
                     st.error(f"移動エラーが発生しました: {e}")
+
 
