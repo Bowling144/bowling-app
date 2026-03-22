@@ -64,15 +64,11 @@ with st.sidebar:
     st.markdown("---")
     app_mode = st.radio("🚀 モード選択", ["📝 スコア登録", "📊 プレイヤー分析"], index=1)
 
-    # 🌟 ここから一時的に追加（処理が終わったら消してOK）
+    # 🌟 ここから一時的に追加（原因特定とゴミ箱消去）
     st.markdown("---")
-    if st.button("⚠️【緊急】サービスアカウントの隠れ画像を全削除"):
+    if st.button("⚠️【再検証】サービスアカウントの全容量確認とゴミ箱消去"):
         try:
-            scopes = [
-                'https://www.googleapis.com/auth/spreadsheets',
-                'https://www.googleapis.com/auth/drive'
-            ]
-            # ★ ここに json.loads などの変換処理を追加しました
+            scopes = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']
             import json
             creds_json_str = st.secrets["google_credentials"]
             creds_info = json.loads(creds_json_str, strict=False)
@@ -81,38 +77,35 @@ with st.sidebar:
                 
             from google.oauth2 import service_account
             from googleapiclient.discovery import build
-            creds = service_account.Credentials.from_service_account_info(
-                creds_info, scopes=scopes
-            )
+            creds = service_account.Credentials.from_service_account_info(creds_info, scopes=scopes)
             drive_service = build('drive', 'v3', credentials=creds)
 
-            st.info("🔍 隠れファイル（孤立ファイル）を検索して削除中... しばらくお待ちください。")
+            # 1. サービスアカウントの「ゴミ箱」を強制的に空にする
+            st.info("🗑️ ゴミ箱を完全に空にしています...")
+            drive_service.files().emptyTrash().execute()
+            st.success("✅ ゴミ箱の完全消去が完了しました。")
+
+            # 2. 現在の実際の容量状況を取得
+            about = drive_service.about().get(fields="storageQuota").execute()
+            quota = about.get('storageQuota', {})
+            limit_gb = int(quota.get('limit', 0)) / (1024**3)
+            usage_gb = int(quota.get('usage', 0)) / (1024**3)
             
-            # 画像ファイルのみを検索（SPSを巻き込まないため）
-            query = "mimeType='image/jpeg' or mimeType='image/png'"
-            page_token = None
-            deleted_count = 0
+            st.warning(f"📊 【現在のサービスアカウントの容量状況】\n使用量: {usage_gb:.2f} GB / 上限: {limit_gb:.2f} GB")
+
+            # 3. 容量を食っている上位ファイルを確認する
+            response = drive_service.files().list(
+                q="'me' in owners and trashed=false",
+                orderBy="quotaBytesUsed desc",
+                pageSize=10,
+                fields="files(name, mimeType, quotaBytesUsed)"
+            ).execute()
             
-            while True:
-                response = drive_service.files().list(
-                    q=query,
-                    spaces='drive',
-                    fields='nextPageToken, files(id, name)',
-                    pageToken=page_token
-                ).execute()
-                
-                for file in response.get('files', []):
-                    try:
-                        drive_service.files().delete(fileId=file.get('id')).execute()
-                        deleted_count += 1
-                    except Exception as e:
-                        pass 
-                
-                page_token = response.get('nextPageToken', None)
-                if page_token is None:
-                    break
-            
-            st.success(f"✅ 完了しました！合計 {deleted_count} 件の隠れ画像を完全に削除し、容量を空けました。")
+            st.write("🔍 【現在容量を消費しているファイル TOP10】")
+            for f in response.get('files', []):
+                size_mb = int(f.get('quotaBytesUsed', 0)) / (1024**2)
+                st.write(f"- ファイル名: {f.get('name')} ({size_mb:.2f} MB)")
+
         except Exception as e:
             st.error(f"エラーが発生しました: {e}")
     # 🌟 追加ここまで
