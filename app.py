@@ -72,8 +72,14 @@ with st.sidebar:
                 'https://www.googleapis.com/auth/spreadsheets',
                 'https://www.googleapis.com/auth/drive'
             ]
-            creds_info = st.secrets["google_credentials"]
-            from google.oauth2 import service_account # 念のためインポート
+            # ★ ここに json.loads などの変換処理を追加しました
+            import json
+            creds_json_str = st.secrets["google_credentials"]
+            creds_info = json.loads(creds_json_str, strict=False)
+            if "private_key" in creds_info:
+                creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
+                
+            from google.oauth2 import service_account
             from googleapiclient.discovery import build
             creds = service_account.Credentials.from_service_account_info(
                 creds_info, scopes=scopes
