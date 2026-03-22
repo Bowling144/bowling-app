@@ -2256,14 +2256,25 @@ if fetch_button:
                 # ★ 事前に作成した「バックアップ」フォルダのIDを直接指定
                 BACKUP_FOLDER_ID = "1ONqsfeWmt6mT248fD7OuMhUdiqdQuoLa"
 
-                # 今週月曜日以降に作成されたバックアップがあるか確認
+                # 今週月曜日以降に作成されたバックアップがあるか確認 (共有ドライブ対応)
                 query_recent_backup = f"'{BACKUP_FOLDER_ID}' in parents and createdTime >= '{monday_utc_iso}' and trashed = false"
-                res_recent = drive_service.files().list(q=query_recent_backup, fields="files(id)").execute()
+                res_recent = drive_service.files().list(
+                    q=query_recent_backup, 
+                    fields="files(id)",
+                    supportsAllDrives=True,
+                    includeItemsFromAllDrives=True
+                ).execute()
                 
                 if not res_recent.get('files', []):
                     # 今週のバックアップが存在しない場合、SPSをコピー
                     query_sps = "name = 'EagleBowl_ROLLERS' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"
-                    res_sps = drive_service.files().list(q=query_sps, fields="files(id)").execute()
+                    res_sps = drive_service.files().list(
+                        q=query_sps, 
+                        fields="files(id)",
+                        supportsAllDrives=True,
+                        includeItemsFromAllDrives=True
+                    ).execute()
+                    
                     sps_files = res_sps.get('files', [])
                     if sps_files:
                         sps_id = sps_files[0]['id']
@@ -2273,10 +2284,18 @@ if fetch_button:
                             'name': backup_filename,
                             'parents': [BACKUP_FOLDER_ID]
                         }
-                        drive_service.files().copy(fileId=sps_id, body=copy_metadata).execute()
+                        drive_service.files().copy(
+                            fileId=sps_id, 
+                            body=copy_metadata,
+                            supportsAllDrives=True
+                        ).execute()
                         st.toast("✅ 今週のSPSバックアップを自動作成しました！")
             except Exception as backup_e:
-                st.warning(f"⚠️ バックアップ処理に失敗しました（画像の取込は継続します）: {backup_e}")
+                import traceback
+                err_detail = traceback.format_exc()
+                st.warning(f"⚠️ バックアップ処理に失敗しました: {backup_e}")
+                with st.expander("🔍 エラーの詳細（原因特定のヒント）"):
+                    st.code(err_detail)
             # 🌟 [追加おわり]
 
             # ▼ Bowling_Appフォルダ内のみ検索
