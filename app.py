@@ -2254,7 +2254,7 @@ if fetch_button:
                 monday_utc_iso = monday_dt_jst.astimezone(datetime.timezone.utc).isoformat().replace('+00:00', 'Z')
 
                 # ★ 事前に作成した「バックアップ」フォルダのIDを直接指定
-                BACKUP_FOLDER_ID = "https://drive.google.com/drive/folders/1ONqsfeWmt6mT248fD7OuMhUdiqdQuoLa"
+                BACKUP_FOLDER_ID = "1ONqsfeWmt6mT248fD7OuMhUdiqdQuoLa"
 
                 # 今週月曜日以降に作成されたバックアップがあるか確認
                 query_recent_backup = f"'{BACKUP_FOLDER_ID}' in parents and createdTime >= '{monday_utc_iso}' and trashed = false"
