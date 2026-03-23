@@ -121,26 +121,78 @@ with st.sidebar:
     st.header(f"👤 {st.session_state.user_name} さん")
     st.caption(f"権限: {st.session_state.user_role}")
     
-    # 🌟【追加】パスワード・公開設定変更エリア
-    with st.expander("⚙️ アカウント設定（パスワード・公開状態）"):
-        new_pw = st.text_input("新しいパスワードを入力", type="password")
-        current_pub_idx = 0 if st.session_state.user_public == "公開" else 1
-        new_pub = st.radio("データ公開設定", ["公開", "非公開"], index=current_pub_idx)
+    # 🌟【変更】パスワード・公開設定・友達追加エリア
+    with st.expander("⚙️ アカウント・友達設定"):
+        new_pw = st.text_input("新しいパスワード", type="password")
         
-        if st.button("設定を更新する"):
+        # 公開設定（3パターン）
+        pub_options = ["公開", "友達限定公開", "非公開"]
+        current_pub = st.session_state.user_public if st.session_state.user_public in pub_options else "公開"
+        new_pub = st.radio("データ公開設定", pub_options, index=pub_options.index(current_pub))
+        
+        if st.button("設定を更新"):
             sh = get_gspread_client()
             if sh:
                 ws = sh.worksheet("プレイヤー設定")
                 if new_pw:
-                    ws.update_cell(st.session_state.user_row_index, 5, new_pw) # E列(5)を更新
-                ws.update_cell(st.session_state.user_row_index, 3, new_pub) # C列(3)を更新
+                    ws.update_cell(st.session_state.user_row_index, 5, new_pw) # E列(5)
+                ws.update_cell(st.session_state.user_row_index, 3, new_pub) # C列(3)
                 st.session_state.user_public = new_pub
                 st.success("✅ 設定を更新しました！")
-    
-    st.markdown("---")
-    gemini_api_key = st.text_input("Gemini APIキーを入力", type="password")
-    st.markdown("※APIキーがないと累計スコアのAI読取ができません。")
-    st.markdown("---")
+        
+        st.markdown("---")
+        st.markdown("**🤝 友達追加**")
+        friend_email = st.text_input("友達のユーザーID (メールアドレス)")
+        if st.button("友達を追加する"):
+            if friend_email == st.session_state.user_email:
+                st.warning("自分自身は追加できません。")
+            elif friend_email:
+                sh = get_gspread_client()
+                if sh:
+                    ws = sh.worksheet("プレイヤー設定")
+                    data = ws.get_all_values()
+                    
+                    # 友達のメアドが存在するか確認
+                    friend_name = None
+                    for row in data:
+                        if row[0] == friend_email:
+                            friend_name = row[1]
+                            break
+                    
+                    if friend_name:
+                        # 自分の現在の友達リスト(F列)を取得して追加
+                        my_row = data[st.session_state.user_row_index - 1]
+                        current_friends = my_row[5] if len(my_row) > 5 else ""
+                        friends_list = [f.strip() for f in current_friends.split(",")] if current_friends else []
+                        
+                        if friend_email not in friends_list:
+                            friends_list.append(friend_email)
+                            new_friends_str = ",".join(friends_list)
+                            ws.update_cell(st.session_state.user_row_index, 6, new_friends_str) # F列(6)
+                            st.success(f"✅ {friend_name} さんを友達に追加しました！")
+                        else:
+                            st.info("すでに友達に追加されています。")
+                    else:
+                        st.error("入力されたIDのユーザーが見つかりません。")
+
+        # 登録済み友達一覧の表示
+        st.markdown("**📋 登録済みの友達一覧**")
+        if st.button("一覧を更新・表示"):
+            sh = get_gspread_client()
+            if sh:
+                data = sh.worksheet("プレイヤー設定").get_all_values()
+                my_row = data[st.session_state.user_row_index - 1]
+                current_friends = my_row[5] if len(my_row) > 5 else ""
+                if current_friends:
+                    friends_list = [f.strip() for f in current_friends.split(",")]
+                    friend_names = []
+                    for r in data:
+                        if r[0] in friends_list:
+                            friend_names.append(r[1])
+                    for fn in friend_names:
+                        st.markdown(f"- {fn}")
+                else:
+                    st.markdown("友達はまだ登録されていません。")
     
     # 🌟【変更】権限によるモード制限
     if st.session_state.user_role in ["開発者", "管理者"]:
@@ -209,21 +261,29 @@ if app_mode == "📊 プレイヤー分析":
                 
             sh = gc.open_by_key(sheets[0]['id'])
 
-            # 🌟【変更】プレイヤーリスト取得と公開設定によるフィルタリング
+            # 🌟【変更】プレイヤーリスト取得と公開・友達設定によるフィルタリング
             settings_data = sh.worksheet("プレイヤー設定").get_all_values()
             
             players = []
             for row in settings_data[1:]:
                 if len(row) >= 4 and row[1]:
+                    p_email = row[0]
                     p_name = row[1]
                     p_public = row[2]
+                    p_friends = row[5] if len(row) > 5 else ""
+                    p_friends_list = [f.strip() for f in p_friends.split(",")] if p_friends else []
                     
-                    # 管理者・開発者は全員表示。ユーザは「自分」か「公開にしている人」のみ表示
+                    # 管理者・開発者は全員表示。ユーザは条件付き。
                     if st.session_state.user_role in ["開発者", "管理者"]:
                         players.append(p_name)
                     else:
-                        if p_name == st.session_state.user_name or p_public == "公開":
+                        if p_name == st.session_state.user_name: # 自分自身
                             players.append(p_name)
+                        elif p_public == "公開": # 全体公開
+                            players.append(p_name)
+                        elif p_public == "友達限定公開": # 相手のF列（友達リスト）に自分がいるか判定
+                            if st.session_state.user_email in p_friends_list:
+                                players.append(p_name)
 
             # 先にマスターデータを取得し、全員の現在のレーティングを計算する
             master_data = sh.worksheet("マスター").get_all_values()
@@ -3323,8 +3383,8 @@ if st.session_state.analyzed_results:
                         if len(row) >= 2 and row[1].strip():
                             p_name = row[1].strip()
                             fetched_players.append(p_name)
-                            # 🌟【修正】パスワード(E列)追加に伴い、ゲームネーム取得列を F列(インデックス5)〜M列(12) にずらす
-                            for i in range(5, min(13, len(row))):
+                            # 🌟【修正】F列(友達)追加に伴い、ゲームネーム取得列を G列(インデックス6)以降 にずらす
+                            for i in range(6, len(row)):
                                 nickname = row[i].strip()
                                 if nickname:
                                     player_nickname_map[nickname] = p_name
