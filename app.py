@@ -55,14 +55,99 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# --- 🌟【追加】Google Sheets 接続ヘルパー ---
+@st.cache_resource(ttl=600)
+def get_gspread_client():
+    import json
+    import gspread
+    from google.oauth2 import service_account
+    from googleapiclient.discovery import build
+    creds_json_str = st.secrets["google_credentials"]
+    creds_info = json.loads(creds_json_str, strict=False)
+    if "private_key" in creds_info:
+        creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
+    scopes = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
+    creds = service_account.Credentials.from_service_account_info(creds_info, scopes=scopes)
+    gc = gspread.authorize(creds)
+    drive_service = build('drive', 'v3', credentials=creds)
+    query = "name = 'EagleBowl_ROLLERS' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"
+    results = drive_service.files().list(q=query, fields="files(id, name)").execute()
+    if results.get('files', []):
+        return gc.open_by_key(results['files'][0]['id'])
+    return None
 
-# --- サイドバー：APIキー入力 ＆ モード切替 ---
+# --- 🌟【追加】セッション初期化 ---
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+    st.session_state.user_email = ""
+    st.session_state.user_name = ""
+    st.session_state.user_role = ""
+    st.session_state.user_public = ""
+
+# --- 🌟【追加】ログイン画面 ---
+if not st.session_state.logged_in:
+    st.markdown("<h3 style='text-align: center;'>🔐 ログイン</h3>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        login_id = st.text_input("ユーザーID (メールアドレス)")
+        login_pw = st.text_input("パスワード", type="password")
+        if st.button("ログイン", use_container_width=True):
+            sh = get_gspread_client()
+            if sh:
+                ws = sh.worksheet("プレイヤー設定")
+                data = ws.get_all_values()
+                login_success = False
+                for idx, row in enumerate(data):
+                    # A列[0]:Email, B列[1]:名前, C列[2]:公開設定, D列[3]:権限, E列[4]:PW
+                    if len(row) >= 5 and row[0] == login_id and row[4] == login_pw:
+                        st.session_state.logged_in = True
+                        st.session_state.user_email = row[0]
+                        st.session_state.user_name = row[1]
+                        st.session_state.user_public = row[2]
+                        st.session_state.user_role = row[3]
+                        st.session_state.user_row_index = idx + 1 # スプレッドシートの行番号(1始まり)
+                        login_success = True
+                        break
+                if login_success:
+                    st.rerun()
+                else:
+                    st.error("IDまたはパスワードが間違っています。")
+            else:
+                st.error("データベースに接続できません。")
+    st.stop() # ログイン完了まで下の処理を行わない
+
+# --- サイドバー：設定エリア ---
 with st.sidebar:
-    st.header("⚙️ 設定")
+    st.header(f"👤 {st.session_state.user_name} さん")
+    st.caption(f"権限: {st.session_state.user_role}")
+    
+    # 🌟【追加】パスワード・公開設定変更エリア
+    with st.expander("⚙️ アカウント設定（パスワード・公開状態）"):
+        new_pw = st.text_input("新しいパスワードを入力", type="password")
+        current_pub_idx = 0 if st.session_state.user_public == "公開" else 1
+        new_pub = st.radio("データ公開設定", ["公開", "非公開"], index=current_pub_idx)
+        
+        if st.button("設定を更新する"):
+            sh = get_gspread_client()
+            if sh:
+                ws = sh.worksheet("プレイヤー設定")
+                if new_pw:
+                    ws.update_cell(st.session_state.user_row_index, 5, new_pw) # E列(5)を更新
+                ws.update_cell(st.session_state.user_row_index, 3, new_pub) # C列(3)を更新
+                st.session_state.user_public = new_pub
+                st.success("✅ 設定を更新しました！")
+    
+    st.markdown("---")
     gemini_api_key = st.text_input("Gemini APIキーを入力", type="password")
     st.markdown("※APIキーがないと累計スコアのAI読取ができません。")
     st.markdown("---")
-    app_mode = st.radio("🚀 モード選択", ["📝 スコア登録", "📊 プレイヤー分析"], index=1)
+    
+    # 🌟【変更】権限によるモード制限
+    if st.session_state.user_role in ["開発者", "管理者"]:
+        app_mode = st.radio("🚀 モード選択", ["📝 スコア登録", "📊 プレイヤー分析"], index=1)
+    else:
+        app_mode = st.radio("🚀 モード選択", ["📊 プレイヤー分析"], index=0)
+        st.info("※ユーザ権限のため、スコア登録機能は表示されません。")
 
 # =========================================================
 # 📊 【新機能】プレイヤー分析ダッシュボード
@@ -124,9 +209,21 @@ if app_mode == "📊 プレイヤー分析":
                 
             sh = gc.open_by_key(sheets[0]['id'])
 
-            # プレイヤーリスト取得
+            # 🌟【変更】プレイヤーリスト取得と公開設定によるフィルタリング
             settings_data = sh.worksheet("プレイヤー設定").get_all_values()
-            players = [row[1] for row in settings_data[1:] if len(row) >= 2 and row[1]]
+            
+            players = []
+            for row in settings_data[1:]:
+                if len(row) >= 4 and row[1]:
+                    p_name = row[1]
+                    p_public = row[2]
+                    
+                    # 管理者・開発者は全員表示。ユーザは「自分」か「公開にしている人」のみ表示
+                    if st.session_state.user_role in ["開発者", "管理者"]:
+                        players.append(p_name)
+                    else:
+                        if p_name == st.session_state.user_name or p_public == "公開":
+                            players.append(p_name)
 
             # 先にマスターデータを取得し、全員の現在のレーティングを計算する
             master_data = sh.worksheet("マスター").get_all_values()
@@ -3226,8 +3323,8 @@ if st.session_state.analyzed_results:
                         if len(row) >= 2 and row[1].strip():
                             p_name = row[1].strip()
                             fetched_players.append(p_name)
-                            # ★追加: E列(インデックス4)からL列(インデックス11)のゲームネームを取得
-                            for i in range(4, min(12, len(row))):
+                            # 🌟【修正】パスワード(E列)追加に伴い、ゲームネーム取得列を F列(インデックス5)〜M列(12) にずらす
+                            for i in range(5, min(13, len(row))):
                                 nickname = row[i].strip()
                                 if nickname:
                                     player_nickname_map[nickname] = p_name
