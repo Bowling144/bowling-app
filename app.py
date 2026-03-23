@@ -194,15 +194,10 @@ with st.sidebar:
                 else:
                     st.markdown("友達はまだ登録されていません。")
     
-    # 🌟【変更】権限によるモード制限と、管理者向けのAPIキー入力欄
+    # 🌟【変更】権限によるモード制限のみ（APIキー入力欄は削除）
     if st.session_state.user_role in ["開発者", "管理者"]:
-        st.markdown("---")
-        gemini_api_key = st.text_input("Gemini APIキーを入力", type="password")
-        st.markdown("※APIキーがないと累計スコアのAI読取ができません。")
-        st.markdown("---")
         app_mode = st.radio("🚀 モード選択", ["📝 スコア登録", "📊 プレイヤー分析"], index=1)
     else:
-        gemini_api_key = "" # ユーザ権限でのエラー回避用
         app_mode = st.radio("🚀 モード選択", ["📊 プレイヤー分析"], index=0)
         st.info("※ユーザ権限のため、スコア登録機能は表示されません。")
 
@@ -2389,6 +2384,12 @@ st.markdown("<h3 style='text-align: center;'>☟　☟　☟</h3>", unsafe_allow
 fetch_button = st.button("🔄 スコアシート取込（MAX３枚）🔄", use_container_width=True)
 
 if fetch_button:
+    # 🌟【追加】Secretsから共通のAPIキーを自動取得
+    gemini_api_key = st.secrets.get("gemini_api_key", "")
+    if not gemini_api_key:
+        st.error("⚠️ StreamlitのSecretsに 'gemini_api_key' が設定されていません。")
+        st.stop()
+        
     with st.spinner("Googleドライブを探索中..."):
         try:
             creds_json_str = st.secrets["google_credentials"]
@@ -2405,8 +2406,17 @@ if fetch_button:
             )
             drive_service = build('drive', 'v3', credentials=creds)
 
-            # ▼ Bowling_Appフォルダ内のみ検索
-            FOLDER_ID = "1PjzUPZNZYl2vKBnJjG0YVSh3NRyxlbEX"
+            # 🌟【変更】フォルダ名「Bowling_App」で検索してフォルダIDを動的に取得する
+            folder_query = "name = 'Bowling_App' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+            folder_results = drive_service.files().list(q=folder_query, fields="files(id, name)").execute()
+            folders = folder_results.get('files', [])
+            
+            if not folders:
+                st.error("⚠️ Googleドライブ内に「Bowling_App」という名前のフォルダが見つかりません。")
+                st.stop()
+                
+            # 見つかったフォルダのIDを使用して画像を検索
+            FOLDER_ID = folders[0]['id']
             query = f"'{FOLDER_ID}' in parents and mimeType='image/jpeg' and trashed=false"
             
             results = drive_service.files().list(
@@ -2445,8 +2455,10 @@ if not st.session_state.raw_images_data:
     st.info("　")
     st.stop()
 
+# 🌟【変更】手動入力チェックを削除し、Secretsから取得したキーを使用
+gemini_api_key = st.secrets.get("gemini_api_key", "")
 if not gemini_api_key:
-    st.error("⚠️ 左側のサイドバーにAPIキーを入力してください。")
+    st.error("⚠️ StreamlitのSecretsに 'gemini_api_key' が設定されていません。")
     st.stop()
 
 client = genai.Client(api_key=gemini_api_key)
