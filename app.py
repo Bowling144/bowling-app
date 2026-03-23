@@ -19,7 +19,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 # --- ページ設定 ---
-st.set_page_config(page_title="ボウリング解析", layout="wide")
+st.set_page_config(page_title="ボウリング解析", page_icon="🎳", layout="wide")
 st.markdown("""
     <style>
     /* expanderの下の余白を消す */
