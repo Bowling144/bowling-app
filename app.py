@@ -194,10 +194,15 @@ with st.sidebar:
                 else:
                     st.markdown("友達はまだ登録されていません。")
     
-    # 🌟【変更】権限によるモード制限
+    # 🌟【変更】権限によるモード制限と、管理者向けのAPIキー入力欄
     if st.session_state.user_role in ["開発者", "管理者"]:
+        st.markdown("---")
+        gemini_api_key = st.text_input("Gemini APIキーを入力", type="password")
+        st.markdown("※APIキーがないと累計スコアのAI読取ができません。")
+        st.markdown("---")
         app_mode = st.radio("🚀 モード選択", ["📝 スコア登録", "📊 プレイヤー分析"], index=1)
     else:
+        gemini_api_key = "" # ユーザ権限でのエラー回避用
         app_mode = st.radio("🚀 モード選択", ["📊 プレイヤー分析"], index=0)
         st.info("※ユーザ権限のため、スコア登録機能は表示されません。")
 
