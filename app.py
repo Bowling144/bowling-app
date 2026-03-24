@@ -3642,7 +3642,7 @@ if st.session_state.analyzed_results:
                 # 選択メニューをポップオーバーで表示する関数
                 def render_score_popover(col_obj, idx):
                     val = curr_throws[idx] if curr_throws[idx] else " "
-                    with col_obj.popover(val, use_container_width=True):
+                    with col_obj.popover(label=val, use_container_width=True):
                         st.markdown(f"**スコアを選択**")
                         # ボタンを3列で配置
                         btn_cols = st.columns(3)
