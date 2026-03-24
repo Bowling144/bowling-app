@@ -89,7 +89,7 @@ if not st.session_state.logged_in:
     st.markdown("<h3 style='text-align: center;'>🔐 ログイン</h3>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        login_id = st.text_input("ユーザーID (メールアドレス)")
+        login_id = st.text_input("ユーザーID  \n(メールアドレス)")
         login_pw = st.text_input("パスワード", type="password")
         if st.button("ログイン", use_container_width=True):
             sh = get_gspread_client()
