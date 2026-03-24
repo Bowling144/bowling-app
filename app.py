@@ -46,17 +46,26 @@ st.markdown("""
         padding: 0px !important;
     }
     
-    /* ▼▼▼ 修正：最新バージョン対応 ポップオーバーの矢印を完全に消す ▼▼▼ */
-    div[data-testid="stPopover"] > button > div:has(svg),
-    div[data-testid="stPopover"] > button svg,
-    button[kind="popover"] svg {
+    /* ▼▼▼ 修正：矢印を完全に消去し、数字だけを中央に配置する ▼▼▼ */
+    /* ポップオーバーボタン内の SVG や アイコン用の div をすべて強制非表示 */
+    div[data-testid="stPopover"] button svg,
+    div[data-testid="stPopover"] button [data-testid="stIconMaterial"],
+    div[data-testid="stPopover"] button > div:not([data-testid="stMarkdownContainer"]) {
         display: none !important;
+        width: 0 !important;
     }
-    /* 数字が中央にくるように余白をなくす */
-    div[data-testid="stPopover"] > button,
-    button[kind="popover"] {
-        padding-left: 0px !important;
-        padding-right: 0px !important;
+    
+    /* 数字のコンテナを中央に配置し、ボタンの余白を削る */
+    div[data-testid="stPopover"] button {
+        padding: 0px !important;
+    }
+    div[data-testid="stPopover"] button [data-testid="stMarkdownContainer"] {
+        width: 100% !important;
+        text-align: center !important;
+    }
+    div[data-testid="stPopover"] button [data-testid="stMarkdownContainer"] p {
+        text-align: center !important;
+        width: 100% !important;
     }
     /* ▲▲▲ ここまで ▲▲▲ */
     
