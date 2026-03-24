@@ -46,11 +46,14 @@ st.markdown("""
         padding: 0px !important;
     }
     
-    /* ▼▼▼ 追加：スコア選択ポップオーバーの下向き矢印を非表示にする ▼▼▼ */
-    button[data-testid="stPopoverButton"] svg {
+    /* ▼▼▼ 修正：スコア選択ポップオーバーの下向き矢印を確実に非表示にする ▼▼▼ */
+    div[data-testid="stPopover"] svg,
+    button[data-testid="stPopoverButton"] svg,
+    button[kind="popover"] svg {
         display: none !important;
     }
     /* 数字が中央にくるように調整 */
+    div[data-testid="stPopover"] button,
     button[data-testid="stPopoverButton"] {
         padding-left: 0px !important;
         padding-right: 0px !important;
