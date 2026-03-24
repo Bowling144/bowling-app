@@ -46,28 +46,34 @@ st.markdown("""
         padding: 0px !important;
     }
     
-    /* ▼▼▼ 修正：文字を完全に中央へ配置し、矢印を隠す ▼▼▼ */
-    div[data-testid="stPopover"] button svg,
-    div[data-testid="stPopover"] button [data-testid="stIconMaterial"] {
+    /* ▼▼▼ 修正：アイコン要素を完全に消去し、中央揃え ▼▼▼ */
+    /* 教えていただいた expand_less などのアイコン要素(親spanごと)を非表示にする */
+    div[data-testid="stPopover"] button span:has(span[data-testid="stIconMaterial"]),
+    div[data-testid="stPopover"] button span[data-testid="stIconMaterial"] {
         display: none !important;
+        width: 0px !important;
+        margin: 0px !important;
     }
     
-    /* ボタン自体の余白をリセット */
+    /* ボタンの余白を消して中央に寄せる */
     div[data-testid="stPopover"] button {
-        padding: 0px !important;
-    }
-    
-    /* 内部のコンテナとテキストを強制的に中央揃えにする */
-    div[data-testid="stPopover"] button [data-testid="stMarkdownContainer"] {
-        width: 100% !important;
+        padding-left: 0px !important;
+        padding-right: 0px !important;
         display: flex !important;
         justify-content: center !important;
         align-items: center !important;
     }
-    div[data-testid="stPopover"] button p {
-        text-align: center !important;
-        margin: 0 auto !important;
+    
+    /* 文字のコンテナを100%にして中央揃え */
+    div[data-testid="stPopover"] button div[data-testid="stMarkdownContainer"] {
         width: 100% !important;
+        display: flex !important;
+        justify-content: center !important;
+    }
+    
+    div[data-testid="stPopover"] button p {
+        margin: 0 !important;
+        text-align: center !important;
     }
     /* ▲▲▲ ここまで ▲▲▲ */
     
