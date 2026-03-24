@@ -3737,12 +3737,7 @@ if st.session_state.analyzed_results:
 
     
     st.markdown("<br>", unsafe_allow_html=True)
-
     st.markdown("<h3 style='text-align: center;'>　　☟　☟　☟　☟　☟　☟　</h3>", unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    st.markdown("<h3 style='text-align: center;'>　　☟　☟　☟　☟　☟　☟　</h3>", unsafe_allow_html=True)
-
     # 🌟【追加】画像を処理済みフォルダへ移動する共通関数
     def move_images_to_processed(is_discard=False):
         msg = "画像を「取込済み画像」フォルダへ移動中..." if not is_discard else "解析を破棄し、画像を移動中..."
