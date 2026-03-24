@@ -1661,12 +1661,12 @@ if app_mode == "📊 プレイヤー分析":
                     """, unsafe_allow_html=True)
 
                     # ③ MINI SCORE RANKING
-                    st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 10px; margin-top: 25px; font-size: 15px;'>📉 MINI SCORE TOP3</div>", unsafe_allow_html=True)
+                    st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 10px; margin-top: 25px; font-size: 15px;'>📉 LOWER SCORE TOP3</div>", unsafe_allow_html=True)
                     
                     def get_mini_html(rank, color, score_data):
                         if not score_data:
-                            return f"<div style='flex: 1; background: #1e1e1e; border-top: 3px solid #444; padding: 12px; text-align: center; border-radius: 6px;'><div style='color: gray; font-size: 12px; font-weight: bold;'>MINI {rank}</div><div style='color: #555; font-size: 20px; font-weight: bold; margin: 5px 0;'>-</div><div style='color: transparent; font-size: 11px;'>-</div></div>"
-                        return f"<div style='flex: 1; background: #2a2a2e; border-top: 3px solid {color}; padding: 12px; text-align: center; border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);'><div style='color: silver; font-size: 12px; font-weight: bold;'>MINI {rank}</div><div style='color: white; font-size: 22px; font-weight: bold; margin: 5px 0;'>{score_data['score']}<span style='font-size: 12px; color: gray;'> 点</span></div><div style='color: #A07855; font-size: 11px;'>{score_data['date']}</div></div>"
+                            return f"<div style='flex: 1; background: #1e1e1e; border-top: 3px solid #444; padding: 12px; text-align: center; border-radius: 6px;'><div style='color: gray; font-size: 12px; font-weight: bold;'>LOWER {rank}</div><div style='color: #555; font-size: 20px; font-weight: bold; margin: 5px 0;'>-</div><div style='color: transparent; font-size: 11px;'>-</div></div>"
+                        return f"<div style='flex: 1; background: #2a2a2e; border-top: 3px solid {color}; padding: 12px; text-align: center; border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);'><div style='color: silver; font-size: 12px; font-weight: bold;'>LOWER {rank}</div><div style='color: white; font-size: 22px; font-weight: bold; margin: 5px 0;'>{score_data['score']}<span style='font-size: 12px; color: gray;'> 点</span></div><div style='color: #A07855; font-size: 11px;'>{score_data['date']}</div></div>"
 
                     m1 = get_mini_html(1, '#E06666', scores_710[0] if len(scores_710) > 0 else None)
                     m2 = get_mini_html(2, '#D4AF37', scores_710[1] if len(scores_710) > 1 else None)
