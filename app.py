@@ -3574,18 +3574,54 @@ if st.session_state.analyzed_results:
                 </style>
                 """, unsafe_allow_html=True)
 
-                st.markdown("<div style='font-size:14px; font-weight:bold; color:#00e5ff; margin-bottom:8px; border-left: 4px solid #00e5ff; padding-left: 8px;'>1. 修正したいマスを選択</div>", unsafe_allow_html=True)
+                # 🌟UI装飾用CSS（見切れ対策＆省スペース化＆スタイリッシュ化）
+                st.markdown("""
+                <style>
+                /* スコアシートのボタン間の余白を極小に */
+                [data-testid="stHorizontalBlock"] div[data-testid="stBlock"] button {
+                    margin: 1px 0 !important;
+                    padding: 4px !important;
+                }
+                /* スコアシートのボタン文字サイズと太さ */
+                [data-testid="stHorizontalBlock"] div[data-testid="stBlock"] button p {
+                    font-size: 14px !important;
+                    font-weight: 700 !important;
+                }
+                /* トータルスコア表示用 */
+                .frame-total {
+                    text-align: center;
+                    font-weight: 700;
+                    font-size: 13px;
+                    background-color: #f0f2f6;
+                    color: #333;
+                    border-radius: 4px;
+                    padding: 2px 0;
+                    margin-top: 1px;
+                }
+                /* セクションタイトルの強調 */
+                .section-header {
+                    font-size: 15px;
+                    font-weight: 700;
+                    color: #00e5ff;
+                    border-bottom: 2px solid #00e5ff;
+                    padding-bottom: 3px;
+                    margin-top: 10px;
+                    margin-bottom: 10px;
+                }
+                </style>
+                """, unsafe_allow_html=True)
+
+                st.markdown(f"<div class='section-header'>🎳 スコアシート (修正するマスをタップ)</div>", unsafe_allow_html=True)
                 
-                # 🌟スタイリッシュなスコアシート風UI（モバイル見切れ対策：2段に分割）
+                # 🌟1行10列のスコアシートUI (スマホでも見切れないように余白とサイズを最適化)
+                sheet_cols = st.columns(10)
                 
-                # === 上段：1F 〜 5F ===
-                sheet_cols_top = st.columns(5)
-                for f in range(5):
-                    with sheet_cols_top[f]:
-                        # フレームヘッダー（黒背景にシアン文字）
-                        st.markdown(f"<div style='text-align:center; font-size:13px; font-weight:800; color:#00e5ff; background:#222; border-radius:6px 6px 0 0; padding:4px; margin-bottom:2px;'>{f+1}F</div>", unsafe_allow_html=True)
+                for f in range(9):
+                    with sheet_cols[f]:
+                        # フレームヘッダー
+                        st.markdown(f"<div style='text-align:center; font-size:12px; font-weight:700;'>{f+1}F</div>", unsafe_allow_html=True)
                         
-                        # ボタングリッド
+                        # 投球ボタン（横並び）
                         c1, c2 = st.columns(2)
                         idx1, idx2 = f*2, f*2+1
                         
@@ -3599,35 +3635,13 @@ if st.session_state.analyzed_results:
                             st.session_state[active_cell_key] = idx2
                             st.rerun()
                             
-                        # トータルスコア表示部
+                        # トータルスコア（累計）
                         tot = frame_totals[f] if f < len(frame_totals) else ""
-                        st.markdown(f"<div style='text-align:center; font-weight:bold; font-size:16px; color:#fff; background:#111; border-radius:0 0 6px 6px; padding:4px; margin-bottom:12px; border:1px solid #333; border-top:none; box-shadow: 0 4px 6px rgba(0,0,0,0.4);'>{tot}</div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='frame-total'>{tot}</div>", unsafe_allow_html=True)
 
-                # === 下段：6F 〜 10F ===
-                sheet_cols_bot = st.columns(5)
-                for f in range(5, 9):
-                    with sheet_cols_bot[f-5]:
-                        st.markdown(f"<div style='text-align:center; font-size:13px; font-weight:800; color:#00e5ff; background:#222; border-radius:6px 6px 0 0; padding:4px; margin-bottom:2px;'>{f+1}F</div>", unsafe_allow_html=True)
-                        
-                        c1, c2 = st.columns(2)
-                        idx1, idx2 = f*2, f*2+1
-                        
-                        btn_color1 = "primary" if active_idx == idx1 else "secondary"
-                        if c1.button(curr_throws[idx1] if curr_throws[idx1] else " ", key=f"cell_{img_idx}_{local_idx}_{idx1}", type=btn_color1, use_container_width=True):
-                            st.session_state[active_cell_key] = idx1
-                            st.rerun()
-                            
-                        btn_color2 = "primary" if active_idx == idx2 else "secondary"
-                        if c2.button(curr_throws[idx2] if curr_throws[idx2] else " ", key=f"cell_{img_idx}_{local_idx}_{idx2}", type=btn_color2, use_container_width=True):
-                            st.session_state[active_cell_key] = idx2
-                            st.rerun()
-                            
-                        tot = frame_totals[f] if f < len(frame_totals) else ""
-                        st.markdown(f"<div style='text-align:center; font-weight:bold; font-size:16px; color:#fff; background:#111; border-radius:0 0 6px 6px; padding:4px; margin-bottom:12px; border:1px solid #333; border-top:none; box-shadow: 0 4px 6px rgba(0,0,0,0.4);'>{tot}</div>", unsafe_allow_html=True)
-
-                # 10フレームの描画（3マス）
-                with sheet_cols_bot[4]:
-                    st.markdown(f"<div style='text-align:center; font-size:13px; font-weight:800; color:#00e5ff; background:#222; border-radius:6px 6px 0 0; padding:4px; margin-bottom:2px;'>10F</div>", unsafe_allow_html=True)
+                # 10フレーム（3マス）
+                with sheet_cols[9]:
+                    st.markdown(f"<div style='text-align:center; font-size:12px; font-weight:700;'>10F</div>", unsafe_allow_html=True)
                     c1, c2, c3 = st.columns(3)
                     for i, pitch_idx in enumerate([18, 19, 20]):
                         btn_color = "primary" if active_idx == pitch_idx else "secondary"
@@ -3635,40 +3649,71 @@ if st.session_state.analyzed_results:
                             st.session_state[active_cell_key] = pitch_idx
                             st.rerun()
                             
+                    # トータルスコア（最終）
                     tot = frame_totals[9] if len(frame_totals) == 10 else ""
-                    st.markdown(f"<div style='text-align:center; font-weight:bold; font-size:16px; color:#fff; background:#111; border-radius:0 0 6px 6px; padding:4px; margin-bottom:12px; border:1px solid #333; border-top:none; box-shadow: 0 4px 6px rgba(0,0,0,0.4);'>{tot}</div>", unsafe_allow_html=True)
+                    # 最終スコアは少し強調
+                    st.markdown(f"<div class='frame-total' style='font-size:15px; background-color:#ff6600; color:#fff;'>{tot}</div>", unsafe_allow_html=True)
 
-                # 🌟スコア入力パッド（見切れ対策：2段に分割）
-                st.markdown("<div style='font-size:14px; font-weight:bold; color:#00e5ff; margin-top:10px; margin-bottom:8px; border-left: 4px solid #00e5ff; padding-left: 8px;'>2. スコアを入力</div>", unsafe_allow_html=True)
+                st.markdown("---")
                 
-                inputs_top = [0, 1, 2, 3, 4, 5, 6]
-                pad_cols_top = st.columns(7)
-                for i, val in enumerate(inputs_top):
-                    with pad_cols_top[i]:
-                        if st.button(str(val), key=f"pad_{img_idx}_{local_idx}_{val}", use_container_width=True):
-                            st.session_state[state_key]["throws"][active_idx] = str(val)
-                            if active_idx < 20: st.session_state[active_cell_key] += 1
-                            st.rerun()
-
-                inputs_bot = [7, 8, 9, "X", "/", "-", "G"]
-                pad_cols_bot = st.columns(7)
-                for i, val in enumerate(inputs_bot):
-                    with pad_cols_bot[i]:
-                        if st.button(str(val), key=f"pad_{img_idx}_{local_idx}_{val}", use_container_width=True):
-                            st.session_state[state_key]["throws"][active_idx] = str(val)
-                            if active_idx < 20: st.session_state[active_cell_key] += 1
-                            st.rerun()
-                            
-                # クリアボタンは押しやすいように中央へ配置
-                col_c1, col_c2, col_c3 = st.columns([1,2,1])
-                with col_c2:
-                    if st.button("🗑️ クリア (空欄に戻す)", key=f"pad_{img_idx}_{local_idx}_clear", use_container_width=True):
+                # 🌟スコア入力UI（プルダウンによる大幅スッキリ化）
+                st.markdown("<div class='section-header'>🔢 スコアを入力 (選択してください)</div>", unsafe_allow_html=True)
+                
+                # 現在のアクティブなマスを分かりやすく表示
+                f_num = (active_idx // 2 + 1) if active_idx < 18 else 10
+                p_num = (active_idx % 2 + 1) if active_idx < 18 else (active_idx - 17)
+                st.write(f"▶ **{f_num}フレーム {p_num}投目** を編集中")
+                
+                # プルダウンの選択肢
+                input_choices = ["", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "X", "/", "-", "G"]
+                
+                # 現在の値を取得
+                current_val = curr_throws[active_idx]
+                if current_val not in input_choices: current_val = ""
+                
+                # 横並びレイアウト（左：プルダウン、右：クリアボタン）
+                input_col1, input_col2 = st.columns([2, 1])
+                
+                with input_col1:
+                    # プルダウンを配置。選択されたらセッションステートを更新。
+                    selected_val = st.selectbox(
+                        label=f"{f_num}F {p_num}投目スコア選択",
+                        options=input_choices,
+                        index=input_choices.index(current_val),
+                        key=f"pad_{img_idx}_{local_idx}_selectbox",
+                        label_visibility="collapsed"
+                    )
+                    
+                    # 選択が変更されたら
+                    if selected_val != current_val:
+                        st.session_state[state_key]["throws"][active_idx] = selected_val
+                        # 自動で次のマスへ移動
+                        if active_idx < 20:
+                            st.session_state[active_cell_key] += 1
+                        st.rerun()
+                        
+                with input_col2:
+                    if st.button("🗑️ 空欄にする", key=f"pad_{img_idx}_{local_idx}_clear", use_container_width=True):
                         st.session_state[state_key]["throws"][active_idx] = ""
                         st.rerun()
 
-                # 🌟残ピン入力UI
                 st.markdown("---")
-                st.markdown("<div style='font-size:14px; font-weight:bold; color:#00e5ff; margin-bottom:8px; border-left: 4px solid #00e5ff; padding-left: 8px;'>3. 残ピン図（タップで切り替え）</div>", unsafe_allow_html=True)
+                
+                # 🌟残ピン入力UI（省スペース化 CSSを適用）
+                st.markdown("""
+                <style>
+                /* 残ピン図のボタンを少し小さく */
+                [data-testid="stHorizontalBlock"] div[data-testid="stBlock"] button[key^="pin_"] {
+                    padding: 1px !important;
+                    margin: 1px 0 !important;
+                }
+                [data-testid="stHorizontalBlock"] div[data-testid="stBlock"] button[key^="pin_"] p {
+                    font-size: 13px !important;
+                }
+                </style>
+                """, unsafe_allow_html=True)
+                
+                st.markdown("<div class='section-header'>📌 残ピン図（タップで切り替え）</div>", unsafe_allow_html=True)
                 
                 if active_idx <= 17: pin_idx = active_idx // 2
                 elif active_idx == 18: pin_idx = 9
@@ -3710,8 +3755,7 @@ if st.session_state.analyzed_results:
                         if st.button("1" if is_active else " ", key=f"pin_{img_idx}_{local_idx}_1", type="primary" if is_active else "secondary", use_container_width=True):
                             toggle_pin(1); st.rerun()
 
-                # 保存ボタン（クリックでマスター登録用のリストへ書き戻す）
-                if st.button("🔄 修正を反映して閉じる", key=f"update_{img_idx}_{local_idx}", type="primary", use_container_width=True):
+                st.markdown("---")
                     row[0] = new_date
                     row[1] = new_start
                     row[2] = new_end
