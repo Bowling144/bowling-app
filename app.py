@@ -3756,6 +3756,9 @@ if st.session_state.analyzed_results:
                             toggle_pin(1); st.rerun()
 
                 st.markdown("---")
+                
+                # ▼▼▼ ここに保存ボタンの処理を追加します ▼▼▼
+                if st.button("🔄 修正を反映して閉じる", key=f"update_{img_idx}_{local_idx}", type="primary", use_container_width=True):
                     row[0] = new_date
                     row[1] = new_start
                     row[2] = new_end
@@ -3774,7 +3777,7 @@ if st.session_state.analyzed_results:
                     
                     st.session_state[close_flag_key] = True
                     st.rerun()
-
+                # ▲▲▲ ここまで ▲▲▲
 
     st.markdown("---")
     st.markdown("### 🎳 レーン・オイル・ボール")
