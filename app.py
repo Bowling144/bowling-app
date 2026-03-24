@@ -3668,12 +3668,9 @@ if st.session_state.analyzed_results:
     st.markdown("<br>", unsafe_allow_html=True)
 
     st.markdown("<h3 style='text-align: center;'>　　☟　☟　☟　☟　☟　☟　</h3>", unsafe_allow_html=True)
-
-    st.markdown("<h3 style='text-align: center;'>　　☟　☟　☟　☟　☟　☟　</h3>", unsafe_allow_html=True)
-
     # 🌟【修正】SPSへの登録ボタンを復活
-    if st.button("📝 SPSへデータを登録する", use_container_width=True):
-        with st.spinner("SPSへデータを登録中..."):
+    if st.button("📝 スコアデータを登録する", use_container_width=True):
+        with st.spinner("データを登録中..."):
             try:
                 creds_json_str = st.secrets["google_credentials"]
                 creds_info = json.loads(creds_json_str, strict=False)
