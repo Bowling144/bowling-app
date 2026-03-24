@@ -46,26 +46,24 @@ st.markdown("""
         padding: 0px !important;
     }
     
-    /* ▼▼▼ 修正：矢印を完全に消去し、数字だけを中央に配置する ▼▼▼ */
-    /* ポップオーバーボタン内の SVG や アイコン用の div をすべて強制非表示 */
+    /* ▼▼▼ 修正：文字（スコア）を復活させ、矢印のみを隠す ▼▼▼ */
     div[data-testid="stPopover"] button svg,
-    div[data-testid="stPopover"] button [data-testid="stIconMaterial"],
-    div[data-testid="stPopover"] button > div:not([data-testid="stMarkdownContainer"]) {
+    div[data-testid="stPopover"] button [data-testid="stIconMaterial"] {
         display: none !important;
-        width: 0 !important;
     }
     
-    /* 数字のコンテナを中央に配置し、ボタンの余白を削る */
+    /* ボタン内の余白をなくす */
     div[data-testid="stPopover"] button {
-        padding: 0px !important;
+        padding-left: 0px !important;
+        padding-right: 0px !important;
     }
-    div[data-testid="stPopover"] button [data-testid="stMarkdownContainer"] {
+    
+    /* スコアの数字を中央に配置する */
+    div[data-testid="stPopover"] button > div {
         width: 100% !important;
         text-align: center !important;
-    }
-    div[data-testid="stPopover"] button [data-testid="stMarkdownContainer"] p {
-        text-align: center !important;
-        width: 100% !important;
+        display: flex !important;
+        justify-content: center !important;
     }
     /* ▲▲▲ ここまで ▲▲▲ */
     
