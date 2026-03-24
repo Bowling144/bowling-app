@@ -3565,11 +3565,7 @@ if st.session_state.analyzed_results:
                 with c_end:
                     new_end = st.text_input("終了時刻", value=row[2], key=f"e_{img_idx}_{local_idx}")
 
-                st.markdown("**🎳 プレイスタイル**")
                 is_710_checked = st.checkbox("🎳 7-10G (セブン-テン ゲームとして登録)", value=bool(row[51]) if len(row) > 51 else False, key=f"710_{img_idx}_{local_idx}")
-
-                st.markdown("**🎳 投球結果と残ピン位置（タップして修正）**")
-
                 state_key = f"edit_data_{img_idx}_{local_idx}"
                 active_cell_key = f"active_cell_{img_idx}_{local_idx}"
 
@@ -3640,6 +3636,23 @@ if st.session_state.analyzed_results:
                     margin-top: 10px;
                     margin-bottom: 10px;
                 }
+                /* 1投目 (青) */
+                div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"]:nth-child(2):last-child) > div[data-testid="stColumn"]:nth-child(1) div[data-testid="stPopover"] button,
+                div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"]:nth-child(3):last-child) > div[data-testid="stColumn"]:nth-child(1) div[data-testid="stPopover"] button {
+                    border: 2px solid #4285f4 !important;
+                    background-color: rgba(66, 133, 244, 0.1) !important;
+                }
+                /* 2投目 (緑) */
+                div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"]:nth-child(2):last-child) > div[data-testid="stColumn"]:nth-child(2) div[data-testid="stPopover"] button,
+                div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"]:nth-child(3):last-child) > div[data-testid="stColumn"]:nth-child(2) div[data-testid="stPopover"] button {
+                    border: 2px solid #34a853 !important;
+                    background-color: rgba(52, 168, 83, 0.1) !important;
+                }
+                /* 3投目 (黄) */
+                div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"]:nth-child(3):last-child) > div[data-testid="stColumn"]:nth-child(3) div[data-testid="stPopover"] button {
+                    border: 2px solid #fbbc04 !important;
+                    background-color: rgba(251, 188, 4, 0.1) !important;
+                }
                 </style>
                 """, unsafe_allow_html=True)
 
@@ -3689,8 +3702,6 @@ if st.session_state.analyzed_results:
                     # トータルスコア（最終）
                     tot = frame_totals[9] if len(frame_totals) == 10 else ""
                     st.markdown(f"<div class='frame-total' style='font-size:15px; background-color:#ff6600; color:#fff;'>{tot}</div>", unsafe_allow_html=True)
-                
-                st.markdown("---")
                 
                 # 🌟残ピン入力UI（省スペース化 CSSを適用）
                 st.markdown("""
