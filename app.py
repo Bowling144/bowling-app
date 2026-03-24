@@ -3445,7 +3445,16 @@ if st.session_state.analyzed_results:
 
     st.markdown("---")
     
-    register_all = st.checkbox("全てのゲームをマスターに登録する", value=True)
+    # 🌟【変更】全選択チェックボックスの連動処理
+    if "register_all_check" not in st.session_state:
+        st.session_state.register_all_check = True
+
+    def uncheck_all_if_needed(key):
+        # 個別チェックが外されたら、全体のチェックも自動で外す
+        if not st.session_state[key]:
+            st.session_state.register_all_check = False
+
+    register_all = st.checkbox("全てのゲームをマスターに登録する", key="register_all_check")
     st.markdown("---")
 
     game_checkboxes = []
@@ -3477,7 +3486,18 @@ if st.session_state.analyzed_results:
                 match_status = "⚠️不一致"
 
             display_text = f"{date_str}_{start_time}_{end_time}_{game_name}｜トータル:{ai_total_str}_{match_status}"
-            is_checked = st.checkbox(display_text, value=True, key=f"check_{img_idx}_{local_idx}")
+            
+            # 🌟【変更】個別チェックボックスの状態管理とコールバック設定
+            check_key = f"check_{img_idx}_{local_idx}"
+            if check_key not in st.session_state:
+                st.session_state[check_key] = True
+
+            is_checked = st.checkbox(
+                display_text, 
+                key=check_key,
+                on_change=uncheck_all_if_needed,
+                args=(check_key,)
+            )
 
             game_checkboxes.append({
                 "is_checked": is_checked,
@@ -3648,16 +3668,15 @@ if st.session_state.analyzed_results:
 
     st.markdown("<h3 style='text-align: center;'>　　☟　☟　☟　☟　☟　☟　</h3>", unsafe_allow_html=True)
 
-    
-
-    # ★要望1：SPS登録ボタンも元の全幅に戻す
-    if st.button("☁️ 選択したプレイヤーのSPSへデータを登録", use_container_width=True, type="primary"):
-        with st.spinner("Google Driveを検索し、データを登録中..."):
+    # 🌟【追加】画像を処理済みフォルダへ移動する共通関数
+    def move_images_to_processed(is_discard=False):
+        msg = "画像を「取込済み画像」フォルダへ移動中..." if not is_discard else "解析を破棄し、画像を移動中..."
+        with st.spinner(msg):
             try:
                 creds_json_str = st.secrets["google_credentials"]
                 creds_info = json.loads(creds_json_str, strict=False)
                 if "private_key" in creds_info:
-                    creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
+                    creds_info["private_
                 
                 scopes = [
                     'https://www.googleapis.com/auth/spreadsheets',
