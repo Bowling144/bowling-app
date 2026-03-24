@@ -3657,49 +3657,7 @@ if st.session_state.analyzed_results:
                     # トータルスコア（最終）
                     tot = frame_totals[9] if len(frame_totals) == 10 else ""
                     st.markdown(f"<div class='frame-total' style='font-size:15px; background-color:#ff6600; color:#fff;'>{tot}</div>", unsafe_allow_html=True)
-                st.markdown("---")
                 
-                # 🌟スコア入力UI（プルダウンによる大幅スッキリ化）
-                st.markdown("<div class='section-header'>🔢 スコアを入力 (選択してください)</div>", unsafe_allow_html=True)
-                
-                # 現在のアクティブなマスを分かりやすく表示
-                f_num = (active_idx // 2 + 1) if active_idx < 18 else 10
-                p_num = (active_idx % 2 + 1) if active_idx < 18 else (active_idx - 17)
-                st.write(f"▶ **{f_num}フレーム {p_num}投目** を編集中")
-                
-                # プルダウンの選択肢
-                input_choices = ["", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "X", "/", "-", "G"]
-                
-                # 現在の値を取得
-                current_val = curr_throws[active_idx]
-                if current_val not in input_choices: current_val = ""
-                
-                # 横並びレイアウト（左：プルダウン、右：クリアボタン）
-                input_col1, input_col2 = st.columns([2, 1])
-                
-                with input_col1:
-                    # プルダウンを配置。選択されたらセッションステートを更新。
-                    selected_val = st.selectbox(
-                        label=f"{f_num}F {p_num}投目スコア選択",
-                        options=input_choices,
-                        index=input_choices.index(current_val),
-                        key=f"pad_{img_idx}_{local_idx}_selectbox",
-                        label_visibility="collapsed"
-                    )
-                    
-                    # 選択が変更されたら
-                    if selected_val != current_val:
-                        st.session_state[state_key]["throws"][active_idx] = selected_val
-                        # 自動で次のマスへ移動
-                        if active_idx < 20:
-                            st.session_state[active_cell_key] += 1
-                        st.rerun()
-                        
-                with input_col2:
-                    if st.button("🗑️ 空欄にする", key=f"pad_{img_idx}_{local_idx}_clear", use_container_width=True):
-                        st.session_state[state_key]["throws"][active_idx] = ""
-                        st.rerun()
-
                 st.markdown("---")
                 
                 # 🌟残ピン入力UI（省スペース化 CSSを適用）
