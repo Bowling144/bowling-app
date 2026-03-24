@@ -45,6 +45,18 @@ st.markdown("""
     .stMultiSelect > div > div > div {
         padding: 0px !important;
     }
+    
+    /* ▼▼▼ 追加：スコア選択ポップオーバーの下向き矢印を非表示にする ▼▼▼ */
+    button[data-testid="stPopoverButton"] svg {
+        display: none !important;
+    }
+    /* 数字が中央にくるように調整 */
+    button[data-testid="stPopoverButton"] {
+        padding-left: 0px !important;
+        padding-right: 0px !important;
+    }
+    /* ▲▲▲ ここまで ▲▲▲ */
+    
     </style>
 """, unsafe_allow_html=True)
 st.markdown("""
