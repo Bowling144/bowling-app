@@ -3677,7 +3677,7 @@ if st.session_state.analyzed_results:
                 creds_json_str = st.secrets["google_credentials"]
                 creds_info = json.loads(creds_json_str, strict=False)
                 if "private_key" in creds_info:
-                    creds_info["private_
+                    creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
                 
                 scopes = [
                     'https://www.googleapis.com/auth/spreadsheets',
