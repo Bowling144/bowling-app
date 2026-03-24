@@ -3536,61 +3536,133 @@ if st.session_state.analyzed_results:
                 st.markdown("**🎳 プレイスタイル**")
                 is_710_checked = st.checkbox("🎳 7-10G (セブン-テン ゲームとして登録)", value=bool(row[51]) if len(row) > 51 else False, key=f"710_{img_idx}_{local_idx}")
 
-                st.markdown("**🎳 投球結果と残ピン位置（1〜10番を選択）**")
-                new_throws = []
-                new_pins = []
+                st.markdown("**🎳 投球結果と残ピン位置（タップして修正）**")
 
-                # 1〜9フレームの入力
+                state_key = f"edit_data_{img_idx}_{local_idx}"
+                active_cell_key = f"active_cell_{img_idx}_{local_idx}"
+
+                # 初期状態の読み込み（セッションステートに保存してリアルタイム更新を可能にする）
+                if state_key not in st.session_state:
+                    init_throws = [str(row[throw_cols[i]]).replace("R:", "") for i in range(21)]
+                    init_pins = []
+                    for i in range(12):
+                        p_str = str(row[target_indices[i]])
+                        init_pins.append([int(p) for p in p_str.split(",")] if p_str else [])
+                    st.session_state[state_key] = {"throws": init_throws, "pins": init_pins}
+                    st.session_state[active_cell_key] = 0  # デフォルトは1Fの1投目
+
+                curr_throws = st.session_state[state_key]["throws"]
+                curr_pins = st.session_state[state_key]["pins"]
+                active_idx = st.session_state[active_cell_key]
+
+                # リアルタイムで累計スコアを計算
+                try:
+                    frame_totals = calculate_bowling_score(curr_throws)
+                except Exception:
+                    frame_totals = []
+                while len(frame_totals) < 10:
+                    frame_totals.append("")
+
+                st.markdown("<div style='font-size:14px; color:silver; margin-bottom:5px;'>1. 修正したいマスを選択</div>", unsafe_allow_html=True)
+                
+                # 🌟スコアシート風UI
+                sheet_cols = st.columns(10)
+                
+                # 1〜9フレームの描画
                 for f in range(9):
-                    st.markdown(f"**<span style='color: turquoise;'>{f+1}フレーム</span>**", unsafe_allow_html=True)
-                    c1, c2, c3 = st.columns([1, 2, 1])
-                    with c1:
-                        t1 = st.text_input("1投目", value=str(row[throw_cols[f*2]]).replace("R:", ""), key=f"t1_{img_idx}_{local_idx}_{f}")
-                    with c2:
-                        curr_pins_str = str(row[target_indices[f]])
-                        curr_pins = [int(p) for p in curr_pins_str.split(",")] if curr_pins_str else []
-                        # ★要望1: placeholder="" を追加して空欄表示にする
-                        p_sel = st.multiselect("残ピン", options=list(range(1, 11)), default=curr_pins, key=f"p_{img_idx}_{local_idx}_{f}", placeholder="")
-                    with c3:
-                        t2 = st.text_input("2投目", value=str(row[throw_cols[f*2+1]]).replace("R:", ""), key=f"t2_{img_idx}_{local_idx}_{f}")
-                    
-                    new_throws.extend([t1, t2])
-                    new_pins.append(",".join(map(str, p_sel)))
+                    with sheet_cols[f]:
+                        st.markdown(f"<div style='text-align:center; font-size:12px; font-weight:bold;'>{f+1}F</div>", unsafe_allow_html=True)
+                        c1, c2 = st.columns(2)
+                        idx1, idx2 = f*2, f*2+1
+                        
+                        btn_color1 = "primary" if active_idx == idx1 else "secondary"
+                        if c1.button(curr_throws[idx1] if curr_throws[idx1] else " ", key=f"cell_{img_idx}_{local_idx}_{idx1}", type=btn_color1, use_container_width=True):
+                            st.session_state[active_cell_key] = idx1
+                            st.rerun()
+                            
+                        btn_color2 = "primary" if active_idx == idx2 else "secondary"
+                        if c2.button(curr_throws[idx2] if curr_throws[idx2] else " ", key=f"cell_{img_idx}_{local_idx}_{idx2}", type=btn_color2, use_container_width=True):
+                            st.session_state[active_cell_key] = idx2
+                            st.rerun()
+                            
+                        tot = frame_totals[f] if f < len(frame_totals) else ""
+                        st.markdown(f"<div style='text-align:center; font-weight:bold; font-size:14px; padding-top:2px;'>{tot}</div>", unsafe_allow_html=True)
 
-                # 10フレーム目の入力
-                st.markdown("**<span style='color: turquoise;'>10フレーム</span>**", unsafe_allow_html=True)
-                # ★要望2: 1投目、2投目、3投目をそれぞれ改行して配置（上のフレームと幅を合わせるため [1, 2, 1] を使用）
+                # 10フレームの描画
+                with sheet_cols[9]:
+                    st.markdown(f"<div style='text-align:center; font-size:12px; font-weight:bold;'>10F</div>", unsafe_allow_html=True)
+                    c1, c2, c3 = st.columns(3)
+                    for i, pitch_idx in enumerate([18, 19, 20]):
+                        btn_color = "primary" if active_idx == pitch_idx else "secondary"
+                        if [c1, c2, c3][i].button(curr_throws[pitch_idx] if curr_throws[pitch_idx] else " ", key=f"cell_{img_idx}_{local_idx}_{pitch_idx}", type=btn_color, use_container_width=True):
+                            st.session_state[active_cell_key] = pitch_idx
+                            st.rerun()
+                            
+                    tot = frame_totals[9] if len(frame_totals) == 10 else ""
+                    st.markdown(f"<div style='text-align:center; font-weight:bold; font-size:14px; padding-top:2px;'>{tot}</div>", unsafe_allow_html=True)
+
+                # 🌟スコア入力パッド
+                st.markdown("<div style='font-size:14px; color:silver; margin-top:15px; margin-bottom:5px;'>2. スコアを入力</div>", unsafe_allow_html=True)
+                pad_cols = st.columns(14)
+                inputs = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, "X", "/", "-", "G"]
+                for i, val in enumerate(inputs):
+                    with pad_cols[i]:
+                        if st.button(str(val), key=f"pad_{img_idx}_{local_idx}_{val}", use_container_width=True):
+                            st.session_state[state_key]["throws"][active_idx] = str(val)
+                            if active_idx < 20: st.session_state[active_cell_key] += 1 # 自動で次のマスへ移動
+                            st.rerun()
+                            
+                if st.button("クリア (空欄に戻す)", key=f"pad_{img_idx}_{local_idx}_clear"):
+                    st.session_state[state_key]["throws"][active_idx] = ""
+                    st.rerun()
+
+                # 🌟残ピン入力UI
+                st.markdown("---")
+                st.markdown("<div style='font-size:14px; color:silver; margin-bottom:5px;'>3. 残ピン図（タップで切り替え）</div>", unsafe_allow_html=True)
                 
-                # 10フレーム 1投目
-                c10_1, c10_p1, _ = st.columns([1, 2, 1])
-                with c10_1:
-                    t10_1 = st.text_input("1投", value=str(row[throw_cols[18]]).replace("R:", ""), key=f"t1_{img_idx}_{local_idx}_9")
-                with c10_p1:
-                    p1_str = str(row[target_indices[9]])
-                    p1_def = [int(p) for p in p1_str.split(",")] if p1_str else []
-                    p1_sel = st.multiselect("残1", options=list(range(1, 11)), default=p1_def, key=f"p1_{img_idx}_{local_idx}_9", placeholder="")
+                # 現在選択されている投球枠に連動するピン配列のインデックスを決定
+                if active_idx <= 17: pin_idx = active_idx // 2
+                elif active_idx == 18: pin_idx = 9
+                elif active_idx == 19: pin_idx = 10
+                else: pin_idx = 11
 
-                # 10フレーム 2投目
-                c10_2, c10_p2, _ = st.columns([1, 2, 1])
-                with c10_2:
-                    t10_2 = st.text_input("2投", value=str(row[throw_cols[19]]).replace("R:", ""), key=f"t2_{img_idx}_{local_idx}_9")
-                with c10_p2:
-                    p2_str = str(row[target_indices[10]])
-                    p2_def = [int(p) for p in p2_str.split(",")] if p2_str else []
-                    p2_sel = st.multiselect("残2", options=list(range(1, 11)), default=p2_def, key=f"p2_{img_idx}_{local_idx}_9", placeholder="")
+                active_pins = curr_pins[pin_idx]
 
-                # 10フレーム 3投目
-                c10_3, c10_p3, _ = st.columns([1, 2, 1])
-                with c10_3:
-                    t10_3 = st.text_input("3投", value=str(row[throw_cols[20]]).replace("R:", ""), key=f"t3_{img_idx}_{local_idx}_9")
-                with c10_p3:
-                    p3_str = str(row[target_indices[11]])
-                    p3_def = [int(p) for p in p3_str.split(",")] if p3_str else []
-                    p3_sel = st.multiselect("残3", options=list(range(1, 11)), default=p3_def, key=f"p3_{img_idx}_{local_idx}_9", placeholder="")
-                
-                new_throws.extend([t10_1, t10_2, t10_3])
-                new_pins.extend([",".join(map(str, p1_sel)), ",".join(map(str, p2_sel)), ",".join(map(str, p3_sel))])
-                if st.button("🔄 修正を反映して再計算", key=f"update_{img_idx}_{local_idx}"):
+                def toggle_pin(p_num):
+                    if p_num in st.session_state[state_key]["pins"][pin_idx]:
+                        st.session_state[state_key]["pins"][pin_idx].remove(p_num)
+                    else:
+                        st.session_state[state_key]["pins"][pin_idx].append(p_num)
+                        st.session_state[state_key]["pins"][pin_idx].sort()
+
+                pin_c1, pin_c2, pin_c3 = st.columns([1, 2, 1])
+                with pin_c2:
+                    r1 = st.columns(4)
+                    for i, p in enumerate([7, 8, 9, 10]):
+                        with r1[i]:
+                            is_active = p in active_pins
+                            if st.button(str(p) if is_active else " ", key=f"pin_{img_idx}_{local_idx}_{p}", type="primary" if is_active else "secondary", use_container_width=True):
+                                toggle_pin(p); st.rerun()
+                    r2 = st.columns([0.5, 1, 1, 1, 0.5])
+                    for i, p in enumerate([4, 5, 6]):
+                        with r2[i+1]:
+                            is_active = p in active_pins
+                            if st.button(str(p) if is_active else " ", key=f"pin_{img_idx}_{local_idx}_{p}", type="primary" if is_active else "secondary", use_container_width=True):
+                                toggle_pin(p); st.rerun()
+                    r3 = st.columns([1, 1, 1, 1])
+                    for i, p in enumerate([2, 3]):
+                        with r3[i+1]:
+                            is_active = p in active_pins
+                            if st.button(str(p) if is_active else " ", key=f"pin_{img_idx}_{local_idx}_{p}", type="primary" if is_active else "secondary", use_container_width=True):
+                                toggle_pin(p); st.rerun()
+                    r4 = st.columns([1.5, 1, 1.5])
+                    with r4[1]:
+                        is_active = 1 in active_pins
+                        if st.button("1" if is_active else " ", key=f"pin_{img_idx}_{local_idx}_1", type="primary" if is_active else "secondary", use_container_width=True):
+                            toggle_pin(1); st.rerun()
+
+                # 保存ボタン（クリックでマスター登録用のリストへ書き戻す）
+                if st.button("🔄 修正を反映して閉じる", key=f"update_{img_idx}_{local_idx}", type="primary", use_container_width=True):
                     row[0] = new_date
                     row[1] = new_start
                     row[2] = new_end
@@ -3600,13 +3672,12 @@ if st.session_state.analyzed_results:
                         row.append(is_710_checked)
                     
                     for i in range(21):
-                        row[throw_cols[i]] = new_throws[i]
+                        row[throw_cols[i]] = curr_throws[i]
                     for i in range(12):
-                        row[target_indices[i]] = new_pins[i]
+                        row[target_indices[i]] = ",".join(map(str, curr_pins[i]))
                     
-                    new_calc_totals = calculate_bowling_score(new_throws)
-                    if new_calc_totals:
-                        row[50] = str(new_calc_totals[-1])
+                    if frame_totals and str(frame_totals[-1]).isdigit():
+                        row[50] = str(frame_totals[-1])
                     
                     st.session_state[close_flag_key] = True
                     st.rerun()
