@@ -3613,7 +3613,23 @@ if st.session_state.analyzed_results:
 
                 st.markdown(f"<div class='section-header'>🎳 スコアシート (修正するマスをタップ)</div>", unsafe_allow_html=True)
                 
-                # 🌟1行10列のスコアシートUI (スマホでも見切れないように余白とサイズを最適化)
+                input_choices = ["", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "X", "/", "-", "G"]
+                
+                # 選択メニューをポップオーバーで表示する関数
+                def render_score_popover(col_obj, idx):
+                    val = curr_throws[idx] if curr_throws[idx] else " "
+                    with col_obj.popover(val, use_container_width=True):
+                        st.markdown(f"**スコアを選択**")
+                        # ボタンを3列で配置
+                        btn_cols = st.columns(3)
+                        for i, choice in enumerate(input_choices):
+                            display_choice = "空欄" if choice == "" else choice
+                            if btn_cols[i % 3].button(display_choice, key=f"sel_{img_idx}_{local_idx}_{idx}_{i}", use_container_width=True):
+                                st.session_state[state_key]["throws"][idx] = choice
+                                st.session_state[active_cell_key] = idx
+                                st.rerun()
+
+                # 🌟1行10列のスコアシートUI
                 sheet_cols = st.columns(10)
                 
                 for f in range(9):
@@ -3621,19 +3637,10 @@ if st.session_state.analyzed_results:
                         # フレームヘッダー
                         st.markdown(f"<div style='text-align:center; font-size:12px; font-weight:700;'>{f+1}F</div>", unsafe_allow_html=True)
                         
-                        # 投球ボタン（横並び）
+                        # 投球マス（ポップオーバー）
                         c1, c2 = st.columns(2)
-                        idx1, idx2 = f*2, f*2+1
-                        
-                        btn_color1 = "primary" if active_idx == idx1 else "secondary"
-                        if c1.button(curr_throws[idx1] if curr_throws[idx1] else " ", key=f"cell_{img_idx}_{local_idx}_{idx1}", type=btn_color1, use_container_width=True):
-                            st.session_state[active_cell_key] = idx1
-                            st.rerun()
-                            
-                        btn_color2 = "primary" if active_idx == idx2 else "secondary"
-                        if c2.button(curr_throws[idx2] if curr_throws[idx2] else " ", key=f"cell_{img_idx}_{local_idx}_{idx2}", type=btn_color2, use_container_width=True):
-                            st.session_state[active_cell_key] = idx2
-                            st.rerun()
+                        render_score_popover(c1, f*2)
+                        render_score_popover(c2, f*2+1)
                             
                         # トータルスコア（累計）
                         tot = frame_totals[f] if f < len(frame_totals) else ""
@@ -3643,17 +3650,13 @@ if st.session_state.analyzed_results:
                 with sheet_cols[9]:
                     st.markdown(f"<div style='text-align:center; font-size:12px; font-weight:700;'>10F</div>", unsafe_allow_html=True)
                     c1, c2, c3 = st.columns(3)
-                    for i, pitch_idx in enumerate([18, 19, 20]):
-                        btn_color = "primary" if active_idx == pitch_idx else "secondary"
-                        if [c1, c2, c3][i].button(curr_throws[pitch_idx] if curr_throws[pitch_idx] else " ", key=f"cell_{img_idx}_{local_idx}_{pitch_idx}", type=btn_color, use_container_width=True):
-                            st.session_state[active_cell_key] = pitch_idx
-                            st.rerun()
+                    render_score_popover(c1, 18)
+                    render_score_popover(c2, 19)
+                    render_score_popover(c3, 20)
                             
                     # トータルスコア（最終）
                     tot = frame_totals[9] if len(frame_totals) == 10 else ""
-                    # 最終スコアは少し強調
                     st.markdown(f"<div class='frame-total' style='font-size:15px; background-color:#ff6600; color:#fff;'>{tot}</div>", unsafe_allow_html=True)
-
                 st.markdown("---")
                 
                 # 🌟スコア入力UI（プルダウンによる大幅スッキリ化）
