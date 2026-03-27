@@ -2415,6 +2415,12 @@ st.markdown("<h3 style='text-align: center;'>☟　☟　☟</h3>", unsafe_allow
 # ★要望1：カラムを廃止し、ボタンを狭くせず横幅いっぱいに広げる
 fetch_button = st.button("🔄 スコアシート取込（MAX３枚）🔄", use_container_width=True)
 
+# ★ 追加：残ピン判定の閾値調整用スライダー
+with st.expander("🛠️ 残ピン判定の微調整"):
+    st.markdown("<span style='font-size: 12px; color: silver;'>自動計算された残ピン判定の閾値に、この数値をプラスマイナスして一時的に調整します。<br>（ピンが反応しにくい場合はマイナスへ、過剰に反応する場合はプラスへ変更して再取込してください）</span>", unsafe_allow_html=True)
+    pin_thresh_offset = st.slider("閾値の調整値（％）", min_value=-20.0, max_value=20.0, value=1.0, step=0.5)
+    st.session_state.pin_thresh_offset = pin_thresh_offset
+
 if fetch_button:
     # 🌟【追加】Secretsから共通のAPIキーを自動取得
     gemini_api_key = st.secrets.get("gemini_api_key", "")
@@ -2923,8 +2929,10 @@ if st.session_state.analyzed_results is None:
                     dyn_thresh_empty = peak1_idx + valley_idx
             else:
                 dyn_thresh_empty = np.max(all_global_pin_pcts) + 5.0
-        # ★ ここで黄色の枠（残ピン）の閾値を微調整する
-        dyn_thresh_empty = dyn_thresh_empty + 1.0
+        
+        # ★ ここで黄色の枠（残ピン）の閾値を微調整する（スライダーの値を適用）
+        offset = st.session_state.get("pin_thresh_offset", 1.0)
+        dyn_thresh_empty = dyn_thresh_empty + offset
 
         dyn_thresh_circle = dyn_thresh_empty + 12.0
 
