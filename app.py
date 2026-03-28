@@ -3914,6 +3914,27 @@ if st.session_state.analyzed_results:
 
     # 登録ボタンが押された時の処理
     if btn_register:
+        
+        # ▼▼▼【追加】日時不明のブロック機能 ▼▼▼
+        has_invalid_datetime = False
+        for item in game_checkboxes:
+            is_target = True if register_all else item["is_checked"]
+            if is_target:
+                # 登録対象のデータの 日付(0)、開始(1)、終了(2) を取得
+                chk_d = str(item["export_row"][0]).strip()
+                chk_s = str(item["export_row"][1]).strip()
+                chk_e = str(item["export_row"][2]).strip()
+                
+                # いずれかが空欄、または「不明」という文字列のままならフラグを立てる
+                if not chk_d or chk_d == "日付不明" or not chk_s or chk_s == "時刻不明" or not chk_e or chk_e == "時刻不明":
+                    has_invalid_datetime = True
+                    break
+        
+        if has_invalid_datetime:
+            st.error("⚠️ 【登録エラー】 日付や開始・終了時刻が「不明」または空欄のままのデータが含まれています。対象データの「✏️ 手動修正」を開き、正しい日時を入力してから再度登録ボタンを押してください。")
+            st.stop() # ここで処理を完全ストップさせ、SPSへの書き込みを防ぐ
+        # ▲▲▲ ここまで ▲▲▲
+
         with st.spinner("データを登録中..."):
             try:
                 creds_json_str = st.secrets["google_credentials"]
