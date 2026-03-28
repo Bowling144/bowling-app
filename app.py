@@ -3090,7 +3090,21 @@ if st.session_state.analyzed_results is None:
             crop_x2 = min(img_for_ai.shape[1], int(new_ref2[0] + 10))
 
             if crop_y2 > crop_y1 and crop_x2 > crop_x1:
-                score_crops.append(img_for_ai[crop_y1:crop_y2, crop_x1:crop_x2])
+                # 1行分の画像をコピーして取得
+                row_crop = img_for_ai[crop_y1:crop_y2, crop_x1:crop_x2].copy()
+                
+                # ▼▼▼【マスキング処理のON/OFFスイッチ】▼▼▼
+                # 不具合が起きて元に戻したい時は、この True を False に書き換えるだけで元の状態に戻ります！
+                USE_MASKING = True 
+                
+                if USE_MASKING:
+                    h_crop, w_crop = row_crop.shape[:2]
+                    mask_h = int(h_crop * 0.48) # 上から48%の位置を計算
+                    # 上半分を真っ白(255, 255, 255)で塗りつぶす（-1は塗りつぶしの指定）
+                    cv2.rectangle(row_crop, (0, 0), (w_crop, mask_h), (255, 255, 255), -1)
+                # ▲▲▲ ここまで ▲▲▲
+
+                score_crops.append(row_crop)
 
         if score_crops:
             max_w = max(crop.shape[1] for crop in score_crops)
