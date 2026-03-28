@@ -3494,8 +3494,24 @@ if st.session_state.analyzed_results:
         if matched_player and matched_player in player_list:
             default_player_index = player_list.index(matched_player)
 
-    # ★要望5：プレイヤー名が消える不具合を修正（不要な設定を削除）＋ AIによる自動選択(index)を設定
-    selected_player = st.selectbox("👤プレイヤー選択👤", player_list, index=default_player_index)
+    # ★追加: 上下のプレイヤー選択を完全に同期するための仕組み
+    current_analyzed_count = len(st.session_state.analyzed_results) if st.session_state.analyzed_results else 0
+    if st.session_state.get("prev_analyzed_count") != current_analyzed_count:
+        st.session_state.synced_player = player_list[default_player_index] if player_list else ""
+        st.session_state.prev_analyzed_count = current_analyzed_count
+    elif "synced_player" not in st.session_state or st.session_state.synced_player not in player_list:
+        st.session_state.synced_player = player_list[default_player_index] if player_list else ""
+
+    def sync_player_top():
+        st.session_state.synced_player = st.session_state.top_player_sel
+    def sync_player_bottom():
+        st.session_state.synced_player = st.session_state.bottom_player_sel
+
+    current_index = player_list.index(st.session_state.synced_player) if st.session_state.synced_player in player_list else default_player_index
+
+    # ★変更：上下同期対応のプレイヤー選択
+    st.selectbox("👤プレイヤー選択👤", player_list, index=current_index, key="top_player_sel", on_change=sync_player_top)
+    selected_player = st.session_state.synced_player
 
     st.markdown("---")
     
@@ -3833,6 +3849,13 @@ if st.session_state.analyzed_results:
     
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("<h3 style='text-align: center;'>　　☟　☟　☟　☟　☟　☟　</h3>", unsafe_allow_html=True)
+    
+    # ★追加: 登録ボタン直上のプレイヤー選択（上部の選択肢と連動）
+    st.markdown("### 👤 登録プレイヤーの最終確認")
+    current_index_bot = player_list.index(st.session_state.synced_player) if st.session_state.synced_player in player_list else default_player_index
+    st.selectbox("このプレイヤーの成績としてマスターに登録します", player_list, index=current_index_bot, key="bottom_player_sel", on_change=sync_player_bottom)
+    st.markdown("<br>", unsafe_allow_html=True)
+
     # 🌟【追加】画像を処理済みフォルダへ移動する共通関数
     def move_images_to_processed(is_discard=False):
         msg = "画像を「取込済み画像」フォルダへ移動中..." if not is_discard else "解析を破棄し、画像を移動中..."
