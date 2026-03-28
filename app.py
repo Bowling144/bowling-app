@@ -3515,16 +3515,8 @@ if st.session_state.analyzed_results:
     elif "synced_player" not in st.session_state or st.session_state.synced_player not in player_list:
         st.session_state.synced_player = player_list[default_player_index] if player_list else ""
 
-    def sync_player_top():
-        st.session_state.synced_player = st.session_state.top_player_sel
-    def sync_player_bottom():
-        st.session_state.synced_player = st.session_state.bottom_player_sel
-
-    current_index = player_list.index(st.session_state.synced_player) if st.session_state.synced_player in player_list else default_player_index
-
-    # ★変更：上下同期対応のプレイヤー選択
-    st.selectbox("👤プレイヤー選択👤", player_list, index=current_index, key="top_player_sel", on_change=sync_player_top)
-    selected_player = st.session_state.synced_player
+    # ★プレイヤー選択（操作できるのは画面上部のここ1箇所だけにする）
+    selected_player = st.selectbox("👤プレイヤー選択👤", player_list, index=default_player_index)
 
     st.markdown("---")
     
@@ -3863,10 +3855,9 @@ if st.session_state.analyzed_results:
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("<h3 style='text-align: center;'>　　☟　☟　☟　☟　☟　☟　</h3>", unsafe_allow_html=True)
     
-    # ★追加: 登録ボタン直上のプレイヤー選択（上部の選択肢と連動）
-    st.markdown("### 👤 登録プレイヤーの最終確認")
-    current_index_bot = player_list.index(st.session_state.synced_player) if st.session_state.synced_player in player_list else default_player_index
-    st.selectbox("このプレイヤーの成績としてマスターに登録します", player_list, index=current_index_bot, key="bottom_player_sel", on_change=sync_player_bottom)
+    # ★変更: 登録ボタン直上は「確認用の目立つテキスト表示」のみにする
+    st.info(f"👤 【最終確認】このデータは **{selected_player}** の成績として登録されます。")
+    st.markdown("<p style='text-align:center; font-size:12px; color:gray;'>※変更する場合は、画面一番上のプレイヤー選択をやり直してください。</p>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
     # 🌟【追加】画像を処理済みフォルダへ移動する共通関数
