@@ -3855,9 +3855,8 @@ if st.session_state.analyzed_results:
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("<h3 style='text-align: center;'>　　☟　☟　☟　☟　☟　☟　</h3>", unsafe_allow_html=True)
     
-    # ★変更: 登録ボタン直上は「確認用の目立つテキスト表示」のみにする
-    st.info(f"👤 【最終確認】このデータは **{selected_player}** の成績として登録されます。")
-    st.markdown("<p style='text-align:center; font-size:12px; color:gray;'>※変更する場合は、画面一番上のプレイヤー選択をやり直してください。</p>", unsafe_allow_html=True)
+    # ★変更: 余計な注記をなくし、プレイヤー名だけをシンプルに大きく表示
+    st.markdown(f"<h4 style='text-align: center;'>👤 プレイヤー名：{selected_player}</h4>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
     # 🌟【追加】画像を処理済みフォルダへ移動する共通関数
