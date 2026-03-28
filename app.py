@@ -3095,7 +3095,7 @@ if st.session_state.analyzed_results is None:
                 
                 # ▼▼▼【マスキング処理のON/OFFスイッチ】▼▼▼
                 # 不具合が起きて元に戻したい時は、この True を False に書き換えるだけで元の状態に戻ります！
-                USE_MASKING = True 
+                USE_MASKING = False 
                 
                 if USE_MASKING:
                     h_crop, w_crop = row_crop.shape[:2]
