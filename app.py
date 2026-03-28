@@ -2418,7 +2418,7 @@ fetch_button = st.button("🔄 スコアシート取込（MAX３枚）🔄", use
 # ★ 追加：残ピン判定の閾値調整用スライダー
 with st.expander("🛠️ 残ピン判定の微調整"):
     st.markdown("<span style='font-size: 12px; color: silver;'>自動計算された残ピン判定の閾値に、この数値をプラスマイナスして一時的に調整します。<br>（ピンが反応しにくい場合はマイナスへ、過剰に反応する場合はプラスへ変更して再取込してください）</span>", unsafe_allow_html=True)
-    pin_thresh_offset = st.slider("閾値の調整値（％）", min_value=-5.0, max_value=5.0, value=1.0, step=0.05)
+    pin_thresh_offset = st.slider("閾値の調整値（％）", min_value=-10.0, max_value=10.0, value=1.0, step=0.05)
     st.session_state.pin_thresh_offset = pin_thresh_offset
 
 if fetch_button:
