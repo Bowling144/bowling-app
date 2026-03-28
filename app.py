@@ -3853,10 +3853,11 @@ if st.session_state.analyzed_results:
 
     
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("<h3 style='text-align: center;'>　　☟　☟　☟　☟　☟　☟　</h3>", unsafe_allow_html=True)
+    # text-align: left; に変更し、左端を揃えるために先頭の全角スペースを削除
+    st.markdown("<h3 style='text-align: left;'>☟　☟　☟　☟　☟　☟</h3>", unsafe_allow_html=True)
     
-    # ★変更: 余計な注記をなくし、プレイヤー名だけをシンプルに大きく表示
-    st.markdown(f"<h4 style='text-align: center;'>👤 プレイヤー名：{selected_player}</h4>", unsafe_allow_html=True)
+    # text-align: left; に変更
+    st.markdown(f"<h4 style='text-align: left;'>👤 プレイヤー名：{selected_player}</h4>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
     # 🌟【追加】画像を処理済みフォルダへ移動する共通関数
