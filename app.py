@@ -3673,7 +3673,8 @@ if st.session_state.analyzed_results:
                         
                         with p_col1:
                             st.markdown("<div style='font-size:12px; color:gray; text-align:center;'>📊 スコア</div>", unsafe_allow_html=True)
-                            choices = ["", "1", "2", "3", "4", "5", "6", "7", "8", "9", "X", "/", "-", "G"]
+                            # 「空（""）」を一番最後に移動（以前のコードにあった "0" も復活させています）
+                            choices = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "X", "/", "-", "G", ""]
                             btn_cols = st.columns(3)
                             for i, choice in enumerate(choices):
                                 display_choice = "空" if choice == "" else choice
