@@ -2418,8 +2418,21 @@ fetch_button = st.button("🔄 スコアシート取込（MAX３枚）🔄", use
 # ★ 追加：残ピン判定の閾値調整用スライダー
 with st.expander("🛠️ 残ピン判定の微調整"):
     st.markdown("<span style='font-size: 12px; color: silver;'>自動計算された残ピン判定の閾値に、この数値をプラスマイナスして一時的に調整します。<br>（ピンが反応しにくい場合はマイナスへ、過剰に反応する場合はプラスへ変更して再取込してください）</span>", unsafe_allow_html=True)
-    pin_thresh_offset = st.slider("閾値の調整値（％）", min_value=-10.0, max_value=10.0, value=1.0, step=0.05)
-    st.session_state.pin_thresh_offset = pin_thresh_offset
+    
+    # 🌟【変更】初期化ボタンとの連動処理
+    if "pin_thresh_offset" not in st.session_state:
+        st.session_state.pin_thresh_offset = 1.0
+
+    def reset_thresh():
+        st.session_state.pin_thresh_offset = 1.0
+
+    col_sl, col_btn = st.columns([4, 1])
+    with col_sl:
+        # valueを直接指定せず、keyを連携させることでボタン側から書き換え可能にする
+        st.slider("閾値の調整値（％）", min_value=-10.0, max_value=10.0, step=0.05, key="pin_thresh_offset")
+    with col_btn:
+        st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True) # スライダーのラベルの高さと合わせるための余白
+        st.button("🔄 初期値に戻す", on_click=reset_thresh, use_container_width=True)
 
 if fetch_button:
     # 🌟【追加】Secretsから共通のAPIキーを自動取得
