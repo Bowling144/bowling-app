@@ -3976,6 +3976,41 @@ if st.session_state.analyzed_results:
                 sheet_id = sheets[0]['id']
                 sh = gc.open_by_key(sheet_id)
 
+                # ▼▼▼ 【追加】週1回の自動バックアップ処理 ▼▼▼
+                # ⚠️注意：ブラウザで「バックアップ」フォルダを開き、URLバーの folders/ の後ろの英数字をコピーして以下に貼り付けてください
+                BACKUP_FOLDER_ID = "1ONqsfeWmt6mT248fD7OuMhUdiqdQuoLa"
+
+                if BACKUP_FOLDER_ID != "ここにバックアップフォルダのIDを入力":
+                    try:
+                        backup_ws = sh.worksheet("バックアップ管理")
+                        last_backup = backup_ws.acell('A1').value
+                        
+                        # 現在の「年-週番号」を取得 (例: 2026-W14)
+                        from datetime import datetime
+                        now = datetime.now()
+                        current_week = f"{now.isocalendar()[0]}-W{now.isocalendar()[1]:02d}"
+                        
+                        # 今週まだバックアップを取っていなければ実行
+                        if last_backup != current_week:
+                            ts_str = now.strftime("%Y%m%d_%H%M%S")
+                            backup_name = f"EagleBowl_ROLLERS_{ts_str}"
+                            
+                            drive_service_write.files().copy(
+                                fileId=sheet_id,
+                                body={
+                                    'name': backup_name,
+                                    'parents': [BACKUP_FOLDER_ID]
+                                },
+                                supportsAllDrives=True
+                            ).execute()
+                            
+                            # 成功したらA1セルに今週の週番号を書き込んで記録を更新
+                            backup_ws.update_acell('A1', current_week)
+                            st.info(f"💾 今週の初回登録のため、スプレッドシートのバックアップ（{backup_name}）を作成しました。")
+                    except Exception as backup_e:
+                        st.warning(f"⚠️ バックアップ処理でエラーが発生しました（データの登録は続行します）: {backup_e}")
+                # ▲▲▲ ここまで ▲▲▲
+
                 # 【改良点】「プレイヤー設定」シートからメールアドレスのマッピングを自動取得する
                 player_email_map = {}
                 try:
