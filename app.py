@@ -3295,23 +3295,20 @@ if st.session_state.analyzed_results is None:
                 if str1 == 'X':
                     final_throws[f*2+1] = ""
                 else:
-                    if pink_inks[f] >= dyn_thresh_pink:
-                        final_throws[f*2+1] = "R:/"
-                        throw_colors[f*2+1] = COLOR_OPENCV
-                    else:
-                        curr_total = int(ai_frame_totals[f]) if str(ai_frame_totals[f]).isdigit() else 0
-                        prev_total = int(ai_frame_totals[f-1]) if f > 0 and str(ai_frame_totals[f-1]).isdigit() else 0
-                        diff = curr_total - prev_total
+                    # ★ OpenCVのおせっかいを完全削除し、AIの計算結果のみを信じる
+                    curr_total = int(ai_frame_totals[f]) if str(ai_frame_totals[f]).isdigit() else 0
+                    prev_total = int(ai_frame_totals[f-1]) if f > 0 and str(ai_frame_totals[f-1]).isdigit() else 0
+                    diff = curr_total - prev_total
 
-                        if diff >= 10:
-                            final_throws[f*2+1] = "R:/"
-                            throw_colors[f*2+1] = COLOR_AI
-                        else:
-                            v2 = diff - v1
-                            if v2 < 0: v2 = 0
-                            if v2 + v1 > 9: v2 = 9 - v1
-                            final_throws[f*2+1] = "R:-" if v2 == 0 else f"R:{v2}"
-                            throw_colors[f*2+1] = COLOR_AI
+                    if diff >= 10:
+                        final_throws[f*2+1] = "R:/"
+                        throw_colors[f*2+1] = COLOR_AI
+                    else:
+                        v2 = diff - v1
+                        if v2 < 0: v2 = 0
+                        if v2 + v1 > 9: v2 = 9 - v1
+                        final_throws[f*2+1] = "R:-" if v2 == 0 else f"R:{v2}"
+                        throw_colors[f*2+1] = COLOR_AI
 
             curr_total_10 = int(ai_frame_totals[9]) if str(ai_frame_totals[9]).isdigit() else 0
             prev_total_10 = int(ai_frame_totals[8]) if str(ai_frame_totals[8]).isdigit() else 0
@@ -3334,44 +3331,34 @@ if st.session_state.analyzed_results is None:
                     final_throws[20] = str3_10
                     throw_colors[20] = COLOR_OPENCV
                 else:
-                    if pink_inks['10_3'] >= dyn_thresh_pink:
+                    # ★ 10フレーム目も同様に削除
+                    if (diff_10 - 10) >= 10:
                         final_throws[20] = "R:/"
-                        throw_colors[20] = COLOR_OPENCV
-                    else:
-                        if (diff_10 - 10) >= 10:
-                            final_throws[20] = "R:/"
-                            throw_colors[20] = COLOR_AI
-                        else:
-                            v3_10 = diff_10 - 10 - v2_10
-                            if v3_10 < 0: v3_10 = 0
-                            if v3_10 + v2_10 > 9: v3_10 = 9 - v2_10
-                            final_throws[20] = "R:-" if v3_10 == 0 else f"R:{v3_10}"
-                            throw_colors[20] = COLOR_AI
-            else:
-                if pink_inks[9] >= dyn_thresh_pink:
-                    final_throws[19] = "R:/"
-                    throw_colors[19] = COLOR_OPENCV
-                    v3_10 = 10 - len(p10)
-                    str3_10 = 'X' if v3_10 == 10 else ('-' if v3_10 == 0 else str(v3_10))
-                    final_throws[20] = str3_10
-                    throw_colors[20] = COLOR_OPENCV
-                else:
-                    if diff_10 >= 10:
-                        final_throws[19] = "R:/"
-                        throw_colors[19] = COLOR_AI
-                        v3_10 = diff_10 - 10
-                        if v3_10 < 0: v3_10 = 0
-                        if v3_10 > 10: v3_10 = 10
-                        str3_10 = 'X' if v3_10 == 10 else ('-' if v3_10 == 0 else str(v3_10))
-                        final_throws[20] = f"R:{str3_10}" if str3_10 != 'X' else "R:X"
                         throw_colors[20] = COLOR_AI
                     else:
-                        v2_10 = diff_10 - v1_10
-                        if v2_10 < 0: v2_10 = 0
-                        if v2_10 + v1_10 > 9: v2_10 = 9 - v1_10
-                        final_throws[19] = "R:-" if v2_10 == 0 else f"R:{v2_10}"
-                        throw_colors[19] = COLOR_AI
-                        final_throws[20] = ""
+                        v3_10 = diff_10 - 10 - v2_10
+                        if v3_10 < 0: v3_10 = 0
+                        if v3_10 + v2_10 > 9: v3_10 = 9 - v2_10
+                        final_throws[20] = "R:-" if v3_10 == 0 else f"R:{v3_10}"
+                        throw_colors[20] = COLOR_AI
+            else:
+                # ★ 10フレーム目も同様に削除
+                if diff_10 >= 10:
+                    final_throws[19] = "R:/"
+                    throw_colors[19] = COLOR_AI
+                    v3_10 = diff_10 - 10
+                    if v3_10 < 0: v3_10 = 0
+                    if v3_10 > 10: v3_10 = 10
+                    str3_10 = 'X' if v3_10 == 10 else ('-' if v3_10 == 0 else str(v3_10))
+                    final_throws[20] = f"R:{str3_10}" if str3_10 != 'X' else "R:X"
+                    throw_colors[20] = COLOR_AI
+                else:
+                    v2_10 = diff_10 - v1_10
+                    if v2_10 < 0: v2_10 = 0
+                    if v2_10 + v1_10 > 9: v2_10 = 9 - v1_10
+                    final_throws[19] = "R:-" if v2_10 == 0 else f"R:{v2_10}"
+                    throw_colors[19] = COLOR_AI
+                    final_throws[20] = ""
 
             for t_idx, col_idx in enumerate(throw_cols):
                 row_data[col_idx] = final_throws[t_idx]
