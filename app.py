@@ -2677,6 +2677,31 @@ if app_mode == "データ比較":
     from datetime import datetime
     import re
 
+    # ▼ INITIATE ANALYSIS ボタンを目立たせる専用CSSを追加
+    st.markdown("""
+    <style>
+    /* "INITIATE ANALYSIS" というテキストを含むボタンをターゲットにして装飾 */
+    .stButton button:has(p:contains('INITIATE ANALYSIS')) {
+        background: linear-gradient(145deg, #bf953f, #aa771c) !important;
+        color: #1a1a1c !important;
+        font-size: 24px !important;
+        font-weight: 900 !important;
+        border: 2px solid #fcf6ba !important;
+        box-shadow: 0 0 15px rgba(191, 149, 63, 0.6) !important;
+        height: 70px !important;
+        border-radius: 12px !important;
+        letter-spacing: 2px !important;
+        transition: all 0.3s ease !important;
+    }
+    .stButton button:has(p:contains('INITIATE ANALYSIS')):hover {
+        background: linear-gradient(145deg, #fcf6ba, #bf953f) !important;
+        box-shadow: 0 0 25px rgba(191, 149, 63, 0.9) !important;
+        transform: translateY(-2px) !important;
+        color: #000 !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
     render_section_title("データ比較")
 
     with st.spinner("データベースに接続中... 高度解析エンジンを起動しています..."):
