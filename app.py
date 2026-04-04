@@ -2902,13 +2902,18 @@ if app_mode == "📈 データ比較":
         df[x_col] = df[x_col].replace("", "未設定")
 
         # プレイヤーごとの色分けとX軸でグループ化集計
-        grp_cols = [x_col, "player"]
-        grp_cols = list(dict.fromkeys(grp_cols)) # 重複除去
+        grp_cols = ["player"] if x_col == "player" else [x_col, "player"]
 
         res = []
         for grp_vals, pdf in df.groupby(grp_cols):
-            x_val = grp_vals[0] if isinstance(grp_vals, tuple) else grp_vals
-            p_val = grp_vals[1] if isinstance(grp_vals, tuple) else grp_vals
+            if x_col == "player":
+                # X軸がプレイヤーの場合はキーが1つになるための安全処理
+                val = grp_vals[0] if isinstance(grp_vals, tuple) else grp_vals
+                x_val = val
+                p_val = val
+            else:
+                x_val = grp_vals[0] if isinstance(grp_vals, tuple) else grp_vals
+                p_val = grp_vals[1] if isinstance(grp_vals, tuple) else grp_vals
             
             row_data = {x_col: x_val, "player": p_val, "ゲーム数": len(pdf)}
             if sel_graph == "レーダーチャート":
