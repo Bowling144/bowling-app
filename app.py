@@ -240,18 +240,25 @@ if app_mode == "🛢️ オイル情報入力":
     st.header("🛢️ オイル情報入力")
     st.markdown("ボウリング場のオイル長とオイル量を記録・登録します。")
     
-    # 修正機能（SPSリンクボタン）
+    # ① 修正機能（直接「オイル入力」シートを開くSPSリンクボタン）
     sh = get_gspread_client()
     if sh:
-        sheet_url = f"https://docs.google.com/spreadsheets/d/{sh.id}/edit"
-        st.link_button("✏️ オイル入力済みデータを修正する (SPSを展開)", sheet_url)
-        
-    # 日時のデフォルト値生成
-    from datetime import datetime, timedelta
+        try:
+            oil_sheet = sh.worksheet("オイル入力")
+            sheet_url = f"https://docs.google.com/spreadsheets/d/{sh.id}/edit#gid={oil_sheet.id}"
+            st.link_button("✏️ オイル入力済みデータを修正する (SPSを展開)", sheet_url)
+        except Exception as e:
+            st.error("SPSに「オイル入力」シートが見つかりません。")
+            
+    # ③ 日時のデフォルト値生成（現在時刻で初期化）
+    from datetime import datetime
+    now = datetime.now()
     if "oil_input_date" not in st.session_state:
-        st.session_state.oil_input_date = datetime.now().strftime("%y/%m/%d")
-    if "oil_input_time" not in st.session_state:
-        st.session_state.oil_input_time = (datetime.now() - timedelta(minutes=10)).strftime("%H:%M")
+        st.session_state.oil_input_date = now.strftime("%y/%m/%d")
+    if "oil_input_hour" not in st.session_state:
+        st.session_state.oil_input_hour = f"{now.hour:02d}"
+    if "oil_input_minute" not in st.session_state:
+        st.session_state.oil_input_minute = f"{now.minute:02d}"
         
     # 入力欄のセッション初期化
     for i in range(1, 19):
@@ -260,18 +267,16 @@ if app_mode == "🛢️ オイル情報入力":
         if f"oil_in_vol_{i}" not in st.session_state:
             st.session_state[f"oil_in_vol_{i}"] = ""
 
-    # 前回データコピー処理
+    # ④ 各種ボタンのコールバック関数
     def copy_latest_oil():
         oil_data = st.session_state.get("oil_data", [])
-        if not oil_data and sh: # データがまだ取得されていなければここで取得
+        if not oil_data and sh: 
             try:
-                oil_sheet = sh.worksheet("オイル入力")
-                oil_data_raw = oil_sheet.get_all_values()
+                oil_data_raw = sh.worksheet("オイル入力").get_all_values()
                 oil_data = oil_data_raw[2:] if len(oil_data_raw) > 2 else []
                 st.session_state.oil_data = oil_data
             except:
                 pass
-                
         if oil_data:
             latest = oil_data[-1]
             for i in range(1, 19):
@@ -279,17 +284,16 @@ if app_mode == "🛢️ オイル情報入力":
                 v_idx = i * 2 + 1
                 st.session_state[f"oil_in_len_{i}"] = latest[l_idx] if len(latest) > l_idx else ""
                 st.session_state[f"oil_in_vol_{i}"] = latest[v_idx] if len(latest) > v_idx else ""
-                
-    st.button("🔄 前回データをコピー (最新履歴)", on_click=copy_latest_oil)
-    
-    st.markdown("---")
-    col_date, col_time = st.columns(2)
-    with col_date:
-        st.text_input("日付 (YY/MM/DD)", key="oil_input_date")
-    with col_time:
-        st.text_input("時刻 (HH:MM)", key="oil_input_time")
-        
-    # ここまで同じボタンの処理（直近の入力済みレーンからコピー）
+
+    def clear_all():
+        for i in range(1, 19):
+            st.session_state[f"oil_in_len_{i}"] = ""
+            st.session_state[f"oil_in_vol_{i}"] = ""
+
+    def clear_lane(lane):
+        st.session_state[f"oil_in_len_{lane}"] = ""
+        st.session_state[f"oil_in_vol_{lane}"] = ""
+
     def fill_same_as_above(target_lane):
         source_lane = None
         for i in range(target_lane - 1, 0, -1):
@@ -303,42 +307,100 @@ if app_mode == "🛢️ オイル情報入力":
                 st.session_state[f"oil_in_len_{i}"] = src_len
                 st.session_state[f"oil_in_vol_{i}"] = src_vol
 
+    # 上部コントロールパネル（前回コピー ＆ ④オールクリア）
+    c_btn1, c_btn2 = st.columns(2)
+    with c_btn1:
+        st.button("🔄 前回データをコピー (最新履歴)", on_click=copy_latest_oil, use_container_width=True)
+    with c_btn2:
+        st.button("🗑️ オールクリア", on_click=clear_all, type="secondary", use_container_width=True)
+    
+    st.markdown("---")
+    
+    # ③ 日時をセレクトボックスで選択（0-24時、00-59分）
+    st.markdown("<div style='color: silver; font-weight: bold; margin-bottom: 5px;'>📅 日時設定</div>", unsafe_allow_html=True)
+    c_date, c_hour, c_min, c_dummy = st.columns([2, 1, 1, 2])
+    with c_date:
+        st.text_input("日付 (YY/MM/DD)", key="oil_input_date")
+    with c_hour:
+        hours = [f"{i:02d}" for i in range(24)]
+        st.selectbox("時", hours, key="oil_input_hour")
+    with c_min:
+        minutes = [f"{i:02d}" for i in range(60)]
+        st.selectbox("分", minutes, key="oil_input_minute")
+        
     st.markdown("### 🎳 各レーンのオイル設定")
-    c1, c2 = st.columns(2) # パソコン用に左右2列分割
-    for i in range(1, 19):
-        col = c1 if i <= 9 else c2
-        with col:
-            st.markdown(f"**{i} レーン**")
-            col_len, col_vol, col_btn = st.columns([1.5, 1.5, 1.2])
-            with col_len:
-                st.text_input("長さ(整数)", key=f"oil_in_len_{i}", label_visibility="collapsed", placeholder="長さ")
-            with col_vol:
-                st.text_input("量(小数)", key=f"oil_in_vol_{i}", label_visibility="collapsed", placeholder="量")
-            with col_btn:
+    
+    # ⑤ 画面を横並び9列でスタイリッシュに見せるための専用CSS
+    st.markdown("""
+    <style>
+    div[data-testid="column"] { padding: 0 4px !important; }
+    div[data-testid="column"] input { text-align: center; font-size: 14px !important; padding: 4px !important; }
+    div[data-testid="column"] button { padding: 2px 0px !important; font-size: 11px !important; min-height: 26px !important; margin-top: 2px !important; }
+    .lane-title { text-align:center; font-weight:900; font-size:16px; color:#c9a44e; margin-bottom:4px; border-bottom: 1px solid #c9a44e; }
+    .input-label { text-align:center; font-size:11px; color:silver; margin-bottom:2px; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # ⑤ 1〜9レーン、10〜18レーンを横並びにするレイアウト関数
+    def render_lane_block(start_lane, end_lane):
+        cols = st.columns(9)
+        for i in range(start_lane, end_lane + 1):
+            idx = i - start_lane
+            with cols[idx]:
+                st.markdown(f"<div class='lane-title'>{i}L</div>", unsafe_allow_html=True)
+                st.markdown("<div class='input-label'>長さ(ft)</div>", unsafe_allow_html=True)
+                # ② 単位表記と入力文字数制限（整数2桁）
+                st.text_input(f"{i}L長さ", key=f"oil_in_len_{i}", label_visibility="collapsed", placeholder="ft", max_chars=2)
+                
+                st.markdown("<div class='input-label'>量(ml)</div>", unsafe_allow_html=True)
+                # ② 単位表記と入力文字数制限（小数込4桁：例 25.5）
+                st.text_input(f"{i}L量", key=f"oil_in_vol_{i}", label_visibility="collapsed", placeholder="ml", max_chars=4)
+                
                 if i > 1:
-                    st.button("ここまで同じ", key=f"btn_same_{i}", on_click=fill_same_as_above, args=(i,))
+                    st.button("ここまで同じ", key=f"btn_same_{i}", on_click=fill_same_as_above, args=(i,), use_container_width=True)
+                else:
+                    st.markdown("<div style='height: 30px;'></div>", unsafe_allow_html=True) # 1Lのズレ防止用
+                    
+                # ④ 個別のクリアボタン
+                st.button("クリア", key=f"btn_clear_{i}", on_click=clear_lane, args=(i,), type="secondary", use_container_width=True)
+
+    # 1〜9レーンの描画
+    st.markdown("<div style='background: #1c1c1e; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #333;'>", unsafe_allow_html=True)
+    render_lane_block(1, 9)
+    st.markdown("</div>", unsafe_allow_html=True)
+    
+    # 10〜18レーンの描画
+    st.markdown("<div style='background: #1c1c1e; padding: 15px; border-radius: 8px; border: 1px solid #333;'>", unsafe_allow_html=True)
+    render_lane_block(10, 18)
+    st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("---")
+    
+    # 登録処理
     if st.button("📝 オイル情報を登録する", type="primary", use_container_width=True):
         error_msg = ""
-        row_to_add = [st.session_state.oil_input_date, st.session_state.oil_input_time]
+        oil_time = f"{st.session_state.oil_input_hour}:{st.session_state.oil_input_minute}"
+        row_to_add = [st.session_state.oil_input_date, oil_time]
         
-        # 入力値の取得とバリデーション
+        # ② 入力値の取得とバリデーション（長さは整数2桁、量は小数第1位）
         for i in range(1, 19):
             l_val = str(st.session_state[f"oil_in_len_{i}"]).strip()
             v_val = str(st.session_state[f"oil_in_vol_{i}"]).strip()
             
             if l_val:
                 try:
-                    l_val = str(int(float(l_val))) # 整数化
+                    l_int = int(float(l_val))
+                    if not (0 <= l_int <= 99): raise ValueError
+                    l_val = str(l_int)
                 except:
-                    error_msg = f"{i}レーンの長さは整数で入力してください。"
+                    error_msg = f"{i}レーンの「長さ」は2桁までの整数で入力してください。"
                     break
             if v_val:
                 try:
-                    v_val = f"{float(v_val):.1f}" # 小数第1位にフォーマット
+                    v_float = float(v_val)
+                    v_val = f"{v_float:.1f}"
                 except:
-                    error_msg = f"{i}レーンの量は数値で入力してください。"
+                    error_msg = f"{i}レーンの「量」は数値で入力してください。"
                     break
                     
             row_to_add.extend([l_val, v_val])
