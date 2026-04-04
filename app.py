@@ -2677,11 +2677,12 @@ if app_mode == "データ比較":
     from datetime import datetime
     import re
 
-    # ▼ INITIATE ANALYSIS ボタンを目立たせる専用CSSを追加
+    # ▼ INITIATE ANALYSIS ボタンを目立たせる専用CSS
     st.markdown("""
     <style>
-    /* "INITIATE ANALYSIS" というテキストを含むボタンをターゲットにして装飾 */
-    .stButton button:has(p:contains('INITIATE ANALYSIS')) {
+    /* initiate-marker を含んだコンテナの「次のコンテナ」にあるボタンを装飾 */
+    div[data-testid="stElementContainer"]:has(.initiate-marker) + div[data-testid="stElementContainer"] button,
+    div.element-container:has(.initiate-marker) + div.element-container button {
         background: linear-gradient(145deg, #bf953f, #aa771c) !important;
         color: #1a1a1c !important;
         font-size: 24px !important;
@@ -2693,7 +2694,8 @@ if app_mode == "データ比較":
         letter-spacing: 2px !important;
         transition: all 0.3s ease !important;
     }
-    .stButton button:has(p:contains('INITIATE ANALYSIS')):hover {
+    div[data-testid="stElementContainer"]:has(.initiate-marker) + div[data-testid="stElementContainer"] button:hover,
+    div.element-container:has(.initiate-marker) + div.element-container button:hover {
         background: linear-gradient(145deg, #fcf6ba, #bf953f) !important;
         box-shadow: 0 0 25px rgba(191, 149, 63, 0.9) !important;
         transform: translateY(-2px) !important;
@@ -2980,6 +2982,9 @@ if app_mode == "データ比較":
             sel_xaxis = st.selectbox("X軸 (横軸・グループ化の基準)", list(X_AXIS_OPTIONS.keys()))
         with col_a2:
             sel_yaxis = st.selectbox("Y軸 (縦軸・比較するデータ)", list(Y_METRICS.keys()))
+
+    # ▼ ここに追加：ボタンを狙い撃ちするための見えないマーカー
+    st.markdown("<div class='initiate-marker' style='display: none;'></div>", unsafe_allow_html=True)
 
     if st.button("INITIATE ANALYSIS", type="primary", use_container_width=True):
         df = raw_df[raw_df["player"].isin(sel_players)]
