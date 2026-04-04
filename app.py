@@ -2639,7 +2639,30 @@ if app_mode == "📈 データ比較":
                 date_str = str(row[2]).strip()
                 score = int(row[52])
                 parts = date_str.split('/')
-                month_key = f"{parts[0]}/{parts[1]}" if len(parts) >= 2 else "不明"
+                
+                # ▼ 修正：月別キーを「YYYY/MM」の形式にゼロ埋めし、文字列ソートでも確実に時系列順になるよう統一
+                if len(parts) >= 2:
+                    y_str = parts[0][-2:] if len(parts[0]) >= 2 else parts[0].zfill(2)
+                    y_full = f"20{y_str}"
+                    m_full = parts[1].zfill(2)
+                    month_key = f"{y_full}/{m_full}"
+                else:
+                    month_key = "不明"
+
+                # ▼ 修正：日付データ自体も厳密にパースし、エラーでスキップされるのを防ぐ
+                dt_val = pd.NaT
+                if len(parts) >= 3:
+                    try:
+                        d_full = parts[2].zfill(2)
+                        t_str = str(row[3]).strip() if len(row) > 3 else "00:00"
+                        if not t_str: t_str = "00:00"
+                        if len(t_str.split(':')) == 2:
+                            dt_val = datetime.strptime(f"{y_str}/{m_full}/{d_full} {t_str}", "%y/%m/%d %H:%M")
+                        else:
+                            dt_val = datetime.strptime(f"{y_str}/{m_full}/{d_full}", "%y/%m/%d")
+                    except:
+                        pass
+                
                 cond1 = str(row[55]).strip() if len(row) > 55 else ""
                 cond2 = str(row[56]).strip() if len(row) > 56 else ""
                 cond3 = str(row[57]).strip() if len(row) > 57 else ""
@@ -2733,7 +2756,7 @@ if app_mode == "📈 データ比較":
 
                 parsed_row = {
                     "player": row[1],
-                    "datetime": datetime.strptime(f"{date_str} {row[3]}", "%y/%m/%d %H:%M") if len(parts)==3 else pd.NaT,
+                    "datetime": dt_val, # 文字列ではなく、パース済みの厳密な日時
                     "month_key": month_key, "score": score, "max_strike_streak": max_streak,
                     "st_c": st_c, "st_s": st_s, "sp_c": sp_c, "sp_s": sp_s,
                     "pin7_c": pin7_c, "pin7_s": pin7_s, "pin10_c": pin10_c, "pin10_s": pin10_s,
@@ -2754,7 +2777,8 @@ if app_mode == "📈 データ比較":
     raw_df = pd.DataFrame(parse_master_data(master_data_raw))
 
     if not raw_df.empty:
-        raw_df = raw_df.sort_values("datetime")
+        # datetimeが正常にパースされたもののみで事前ソート
+        raw_df = raw_df.dropna(subset=["datetime"]).sort_values("datetime", ascending=True)
         raw_df["game_num"] = raw_df.groupby("player").cumcount() + 1
         raw_df["rating"] = raw_df.groupby("player")["score"].transform(
             lambda x: x.rolling(window=50, min_periods=1).apply(lambda s: calc_rt_val(s.dropna().tolist()), raw=False)
@@ -2908,6 +2932,7 @@ if app_mode == "📈 データ比較":
                 st.plotly_chart(fig, use_container_width=True)
                 
             elif sel_graph == "折れ線グラフ":
+                # 必ずX軸の値でソートしてから描画することで時系列の交差を防ぐ
                 res_df = res_df.sort_values(x_col)
                 fig = px.line(res_df, x=x_col, y=sel_yaxis, color="player", markers=True)
                 fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
