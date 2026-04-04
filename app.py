@@ -2605,25 +2605,19 @@ if app_mode == "📈 データ比較":
 
     st.header("📈 データ比較ダッシュボード")
 
-    # データ取得（スピナー表示）
     with st.spinner("比較用データを取得・解析中..."):
         try:
             sh = get_gspread_client()
             if not sh:
                 st.error("データベースに接続できません。")
                 st.stop()
-            
             master_data_raw = sh.worksheet("マスター").get_all_values()
-            
-            # プレイヤー一覧取得
             settings_data = sh.worksheet("プレイヤー設定").get_all_values()
             all_players = [row[1] for row in settings_data[1:] if len(row) >= 2 and row[1]]
-            
         except Exception as e:
             st.error(f"データ取得エラー: {e}")
             st.stop()
 
-    # ▼ ダーツライブ風レーティング計算ロジック（データ比較用）
     def calc_rt_val(scores):
         if not scores: return 0.0
         a = sum(scores) / len(scores)
@@ -2636,19 +2630,16 @@ if app_mode == "📈 データ比較":
         else: rt = a / 95
         return round(max(1.0, rt), 2)
 
-    # ▼ マスターデータから毎フレームの全統計を抽出
     def parse_master_data(data):
         parsed = []
         for row in data[1:]:
             if len(row) < 53 or not row[1]: continue
-            if len(row) > 54 and str(row[54]).strip().upper() == "TRUE": continue # 7-10G除外
-            
+            if len(row) > 54 and str(row[54]).strip().upper() == "TRUE": continue
             try:
                 date_str = str(row[2]).strip()
                 score = int(row[52])
                 parts = date_str.split('/')
                 month_key = f"{parts[0]}/{parts[1]}" if len(parts) >= 2 else "不明"
-                
                 cond1 = str(row[55]).strip() if len(row) > 55 else ""
                 cond2 = str(row[56]).strip() if len(row) > 56 else ""
                 cond3 = str(row[57]).strip() if len(row) > 57 else ""
@@ -2662,39 +2653,26 @@ if app_mode == "📈 データ比較":
                 split_c = 0; split_s = 0
                 open_frames = 0
                 pin_left = {str(i): 0 for i in range(1, 11)}
-                
-                first_pitch_pins = 0
-                first_pitch_count = 0
-                no_head = 0
-                game_seq = [] # ストライク連続計算用
+                first_pitch_pins = 0; first_pitch_count = 0; no_head = 0
+                game_seq = []
 
                 def clean_res(v): return str(v).strip().upper()
                 def get_pins(p_str): return [str(p) for p in re.findall(r'\d+', str(p_str)) if 1 <= int(p) <= 10]
                 
-                # 1-9F
                 for f in range(9):
-                    res1 = clean_res(row[10+f*4])
-                    pin1 = str(row[11+f*4])
-                    res2 = clean_res(row[12+f*4])
-                    
-                    st_c += 1
-                    first_pitch_count += 1
+                    res1 = clean_res(row[10+f*4]); pin1 = str(row[11+f*4]); res2 = clean_res(row[12+f*4])
+                    st_c += 1; first_pitch_count += 1
                     if "X" in res1:
-                        st_s += 1
-                        first_pitch_pins += 10
-                        game_seq.append("X")
+                        st_s += 1; first_pitch_pins += 10; game_seq.append("X")
                     else:
-                        sp_c += 1
-                        game_seq.append("-")
+                        sp_c += 1; game_seq.append("-")
                         left_arr = get_pins(pin1)
                         first_pitch_pins += (10 - len(left_arr))
                         if "1" in left_arr: no_head += 1
-                        
                         for p in left_arr: pin_left[p] += 1
                         if "7" in left_arr and len(left_arr) == 1: pin7_c += 1
                         if "10" in left_arr and len(left_arr) == 1: pin10_c += 1
                         if len(left_arr) >= 2: split_c += 1
-                        
                         if "/" in res2:
                             sp_s += 1
                             if "7" in left_arr and len(left_arr) == 1: pin7_s += 1
@@ -2703,73 +2681,49 @@ if app_mode == "📈 データ比較":
                         else:
                             open_frames += 1
 
-                # 10F
-                r10_1 = clean_res(row[46]) if len(row)>46 else ""
-                p10_1 = str(row[47]) if len(row)>47 else ""
-                r10_2 = clean_res(row[48]) if len(row)>48 else ""
-                p10_2 = str(row[49]) if len(row)>49 else ""
-                r10_3 = clean_res(row[50]) if len(row)>50 else ""
-                p10_3 = str(row[51]) if len(row)>51 else ""
+                r10_1 = clean_res(row[46]) if len(row)>46 else ""; p10_1 = str(row[47]) if len(row)>47 else ""
+                r10_2 = clean_res(row[48]) if len(row)>48 else ""; p10_2 = str(row[49]) if len(row)>49 else ""
+                r10_3 = clean_res(row[50]) if len(row)>50 else ""; p10_3 = str(row[51]) if len(row)>51 else ""
 
-                # 10F 1投目
-                st_c += 1
-                first_pitch_count += 1
+                st_c += 1; first_pitch_count += 1
                 if "X" in r10_1:
-                    st_s += 1
-                    first_pitch_pins += 10
-                    game_seq.append("X")
-                    # 10F 2投目 (1投目Xの場合)
+                    st_s += 1; first_pitch_pins += 10; game_seq.append("X")
                     st_c += 1
                     if "X" in r10_2:
-                        st_s += 1
-                        game_seq.append("X")
-                        # 10F 3投目 (1,2投目Xの場合)
+                        st_s += 1; game_seq.append("X")
                         st_c += 1
-                        if "X" in r10_3:
-                            st_s += 1
-                            game_seq.append("X")
+                        if "X" in r10_3: st_s += 1; game_seq.append("X")
                         else:
                             game_seq.append("-")
                             for p in get_pins(p10_3): pin_left[p] += 1
                             if r10_3 != "/": open_frames += 1
                     else:
-                        sp_c += 1
-                        game_seq.append("-")
+                        sp_c += 1; game_seq.append("-")
                         left_arr = get_pins(p10_2)
                         for p in left_arr: pin_left[p] += 1
                         if "/" in r10_3: sp_s += 1
                         else: open_frames += 1
                 else:
-                    sp_c += 1
-                    game_seq.append("-")
+                    sp_c += 1; game_seq.append("-")
                     left_arr = get_pins(p10_1)
                     first_pitch_pins += (10 - len(left_arr))
                     if "1" in left_arr: no_head += 1
                     for p in left_arr: pin_left[p] += 1
-                    
                     if "/" in r10_2:
-                        sp_s += 1
-                        st_c += 1
-                        if "X" in r10_3: 
-                            st_s += 1
-                            game_seq.append("X")
+                        sp_s += 1; st_c += 1
+                        if "X" in r10_3: st_s += 1; game_seq.append("X")
                         else:
                             game_seq.append("-")
                             for p in get_pins(p10_3): pin_left[p] += 1
                     else:
                         open_frames += 1
 
-                # ダブル・ターキー計算・最大ストライク記録
-                db_c = 0; db_s = 0; tk_c = 0; tk_s = 0
-                current_streak = 0
-                max_streak = 0
+                db_c = 0; db_s = 0; tk_c = 0; tk_s = 0; current_streak = 0; max_streak = 0
                 for i in range(len(game_seq)):
                     if game_seq[i] == "X":
                         current_streak += 1
                         if current_streak > max_streak: max_streak = current_streak
-                    else:
-                        current_streak = 0
-
+                    else: current_streak = 0
                     if i > 1 and game_seq[i-1] == "X" and game_seq[i-2] == "X":
                         db_c += 1
                         if game_seq[i] == "X": db_s += 1
@@ -2780,45 +2734,31 @@ if app_mode == "📈 データ比較":
                 parsed_row = {
                     "player": row[1],
                     "datetime": datetime.strptime(f"{date_str} {row[3]}", "%y/%m/%d %H:%M") if len(parts)==3 else pd.NaT,
-                    "month_key": month_key,
-                    "score": score,
-                    "max_strike_streak": max_streak,
+                    "month_key": month_key, "score": score, "max_strike_streak": max_streak,
                     "st_c": st_c, "st_s": st_s, "sp_c": sp_c, "sp_s": sp_s,
                     "pin7_c": pin7_c, "pin7_s": pin7_s, "pin10_c": pin10_c, "pin10_s": pin10_s,
                     "split_c": split_c, "split_s": split_s,
-                    "open_frames": open_frames,
-                    "is_nomiss": 1 if open_frames == 0 else 0,
-                    "up200": 1 if score >= 200 else 0,
-                    "up225": 1 if score >= 225 else 0,
-                    "up250": 1 if score >= 250 else 0,
-                    "first_pitch_pins": first_pitch_pins,
-                    "first_pitch_count": first_pitch_count,
-                    "no_head": no_head,
+                    "open_frames": open_frames, "is_nomiss": 1 if open_frames == 0 else 0,
+                    "up200": 1 if score >= 200 else 0, "up225": 1 if score >= 225 else 0, "up250": 1 if score >= 250 else 0,
+                    "first_pitch_pins": first_pitch_pins, "first_pitch_count": first_pitch_count, "no_head": no_head,
                     "db_c": db_c, "db_s": db_s, "tk_c": tk_c, "tk_s": tk_s,
                     "cond1": cond1, "cond2": cond2, "cond3": cond3,
                     "ball": ball, "lane": lane, "oil_len": oil_len, "oil_vol": oil_vol
                 }
-                for i in range(1, 11):
-                    parsed_row[f"pin{i}_left"] = pin_left[str(i)]
-                
+                for i in range(1, 11): parsed_row[f"pin{i}_left"] = pin_left[str(i)]
                 parsed.append(parsed_row)
             except Exception:
                 pass
         return parsed
 
-    parsed_data = parse_master_data(master_data_raw)
-    raw_df = pd.DataFrame(parsed_data)
+    raw_df = pd.DataFrame(parse_master_data(master_data_raw))
 
-    # 1ゲーム単位の推移用データ（折れ線グラフ用）を事前計算
     if not raw_df.empty:
-        # 古い順にソート（レーティングのローリング計算のため必須）
         raw_df = raw_df.sort_values("datetime")
-        
-        # ▼ レーティング推移の計算：プレイヤーごとに直近50Gのスコア履歴から算出
+        raw_df["game_num"] = raw_df.groupby("player").cumcount() + 1
         raw_df["rating"] = raw_df.groupby("player")["score"].transform(
             lambda x: x.rolling(window=50, min_periods=1).apply(lambda s: calc_rt_val(s.dropna().tolist()), raw=False)
         )
-
         def safe_div(a, b): return (a / b * 100) if b > 0 else 0
         raw_df["st_rate"] = raw_df.apply(lambda r: safe_div(r["st_s"], r["st_c"]), axis=1)
         raw_df["sp_rate"] = raw_df.apply(lambda r: safe_div(r["sp_s"], r["sp_c"]), axis=1)
@@ -2831,10 +2771,8 @@ if app_mode == "📈 データ比較":
         raw_df["split_make_rate"] = raw_df.apply(lambda r: safe_div(r["split_s"], r["split_c"]), axis=1)
         raw_df["pin7_rate"] = raw_df.apply(lambda r: safe_div(r["pin7_s"], r["pin7_c"]), axis=1)
         raw_df["pin10_rate"] = raw_df.apply(lambda r: safe_div(r["pin10_s"], r["pin10_c"]), axis=1)
-        for i in range(1, 11):
-            raw_df[f"pin{i}_left_rate"] = raw_df.apply(lambda r, p=i: safe_div(r[f"pin{p}_left"], r["st_c"]), axis=1)
+        for i in range(1, 11): raw_df[f"pin{i}_left_rate"] = raw_df.apply(lambda r, p=i: safe_div(r[f"pin{p}_left"], r["st_c"]), axis=1)
 
-    # ▼ Y軸（全項目）の定義: 「集計用関数(agg)」と「時系列プロット用カラム名(col)」をセットで管理
     Y_METRICS = {
         "レーティング": {"agg": lambda df: calc_rt_val(df.sort_values("datetime")["score"].tail(50).tolist()), "col": "rating"},
         "スコア (アベレージ)": {"agg": lambda df: df["score"].mean(), "col": "score"},
@@ -2861,15 +2799,12 @@ if app_mode == "📈 データ比較":
         "250UP達成率 (%)": {"agg": lambda df: (df["up250"].sum() / len(df) * 100) if len(df) > 0 else 0, "col": "up250"},
     }
     for i in range(1, 11):
-        Y_METRICS[f"{i}番ピン 残存率 (%)"] = {
-            "agg": lambda df, p=i: (df[f"pin{p}_left"].sum() / df["st_c"].sum() * 100) if df["st_c"].sum() > 0 else 0,
-            "col": f"pin{i}_left_rate"
-        }
+        Y_METRICS[f"{i}番ピン 残存率 (%)"] = {"agg": lambda df, p=i: (df[f"pin{p}_left"].sum() / df["st_c"].sum() * 100) if df["st_c"].sum() > 0 else 0, "col": f"pin{i}_left_rate"}
 
-    # ▼ X軸の選択肢（パーソナル比較用）
     X_AXIS_OPTIONS = {
+        "👥 プレイヤー": "player",
+        "📈 ゲーム順 (時系列)": "game_num",
         "📊 月別推移 (YYYY/MM)": "month_key",
-        "📈 1ゲームごとの推移 (ゲーム順)": "game_num",
         "🔖 個別条件1 (大会名等)": "cond1",
         "🔖 個別条件2 (投球フォーム等)": "cond2",
         "🔖 個別条件3 (団体名等)": "cond3",
@@ -2879,223 +2814,129 @@ if app_mode == "📈 データ比較":
         "💧 オイル量 (ml)": "oil_vol"
     }
 
-    def apply_period_filter(df, period_type, start_date, end_date, recent_g, player_col="player"):
-        if df.empty: return df
+    st.markdown("<div style='color: #c9a44e; font-weight: bold; border-bottom: 1px solid #444; margin-bottom: 10px; font-size: 1.2rem;'>① データを抽出 (フィルター)</div>", unsafe_allow_html=True)
+    col_f1, col_f2 = st.columns(2)
+    with col_f1:
+        sel_players = st.multiselect("対象プレイヤー (複数選択可)", all_players, default=all_players[:1] if all_players else [])
+    with col_f2:
+        period_type = st.radio("期間指定", ["🕒 直近〇ゲーム", "📅 カレンダー指定"], horizontal=True)
         if period_type == "📅 カレンダー指定":
-            if start_date: df = df[df["datetime"].dt.date >= start_date]
-            if end_date: df = df[df["datetime"].dt.date <= end_date]
+            c_d1, c_d2 = st.columns(2)
+            with c_d1: start_d = st.date_input("開始日", value=None)
+            with c_d2: end_d = st.date_input("終了日", value=None)
+            recent_g = 0
         else:
-            df = df.sort_values("datetime", ascending=False).groupby(player_col).head(recent_g)
-        return df
+            recent_g = st.number_input("直近ゲーム数", min_value=1, max_value=1000, value=50, step=10)
+            start_d = end_d = None
 
-    tab_player, tab_personal = st.tabs(["👥 プレイヤー比較", "👤 パーソナル比較"])
-
-    # ==========================================
-    # 👥 プレイヤー比較タブ
-    # ==========================================
-    with tab_player:
-        st.subheader("👥 プレイヤー同士の比較")
-        
-        st.markdown("<div style='color: #c9a44e; font-weight: bold; border-bottom: 1px solid #444; margin-bottom: 10px;'>1️⃣ フィルター設定</div>", unsafe_allow_html=True)
-        col_f1, col_f2 = st.columns(2)
-        with col_f1:
-            sel_players = st.multiselect("対象プレイヤー", all_players, default=all_players[:2] if len(all_players)>=2 else all_players)
-        with col_f2:
-            period_type_pl = st.radio("期間指定", ["🕒 直近〇ゲーム", "📅 カレンダー指定"], key="ptype_pl", horizontal=True)
-            if period_type_pl == "📅 カレンダー指定":
-                c_d1, c_d2 = st.columns(2)
-                with c_d1: start_d_pl = st.date_input("開始日", key="start_pl", value=None)
-                with c_d2: end_d_pl = st.date_input("終了日", key="end_pl", value=None)
-                recent_g_pl = 0
-            else:
-                recent_g_pl = st.number_input("直近ゲーム数", min_value=1, max_value=1000, value=50, step=10, key="recent_pl")
-                start_d_pl = end_d_pl = None
-
-        st.markdown("<div style='color: #c9a44e; font-weight: bold; border-bottom: 1px solid #444; margin-bottom: 10px; margin-top: 15px;'>2️⃣ グラフ・軸設定</div>", unsafe_allow_html=True)
-        col_g1, col_g2 = st.columns(2)
-        with col_g1:
-            sel_graph_pl = st.selectbox("表示するグラフ・表", ["棒グラフ (集計)", "折れ線グラフ (時系列)", "レーダーチャート (集計)", "分布図 (時系列)", "データ表 (集計)"], key="graph_pl")
-        with col_g2:
-            if "レーダー" in sel_graph_pl:
-                sel_metric_pl_multi = st.multiselect("比較するデータ (複数選択)", list(Y_METRICS.keys()), default=["スコア (アベレージ)", "ストライク率 (%)", "スペア率 (%)", "ノーミス率 (%)"], key="metric_pl_multi")
-                sel_metric_pl = None
-            else:
-                sel_metric_pl = st.selectbox("比較するデータ (Y軸)", list(Y_METRICS.keys()), key="metric_pl")
-                sel_metric_pl_multi = None
-
-        if st.button("📊 プレイヤー比較を実行", type="primary", use_container_width=True):
-            df = raw_df[raw_df["player"].isin(sel_players)]
-            df = apply_period_filter(df, period_type_pl, start_d_pl, end_d_pl, recent_g_pl)
-
-            if df.empty:
-                st.warning("指定された条件のデータがありません。")
-            else:
-                st.markdown("<hr>", unsafe_allow_html=True)
-
-                if "集計" in sel_graph_pl or "レーダー" in sel_graph_pl:
-                    # 集計処理
-                    res = []
-                    for p in sel_players:
-                        pdf = df[df["player"] == p]
-                        if pdf.empty: continue
-                        row_data = {"プレイヤー": p, "ゲーム数": len(pdf)}
-                        if sel_metric_pl_multi:
-                            for m_key in sel_metric_pl_multi: row_data[m_key] = Y_METRICS[m_key]["agg"](pdf)
-                        else:
-                            row_data[sel_metric_pl] = Y_METRICS[sel_metric_pl]["agg"](pdf)
-                        res.append(row_data)
-                    res_df = pd.DataFrame(res)
-
-                    if "データ表" in sel_graph_pl:
-                        st.dataframe(res_df.style.format(precision=1), use_container_width=True)
-                    elif "棒グラフ" in sel_graph_pl:
-                        fig = px.bar(res_df, x="プレイヤー", y=sel_metric_pl, text_auto='.1f', color="プレイヤー", color_discrete_sequence=px.colors.qualitative.Pastel)
-                        fig.update_layout(title=f"{sel_metric_pl} の比較", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
-                        st.plotly_chart(fig, use_container_width=True)
-                    elif "レーダー" in sel_graph_pl:
-                        if not sel_metric_pl_multi:
-                            st.warning("比較するデータを1つ以上選択してください。")
-                        else:
-                            fig = go.Figure()
-                            for idx, row in res_df.iterrows():
-                                vals = []
-                                for cat in sel_metric_pl_multi:
-                                    max_v = res_df[cat].max()
-                                    vals.append((row[cat] / max_v * 100) if max_v > 0 else 0)
-                                fig.add_trace(go.Scatterpolar(r=vals + [vals[0]], theta=sel_metric_pl_multi + [sel_metric_pl_multi[0]], fill='toself', name=row["プレイヤー"]))
-                            fig.update_layout(polar=dict(radialaxis=dict(visible=False)), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
-                            st.plotly_chart(fig, use_container_width=True)
-
-                elif "時系列" in sel_graph_pl:
-                    # 時系列プロット処理
-                    df_line = df.dropna(subset=["datetime"]).sort_values("datetime")
-                    # プレイヤーごとに古い順でゲーム数(1, 2, 3...)を振る
-                    df_line["game_num"] = df_line.groupby("player").cumcount() + 1
-                    y_col = Y_METRICS[sel_metric_pl]["col"]
-                    
-                    if df_line.empty:
-                        st.warning("有効な日時データがないため表示できません。")
-                    else:
-                        if "折れ線" in sel_graph_pl:
-                            fig = px.line(df_line, x="game_num", y=y_col, color="player", markers=True, labels={"game_num": "ゲーム数"})
-                            fig.update_layout(title=f"{sel_metric_pl} の推移 (ゲーム順)", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
-                            st.plotly_chart(fig, use_container_width=True)
-                        elif "分布図" in sel_graph_pl:
-                            fig = px.scatter(df_line, x="game_num", y=y_col, color="player", opacity=0.7, labels={"game_num": "ゲーム数"})
-                            fig.update_layout(title=f"{sel_metric_pl} の分布 (ゲーム順)", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
-                            st.plotly_chart(fig, use_container_width=True)
-
-    # ==========================================
-    # 👤 パーソナル比較タブ
-    # ==========================================
-    with tab_personal:
-        st.subheader("👤 パーソナル詳細比較")
-
-        st.markdown("<div style='color: #c9a44e; font-weight: bold; border-bottom: 1px solid #444; margin-bottom: 10px;'>1️⃣ フィルター設定 (対象の絞り込み)</div>", unsafe_allow_html=True)
-        col_p1, col_p2 = st.columns(2)
-        with col_p1:
-            sel_target_player = st.selectbox("対象プレイヤー", all_players, key="tgt_player")
-        with col_p2:
-            period_type_ps = st.radio("期間指定", ["🕒 直近〇ゲーム", "📅 カレンダー指定"], key="ptype_ps", horizontal=True)
-            if period_type_ps == "📅 カレンダー指定":
-                c_d3, c_d4 = st.columns(2)
-                with c_d3: start_d_ps = st.date_input("開始日", key="start_ps", value=None)
-                with c_d4: end_d_ps = st.date_input("終了日", key="end_ps", value=None)
-                recent_g_ps = 0
-            else:
-                recent_g_ps = st.number_input("直近ゲーム数", min_value=1, max_value=1000, value=50, step=10, key="recent_ps")
-                start_d_ps = end_d_ps = None
-        
-        filter_col_name = st.selectbox("さらに特定の条件で絞り込む (任意)", ["選択しない"] + list(X_AXIS_OPTIONS.keys())[2:], key="filter_ps")
+    filter_opts = {k: v for k, v in X_AXIS_OPTIONS.items() if v not in ["player", "game_num"]}
+    col_f3, col_f4 = st.columns(2)
+    with col_f3:
+        filter_col_name = st.selectbox("追加フィルター (特定の条件のみ抽出する場合)", ["選択しない"] + list(filter_opts.keys()))
+    with col_f4:
         filter_val = None
         if filter_col_name != "選択しない":
-            temp_df = raw_df[raw_df["player"] == sel_target_player]
-            target_field = X_AXIS_OPTIONS[filter_col_name]
-            unique_vals = [v for v in temp_df[target_field].unique() if str(v).strip() != ""]
+            target_field = filter_opts[filter_col_name]
+            unique_vals = [v for v in raw_df[target_field].unique() if str(v).strip() != ""]
             if unique_vals:
-                filter_val = st.selectbox(f"「{filter_col_name}」の絞り込み対象", unique_vals, key="filter_val_ps")
+                filter_val = st.selectbox(f"「{filter_col_name}」の絞り込み値", unique_vals)
             else:
-                st.info(f"※ このプレイヤーには「{filter_col_name}」のデータがありません。")
+                st.info("データがありません")
 
-        st.markdown("<div style='color: #c9a44e; font-weight: bold; border-bottom: 1px solid #444; margin-bottom: 10px; margin-top: 15px;'>2️⃣ グラフ・軸設定</div>", unsafe_allow_html=True)
-        sel_graph_ps = st.radio("表示するグラフ・表", ["棒グラフ", "分布図", "折れ線グラフ", "データ表"], horizontal=True, key="graph_ps")
+    st.markdown("<div style='color: #c9a44e; font-weight: bold; border-bottom: 1px solid #444; margin-bottom: 10px; margin-top: 20px; font-size: 1.2rem;'>② 表示方法を選択</div>", unsafe_allow_html=True)
+    sel_graph = st.radio("表示形式", ["データ表", "棒グラフ", "折れ線グラフ", "分布図 (箱ひげ+散布)", "レーダーチャート"], horizontal=True)
+
+    st.markdown("<div style='color: #c9a44e; font-weight: bold; border-bottom: 1px solid #444; margin-bottom: 10px; margin-top: 20px; font-size: 1.2rem;'>③ 軸・項目を設定</div>", unsafe_allow_html=True)
+    if sel_graph == "レーダーチャート":
+        sel_xaxis = st.selectbox("X軸 (グループ化・比較の基準)", list(X_AXIS_OPTIONS.keys()))
+        sel_metrics = st.multiselect("比較するデータ (複数選択)", list(Y_METRICS.keys()), default=list(Y_METRICS.keys())[:4])
+        sel_yaxis = None
+    else:
+        col_a1, col_a2 = st.columns(2)
+        with col_a1:
+            sel_xaxis = st.selectbox("X軸 (横軸・グループ化の基準)", list(X_AXIS_OPTIONS.keys()))
+        with col_a2:
+            sel_yaxis = st.selectbox("Y軸 (縦軸・比較するデータ)", list(Y_METRICS.keys()))
+
+    if st.button("📊 データ比較を実行", type="primary", use_container_width=True):
+        df = raw_df[raw_df["player"].isin(sel_players)]
         
-        col_p3, col_p4 = st.columns(2)
-        with col_p3:
-            sel_xaxis_ps = st.selectbox("X軸 (まとめ方の基準)", list(X_AXIS_OPTIONS.keys()), key="xaxis_ps")
-        with col_p4:
-            sel_yaxis_ps = st.selectbox("Y軸 (比較するデータ)", list(Y_METRICS.keys()), key="yaxis_ps")
+        if period_type == "📅 カレンダー指定":
+            if start_d: df = df[df["datetime"].dt.date >= start_d]
+            if end_d: df = df[df["datetime"].dt.date <= end_d]
+        else:
+            df = df.sort_values("datetime", ascending=False).groupby("player").head(recent_g)
 
-        if st.button("📊 パーソナル比較を実行", type="primary", key="btn_personal", use_container_width=True):
-            df = raw_df[raw_df["player"] == sel_target_player]
-            df = apply_period_filter(df, period_type_ps, start_d_ps, end_d_ps, recent_g_ps)
+        if filter_val and filter_col_name != "選択しない":
+            df = df[df[filter_opts[filter_col_name]] == filter_val]
+
+        if df.empty:
+            st.warning("指定された条件のデータがありません。条件を変更してください。")
+            st.stop()
+
+        x_col = X_AXIS_OPTIONS[sel_xaxis]
+        df[x_col] = df[x_col].replace("", "未設定")
+
+        # プレイヤーごとの色分けとX軸でグループ化集計
+        grp_cols = [x_col, "player"]
+        grp_cols = list(dict.fromkeys(grp_cols)) # 重複除去
+
+        res = []
+        for grp_vals, pdf in df.groupby(grp_cols):
+            x_val = grp_vals[0] if isinstance(grp_vals, tuple) else grp_vals
+            p_val = grp_vals[1] if isinstance(grp_vals, tuple) else grp_vals
             
-            if filter_val and filter_col_name != "選択しない":
-                target_field = X_AXIS_OPTIONS[filter_col_name]
-                df = df[df[target_field] == filter_val]
-
-            st.markdown("<hr>", unsafe_allow_html=True)
-            grp_col = X_AXIS_OPTIONS[sel_xaxis_ps]
-
-            if df.empty:
-                st.warning("指定された条件のデータがありません。")
+            row_data = {x_col: x_val, "player": p_val, "ゲーム数": len(pdf)}
+            if sel_graph == "レーダーチャート":
+                if sel_metrics:
+                    for m in sel_metrics: row_data[m] = Y_METRICS[m]["agg"](pdf)
             else:
-                # ▼ 特殊処理：X軸が「1ゲームごとの推移（ゲーム順）」の場合 ▼
-                if grp_col == "game_num":
-                    df_line = df.dropna(subset=["datetime"]).sort_values("datetime")
-                    # 古い順に1からゲーム数を振る
-                    df_line["game_num"] = range(1, len(df_line) + 1)
-                    
-                    if df_line.empty:
-                        st.warning("有効な日時データがないため表示できません。")
-                        st.stop()
-                    
-                    y_col = Y_METRICS[sel_yaxis_ps]["col"]
-                    
-                    if sel_graph_ps == "データ表":
-                        st.dataframe(df_line[["game_num", "datetime", "score", y_col]], use_container_width=True)
-                    elif sel_graph_ps == "棒グラフ":
-                        fig = px.bar(df_line, x="game_num", y=y_col, color_discrete_sequence=['#00e5ff'], labels={"game_num": "ゲーム数"})
-                        fig.update_layout(title=f"{sel_yaxis_ps} の推移 (ゲーム順)", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'), xaxis=dict(dtick=1))
-                        st.plotly_chart(fig, use_container_width=True)
-                    elif sel_graph_ps == "分布図":
-                        fig = px.scatter(df_line, x="game_num", y=y_col, color_discrete_sequence=['#ff6600'], opacity=0.7, labels={"game_num": "ゲーム数"})
-                        fig.update_layout(title=f"{sel_yaxis_ps} の分布 (ゲーム順)", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
-                        st.plotly_chart(fig, use_container_width=True)
-                    elif sel_graph_ps == "折れ線グラフ":
-                        fig = px.line(df_line, x="game_num", y=y_col, markers=True, color_discrete_sequence=['#00e5ff'], labels={"game_num": "ゲーム数"})
-                        fig.update_layout(title=f"{sel_yaxis_ps} の推移 (ゲーム順)", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
-                        st.plotly_chart(fig, use_container_width=True)
-                
-                # ▼ 通常処理：X軸が「月別」や「条件」などのグループ化指定の場合 ▼
-                else:
-                    df[grp_col] = df[grp_col].replace("", "未設定")
-                    res = []
-                    for grp_val, pdf in df.groupby(grp_col):
-                        row_data = {sel_xaxis_ps: grp_val, "ゲーム数": len(pdf)}
-                        row_data[sel_yaxis_ps] = Y_METRICS[sel_yaxis_ps]["agg"](pdf)
-                        res.append(row_data)
-                    
-                    res_df = pd.DataFrame(res).sort_values(sel_xaxis_ps)
+                row_data[sel_yaxis] = Y_METRICS[sel_yaxis]["agg"](pdf)
+            res.append(row_data)
 
-                    if sel_graph_ps == "データ表":
-                        st.dataframe(res_df.style.format(precision=1), use_container_width=True)
-                    elif sel_graph_ps == "棒グラフ":
-                        fig = px.bar(res_df, x=sel_xaxis_ps, y=sel_yaxis_ps, text_auto='.1f', color=sel_xaxis_ps)
-                        fig.update_layout(title=f"{sel_xaxis_ps}ごとの {sel_yaxis_ps}", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
-                        st.plotly_chart(fig, use_container_width=True)
-                    elif sel_graph_ps == "分布図":
-                        # 分布図は集計値ではなく生データ(df)から箱ひげ図を描画
-                        y_col = Y_METRICS[sel_yaxis_ps]["col"]
-                        fig = px.box(df, x=grp_col, y=y_col, color=grp_col, points="all", labels={grp_col: sel_xaxis_ps, y_col: sel_yaxis_ps})
-                        fig.update_layout(title=f"{sel_xaxis_ps}ごとの {sel_yaxis_ps} の分布・ばらつき", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
-                        st.plotly_chart(fig, use_container_width=True)
-                    elif sel_graph_ps == "折れ線グラフ":
-                        res_df[sel_xaxis_ps] = res_df[sel_xaxis_ps].astype(str)
-                        fig = px.line(res_df, x=sel_xaxis_ps, y=sel_yaxis_ps, markers=True)
-                        fig.update_traces(line_color='#00e5ff', marker=dict(size=8))
-                        fig.update_layout(title=f"{sel_xaxis_ps}ごとの {sel_yaxis_ps} の推移", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
-                        st.plotly_chart(fig, use_container_width=True)
+        res_df = pd.DataFrame(res)
+        st.markdown("<hr>", unsafe_allow_html=True)
+
+        try:
+            if sel_graph == "データ表":
+                st.dataframe(res_df.style.format(precision=1), use_container_width=True)
+                
+            elif sel_graph == "棒グラフ":
+                res_df = res_df.sort_values(x_col)
+                fig = px.bar(res_df, x=x_col, y=sel_yaxis, color="player", barmode="group", text_auto='.1f')
+                fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
+                st.plotly_chart(fig, use_container_width=True)
+                
+            elif sel_graph == "折れ線グラフ":
+                res_df = res_df.sort_values(x_col)
+                fig = px.line(res_df, x=x_col, y=sel_yaxis, color="player", markers=True)
+                fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
+                st.plotly_chart(fig, use_container_width=True)
+                
+            elif sel_graph == "分布図 (箱ひげ+散布)":
+                y_col_raw = Y_METRICS[sel_yaxis]["col"]
+                df_sorted = df.sort_values(x_col)
+                fig = px.box(df_sorted, x=x_col, y=y_col_raw, color="player", points="all")
+                fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
+                st.plotly_chart(fig, use_container_width=True)
+                
+            elif sel_graph == "レーダーチャート":
+                if not sel_metrics:
+                    st.warning("比較するデータを1つ以上選択してください。")
+                else:
+                    fig = go.Figure()
+                    for idx, row in res_df.iterrows():
+                        vals = []
+                        for cat in sel_metrics:
+                            max_v = res_df[cat].max()
+                            vals.append((row[cat] / max_v * 100) if max_v > 0 else 0)
+                        
+                        name_label = f'{row["player"]} ({row[x_col]})' if x_col != "player" else row["player"]
+                        fig.add_trace(go.Scatterpolar(r=vals + [vals[0]], theta=sel_metrics + [sel_metrics[0]], fill='toself', name=name_label))
+                    fig.update_layout(polar=dict(radialaxis=dict(visible=False)), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
+                    st.plotly_chart(fig, use_container_width=True)
+        except Exception as e:
+            st.error(f"選択された組み合わせではグラフを描画できません。別の軸設定をお試しください。(詳細: {e})")
 
     st.stop()
 
