@@ -2623,6 +2623,19 @@ if app_mode == "📈 データ比較":
             st.error(f"データ取得エラー: {e}")
             st.stop()
 
+    # ▼ ダーツライブ風レーティング計算ロジック（データ比較用）
+    def calc_rt_val(scores):
+        if not scores: return 0.0
+        a = sum(scores) / len(scores)
+        if a >= 230: rt = 18 + (a - 230) * (3 / 20)
+        elif a >= 210: rt = 15 + (a - 210) * (3 / 20)
+        elif a >= 190: rt = 12 + (a - 190) * (3 / 20)
+        elif a >= 170: rt = 9 + (a - 170) * (3 / 20)
+        elif a >= 145: rt = 6 + (a - 145) * (3 / 25)
+        elif a >= 95: rt = 1 + (a - 95) * 0.1
+        else: rt = a / 95
+        return round(max(1.0, rt), 2)
+
     # ▼ マスターデータから毎フレームの全統計を抽出
     def parse_master_data(data):
         parsed = []
@@ -2746,9 +2759,17 @@ if app_mode == "📈 データ比較":
                     else:
                         open_frames += 1
 
-                # ダブル・ターキー計算
+                # ダブル・ターキー計算・最大ストライク記録
                 db_c = 0; db_s = 0; tk_c = 0; tk_s = 0
+                current_streak = 0
+                max_streak = 0
                 for i in range(len(game_seq)):
+                    if game_seq[i] == "X":
+                        current_streak += 1
+                        if current_streak > max_streak: max_streak = current_streak
+                    else:
+                        current_streak = 0
+
                     if i > 1 and game_seq[i-1] == "X" and game_seq[i-2] == "X":
                         db_c += 1
                         if game_seq[i] == "X": db_s += 1
@@ -2761,6 +2782,7 @@ if app_mode == "📈 データ比較":
                     "datetime": datetime.strptime(f"{date_str} {row[3]}", "%y/%m/%d %H:%M") if len(parts)==3 else pd.NaT,
                     "month_key": month_key,
                     "score": score,
+                    "max_strike_streak": max_streak,
                     "st_c": st_c, "st_s": st_s, "sp_c": sp_c, "sp_s": sp_s,
                     "pin7_c": pin7_c, "pin7_s": pin7_s, "pin10_c": pin10_c, "pin10_s": pin10_s,
                     "split_c": split_c, "split_s": split_s,
@@ -2789,6 +2811,14 @@ if app_mode == "📈 データ比較":
 
     # 1ゲーム単位の推移用データ（折れ線グラフ用）を事前計算
     if not raw_df.empty:
+        # 古い順にソート（レーティングのローリング計算のため必須）
+        raw_df = raw_df.sort_values("datetime")
+        
+        # ▼ レーティング推移の計算：プレイヤーごとに直近50Gのスコア履歴から算出
+        raw_df["rating"] = raw_df.groupby("player")["score"].transform(
+            lambda x: x.rolling(window=50, min_periods=1).apply(lambda s: calc_rt_val(s.dropna().tolist()), raw=False)
+        )
+
         def safe_div(a, b): return (a / b * 100) if b > 0 else 0
         raw_df["st_rate"] = raw_df.apply(lambda r: safe_div(r["st_s"], r["st_c"]), axis=1)
         raw_df["sp_rate"] = raw_df.apply(lambda r: safe_div(r["sp_s"], r["sp_c"]), axis=1)
@@ -2804,10 +2834,14 @@ if app_mode == "📈 データ比較":
         for i in range(1, 11):
             raw_df[f"pin{i}_left_rate"] = raw_df.apply(lambda r, p=i: safe_div(r[f"pin{p}_left"], r["st_c"]), axis=1)
 
-    # ▼ Y軸（約40項目）の定義: 「集計用関数(agg)」と「時系列プロット用カラム名(col)」をセットで管理
+    # ▼ Y軸（全項目）の定義: 「集計用関数(agg)」と「時系列プロット用カラム名(col)」をセットで管理
     Y_METRICS = {
+        "レーティング": {"agg": lambda df: calc_rt_val(df.sort_values("datetime")["score"].tail(50).tolist()), "col": "rating"},
         "スコア (アベレージ)": {"agg": lambda df: df["score"].mean(), "col": "score"},
         "ハイスコア": {"agg": lambda df: df["score"].max(), "col": "score"},
+        "ロースコア": {"agg": lambda df: df["score"].min(), "col": "score"},
+        "合計総ピン数": {"agg": lambda df: df["score"].sum(), "col": "score"},
+        "最大連続ストライク数": {"agg": lambda df: df["max_strike_streak"].max(), "col": "max_strike_streak"},
         "ストライク数 / G": {"agg": lambda df: df["st_s"].mean(), "col": "st_s"},
         "ストライク率 (%)": {"agg": lambda df: (df["st_s"].sum() / df["st_c"].sum() * 100) if df["st_c"].sum() > 0 else 0, "col": "st_rate"},
         "スペア数 / G": {"agg": lambda df: df["sp_s"].mean(), "col": "sp_s"},
