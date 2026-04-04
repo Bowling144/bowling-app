@@ -250,9 +250,11 @@ if app_mode == "🛢️ オイル情報入力":
         except Exception as e:
             st.error("SPSに「オイル入力」シートが見つかりません。")
             
-    # ③ 日時のデフォルト値生成（現在時刻で初期化）
-    from datetime import datetime
-    now = datetime.now()
+    # ③ 日時のデフォルト値生成（UTCに9時間を加えて日本時間にする）
+    from datetime import datetime, timedelta, timezone
+    # タイムゾーンをJST（UTC+9）に設定
+    JST = timezone(timedelta(hours=+9), 'JST')
+    now = datetime.now(JST)
     if "oil_input_date" not in st.session_state:
         st.session_state.oil_input_date = now.strftime("%y/%m/%d")
     if "oil_input_hour" not in st.session_state:
