@@ -4021,23 +4021,24 @@ if st.session_state.analyzed_results:
                                 backup_sh = gc.open_by_key(backup_file_id)
                                 old_worksheets = backup_sh.worksheets()
                                 
+                                
                                 # 1. マスターの全シートをバックアップ用ファイルにコピー
                                 copied_info = []
                                 for master_ws in sh.worksheets():
                                     res = master_ws.copy_to(backup_file_id)
                                     copied_info.append({'id': res['sheetId'], 'title': master_ws.title})
-                                    time.sleep(0.5) # API制限回避
+                                    time.sleep(2) # API制限回避（503エラー対策で待機時間を延長）
                                     
                                 # 2. 元からあった古いシートをすべて削除
                                 for old_ws in old_worksheets:
                                     backup_sh.del_worksheet(old_ws)
-                                    time.sleep(0.5)
+                                    time.sleep(2)
                                     
                                 # 3. コピーしたシートの名前を元に戻す（「のコピー」を消去）
                                 for info in copied_info:
                                     ws_to_rename = backup_sh.get_worksheet_by_id(info['id'])
                                     ws_to_rename.update_title(info['title'])
-                                    time.sleep(0.5)
+                                    time.sleep(2)
                                     
                                 # 4. バックアップ管理シートの履歴を更新
                                 backup_ws.update_acell('A1', current_week)
