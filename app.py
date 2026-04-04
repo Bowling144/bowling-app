@@ -357,7 +357,7 @@ if app_mode == "🛢️ オイル情報入力":
                 st.text_input(f"{i}L量", key=f"oil_in_vol_{i}", label_visibility="collapsed", placeholder="ml", max_chars=4)
                 
                 if i > 1:
-                    st.button("ここまで同じ", key=f"btn_same_{i}", on_click=fill_same_as_above, args=(i,), use_container_width=True)
+                    st.button("←同じ", key=f"btn_same_{i}", on_click=fill_same_as_above, args=(i,), use_container_width=True)
                 else:
                     st.markdown("<div style='height: 30px;'></div>", unsafe_allow_html=True) # 1Lのズレ防止用
                     
