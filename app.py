@@ -2429,7 +2429,7 @@ with st.expander("🛠️ 残ピン判定の微調整"):
     col_sl, col_btn = st.columns([4, 1])
     with col_sl:
         # valueを直接指定せず、keyを連携させることでボタン側から書き換え可能にする
-        st.slider("閾値の調整値（％）", min_value=-10.0, max_value=10.0, step=0.05, key="pin_thresh_offset")
+        st.slider("閾値の調整値（％）", min_value=-20.0, max_value=20.0, step=0.05, key="pin_thresh_offset")
     with col_btn:
         st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True) # スライダーのラベルの高さと合わせるための余白
         st.button("🔄 初期値に戻す", on_click=reset_thresh, use_container_width=True)
