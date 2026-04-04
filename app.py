@@ -3421,9 +3421,9 @@ import gspread
 if st.session_state.analyzed_results:
     st.success("✅ 全ての画像の解析が完了しました！")
 
-    # --- 【追加】SPS「プレイヤー設定」シートからプレイヤー一覧を動的に取得 ---
-    if "dynamic_player_list" not in st.session_state:
-        with st.spinner("SPSからプレイヤー一覧を取得中..."):
+    # --- 【追加】SPS「プレイヤー設定」シートと「オイル入力」シートからデータを動的に取得 ---
+    if "dynamic_player_list" not in st.session_state or "oil_data" not in st.session_state:
+        with st.spinner("SPSから設定データを取得中..."):
             try:
                 creds_json_str = st.secrets["google_credentials"]
                 creds_info = json.loads(creds_json_str, strict=False)
@@ -3444,8 +3444,11 @@ if st.session_state.analyzed_results:
                 
                 fetched_players = []
                 player_nickname_map = {} # ★追加: ゲームネームとプレイヤー名の紐付け
+                oil_data_list = [] # ★追加: オイルデータ保持用
                 if sheets:
                     sh = gc.open_by_key(sheets[0]['id'])
+                    
+                    # プレイヤー設定の取得
                     settings_sheet = sh.worksheet("プレイヤー設定")
                     settings_data = settings_sheet.get_all_values()
                     
@@ -3459,18 +3462,31 @@ if st.session_state.analyzed_results:
                                 nickname = row[i].strip()
                                 if nickname:
                                     player_nickname_map[nickname] = p_name
+                                    
+                    # ▼▼▼【追加】オイル入力データの取得▼▼▼
+                    try:
+                        oil_sheet = sh.worksheet("オイル入力")
+                        oil_data_raw = oil_sheet.get_all_values()
+                        # 1行目:フレーム等の文字, 2行目:見出し, 3行目(インデックス2)からデータ
+                        oil_data_list = oil_data_raw[2:] if len(oil_data_raw) > 2 else []
+                    except Exception as e:
+                        st.warning(f"⚠️ オイル入力シートの読み込みに失敗しました: {e}")
+                    # ▲▲▲ ここまで ▲▲▲
                 
                 # 取得できたらセッションに保存、空ならフォールバック
                 if fetched_players:
                     st.session_state.dynamic_player_list = fetched_players
-                    st.session_state.player_nickname_map = player_nickname_map # ★追加
+                    st.session_state.player_nickname_map = player_nickname_map
                 else:
                     st.session_state.dynamic_player_list = ["999_ゲスト"] 
-                    st.session_state.player_nickname_map = {} # ★追加
+                    st.session_state.player_nickname_map = {}
+                    
+                st.session_state.oil_data = oil_data_list # ★追加
             except Exception as e:
-                st.warning(f"⚠️ プレイヤー設定の読み込みに失敗しました: {e}")
+                st.warning(f"⚠️ 設定の読み込みに失敗しました: {e}")
                 st.session_state.dynamic_player_list = ["999_ゲスト"]
-                st.session_state.player_nickname_map = {} # ★追加
+                st.session_state.player_nickname_map = {}
+                st.session_state.oil_data = [] # ★追加
 
     
     player_list = st.session_state.dynamic_player_list
@@ -3518,6 +3534,63 @@ if st.session_state.analyzed_results:
 
     register_all = st.checkbox("全てのゲームをマスターに登録する", key="register_all_check")
     st.markdown("---")
+    
+    # ▼▼▼【追加】オイルデータ検索関数▼▼▼
+    def get_oil_info(target_date, target_time, target_lane):
+        oil_data = st.session_state.get("oil_data", [])
+        if not oil_data or not target_date or not target_time or not target_lane:
+            return "", ""
+        
+        lane_str = str(target_lane).replace(" ", "")
+        if "-" in lane_str:
+            parts = lane_str.split("-")
+            try:
+                lane_num = min(int(parts[0]), int(parts[1]))
+            except:
+                return "", ""
+        else:
+            try:
+                lane_num = int(lane_str)
+            except:
+                return "", ""
+                
+        if not (1 <= lane_num <= 18):
+            return "", ""
+            
+        len_col = lane_num * 2
+        vol_col = lane_num * 2 + 1
+        
+        def to_mins(t_str):
+            try:
+                h, m = map(int, str(t_str).replace("：", ":").split(":"))
+                return h * 60 + m
+            except:
+                return -1
+                
+        tgt_mins = to_mins(target_time)
+        if tgt_mins == -1:
+            return "", ""
+
+        best_match = None
+        best_mins = -1
+        
+        for row in oil_data:
+            if len(row) <= vol_col:
+                continue
+            r_date = str(row[0]).strip()
+            r_time = str(row[1]).strip()
+            
+            if r_date == target_date:
+                r_mins = to_mins(r_time)
+                if r_mins != -1 and tgt_mins >= r_mins:
+                    if best_match is None or r_mins > best_mins:
+                        best_match = row
+                        best_mins = r_mins
+                        
+        if best_match:
+            return str(best_match[len_col]).strip(), str(best_match[vol_col]).strip()
+        return "", ""
+    # ▲▲▲ ここまで ▲▲▲
 
     game_checkboxes = []
 
@@ -3810,10 +3883,19 @@ if st.session_state.analyzed_results:
         with c_lane:
             # ★要望3: レーン番号の横の (AI読取: XX) を削除
             common_lane = st.selectbox("レーン番号", LANE_OPTIONS, index=default_lane_index, key=f"c_lane_{img_idx}")
+            
+        # ▼▼▼【追加】SPSの「オイル入力」シートから該当するデータを取得 ▼▼▼
+        t_date = items[0]["export_row"][0]
+        t_time = items[0]["export_row"][1]
+        default_len, default_vol = get_oil_info(t_date, t_time, common_lane)
+        # ▲▲▲ ここまで ▲▲▲
+
         with c_len:
-            common_len = st.text_input("オイル長 (ft)", key=f"c_len_{img_idx}", placeholder="例: 42")
+            # ▼▼▼ 変更: value=default_len を設定 ▼▼▼
+            common_len = st.text_input("オイル長 (ft)", value=default_len, key=f"c_len_{img_idx}", placeholder="例: 42")
         with c_vol:
-            common_vol = st.text_input("オイル量 (ml)", key=f"c_vol_{img_idx}", placeholder="例: 25.5")
+            # ▼▼▼ 変更: value=default_vol を設定 ▼▼▼
+            common_vol = st.text_input("オイル量 (ml)", value=default_vol, key=f"c_vol_{img_idx}", placeholder="例: 25.5")
             
         common_ball = st.text_input("使用ボール", key=f"c_ball_{img_idx}", placeholder="例: ツアーダイナミクス")
             
