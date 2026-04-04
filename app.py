@@ -2406,8 +2406,6 @@ if app_mode == "プレイヤー分析":
                                 game_seq.append("-")
                                 m_stat["pitches"] += 1
                                 m_stat["spare_chances"] += 1
-                                left_arr = get_pins(res10_2_rem)
-                                for p in left_arr: pass # pin_left集計は別で実施済
                                 if is_spare(res10_3):
                                     m_stat["spares"] += 1
                                     m_stat["pin_falls"] += 10
