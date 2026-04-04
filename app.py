@@ -2721,7 +2721,7 @@ if app_mode == "📈 データ比較":
                 
                 parsed_row = {
                     "player": row[1],
-                    "datetime": datetime.strptime(f"{date_str} {row[3]}", "%y/%m/%d %H:%M") if len(parts)==3 else datetime.min,
+                    "datetime": datetime.strptime(f"{date_str} {row[3]}", "%y/%m/%d %H:%M") if len(parts)==3 else pd.NaT,
                     "month_key": month_key,
                     "score": score,
                     "st_c": st_c, "st_s": st_s, "sp_c": sp_c, "sp_s": sp_s,
@@ -2852,10 +2852,13 @@ if app_mode == "📈 データ比較":
                     fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
                     st.plotly_chart(fig, use_container_width=True)
                 elif sel_graph_pl == "折れ線グラフ (時系列)":
-                    df_line = df.sort_values("datetime")
-                    fig = px.line(df_line, x="datetime", y="score", color="プレイヤー", markers=True)
-                    fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
-                    st.plotly_chart(fig, use_container_width=True)
+                    df_line = df.dropna(subset=["datetime"]).sort_values("datetime")
+                    if df_line.empty:
+                        st.warning("有効な日時データがないため、折れ線グラフを表示できません。")
+                    else:
+                        fig = px.line(df_line, x="datetime", y="score", color="プレイヤー", markers=True)
+                        fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
+                        st.plotly_chart(fig, use_container_width=True)
                 elif sel_graph_pl == "分布図":
                     fig = px.scatter(df, x="datetime", y="score", color="プレイヤー", opacity=0.7)
                     fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
@@ -2951,10 +2954,14 @@ if app_mode == "📈 データ比較":
                     fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
                     st.plotly_chart(fig, use_container_width=True)
                 elif sel_graph_ps == "折れ線グラフ (時系列)":
-                    fig = px.line(res_df, x=sel_xaxis_ps, y=sel_yaxis_ps, markers=True)
-                    fig.update_traces(line_color='#00e5ff', marker=dict(size=8))
-                    fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
-                    st.plotly_chart(fig, use_container_width=True)
+                    if res_df.empty:
+                        st.warning("データがないため、折れ線グラフを表示できません。")
+                    else:
+                        res_df[sel_xaxis_ps] = res_df[sel_xaxis_ps].astype(str) # 型の混在によるエラーを防止
+                        fig = px.line(res_df, x=sel_xaxis_ps, y=sel_yaxis_ps, markers=True)
+                        fig.update_traces(line_color='#00e5ff', marker=dict(size=8))
+                        fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
+                        st.plotly_chart(fig, use_container_width=True)
 
     st.stop()
 
