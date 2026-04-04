@@ -2835,7 +2835,7 @@ if app_mode == "📈 データ比較":
     # ▼ X軸の選択肢（パーソナル比較用）
     X_AXIS_OPTIONS = {
         "📊 月別推移 (YYYY/MM)": "month_key",
-        "📈 1ゲームごとの推移 (日付順)": "datetime", # ← 新追加！
+        "📈 1ゲームごとの推移 (ゲーム順)": "game_num",
         "🔖 個別条件1 (大会名等)": "cond1",
         "🔖 個別条件2 (投球フォーム等)": "cond2",
         "🔖 個別条件3 (団体名等)": "cond3",
@@ -2935,18 +2935,20 @@ if app_mode == "📈 データ比較":
                 elif "時系列" in sel_graph_pl:
                     # 時系列プロット処理
                     df_line = df.dropna(subset=["datetime"]).sort_values("datetime")
+                    # プレイヤーごとに古い順でゲーム数(1, 2, 3...)を振る
+                    df_line["game_num"] = df_line.groupby("player").cumcount() + 1
                     y_col = Y_METRICS[sel_metric_pl]["col"]
                     
                     if df_line.empty:
                         st.warning("有効な日時データがないため表示できません。")
                     else:
                         if "折れ線" in sel_graph_pl:
-                            fig = px.line(df_line, x="datetime", y=y_col, color="player", markers=True)
-                            fig.update_layout(title=f"{sel_metric_pl} の時系列推移 (1ゲーム毎)", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
+                            fig = px.line(df_line, x="game_num", y=y_col, color="player", markers=True, labels={"game_num": "ゲーム数"})
+                            fig.update_layout(title=f"{sel_metric_pl} の推移 (ゲーム順)", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
                             st.plotly_chart(fig, use_container_width=True)
                         elif "分布図" in sel_graph_pl:
-                            fig = px.scatter(df_line, x="datetime", y=y_col, color="player", opacity=0.7)
-                            fig.update_layout(title=f"{sel_metric_pl} の分布 (1ゲーム毎)", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
+                            fig = px.scatter(df_line, x="game_num", y=y_col, color="player", opacity=0.7, labels={"game_num": "ゲーム数"})
+                            fig.update_layout(title=f"{sel_metric_pl} の分布 (ゲーム順)", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
                             st.plotly_chart(fig, use_container_width=True)
 
     # ==========================================
@@ -3004,9 +3006,12 @@ if app_mode == "📈 データ比較":
             if df.empty:
                 st.warning("指定された条件のデータがありません。")
             else:
-                # ▼ 特殊処理：X軸が「1ゲームごとの推移（時系列）」の場合 ▼
-                if grp_col == "datetime":
+                # ▼ 特殊処理：X軸が「1ゲームごとの推移（ゲーム順）」の場合 ▼
+                if grp_col == "game_num":
                     df_line = df.dropna(subset=["datetime"]).sort_values("datetime")
+                    # 古い順に1からゲーム数を振る
+                    df_line["game_num"] = range(1, len(df_line) + 1)
+                    
                     if df_line.empty:
                         st.warning("有効な日時データがないため表示できません。")
                         st.stop()
@@ -3014,18 +3019,18 @@ if app_mode == "📈 データ比較":
                     y_col = Y_METRICS[sel_yaxis_ps]["col"]
                     
                     if sel_graph_ps == "データ表":
-                        st.dataframe(df_line[["datetime", "score", y_col]], use_container_width=True)
+                        st.dataframe(df_line[["game_num", "datetime", "score", y_col]], use_container_width=True)
                     elif sel_graph_ps == "棒グラフ":
-                        fig = px.bar(df_line, x="datetime", y=y_col, color_discrete_sequence=['#00e5ff'])
-                        fig.update_layout(title=f"1ゲーム毎の {sel_yaxis_ps} の推移", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
+                        fig = px.bar(df_line, x="game_num", y=y_col, color_discrete_sequence=['#00e5ff'], labels={"game_num": "ゲーム数"})
+                        fig.update_layout(title=f"{sel_yaxis_ps} の推移 (ゲーム順)", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'), xaxis=dict(dtick=1))
                         st.plotly_chart(fig, use_container_width=True)
                     elif sel_graph_ps == "分布図":
-                        fig = px.scatter(df_line, x="datetime", y=y_col, color_discrete_sequence=['#ff6600'], opacity=0.7)
-                        fig.update_layout(title=f"1ゲーム毎の {sel_yaxis_ps} の分布", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
+                        fig = px.scatter(df_line, x="game_num", y=y_col, color_discrete_sequence=['#ff6600'], opacity=0.7, labels={"game_num": "ゲーム数"})
+                        fig.update_layout(title=f"{sel_yaxis_ps} の分布 (ゲーム順)", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
                         st.plotly_chart(fig, use_container_width=True)
                     elif sel_graph_ps == "折れ線グラフ":
-                        fig = px.line(df_line, x="datetime", y=y_col, markers=True, color_discrete_sequence=['#00e5ff'])
-                        fig.update_layout(title=f"1ゲーム毎の {sel_yaxis_ps} の推移", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
+                        fig = px.line(df_line, x="game_num", y=y_col, markers=True, color_discrete_sequence=['#00e5ff'], labels={"game_num": "ゲーム数"})
+                        fig.update_layout(title=f"{sel_yaxis_ps} の推移 (ゲーム順)", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
                         st.plotly_chart(fig, use_container_width=True)
                 
                 # ▼ 通常処理：X軸が「月別」や「条件」などのグループ化指定の場合 ▼
