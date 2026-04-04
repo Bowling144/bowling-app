@@ -2603,9 +2603,43 @@ if app_mode == "📈 データ比較":
     from datetime import datetime
     import re
 
-    st.header("📈 データ比較ダッシュボード")
+    # ▼ ハイテク・サイバー風の独自CSS
+    st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap');
+    
+    .cyber-title {
+        font-family: 'Orbitron', sans-serif;
+        color: #00f3ff;
+        text-shadow: 0 0 8px #00f3ff, 0 0 15px rgba(0,243,255,0.5);
+        font-size: 2.2rem;
+        font-weight: 700;
+        text-align: center;
+        letter-spacing: 4px;
+        margin-bottom: 30px;
+        border-bottom: 1px solid rgba(0, 243, 255, 0.3);
+        padding-bottom: 15px;
+        background: linear-gradient(90deg, rgba(0,243,255,0) 0%, rgba(0,243,255,0.1) 50%, rgba(0,243,255,0) 100%);
+    }
+    .cyber-step {
+        font-family: 'Orbitron', 'Meiryo', sans-serif;
+        color: #39ff14;
+        text-shadow: 0 0 5px #39ff14;
+        font-size: 1.2rem;
+        border-left: 5px solid #39ff14;
+        padding-left: 10px;
+        margin-top: 25px;
+        margin-bottom: 15px;
+        background: linear-gradient(90deg, rgba(57,255,20,0.15) 0%, rgba(0,0,0,0) 100%);
+        font-weight: bold;
+        letter-spacing: 1px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-    with st.spinner("比較用データを取得・解析中..."):
+    st.markdown("<div class='cyber-title'>⚡ ADVANCED ANALYTICS HUB ⚡</div>", unsafe_allow_html=True)
+
+    with st.spinner("🌐 データベースに接続中... 高度解析エンジンを起動しています..."):
         try:
             sh = get_gspread_client()
             if not sh:
@@ -2640,7 +2674,6 @@ if app_mode == "📈 データ比較":
                 score = int(row[52])
                 parts = date_str.split('/')
                 
-                # 月別キーを「YYYY/MM」の形式にゼロ埋め
                 if len(parts) >= 2:
                     y_str = parts[0][-2:] if len(parts[0]) >= 2 else parts[0].zfill(2)
                     y_full = f"20{y_str}"
@@ -2649,7 +2682,6 @@ if app_mode == "📈 データ比較":
                 else:
                     month_key = "不明"
 
-                # 日付データの厳密パース
                 dt_val = pd.NaT
                 if len(parts) >= 3:
                     try:
@@ -2837,7 +2869,8 @@ if app_mode == "📈 データ比較":
         "💧 オイル量 (ml)": "oil_vol"
     }
 
-    st.markdown("<div style='color: #c9a44e; font-weight: bold; border-bottom: 1px solid #444; margin-bottom: 10px; font-size: 1.2rem;'>① データを抽出 (フィルター)</div>", unsafe_allow_html=True)
+    # ▼ STEP 1
+    st.markdown("<div class='cyber-step'>[STEP 1] DATA EXTRACTION & FILTERS</div>", unsafe_allow_html=True)
     col_f1, col_f2 = st.columns(2)
     with col_f1:
         sel_players = st.multiselect("対象プレイヤー (複数選択可)", all_players, default=all_players[:1] if all_players else [])
@@ -2866,10 +2899,12 @@ if app_mode == "📈 データ比較":
             else:
                 st.info("データがありません")
 
-    st.markdown("<div style='color: #c9a44e; font-weight: bold; border-bottom: 1px solid #444; margin-bottom: 10px; margin-top: 20px; font-size: 1.2rem;'>② 表示方法を選択</div>", unsafe_allow_html=True)
+    # ▼ STEP 2
+    st.markdown("<div class='cyber-step'>[STEP 2] VISUALIZATION FORMAT</div>", unsafe_allow_html=True)
     sel_graph = st.radio("表示形式", ["データ表", "棒グラフ", "折れ線グラフ", "分布図 (箱ひげ+散布)", "レーダーチャート"], horizontal=True)
 
-    st.markdown("<div style='color: #c9a44e; font-weight: bold; border-bottom: 1px solid #444; margin-bottom: 10px; margin-top: 20px; font-size: 1.2rem;'>③ 軸・項目を設定</div>", unsafe_allow_html=True)
+    # ▼ STEP 3
+    st.markdown("<div class='cyber-step'>[STEP 3] AXIS & METRICS SETUP</div>", unsafe_allow_html=True)
     if sel_graph == "レーダーチャート":
         sel_xaxis = st.selectbox("X軸 (グループ化・比較の基準)", list(X_AXIS_OPTIONS.keys()))
         sel_metrics = st.multiselect("比較するデータ (複数選択)", list(Y_METRICS.keys()), default=list(Y_METRICS.keys())[:4])
@@ -2881,7 +2916,7 @@ if app_mode == "📈 データ比較":
         with col_a2:
             sel_yaxis = st.selectbox("Y軸 (縦軸・比較するデータ)", list(Y_METRICS.keys()))
 
-    if st.button("📊 データ比較を実行", type="primary", use_container_width=True):
+    if st.button("🚀 INITIATE ANALYSIS", type="primary", use_container_width=True):
         df = raw_df[raw_df["player"].isin(sel_players)]
         
         if period_type == "📅 カレンダー指定":
@@ -2894,13 +2929,12 @@ if app_mode == "📈 データ比較":
             df = df[df[filter_opts[filter_col_name]] == filter_val]
 
         if df.empty:
-            st.warning("指定された条件のデータがありません。条件を変更してください。")
+            st.warning("⚠️ 指定された条件のデータが見つかりません。条件を変更してください。")
             st.stop()
 
         x_col = X_AXIS_OPTIONS[sel_xaxis]
         df[x_col] = df[x_col].replace("", "未設定")
 
-        # プレイヤーごとの色分けとX軸でグループ化集計
         grp_cols = ["player"] if x_col == "player" else [x_col, "player"]
 
         res = []
@@ -2922,35 +2956,46 @@ if app_mode == "📈 データ比較":
             res.append(row_data)
 
         res_df = pd.DataFrame(res)
-        st.markdown("<hr>", unsafe_allow_html=True)
+        st.markdown("<hr style='border-color: #00f3ff; box-shadow: 0 0 10px #00f3ff;'>", unsafe_allow_html=True)
+
+        # ▼ グラフのハイテク化（サイバーパンク配色・ダークテーマ調整）
+        cyber_colors = ['#00f3ff', '#ff0055', '#39ff14', '#fcee0a', '#b000ff']
+        base_layout = dict(
+            template="plotly_dark",
+            plot_bgcolor='rgba(10, 15, 25, 0.8)',
+            paper_bgcolor='rgba(0, 0, 0, 0)',
+            font=dict(color='#00f3ff', family='Orbitron, monospace'),
+            xaxis=dict(showgrid=True, gridcolor='#222', zerolinecolor='#444'),
+            yaxis=dict(showgrid=True, gridcolor='#222', zerolinecolor='#444')
+        )
 
         try:
             if sel_graph == "データ表":
-                st.dataframe(res_df.style.format(precision=1), use_container_width=True)
+                st.dataframe(res_df.style.format(precision=1).set_properties(**{'background-color': '#0d1117', 'color': '#00f3ff', 'border-color': '#333'}), use_container_width=True)
                 
             elif sel_graph == "棒グラフ":
                 res_df = res_df.sort_values(x_col)
-                fig = px.bar(res_df, x=x_col, y=sel_yaxis, color="player", barmode="group", text_auto='.1f')
-                # ★修正：文字列の軸はカテゴリとしてソート順を強制（Plotlyの勝手な日付パースを防ぐ）
+                fig = px.bar(res_df, x=x_col, y=sel_yaxis, color="player", barmode="group", text_auto='.1f', color_discrete_sequence=cyber_colors)
                 if x_col != "game_num": fig.update_xaxes(type='category', categoryorder='category ascending')
-                fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
+                fig.update_traces(marker_line_color='rgba(255,255,255,0.8)', marker_line_width=1.5, opacity=0.85)
+                fig.update_layout(**base_layout)
                 st.plotly_chart(fig, use_container_width=True)
                 
             elif sel_graph == "折れ線グラフ":
                 res_df = res_df.sort_values(x_col)
-                fig = px.line(res_df, x=x_col, y=sel_yaxis, color="player", markers=True)
-                # ★修正：文字列の軸はカテゴリとしてソート順を強制（Plotlyの勝手な日付パースを防ぐ）
+                fig = px.line(res_df, x=x_col, y=sel_yaxis, color="player", markers=True, color_discrete_sequence=cyber_colors)
                 if x_col != "game_num": fig.update_xaxes(type='category', categoryorder='category ascending')
-                fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
+                fig.update_traces(line=dict(width=3), marker=dict(size=8, line=dict(width=2, color='white')))
+                fig.update_layout(**base_layout)
                 st.plotly_chart(fig, use_container_width=True)
                 
             elif sel_graph == "分布図 (箱ひげ+散布)":
                 y_col_raw = Y_METRICS[sel_yaxis]["col"]
                 df_sorted = df.sort_values(x_col)
-                fig = px.box(df_sorted, x=x_col, y=y_col_raw, color="player", points="all")
-                # ★修正：文字列の軸はカテゴリとしてソート順を強制（Plotlyの勝手な日付パースを防ぐ）
+                fig = px.box(df_sorted, x=x_col, y=y_col_raw, color="player", points="all", color_discrete_sequence=cyber_colors)
                 if x_col != "game_num": fig.update_xaxes(type='category', categoryorder='category ascending')
-                fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
+                fig.update_traces(marker=dict(size=5, opacity=0.8, line=dict(width=1, color='white')))
+                fig.update_layout(**base_layout)
                 st.plotly_chart(fig, use_container_width=True)
                 
             elif sel_graph == "レーダーチャート":
@@ -2965,11 +3010,20 @@ if app_mode == "📈 データ比較":
                             vals.append((row[cat] / max_v * 100) if max_v > 0 else 0)
                         
                         name_label = f'{row["player"]} ({row[x_col]})' if x_col != "player" else row["player"]
-                        fig.add_trace(go.Scatterpolar(r=vals + [vals[0]], theta=sel_metrics + [sel_metrics[0]], fill='toself', name=name_label))
-                    fig.update_layout(polar=dict(radialaxis=dict(visible=False)), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
+                        color = cyber_colors[idx % len(cyber_colors)]
+                        fig.add_trace(go.Scatterpolar(
+                            r=vals + [vals[0]], 
+                            theta=sel_metrics + [sel_metrics[0]], 
+                            fill='toself', 
+                            name=name_label,
+                            fillcolor=color.replace(')', ', 0.2)').replace('rgb', 'rgba') if 'rgb' in color else f"{color}33",
+                            line=dict(color=color, width=2)
+                        ))
+                    fig.update_layout(**base_layout)
+                    fig.update_layout(polar=dict(radialaxis=dict(visible=False, gridcolor='#222'), angularaxis=dict(gridcolor='#333')))
                     st.plotly_chart(fig, use_container_width=True)
         except Exception as e:
-            st.error(f"選択された組み合わせではグラフを描画できません。別の軸設定をお試しください。(詳細: {e})")
+            st.error(f"⚠️ 解析エラー: 選択された組み合わせではグラフを描画できません。(詳細: {e})")
 
     st.stop()
 
