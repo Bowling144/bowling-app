@@ -3976,37 +3976,73 @@ if st.session_state.analyzed_results:
                 sheet_id = sheets[0]['id']
                 sh = gc.open_by_key(sheet_id)
 
-                # ▼▼▼ 【追加】週1回の自動バックアップ処理 ▼▼▼
-                # ⚠️注意：ブラウザで「バックアップ」フォルダを開き、URLバーの folders/ の後ろの英数字をコピーして以下に貼り付けてください
+                # ▼▼▼ 【追加】週1回の自動バックアップ処理（01〜32ローテーション上書き方式） ▼▼▼
                 BACKUP_FOLDER_ID = "1ONqsfeWmt6mT248fD7OuMhUdiqdQuoLa"
 
                 if BACKUP_FOLDER_ID != "ここにバックアップフォルダのIDを入力":
                     try:
+                        # 検索用DriveAPIクライアント
+                        drive_service_backup = build('drive', 'v3', credentials=creds)
+                        
                         backup_ws = sh.worksheet("バックアップ管理")
                         last_backup = backup_ws.acell('A1').value
+                        next_num_str = backup_ws.acell('B1').value
                         
-                        # 現在の「年-週番号」を取得 (例: 2026-W14)
+                        # 現在の「年-週番号」を取得
                         from datetime import datetime
                         now = datetime.now()
                         current_week = f"{now.isocalendar()[0]}-W{now.isocalendar()[1]:02d}"
                         
                         # 今週まだバックアップを取っていなければ実行
                         if last_backup != current_week:
-                            ts_str = now.strftime("%Y%m%d_%H%M%S")
-                            backup_name = f"EagleBowl_ROLLERS_{ts_str}"
+                            # B1セルから次に書き込む番号(1〜32)を取得。空欄なら1にする
+                            try:
+                                next_num = int(next_num_str) if next_num_str else 1
+                            except:
+                                next_num = 1
+                                
+                            if next_num > 32:
+                                next_num = 1
+                                
+                            # ターゲットのファイル名を作成
+                            target_name = f"EagleBowl_ROLLERS バックアップ{next_num:02d}"
                             
-                            drive_service_write.files().copy(
-                                fileId=sheet_id,
-                                body={
-                                    'name': backup_name,
-                                    'parents': [BACKUP_FOLDER_ID]
-                                },
-                                supportsAllDrives=True
+                            # 指定フォルダ内から該当ファイルを検索
+                            query = f"name = '{target_name}' and '{BACKUP_FOLDER_ID}' in parents and trashed = false"
+                            results = drive_service_backup.files().list(
+                                q=query, spaces='drive', supportsAllDrives=True, includeItemsFromAllDrives=True
                             ).execute()
+                            items = results.get('files', [])
                             
-                            # 成功したらA1セルに今週の週番号を書き込んで記録を更新
-                            backup_ws.update_acell('A1', current_week)
-                            st.info(f"💾 今週の初回登録のため、スプレッドシートのバックアップ（{backup_name}）を作成しました。")
+                            if not items:
+                                st.warning(f"⚠️ バックアップ先ファイル「{target_name}」が見つかりませんでした。Googleドライブ上に同名のファイルが存在するか確認してください。")
+                            else:
+                                backup_file_id = items[0]['id']
+                                backup_sh = gc.open_by_key(backup_file_id)
+                                old_worksheets = backup_sh.worksheets()
+                                
+                                # 1. マスターの全シートをバックアップ用ファイルにコピー
+                                copied_info = []
+                                for master_ws in sh.worksheets():
+                                    res = master_ws.copy_to(backup_file_id)
+                                    copied_info.append({'id': res['sheetId'], 'title': master_ws.title})
+                                    time.sleep(0.5) # API制限回避
+                                    
+                                # 2. 元からあった古いシートをすべて削除
+                                for old_ws in old_worksheets:
+                                    backup_sh.del_worksheet(old_ws)
+                                    time.sleep(0.5)
+                                    
+                                # 3. コピーしたシートの名前を元に戻す（「のコピー」を消去）
+                                for info in copied_info:
+                                    ws_to_rename = backup_sh.get_worksheet_by_id(info['id'])
+                                    ws_to_rename.update_title(info['title'])
+                                    time.sleep(0.5)
+                                    
+                                # 4. バックアップ管理シートの履歴を更新
+                                backup_ws.update_acell('A1', current_week)
+                                backup_ws.update_acell('B1', str(next_num + 1))
+                                st.info(f"💾 今週の初回登録のため、「{target_name}」に全シートを上書きバックアップしました。")
                     except Exception as backup_e:
                         st.warning(f"⚠️ バックアップ処理でエラーが発生しました（データの登録は続行します）: {backup_e}")
                 # ▲▲▲ ここまで ▲▲▲
