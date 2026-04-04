@@ -1417,14 +1417,14 @@ if app_mode == "📊 プレイヤー分析":
 </div>
 <div style="margin-left: 5px; margin-bottom: 25px;">"""
                         
-                        for i in range(2, 14):
+                        for i in range(2, 13):
                             cnt = len([l for l in strike_lengths if l >= i])
                             label_str = ""
                             if i == 2: label_str = " (DOUBLE)"
                             elif i == 3: label_str = " (TURKEY)"
-                            elif i == 13: label_str = " (PERFECT)"
+                            elif i == 12: label_str = " (PERFECT)"
                             
-                            border_style = "border-bottom: 1px dashed #444;" if i < 13 else ""
+                            border_style = "border-bottom: 1px dashed #444;" if i < 12 else ""
                             
                             html += f"""<div style="display: flex; justify-content: space-between; align-items: center; {border_style} padding: 6px 0;">
 <span style="color: silver; font-size: 14px; font-weight: bold;">連続 {i}回{label_str}</span>
