@@ -13,20 +13,92 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 
-
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 # --- ページ設定 ---
 st.set_page_config(page_title="ボウリング解析", page_icon="🎳", layout="wide")
+
+# ▼▼▼ プレイヤー分析画面のAWARD画面を参考にした共通ダークテーマ・統一CSS ▼▼▼
 st.markdown("""
     <style>
-    /* expanderの下の余白を消す */
+    /* アプリ全体をAWARD風のダークテーマに */
+    .stApp {
+        background-color: #1a1a1c !important;
+        color: silver !important;
+    }
+    
+    /* ヘッダーや通常テキストの色をAWARD風（silver）に統一 */
+    h1, h2, h3, h4, h5, h6, p, span, label {
+        color: silver !important;
+    }
+    
+    /* 入力ウィジェットのコンテナ（背景色と枠線） */
+    div[data-baseweb="input"], 
+    div[data-baseweb="select"] > div, 
+    div[data-baseweb="textarea"] > div,
+    div[data-baseweb="checkbox"] > div {
+        background-color: #2a2a2e !important;
+        border: 1px solid #444 !important;
+        border-radius: 8px !important;
+    }
+    
+    /* 入力テキストカラー */
+    input, textarea, div[data-baseweb="select"] {
+        color: white !important;
+    }
+    
+    /* プルダウンのメニューリスト */
+    ul[role="listbox"] {
+        background-color: #2a2a2e !important;
+        border: 1px solid #444 !important;
+    }
+    li[role="option"] {
+        color: white !important;
+    }
+    li[role="option"]:hover {
+        background-color: #1c1c1e !important;
+    }
+
+    /* ボタンの共通スタイル */
+    button[kind="primary"], button[kind="secondary"] {
+        background: linear-gradient(145deg, #2a2a2e, #1c1c1e) !important;
+        border: 1px solid #333 !important;
+        color: #bf953f !important;
+        border-radius: 8px !important;
+        font-weight: bold !important;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3) !important;
+    }
+    button[kind="primary"]:hover, button[kind="secondary"]:hover {
+        border-color: #bf953f !important;
+        color: white !important;
+    }
+
+    /* Expander（折りたたみ） */
     div[data-testid="stExpander"] {
+        background-color: #1c1c1e !important;
+        border: 1px solid #333 !important;
+        border-radius: 8px !important;
         margin-bottom: 0rem !important;
     }
-    /* ★スマホ画面で強制的に横並び（st.columns）を維持するための安全な設定 */
+    div[data-testid="stExpander"] summary p {
+        color: #bf953f !important;
+        font-weight: bold !important;
+    }
+    
+    /* サイドバー背景 */
+    section[data-testid="stSidebar"] {
+        background-color: #1c1c1e !important;
+        border-right: 1px solid #333 !important;
+    }
+    
+    /* データフレームの背景等 */
+    div[data-testid="stDataFrame"] {
+        background-color: #1a1a1c !important;
+    }
+
+    /* スマホ画面で強制的に横並び（st.columns）を維持するための安全な設定 */
     @media (max-width: 768px) {
         div[data-testid="stHorizontalBlock"] {
             flex-direction: row !important;
@@ -76,18 +148,24 @@ st.markdown("""
         text-align: center !important;
     }
     /* ▲▲▲ ここまで ▲▲▲ */
-    
     </style>
 """, unsafe_allow_html=True)
+
 st.markdown("""
 <div style='text-align: center; font-size: 36px; white-space: nowrap; margin-bottom: 16px; font-weight: bold; font-family: "Arial Black", Impact, sans-serif;'>
-    🎳
-    <span style='background: linear-gradient(135deg, #bf953f 0%, #fcf6ba 20%, #555555 35%, #b38728 55%, #ffffff 75%, #aa771c 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(2px 4px 4px rgba(0,0,0,0.8)); padding-right: 5px;'> EAGLE ROLLERS</span>
-    🎳
+    <span style='background: linear-gradient(135deg, #bf953f 0%, #fcf6ba 20%, #555555 35%, #b38728 55%, #ffffff 75%, #aa771c 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(2px 4px 4px rgba(0,0,0,0.8)); padding-right: 5px;'>EAGLE ROLLERS</span>
 </div>
 """, unsafe_allow_html=True)
 
-# --- 🌟【追加】Google Sheets 接続ヘルパー ---
+# --- 共通でおしゃれなタイトルを描画する関数 ---
+def render_section_title(title_text):
+    st.markdown(f"""
+    <div style="background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 10px 20px; border-radius: 8px; border-left: 5px solid #bf953f; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+        <span style="color: silver; font-size: 18px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif; letter-spacing: 1px;">{title_text}</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+# --- Google Sheets 接続ヘルパー ---
 @st.cache_resource(ttl=600)
 def get_gspread_client():
     import json
@@ -108,7 +186,7 @@ def get_gspread_client():
         return gc.open_by_key(results['files'][0]['id'])
     return None
 
-# --- 🌟【追加】セッション初期化 ---
+# --- セッション初期化 ---
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.user_email = ""
@@ -116,9 +194,9 @@ if "logged_in" not in st.session_state:
     st.session_state.user_role = ""
     st.session_state.user_public = ""
 
-# --- 🌟【追加】ログイン画面 ---
+# --- ログイン画面 ---
 if not st.session_state.logged_in:
-    st.markdown("<h3 style='text-align: center;'>🔐 ログイン</h3>", unsafe_allow_html=True)
+    render_section_title("ログイン")
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         login_id = st.text_input("ユーザーID  \n(メールアドレス)")
@@ -150,11 +228,10 @@ if not st.session_state.logged_in:
 
 # --- サイドバー：設定エリア ---
 with st.sidebar:
-    st.header(f"👤 {st.session_state.user_name} さん")
+    st.markdown(f"<div style='color: #bf953f; font-weight: bold; font-size: 18px; margin-bottom: 5px;'>{st.session_state.user_name} さん</div>", unsafe_allow_html=True)
     st.caption(f"権限: {st.session_state.user_role}")
     
-    # 🌟【変更】パスワード・公開設定・友達追加エリア
-    with st.expander("⚙️ アカウント・友達設定"):
+    with st.expander("アカウント・友達設定"):
         new_pw = st.text_input("新しいパスワード", type="password")
         
         # 公開設定（3パターン）
@@ -170,10 +247,10 @@ with st.sidebar:
                     ws.update_cell(st.session_state.user_row_index, 5, new_pw) # E列(5)
                 ws.update_cell(st.session_state.user_row_index, 3, new_pub) # C列(3)
                 st.session_state.user_public = new_pub
-                st.success("✅ 設定を更新しました！")
+                st.success("設定を更新しました！")
         
         st.markdown("---")
-        st.markdown("**🤝 友達追加**")
+        st.markdown("**友達追加**")
         friend_email = st.text_input("友達のユーザーID (メールアドレス)")
         if st.button("友達を追加する"):
             if friend_email == st.session_state.user_email:
@@ -201,14 +278,14 @@ with st.sidebar:
                             friends_list.append(friend_email)
                             new_friends_str = ",".join(friends_list)
                             ws.update_cell(st.session_state.user_row_index, 6, new_friends_str) # F列(6)
-                            st.success(f"✅ {friend_name} さんを友達に追加しました！")
+                            st.success(f"{friend_name} さんを友達に追加しました！")
                         else:
                             st.info("すでに友達に追加されています。")
                     else:
                         st.error("入力されたIDのユーザーが見つかりません。")
 
         # 登録済み友達一覧の表示
-        st.markdown("**📋 登録済みの友達一覧**")
+        st.markdown("**登録済みの友達一覧**")
         if st.button("一覧を更新・表示"):
             sh = get_gspread_client()
             if sh:
@@ -226,18 +303,17 @@ with st.sidebar:
                 else:
                     st.markdown("友達はまだ登録されていません。")
     
-    # 🌟【変更】権限によるモード制限のみ（APIキー入力欄は削除）
     if st.session_state.user_role in ["開発者", "管理者"]:
-        app_mode = st.radio("🚀 モード選択", ["📝 スコア登録", "🛢️ オイル情報入力", "📊 プレイヤー分析", "📈 データ比較"], index=0)
+        app_mode = st.radio("モード選択", ["スコア登録", "オイル情報入力", "プレイヤー分析", "データ比較"], index=0)
     else:
-        app_mode = st.radio("🚀 モード選択", ["📊 プレイヤー分析"], index=0)
+        app_mode = st.radio("モード選択", ["プレイヤー分析"], index=0)
         st.info("※非公開のプレイヤーのデータは表示されません")
 
 # =========================================================
-# 🛢️ 【新機能】オイル情報入力モード
+# 【新機能】オイル情報入力モード
 # =========================================================
-if app_mode == "🛢️ オイル情報入力":
-    st.header("🛢️ オイル情報入力")
+if app_mode == "オイル情報入力":
+    render_section_title("オイル情報入力")
     st.markdown("ボウリング場のオイル長とオイル量を記録・登録します。")
     
     # ① 修正機能（直接「オイル入力」シートを開くSPSリンクボタン）
@@ -246,7 +322,7 @@ if app_mode == "🛢️ オイル情報入力":
         try:
             oil_sheet = sh.worksheet("オイル入力")
             sheet_url = f"https://docs.google.com/spreadsheets/d/{sh.id}/edit#gid={oil_sheet.id}"
-            st.link_button("✏️ オイル入力済みデータを修正する (SPSを展開)", sheet_url)
+            st.link_button("オイル入力済みデータを修正する (SPSを展開)", sheet_url)
         except Exception as e:
             st.error("SPSに「オイル入力」シートが見つかりません。")
             
@@ -312,14 +388,14 @@ if app_mode == "🛢️ オイル情報入力":
     # 上部コントロールパネル（前回コピー ＆ ④オールクリア）
     c_btn1, c_btn2 = st.columns(2)
     with c_btn1:
-        st.button("🔄 前回データをコピー (最新履歴)", on_click=copy_latest_oil, use_container_width=True)
+        st.button("前回データをコピー (最新履歴)", on_click=copy_latest_oil, use_container_width=True)
     with c_btn2:
-        st.button("🗑️ オールクリア", on_click=clear_all, type="secondary", use_container_width=True)
+        st.button("オールクリア", on_click=clear_all, type="secondary", use_container_width=True)
     
     st.markdown("---")
     
     # ③ 日時をセレクトボックスで選択（0-24時、00-59分）
-    st.markdown("<div style='color: silver; font-weight: bold; margin-bottom: 5px;'>📅 日時設定</div>", unsafe_allow_html=True)
+    st.markdown("<div style='color: silver; font-weight: bold; margin-bottom: 5px;'>日時設定</div>", unsafe_allow_html=True)
     c_date, c_hour, c_min, c_dummy = st.columns([2, 1, 1, 2])
     with c_date:
         st.text_input("日付 (YY/MM/DD)", key="oil_input_date")
@@ -330,7 +406,7 @@ if app_mode == "🛢️ オイル情報入力":
         minutes = [f"{i:02d}" for i in range(60)]
         st.selectbox("分", minutes, key="oil_input_minute")
         
-    st.markdown("### 🎳 各レーンのオイル設定")
+    render_section_title("各レーンのオイル設定")
     
     # ⑤ 画面を横並び9列でスタイリッシュに見せるための専用CSS
     st.markdown("""
@@ -379,7 +455,7 @@ if app_mode == "🛢️ オイル情報入力":
     st.markdown("---")
     
     # 登録処理
-    if st.button("📝 オイル情報を登録する", type="primary", use_container_width=True):
+    if st.button("オイル情報を登録する", type="primary", use_container_width=True):
         error_msg = ""
         oil_time = f"{st.session_state.oil_input_hour}:{st.session_state.oil_input_minute}"
         row_to_add = [st.session_state.oil_input_date, oil_time]
@@ -420,20 +496,20 @@ if app_mode == "🛢️ オイル情報入力":
                         if "oil_data" in st.session_state:
                             st.session_state.oil_data.append(row_to_add)
                             
-                        st.success("✅ オイル情報の登録が完了しました！")
+                        st.success("オイル情報の登録が完了しました！")
                     else:
                         st.error("データベースに接続できませんでした。")
                 except Exception as e:
-                    st.error(f"⚠️ 登録に失敗しました: {e}")
+                    st.error(f"登録に失敗しました: {e}")
                     
     # ⚠️ オイル入力モードの時は、これより下のコードを読み込まずにストップする
     st.stop()
 
 
 # =========================================================
-# 📊 【新機能】プレイヤー分析ダッシュボード
+# 【新機能】プレイヤー分析ダッシュボード
 # =========================================================
-if app_mode == "📊 プレイヤー分析":
+if app_mode == "プレイヤー分析":
     import plotly.graph_objects as go
     import plotly.express as px
     import gspread
@@ -2330,13 +2406,14 @@ if app_mode == "📊 プレイヤー分析":
                                 game_seq.append("-")
                                 m_stat["pitches"] += 1
                                 m_stat["spare_chances"] += 1
-                                p2 = get_pins(res10_2)
+                                left_arr = get_pins(res10_2_rem)
+                                for p in left_arr: pass # pin_left集計は別で実施済
                                 if is_spare(res10_3):
                                     m_stat["spares"] += 1
                                     m_stat["pin_falls"] += 10
                                 else:
                                     miss_flag = True
-                                    m_stat["pin_falls"] += (p2 + get_pins(res10_3))
+                                    m_stat["pin_falls"] += (get_pins(res10_2) + get_pins(res10_3))
                         else:
                             game_seq.append("-")
                             m_stat["pitches"] += 1
@@ -2588,58 +2665,23 @@ if app_mode == "📊 プレイヤー分析":
 
 
 # ⚠️ AIモデル設定：Flash版を除外し、Proモデルに限定（存在しないモデル名によるエラーを防止）
-
 fallback_models = [
     'gemini-2.5-pro',
 ]
 
 # =========================================================
-# 📈 【新機能】データ比較
+# 【新機能】データ比較
 # =========================================================
-if app_mode == "📈 データ比較":
+if app_mode == "データ比較":
     import pandas as pd
     import plotly.express as px
     import plotly.graph_objects as go
     from datetime import datetime
     import re
 
-    # ▼ ハイテク・サイバー風の独自CSS
-    st.markdown("""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap');
-    
-    .cyber-title {
-        font-family: 'Orbitron', sans-serif;
-        color: #00f3ff;
-        text-shadow: 0 0 8px #00f3ff, 0 0 15px rgba(0,243,255,0.5);
-        font-size: 2.2rem;
-        font-weight: 700;
-        text-align: center;
-        letter-spacing: 4px;
-        margin-bottom: 30px;
-        border-bottom: 1px solid rgba(0, 243, 255, 0.3);
-        padding-bottom: 15px;
-        background: linear-gradient(90deg, rgba(0,243,255,0) 0%, rgba(0,243,255,0.1) 50%, rgba(0,243,255,0) 100%);
-    }
-    .cyber-step {
-        font-family: 'Orbitron', 'Meiryo', sans-serif;
-        color: #39ff14;
-        text-shadow: 0 0 5px #39ff14;
-        font-size: 1.2rem;
-        border-left: 5px solid #39ff14;
-        padding-left: 10px;
-        margin-top: 25px;
-        margin-bottom: 15px;
-        background: linear-gradient(90deg, rgba(57,255,20,0.15) 0%, rgba(0,0,0,0) 100%);
-        font-weight: bold;
-        letter-spacing: 1px;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+    render_section_title("データ比較")
 
-    st.markdown("<div class='cyber-title'>⚡ ADVANCED ANALYTICS HUB ⚡</div>", unsafe_allow_html=True)
-
-    with st.spinner("🌐 データベースに接続中... 高度解析エンジンを起動しています..."):
+    with st.spinner("データベースに接続中... 高度解析エンジンを起動しています..."):
         try:
             sh = get_gspread_client()
             if not sh:
@@ -2857,26 +2899,26 @@ if app_mode == "📈 データ比較":
         Y_METRICS[f"{i}番ピン 残存率 (%)"] = {"agg": lambda df, p=i: (df[f"pin{p}_left"].sum() / df["st_c"].sum() * 100) if df["st_c"].sum() > 0 else 0, "col": f"pin{i}_left_rate"}
 
     X_AXIS_OPTIONS = {
-        "👥 プレイヤー": "player",
-        "📈 ゲーム順 (時系列)": "game_num",
-        "📊 月別推移 (YYYY/MM)": "month_key",
-        "🔖 個別条件1": "cond1",
-        "🔖 個別条件2": "cond2",
-        "🔖 個別条件3": "cond3",
-        "🎳 使用ボール": "ball",
-        "🧭 使用レーン": "lane",
-        "📏 オイル長 (ft)": "oil_len",
-        "💧 オイル量 (ml)": "oil_vol"
+        "プレイヤー": "player",
+        "ゲーム順 (時系列)": "game_num",
+        "月別推移 (YYYY/MM)": "month_key",
+        "個別条件1": "cond1",
+        "個別条件2": "cond2",
+        "個別条件3": "cond3",
+        "使用ボール": "ball",
+        "使用レーン": "lane",
+        "オイル長 (ft)": "oil_len",
+        "オイル量 (ml)": "oil_vol"
     }
 
     # ▼ STEP 1
-    st.markdown("<div class='cyber-step'>[STEP 1] DATA EXTRACTION & FILTERS</div>", unsafe_allow_html=True)
+    st.markdown("<div style='color: #bf953f; font-weight: bold; border-bottom: 1px solid #444; margin-top: 20px; margin-bottom: 10px;'>[STEP 1] DATA EXTRACTION & FILTERS</div>", unsafe_allow_html=True)
     col_f1, col_f2 = st.columns(2)
     with col_f1:
         sel_players = st.multiselect("対象プレイヤー (複数選択可)", all_players, default=all_players[:1] if all_players else [])
     with col_f2:
-        period_type = st.radio("期間指定", ["🕒 直近〇ゲーム", "📅 カレンダー指定"], horizontal=True)
-        if period_type == "📅 カレンダー指定":
+        period_type = st.radio("期間指定", ["直近〇ゲーム", "カレンダー指定"], horizontal=True)
+        if period_type == "カレンダー指定":
             c_d1, c_d2 = st.columns(2)
             with c_d1: start_d = st.date_input("開始日", value=None)
             with c_d2: end_d = st.date_input("終了日", value=None)
@@ -2900,11 +2942,11 @@ if app_mode == "📈 データ比較":
                 st.info("データがありません")
 
     # ▼ STEP 2
-    st.markdown("<div class='cyber-step'>[STEP 2] VISUALIZATION FORMAT</div>", unsafe_allow_html=True)
+    st.markdown("<div style='color: #bf953f; font-weight: bold; border-bottom: 1px solid #444; margin-top: 20px; margin-bottom: 10px;'>[STEP 2] VISUALIZATION FORMAT</div>", unsafe_allow_html=True)
     sel_graph = st.radio("表示形式", ["データ表", "棒グラフ", "折れ線グラフ", "分布図 (箱ひげ+散布)", "レーダーチャート"], horizontal=True)
 
     # ▼ STEP 3
-    st.markdown("<div class='cyber-step'>[STEP 3] AXIS & METRICS SETUP</div>", unsafe_allow_html=True)
+    st.markdown("<div style='color: #bf953f; font-weight: bold; border-bottom: 1px solid #444; margin-top: 20px; margin-bottom: 10px;'>[STEP 3] AXIS & METRICS SETUP</div>", unsafe_allow_html=True)
     if sel_graph == "レーダーチャート":
         sel_xaxis = st.selectbox("X軸 (グループ化・比較の基準)", list(X_AXIS_OPTIONS.keys()))
         sel_metrics = st.multiselect("比較するデータ (複数選択)", list(Y_METRICS.keys()), default=list(Y_METRICS.keys())[:4])
@@ -2916,10 +2958,10 @@ if app_mode == "📈 データ比較":
         with col_a2:
             sel_yaxis = st.selectbox("Y軸 (縦軸・比較するデータ)", list(Y_METRICS.keys()))
 
-    if st.button("🚀 INITIATE ANALYSIS", type="primary", use_container_width=True):
+    if st.button("INITIATE ANALYSIS", type="primary", use_container_width=True):
         df = raw_df[raw_df["player"].isin(sel_players)]
         
-        if period_type == "📅 カレンダー指定":
+        if period_type == "カレンダー指定":
             if start_d: df = df[df["datetime"].dt.date >= start_d]
             if end_d: df = df[df["datetime"].dt.date <= end_d]
         else:
@@ -2929,7 +2971,7 @@ if app_mode == "📈 データ比較":
             df = df[df[filter_opts[filter_col_name]] == filter_val]
 
         if df.empty:
-            st.warning("⚠️ 指定された条件のデータが見つかりません。条件を変更してください。")
+            st.warning("指定された条件のデータが見つかりません。条件を変更してください。")
             st.stop()
 
         x_col = X_AXIS_OPTIONS[sel_xaxis]
@@ -2956,26 +2998,26 @@ if app_mode == "📈 データ比較":
             res.append(row_data)
 
         res_df = pd.DataFrame(res)
-        st.markdown("<hr style='border-color: #00f3ff; box-shadow: 0 0 10px #00f3ff;'>", unsafe_allow_html=True)
+        st.markdown("<hr style='border-color: #bf953f; box-shadow: 0 0 10px rgba(191, 149, 63, 0.3);'>", unsafe_allow_html=True)
 
-        # ▼ グラフのハイテク化（サイバーパンク配色・ダークテーマ調整）
-        cyber_colors = ['#00f3ff', '#ff0055', '#39ff14', '#fcee0a', '#b000ff']
+        # グラフのカラー設定をAWARD風に調整
+        award_colors = ['#bf953f', '#4285f4', '#34a853', '#ea4335', '#fbbc04']
         base_layout = dict(
             template="plotly_dark",
             plot_bgcolor='rgba(10, 15, 25, 0.8)',
             paper_bgcolor='rgba(0, 0, 0, 0)',
-            font=dict(color='#00f3ff', family='Orbitron, monospace'),
+            font=dict(color='silver', family='Arial, sans-serif'),
             xaxis=dict(showgrid=True, gridcolor='#222', zerolinecolor='#444'),
             yaxis=dict(showgrid=True, gridcolor='#222', zerolinecolor='#444')
         )
 
         try:
             if sel_graph == "データ表":
-                st.dataframe(res_df.style.format(precision=1).set_properties(**{'background-color': '#0d1117', 'color': '#00f3ff', 'border-color': '#333'}), use_container_width=True)
+                st.dataframe(res_df.style.format(precision=1).set_properties(**{'background-color': '#0d1117', 'color': 'white', 'border-color': '#333'}), use_container_width=True)
                 
             elif sel_graph == "棒グラフ":
                 res_df = res_df.sort_values(x_col)
-                fig = px.bar(res_df, x=x_col, y=sel_yaxis, color="player", barmode="group", text_auto='.1f', color_discrete_sequence=cyber_colors)
+                fig = px.bar(res_df, x=x_col, y=sel_yaxis, color="player", barmode="group", text_auto='.1f', color_discrete_sequence=award_colors)
                 if x_col != "game_num": fig.update_xaxes(type='category', categoryorder='category ascending')
                 fig.update_traces(marker_line_color='rgba(255,255,255,0.8)', marker_line_width=1.5, opacity=0.85)
                 fig.update_layout(**base_layout)
@@ -2983,7 +3025,7 @@ if app_mode == "📈 データ比較":
                 
             elif sel_graph == "折れ線グラフ":
                 res_df = res_df.sort_values(x_col)
-                fig = px.line(res_df, x=x_col, y=sel_yaxis, color="player", markers=True, color_discrete_sequence=cyber_colors)
+                fig = px.line(res_df, x=x_col, y=sel_yaxis, color="player", markers=True, color_discrete_sequence=award_colors)
                 if x_col != "game_num": fig.update_xaxes(type='category', categoryorder='category ascending')
                 fig.update_traces(line=dict(width=3), marker=dict(size=8, line=dict(width=2, color='white')))
                 fig.update_layout(**base_layout)
@@ -2992,7 +3034,7 @@ if app_mode == "📈 データ比較":
             elif sel_graph == "分布図 (箱ひげ+散布)":
                 y_col_raw = Y_METRICS[sel_yaxis]["col"]
                 df_sorted = df.sort_values(x_col)
-                fig = px.box(df_sorted, x=x_col, y=y_col_raw, color="player", points="all", color_discrete_sequence=cyber_colors)
+                fig = px.box(df_sorted, x=x_col, y=y_col_raw, color="player", points="all", color_discrete_sequence=award_colors)
                 if x_col != "game_num": fig.update_xaxes(type='category', categoryorder='category ascending')
                 fig.update_traces(marker=dict(size=5, opacity=0.8, line=dict(width=1, color='white')))
                 fig.update_layout(**base_layout)
@@ -3010,7 +3052,7 @@ if app_mode == "📈 データ比較":
                             vals.append((row[cat] / max_v * 100) if max_v > 0 else 0)
                         
                         name_label = f'{row["player"]} ({row[x_col]})' if x_col != "player" else row["player"]
-                        color = cyber_colors[idx % len(cyber_colors)]
+                        color = award_colors[idx % len(award_colors)]
                         fig.add_trace(go.Scatterpolar(
                             r=vals + [vals[0]], 
                             theta=sel_metrics + [sel_metrics[0]], 
@@ -3023,10 +3065,9 @@ if app_mode == "📈 データ比較":
                     fig.update_layout(polar=dict(radialaxis=dict(visible=False, gridcolor='#222'), angularaxis=dict(gridcolor='#333')))
                     st.plotly_chart(fig, use_container_width=True)
         except Exception as e:
-            st.error(f"⚠️ 解析エラー: 選択された組み合わせではグラフを描画できません。(詳細: {e})")
+            st.error(f"解析エラー: 選択された組み合わせではグラフを描画できません。(詳細: {e})")
 
     st.stop()
-
 
 
 # =========================================================
@@ -3041,18 +3082,13 @@ if "analyzed_results" not in st.session_state:
 if "downloaded_images" not in st.session_state:
     st.session_state.downloaded_images = []    
 
-
-
 st.markdown("<h3 style='text-align: center;'>☟　☟　☟</h3>", unsafe_allow_html=True)
 
-# ★要望1：カラムを廃止し、ボタンを狭くせず横幅いっぱいに広げる
-fetch_button = st.button("🔄 スコアシート取込（MAX３枚）🔄", use_container_width=True)
+fetch_button = st.button("スコアシート取込（MAX３枚）", use_container_width=True)
 
-# ★ 追加：残ピン判定の閾値調整用スライダー
 with st.expander("残ピン判定の微調整"):
     st.markdown("<span style='font-size: 12px; color: silver;'>自動計算された残ピン判定の閾値に、この数値をプラスマイナスして一時的に調整します。<br>（ピンが反応しにくい場合はマイナスへ、過剰に反応する場合はプラスへ変更して再取込してください）</span>", unsafe_allow_html=True)
     
-    # 🌟【変更】初期化ボタンとの連動処理
     if "pin_thresh_offset" not in st.session_state:
         st.session_state.pin_thresh_offset = 1.0
 
@@ -3061,17 +3097,15 @@ with st.expander("残ピン判定の微調整"):
 
     col_sl, col_btn = st.columns([4, 1])
     with col_sl:
-        # valueを直接指定せず、keyを連携させることでボタン側から書き換え可能にする
         st.slider("閾値の調整値（％）", min_value=-20.0, max_value=20.0, step=0.05, key="pin_thresh_offset")
     with col_btn:
-        st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True) # スライダーのラベルの高さと合わせるための余白
-        st.button("🔄 初期値に戻す", on_click=reset_thresh, use_container_width=True)
+        st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True) 
+        st.button("初期値に戻す", on_click=reset_thresh, use_container_width=True)
 
 if fetch_button:
-    # 🌟【追加】Secretsから共通のAPIキーを自動取得
     gemini_api_key = st.secrets.get("gemini_api_key", "")
     if not gemini_api_key:
-        st.error("⚠️ StreamlitのSecretsに 'gemini_api_key' が設定されていません。")
+        st.error("StreamlitのSecretsに 'gemini_api_key' が設定されていません。")
         st.stop()
         
     with st.spinner("Googleドライブを探索中..."):
@@ -3090,16 +3124,14 @@ if fetch_button:
             )
             drive_service = build('drive', 'v3', credentials=creds)
 
-            # 🌟【変更】フォルダ名「Bowling_App」で検索してフォルダIDを動的に取得する
             folder_query = "name = 'Bowling_App' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
             folder_results = drive_service.files().list(q=folder_query, fields="files(id, name)").execute()
             folders = folder_results.get('files', [])
             
             if not folders:
-                st.error("⚠️ Googleドライブ内に「Bowling_App」という名前のフォルダが見つかりません。")
+                st.error("Googleドライブ内に「Bowling_App」という名前のフォルダが見つかりません。")
                 st.stop()
                 
-            # 見つかったフォルダのIDを使用して画像を検索
             FOLDER_ID = folders[0]['id']
             query = f"'{FOLDER_ID}' in parents and mimeType='image/jpeg' and trashed=false"
             
@@ -3112,7 +3144,7 @@ if fetch_button:
             items = results.get('files', [])
 
             if not items:
-                st.error("⚠️ 画像が見つかりません。")
+                st.error("画像が見つかりません。")
             else:
                 fetched_images = []
                 for item in items:
@@ -3123,33 +3155,30 @@ if fetch_button:
                     done = False
                     while not done:
                         _, done = downloader.next_chunk()
-                    # ★ここで file_id も一緒に記憶させる
                     fetched_images.append({"name": item['name'], "bytes": fh.getvalue(), "file_id": file_id})
 
-                # ▼ 変数名を元の正しい名前（raw_images_data）に戻す
                 st.session_state.raw_images_data = fetched_images
                 st.session_state.analyzed_results = None
-                st.success(f"✅ {len(fetched_images)}枚の画像をセットしました！")
+                st.success(f"{len(fetched_images)}枚の画像をセットしました！")
                 st.rerun()
                 
         except Exception as e:
-            st.error(f"⚠️ 読み込みエラー: {e}")
+            st.error(f"読み込みエラー: {e}")
 
 if not st.session_state.raw_images_data:
     st.info("　")
     st.stop()
 
-# 🌟【変更】手動入力チェックを削除し、Secretsから取得したキーを使用
 gemini_api_key = st.secrets.get("gemini_api_key", "")
 if not gemini_api_key:
-    st.error("⚠️ StreamlitのSecretsに 'gemini_api_key' が設定されていません。")
+    st.error("StreamlitのSecretsに 'gemini_api_key' が設定されていません。")
     st.stop()
 
 client = genai.Client(api_key=gemini_api_key)
 status_text = st.empty()
 
 # =========================================================
-# 📍 【AIプロンプトの定義】（既存のプロンプト部分と差し替え）
+# 📍 【AIプロンプトの定義】
 # =========================================================
 prompt_metadata = """
 画像はボウリングのスコアシートの全体写真です。
@@ -3203,7 +3232,7 @@ prompt_score = """
 """
 
 # =========================================================
-# 📍 【ブロック 4】 共通関数・定数定義（安定版の50列構成）
+# 📍 【ブロック 4】 共通関数・定数定義
 # =========================================================
 def calculate_bowling_score(throws):
     def get_val(idx):
@@ -3286,14 +3315,14 @@ if st.session_state.analyzed_results is None:
 
     for img_idx, img_data in enumerate(st.session_state.raw_images_data):
         file_name = img_data["name"]
-        file_id = img_data.get("file_id") # ★この1行を追加
-        status_text.info(f"⚙️ 画像 {img_idx+1}/{len(st.session_state.raw_images_data)} 枚目 ({file_name}) を解析中...")
+        file_id = img_data.get("file_id") 
+        status_text.info(f"画像 {img_idx+1}/{len(st.session_state.raw_images_data)} 枚目 ({file_name}) を解析中...")
 
         image_bytes = np.frombuffer(img_data["bytes"], np.uint8)
         img = cv2.imdecode(image_bytes, cv2.IMREAD_COLOR)
 
         if img is None:
-            st.warning(f"⚠️ {file_name} の画像変換に失敗しました。スキップします。")
+            st.warning(f"{file_name} の画像変換に失敗しました。スキップします。")
             continue
 
         all_games_export_data = []
@@ -3317,7 +3346,6 @@ if st.session_state.analyzed_results is None:
         gray = cv2.cvtColor(img_resized, cv2.COLOR_BGR2GRAY)
         thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 5)
         b_channel = img_resized[:, :, 0]
-        # ★ 一番最後の「5」を「15」に増やす（数値を大きくするほど薄い影を無視します）
         thresh_ink = cv2.adaptiveThreshold(b_channel, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 10)
 
         h_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (100, 1))
@@ -3348,7 +3376,7 @@ if st.session_state.analyzed_results is None:
                 cv2.line(output_img, (int(x_start_ext), int(y_start_ext)), (int(x_end_ext), int(y_end_ext)), (255, 255, 0), 3)
 
         if not blue_lines:
-            st.warning(f"⚠️ {file_name}: ゲームの行（水色線）が見つかりませんでした。スキップします。")
+            st.warning(f"{file_name}: ゲームの行（水色線）が見つかりませんでした。スキップします。")
             continue
 
         blue_lines.sort(key=lambda line: line['y_center'])
@@ -3575,7 +3603,6 @@ if st.session_state.analyzed_results is None:
             else:
                 dyn_thresh_empty = np.max(all_global_pin_pcts) + 5.0
         
-        # ★ ここで黄色の枠（残ピン）の閾値を微調整する（スライダーの値を適用）
         offset = st.session_state.get("pin_thresh_offset", 1.0)
         dyn_thresh_empty = dyn_thresh_empty + offset
 
@@ -3736,19 +3763,14 @@ if st.session_state.analyzed_results is None:
             crop_x2 = min(img_for_ai.shape[1], int(new_ref2[0] + 10))
 
             if crop_y2 > crop_y1 and crop_x2 > crop_x1:
-                # 1行分の画像をコピーして取得
                 row_crop = img_for_ai[crop_y1:crop_y2, crop_x1:crop_x2].copy()
                 
-                # ▼▼▼【マスキング処理のON/OFFスイッチ】▼▼▼
-                # 不具合が起きて元に戻したい時は、この True を False に書き換えるだけで元の状態に戻ります！
                 USE_MASKING = False 
                 
                 if USE_MASKING:
                     h_crop, w_crop = row_crop.shape[:2]
-                    mask_h = int(h_crop * 0.48) # 上から48%の位置を計算
-                    # 上半分を真っ白(255, 255, 255)で塗りつぶす（-1は塗りつぶしの指定）
+                    mask_h = int(h_crop * 0.48) 
                     cv2.rectangle(row_crop, (0, 0), (w_crop, mask_h), (255, 255, 255), -1)
-                # ▲▲▲ ここまで ▲▲▲
 
                 score_crops.append(row_crop)
 
@@ -3764,15 +3786,14 @@ if st.session_state.analyzed_results is None:
         else:
             img_pil_scores = Image.fromarray(cv2.cvtColor(img_for_ai, cv2.COLOR_BGR2RGB))
 
-        # ⚠️ ここが重要！ else の中には入れず、左にずらして「else」の文字と縦を揃える
         img_pil_full = Image.fromarray(cv2.cvtColor(img_color_rotated, cv2.COLOR_BGR2RGB))
 
 
 # ---------------------------------------------------------
         # 📍 【ブロック 9】 AIによるテキスト読み取り（スコア → 日時）
         # ---------------------------------------------------------
-        status_text.info(f"⚙️ 画像 {img_idx+1}: AIがスコアを読み取り中...")
-        time.sleep(5) # 意図的なスリープ
+        status_text.info(f"画像 {img_idx+1}: AIがスコアを読み取り中...")
+        time.sleep(5) 
 
         ai_score_data = {"lane": "", "games": []}
         success_score = False
@@ -3804,21 +3825,20 @@ if st.session_state.analyzed_results is None:
                     error_msg = last_error.lower()
                     if any(err in error_msg for err in ["429", "too many requests", "quota", "503", "unavailable", "high demand", "overloaded"]):
                         if attempt < max_retries - 1:
-                            # エクスポネンシャル・バックオフ + ジッター
                             wait_sec = (2 ** (attempt + 1)) + random.uniform(0, 1)
-                            status_text.warning(f"⚠️ サーバー高負荷/制限。{wait_sec:.1f}秒待機して再試行します... ({attempt+1}/{max_retries})")
+                            status_text.warning(f"サーバー高負荷/制限。{wait_sec:.1f}秒待機して再試行します... ({attempt+1}/{max_retries})")
                             time.sleep(wait_sec)
-                            status_text.info(f"⚙️ 画像 {img_idx+1}: AIがスコアを読み取り中... (再試行 {attempt+1})")
+                            status_text.info(f"画像 {img_idx+1}: AIがスコアを読み取り中... (再試行 {attempt+1})")
                             continue
                     break
             if success_score:
                 break
 
         if not success_score:
-            st.warning(f"⚠️ {file_name}: AIのスコア読み取りに失敗しました。理由: {last_error}")
+            st.warning(f"{file_name}: AIのスコア読み取りに失敗しました。理由: {last_error}")
 
-        status_text.info(f"⚙️ 画像 {img_idx+1}: AIが日付・時刻・ゲーム数を取得中...")
-        time.sleep(5) # 意図的なスリープ
+        status_text.info(f"画像 {img_idx+1}: AIが日付・時刻・ゲーム数を取得中...")
+        time.sleep(5) 
 
         ai_meta_data = {"date": "日付不明", "start_time": "時刻不明", "end_time": "時刻不明", "start_game_num": 1, "lane": "", "player_name": ""}
         success_meta = False
@@ -3846,11 +3866,10 @@ if st.session_state.analyzed_results is None:
                     error_msg = str(e).lower()
                     if any(err in error_msg for err in ["429", "too many requests", "quota", "503", "unavailable", "high demand", "overloaded"]):
                         if attempt < max_retries - 1:
-                            # エクスポネンシャル・バックオフ + ジッター
                             wait_sec = (2 ** (attempt + 1)) + random.uniform(0, 1)
-                            status_text.warning(f"⚠️ API制限/高負荷(日時取得)。{wait_sec:.1f}秒待機して再試行します... ({attempt+1}/{max_retries})")
+                            status_text.warning(f"API制限/高負荷(日時取得)。{wait_sec:.1f}秒待機して再試行します... ({attempt+1}/{max_retries})")
                             time.sleep(wait_sec)
-                            status_text.info(f"⚙️ 画像 {img_idx+1}: AIが日付・時刻・ゲーム数を取得中... (再試行 {attempt+1})")
+                            status_text.info(f"画像 {img_idx+1}: AIが日付・時刻・ゲーム数を取得中... (再試行 {attempt+1})")
                             continue
                     break
             if success_meta:
@@ -3928,7 +3947,6 @@ if st.session_state.analyzed_results is None:
                 if str1 == 'X':
                     final_throws[f*2+1] = ""
                 else:
-                    # ★ OpenCVのおせっかいを完全削除し、AIの計算結果のみを信じる
                     curr_total = int(ai_frame_totals[f]) if str(ai_frame_totals[f]).isdigit() else 0
                     prev_total = int(ai_frame_totals[f-1]) if f > 0 and str(ai_frame_totals[f-1]).isdigit() else 0
                     diff = curr_total - prev_total
@@ -3964,7 +3982,6 @@ if st.session_state.analyzed_results is None:
                     final_throws[20] = str3_10
                     throw_colors[20] = COLOR_OPENCV
                 else:
-                    # ★ 10フレーム目も同様に削除
                     if (diff_10 - 10) >= 10:
                         final_throws[20] = "R:/"
                         throw_colors[20] = COLOR_AI
@@ -3975,7 +3992,6 @@ if st.session_state.analyzed_results is None:
                         final_throws[20] = "R:-" if v3_10 == 0 else f"R:{v3_10}"
                         throw_colors[20] = COLOR_AI
             else:
-                # ★ 10フレーム目も同様に削除
                 if diff_10 >= 10:
                     final_throws[19] = "R:/"
                     throw_colors[19] = COLOR_AI
@@ -4003,7 +4019,6 @@ if st.session_state.analyzed_results is None:
                 t2 = final_throws[f*2+1].replace("R:", "")
                 put_rotated_text(output_img, t2, start_x_base + f * box_w + 10 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, throw_colors[f*2+1])
 
-# --- 【ここから下を差し替え】 ---
             f = 9
             t1 = final_throws[18].replace("R:", "")
             put_rotated_text(output_img, t1, start_x_base + f * box_w + 3 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, throw_colors[18])
@@ -4012,7 +4027,6 @@ if st.session_state.analyzed_results is None:
             t3 = final_throws[20].replace("R:", "")
             put_rotated_text(output_img, t3, start_x_base + f * box_w + 17 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, throw_colors[20])
 
-            # 【修正点1】関数に渡す前に "R:" を削除し、エラー時はアプリを落とさずスキップする
             clean_throws = [str(t).replace("R:", "") for t in final_throws]
             try:
                 calc_totals = calculate_bowling_score(clean_throws)
@@ -4035,7 +4049,7 @@ if st.session_state.analyzed_results is None:
 
         analyzed_results.append({
             "file_name": file_name,
-            "file_id": file_id, # ★この1行を追加
+            "file_id": file_id, 
             "output_img": output_img,
             "all_games_export_data": all_games_export_data,
             "meta_data": ai_meta_data
@@ -4052,9 +4066,8 @@ if st.session_state.analyzed_results is None:
 import gspread
 
 if st.session_state.analyzed_results:
-    st.success("✅ 全ての画像の解析が完了しました！")
+    st.success("全ての画像の解析が完了しました！")
 
-    # --- 【追加】SPS「プレイヤー設定」シートと「オイル入力」シートからデータを動的に取得 ---
     if "dynamic_player_list" not in st.session_state or "oil_data" not in st.session_state:
         with st.spinner("SPSから設定データを取得中..."):
             try:
@@ -4076,37 +4089,30 @@ if st.session_state.analyzed_results:
                 sheets = results.get('files', [])
                 
                 fetched_players = []
-                player_nickname_map = {} # ★追加: ゲームネームとプレイヤー名の紐付け
-                oil_data_list = [] # ★追加: オイルデータ保持用
+                player_nickname_map = {} 
+                oil_data_list = [] 
                 if sheets:
                     sh = gc.open_by_key(sheets[0]['id'])
                     
-                    # プレイヤー設定の取得
                     settings_sheet = sh.worksheet("プレイヤー設定")
                     settings_data = settings_sheet.get_all_values()
                     
-                    # 2行目以降のB列（インデックス1: プレイヤー名）を取得
                     for row in settings_data[1:]:
                         if len(row) >= 2 and row[1].strip():
                             p_name = row[1].strip()
                             fetched_players.append(p_name)
-                            # 🌟【修正】F列(友達)追加に伴い、ゲームネーム取得列を G列(インデックス6)以降 にずらす
                             for i in range(6, len(row)):
                                 nickname = row[i].strip()
                                 if nickname:
                                     player_nickname_map[nickname] = p_name
                                     
-                    # ▼▼▼【追加】オイル入力データの取得▼▼▼
                     try:
                         oil_sheet = sh.worksheet("オイル入力")
                         oil_data_raw = oil_sheet.get_all_values()
-                        # 1行目:フレーム等の文字, 2行目:見出し, 3行目(インデックス2)からデータ
                         oil_data_list = oil_data_raw[2:] if len(oil_data_raw) > 2 else []
                     except Exception as e:
-                        st.warning(f"⚠️ オイル入力シートの読み込みに失敗しました: {e}")
-                    # ▲▲▲ ここまで ▲▲▲
+                        st.warning(f"オイル入力シートの読み込みに失敗しました: {e}")
                 
-                # 取得できたらセッションに保存、空ならフォールバック
                 if fetched_players:
                     st.session_state.dynamic_player_list = fetched_players
                     st.session_state.player_nickname_map = player_nickname_map
@@ -4114,27 +4120,24 @@ if st.session_state.analyzed_results:
                     st.session_state.dynamic_player_list = ["999_ゲスト"] 
                     st.session_state.player_nickname_map = {}
                     
-                st.session_state.oil_data = oil_data_list # ★追加
+                st.session_state.oil_data = oil_data_list 
             except Exception as e:
-                st.warning(f"⚠️ 設定の読み込みに失敗しました: {e}")
+                st.warning(f"設定の読み込みに失敗しました: {e}")
                 st.session_state.dynamic_player_list = ["999_ゲスト"]
                 st.session_state.player_nickname_map = {}
-                st.session_state.oil_data = [] # ★追加
+                st.session_state.oil_data = [] 
 
     
     player_list = st.session_state.dynamic_player_list
     
-    # ★追加: AIが読み取ったプレイヤーネームから初期選択を決定
     default_player_index = 0
     ai_player_name = ""
     if st.session_state.analyzed_results and len(st.session_state.analyzed_results) > 0:
         ai_player_name = st.session_state.analyzed_results[0].get("meta_data", {}).get("player_name", "").strip()
 
     if ai_player_name and "player_nickname_map" in st.session_state:
-        # 完全一致を探す
         matched_player = st.session_state.player_nickname_map.get(ai_player_name)
         if not matched_player:
-            # 揺れに対応するため部分一致も探す（AI読取名があだ名に含まれる、または逆）
             for nick, p_name in st.session_state.player_nickname_map.items():
                 if ai_player_name in nick or nick in ai_player_name:
                     matched_player = p_name
@@ -4143,7 +4146,6 @@ if st.session_state.analyzed_results:
         if matched_player and matched_player in player_list:
             default_player_index = player_list.index(matched_player)
 
-    # ★追加: 上下のプレイヤー選択を完全に同期するための仕組み
     current_analyzed_count = len(st.session_state.analyzed_results) if st.session_state.analyzed_results else 0
     if st.session_state.get("prev_analyzed_count") != current_analyzed_count:
         st.session_state.synced_player = player_list[default_player_index] if player_list else ""
@@ -4151,24 +4153,20 @@ if st.session_state.analyzed_results:
     elif "synced_player" not in st.session_state or st.session_state.synced_player not in player_list:
         st.session_state.synced_player = player_list[default_player_index] if player_list else ""
 
-    # ★プレイヤー選択（操作できるのは画面上部のここ1箇所だけにする）
-    selected_player = st.selectbox("👤プレイヤー選択👤", player_list, index=default_player_index)
+    selected_player = st.selectbox("プレイヤー選択", player_list, index=default_player_index)
 
     st.markdown("---")
     
-    # 🌟【変更】全選択チェックボックスの連動処理
     if "register_all_check" not in st.session_state:
         st.session_state.register_all_check = True
 
     def uncheck_all_if_needed(key):
-        # 個別チェックが外されたら、全体のチェックも自動で外す
         if not st.session_state[key]:
             st.session_state.register_all_check = False
 
     register_all = st.checkbox("全てのゲームをマスターに登録する", key="register_all_check")
     st.markdown("---")
     
-    # ▼▼▼【追加】オイルデータ検索関数▼▼▼
     def get_oil_info(target_date, target_time, target_lane):
         oil_data = st.session_state.get("oil_data", [])
         if not oil_data or not target_date or not target_time or not target_lane:
@@ -4223,12 +4221,11 @@ if st.session_state.analyzed_results:
         if best_match:
             return str(best_match[len_col]).strip(), str(best_match[vol_col]).strip()
         return "", ""
-    # ▲▲▲ ここまで ▲▲▲
 
     game_checkboxes = []
 
     for img_idx, res in enumerate(st.session_state.analyzed_results):
-        st.markdown(f"#### 📄 画像 {img_idx+1}: {res['file_name']}")
+        st.markdown(f"#### 画像 {img_idx+1}: {res['file_name']}")
         st.image(cv2.cvtColor(res['output_img'], cv2.COLOR_BGR2RGB), use_container_width=True)
 
         for local_idx, row in enumerate(res['all_games_export_data']):
@@ -4249,13 +4246,12 @@ if st.session_state.analyzed_results:
 
             ai_total_int = int(ai_total_str) if str(ai_total_str).isdigit() else 0
             if calc_totals and calc_val == ai_total_int:
-                match_status = "✅計算一致"
+                match_status = "計算一致"
             else:
-                match_status = "⚠️不一致"
+                match_status = "不一致"
 
             display_text = f"{date_str}_{start_time}_{end_time}_{game_name}｜トータル:{ai_total_str}_{match_status}"
             
-            # 🌟【変更】個別チェックボックスの状態管理とコールバック設定
             check_key = f"check_{img_idx}_{local_idx}"
             if check_key not in st.session_state:
                 st.session_state[check_key] = True
@@ -4277,7 +4273,6 @@ if st.session_state.analyzed_results:
                 "local_idx": local_idx   
             })
 
-            # --- 🛠️ 修正機能 UI ---
             edit_key = f"edit_{img_idx}_{local_idx}"
             close_flag_key = f"close_flag_{img_idx}_{local_idx}"
 
@@ -4289,9 +4284,8 @@ if st.session_state.analyzed_results:
                 st.session_state[close_flag_key] = False
 
 
-            if st.toggle(f"✏️ {game_name} を手動修正", key=edit_key):
+            if st.toggle(f"{game_name} を手動修正", key=edit_key):
 
-                # １つ目の要望：日付・開始・終了を横並びに
                 c_date, c_start, c_end = st.columns(3)
                 with c_date:
                     new_date = st.text_input("日付", value=row[0], key=f"d_{img_idx}_{local_idx}")
@@ -4300,11 +4294,10 @@ if st.session_state.analyzed_results:
                 with c_end:
                     new_end = st.text_input("終了時刻", value=row[2], key=f"e_{img_idx}_{local_idx}")
 
-                is_710_checked = st.checkbox("🎳 7-10G (セブン-テン ゲームとして登録)", value=bool(row[51]) if len(row) > 51 else False, key=f"710_{img_idx}_{local_idx}")
+                is_710_checked = st.checkbox("7-10G (セブン-テン ゲームとして登録)", value=bool(row[51]) if len(row) > 51 else False, key=f"710_{img_idx}_{local_idx}")
                 state_key = f"edit_data_{img_idx}_{local_idx}"
                 active_cell_key = f"active_cell_{img_idx}_{local_idx}"
 
-                # 初期状態の読み込み（セッションステートに保存してリアルタイム更新を可能にする）
                 if state_key not in st.session_state:
                     init_throws = [str(row[throw_cols[i]]).replace("R:", "") for i in range(21)]
                     init_pins = []
@@ -4312,13 +4305,12 @@ if st.session_state.analyzed_results:
                         p_str = str(row[target_indices[i]])
                         init_pins.append([int(p) for p in p_str.split(",")] if p_str else [])
                     st.session_state[state_key] = {"throws": init_throws, "pins": init_pins}
-                    st.session_state[active_cell_key] = 0  # デフォルトは1Fの1投目
+                    st.session_state[active_cell_key] = 0  
 
                 curr_throws = st.session_state[state_key]["throws"]
                 curr_pins = st.session_state[state_key]["pins"]
                 active_idx = st.session_state[active_cell_key]
 
-                # リアルタイムで累計スコアを計算
                 try:
                     frame_totals = calculate_bowling_score(curr_throws)
                 except Exception:
@@ -4326,59 +4318,52 @@ if st.session_state.analyzed_results:
                 while len(frame_totals) < 10:
                     frame_totals.append("")
 
-                # 🌟UI装飾用CSS（見切れ対策＆省スペース化＆スタイリッシュ化）
                 st.markdown("""
                 <style>
-                /* スコアシートのボタン間の余白を極小に */
                 [data-testid="stHorizontalBlock"] div[data-testid="stBlock"] button {
                     margin: 1px 0 !important;
                     padding: 2px !important;
                 }
-                /* スコアシートのボタン文字サイズと太さ */
                 [data-testid="stHorizontalBlock"] div[data-testid="stBlock"] button p {
                     font-size: 13px !important;
                     font-weight: 700 !important;
                 }
-                /* トータルスコア表示用 */
                 .frame-total {
                     text-align: center;
                     font-weight: 700;
                     font-size: 13px;
-                    background-color: #f0f2f6;
-                    color: #333;
+                    background-color: #2a2a2e;
+                    color: silver;
+                    border: 1px solid #444;
                     border-radius: 4px;
                     padding: 2px 0;
                     margin-top: 1px;
                 }
-                /* セクションタイトルの強調 */
                 .section-header {
                     font-size: 15px;
                     font-weight: 700;
-                    color: #00e5ff;
-                    border-bottom: 2px solid #00e5ff;
+                    color: silver;
+                    border-bottom: 2px solid #bf953f;
                     padding-bottom: 3px;
                     margin-top: 10px;
                     margin-bottom: 10px;
                 }
-                /* ポップオーバー内のボタンを少し小さく */
                 div[data-testid="stPopoverBody"] button {
                     min-height: 30px !important;
                     padding: 0px !important;
                 }
-                /* 枠線の色指定をスタイリッシュ化（1投目:シアン、2投目:パープル、3投目:ティール） */
                 div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"]:nth-child(2):last-child) > div[data-testid="stColumn"]:nth-child(1) div[data-testid="stPopover"] button,
-                div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"]:nth-child(3):last-child) > div[data-testid="stColumn"]:nth-child(1) div[data-testid="stPopover"] button { border: 2px solid #00e5ff !important; }
+                div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"]:nth-child(3):last-child) > div[data-testid="stColumn"]:nth-child(1) div[data-testid="stPopover"] button { border: 2px solid #444 !important; }
                 
                 div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"]:nth-child(2):last-child) > div[data-testid="stColumn"]:nth-child(2) div[data-testid="stPopover"] button,
-                div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"]:nth-child(3):last-child) > div[data-testid="stColumn"]:nth-child(2) div[data-testid="stPopover"] button { border: 2px solid #b388ff !important; }
+                div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"]:nth-child(3):last-child) > div[data-testid="stColumn"]:nth-child(2) div[data-testid="stPopover"] button { border: 2px solid #444 !important; }
                 
-                div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"]:nth-child(3):last-child) > div[data-testid="stColumn"]:nth-child(3) div[data-testid="stPopover"] button { border: 2px solid #1de9b6 !important; }
+                div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"]:nth-child(3):last-child) > div[data-testid="stColumn"]:nth-child(3) div[data-testid="stPopover"] button { border: 2px solid #444 !important; }
                 </style>
                 """, unsafe_allow_html=True)
 
-                st.markdown(f"<div class='section-header'>🎳 スコアシート (修正するマスをタップ)</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='section-header'>スコアシート (修正するマスをタップ)</div>", unsafe_allow_html=True)
                 
-                # ③ ストライク時に次投を空欄にする更新関数
                 def update_score_and_pins(idx, choice):
                     st.session_state[state_key]["throws"][idx] = choice
                     if choice == "X":
@@ -4390,18 +4375,15 @@ if st.session_state.analyzed_results:
                         elif idx == 19:
                             st.session_state[state_key]["throws"][20] = ""
                 
-                # ② ポップアップ内で数値と残ピンを統合する関数
                 def render_score_popover(col_obj, idx, label_prefix):
                     val = curr_throws[idx] if curr_throws[idx] else " "
-                    # ① 🔵🔴でおしゃれに視覚化
-                    with col_obj.popover(label=f"{label_prefix} {val}", use_container_width=True):
-                        st.markdown(f"**{label_prefix} スコアと残ピンの修正**")
+                    with col_obj.popover(label=f"{val}", use_container_width=True):
+                        st.markdown(f"**スコアと残ピンの修正**")
                         
                         p_col1, p_col2 = st.columns([1, 1.2])
                         
                         with p_col1:
-                            st.markdown("<div style='font-size:12px; color:gray; text-align:center;'>📊 スコア</div>", unsafe_allow_html=True)
-                            # 「空（""）」を一番最後に移動（以前のコードにあった "0" も復活させています）
+                            st.markdown("<div style='font-size:12px; color:gray; text-align:center;'>スコア</div>", unsafe_allow_html=True)
                             choices = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "X", "/", "-", "G", ""]
                             btn_cols = st.columns(3)
                             for i, choice in enumerate(choices):
@@ -4411,7 +4393,7 @@ if st.session_state.analyzed_results:
                                     st.rerun()
                         
                         with p_col2:
-                            st.markdown("<div style='font-size:12px; color:gray; text-align:center;'>🎳 残ピン切替</div>", unsafe_allow_html=True)
+                            st.markdown("<div style='font-size:12px; color:gray; text-align:center;'>残ピン切替</div>", unsafe_allow_html=True)
                             if idx <= 17: pin_idx = idx // 2
                             elif idx == 18: pin_idx = 9
                             elif idx == 19: pin_idx = 10
@@ -4446,33 +4428,29 @@ if st.session_state.analyzed_results:
                             if r4[1].button("1" if is_act else " ", key=f"p_{img_idx}_{local_idx}_{idx}_1", type="primary" if is_act else "secondary"):
                                 toggle_pin(1); st.rerun()
 
-                # 🌟1行10列のスコアシートUI
                 sheet_cols = st.columns(10)
                 
                 for f in range(9):
                     with sheet_cols[f]:
                         st.markdown(f"<div style='text-align:center; font-size:12px; font-weight:700;'>{f+1}F</div>", unsafe_allow_html=True)
                         c1, c2 = st.columns(2)
-                        # アイコンをスタイリッシュな図形に変更
-                        render_score_popover(c1, f*2, "🔹")
-                        render_score_popover(c2, f*2+1, "🔸")
+                        render_score_popover(c1, f*2, "")
+                        render_score_popover(c2, f*2+1, "")
                         tot = frame_totals[f] if f < len(frame_totals) else ""
                         st.markdown(f"<div class='frame-total'>{tot}</div>", unsafe_allow_html=True)
 
                 with sheet_cols[9]:
                     st.markdown(f"<div style='text-align:center; font-size:12px; font-weight:700;'>10F</div>", unsafe_allow_html=True)
                     c1, c2, c3 = st.columns(3)
-                    # アイコンをスタイリッシュな図形に変更
-                    render_score_popover(c1, 18, "🔹")
-                    render_score_popover(c2, 19, "🔸")
-                    render_score_popover(c3, 20, "🔻")
+                    render_score_popover(c1, 18, "")
+                    render_score_popover(c2, 19, "")
+                    render_score_popover(c3, 20, "")
                     tot = frame_totals[9] if len(frame_totals) == 10 else ""
-                    st.markdown(f"<div class='frame-total' style='font-size:15px; background-color:#ff6600; color:#fff;'>{tot}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='frame-total' style='font-size:15px; background-color:#2a2a2e; color:#bf953f; border: 1px solid #bf953f;'>{tot}</div>", unsafe_allow_html=True)
                     
                 st.markdown("---")
                 
-                # ④ 色とアイコンを変更し、明確に差別化 (type="secondary" に変更)
-                if st.button("✖️ 修正を完了して閉じる", key=f"update_{img_idx}_{local_idx}", type="secondary", use_container_width=True):
+                if st.button("修正を完了して閉じる", key=f"update_{img_idx}_{local_idx}", type="secondary", use_container_width=True):
                     row[0] = new_date
                     row[1] = new_start
                     row[2] = new_end
@@ -4493,7 +4471,7 @@ if st.session_state.analyzed_results:
                     st.rerun()
 
     st.markdown("---")
-    st.markdown("### 🎳 レーン・オイル・ボール")
+    st.markdown("### レーン・オイル・ボール")
     input_data = {}
 
     LANE_OPTIONS = [""] + [str(i) for i in range(1, 19)] + [f"{i}-{i+1}" for i in range(1, 19, 2)] + [f"{i+1}-{i}" for i in range(1, 19, 2)]
@@ -4506,39 +4484,32 @@ if st.session_state.analyzed_results:
         games_by_img[idx].append(item)
         
     for img_idx, items in games_by_img.items():
-        st.markdown(f"**📄 画像 {img_idx+1} の設定**")
+        st.markdown(f"**画像 {img_idx+1} の設定**")
         
         ai_lane = items[0]["export_row"][3]
         default_lane_index = LANE_OPTIONS.index(ai_lane) if ai_lane in LANE_OPTIONS else 0
         
-        # ★要望３＆４：レーン・オイル長・オイル量を1段目で横並びにし、ボールを幅広で2段目に配置
         c_lane, c_len, c_vol = st.columns([1.5, 1, 1])
         with c_lane:
-            # ★要望3: レーン番号の横の (AI読取: XX) を削除
             common_lane = st.selectbox("レーン番号", LANE_OPTIONS, index=default_lane_index, key=f"c_lane_{img_idx}")
             
-        # ▼▼▼【追加】SPSの「オイル入力」シートから該当するデータを取得 ▼▼▼
         t_date = items[0]["export_row"][0]
         t_time = items[0]["export_row"][1]
         default_len, default_vol = get_oil_info(t_date, t_time, common_lane)
-        # ▲▲▲ ここまで ▲▲▲
 
         with c_len:
-            # ▼▼▼ 変更: value=default_len を設定 ▼▼▼
             common_len = st.text_input("オイル長 (ft)", value=default_len, key=f"c_len_{img_idx}", placeholder="例: 42")
         with c_vol:
-            # ▼▼▼ 変更: value=default_vol を設定 ▼▼▼
             common_vol = st.text_input("オイル量 (ml)", value=default_vol, key=f"c_vol_{img_idx}", placeholder="例: 25.5")
             
         common_ball = st.text_input("使用ボール", key=f"c_ball_{img_idx}", placeholder="例: ツアーダイナミクス")
             
-        with st.expander(f"🔽 画像 {img_idx+1} のゲームごとの個別設定"):
+        with st.expander(f"画像 {img_idx+1} のゲームごとの個別設定"):
             for item in items:
                 l_idx = item["local_idx"]
                 g_name = item["export_row"][4]
                 
                 st.markdown(f"**{g_name}**")
-                # ★個別設定も同様に、長・量を横並び、ボールを段下げ
                 i_c1, i_c2 = st.columns(2)
                 with i_c1:
                     i_len = st.text_input(f"{g_name} オイル長", key=f"i_len_{img_idx}_{l_idx}", placeholder="共通を適用")
@@ -4555,14 +4526,11 @@ if st.session_state.analyzed_results:
 
     
     st.markdown("<br>", unsafe_allow_html=True)
-    # text-align: left; に変更し、左端を揃えるために先頭の全角スペースを削除
     st.markdown("<h3 style='text-align: left;'>☟　☟　☟　☟　☟　☟</h3>", unsafe_allow_html=True)
     
-    # text-align: left; に変更
-    st.markdown(f"<h4 style='text-align: left;'>👤 プレイヤー名：{selected_player}</h4>", unsafe_allow_html=True)
+    st.markdown(f"<h4 style='text-align: left;'>プレイヤー名：{selected_player}</h4>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 🌟【追加】画像を処理済みフォルダへ移動する共通関数
     def move_images_to_processed(is_discard=False):
         msg = "画像を「取込済み画像」フォルダへ移動中..." if not is_discard else "解析を破棄し、画像を移動中..."
         with st.spinner(msg):
@@ -4609,9 +4577,9 @@ if st.session_state.analyzed_results:
                         move_count += 1
                         
                 if is_discard:
-                    st.warning(f"🗑️ 解析を破棄し、{move_count}枚の画像を「{PROCESSED_FOLDER_NAME}」へ移動しました。")
+                    st.warning(f"解析を破棄し、{move_count}枚の画像を「{PROCESSED_FOLDER_NAME}」へ移動しました。")
                 else:
-                    st.success(f"📁 スコアを登録し、{move_count}枚の画像を「{PROCESSED_FOLDER_NAME}」へ移動しました！")
+                    st.success(f"スコアを登録し、{move_count}枚の画像を「{PROCESSED_FOLDER_NAME}」へ移動しました！")
                 
                 st.session_state.analyzed_results = None
                 st.session_state.raw_images_data = []
@@ -4629,40 +4597,34 @@ if st.session_state.analyzed_results:
             except Exception as e:
                 st.error(f"移動エラーが発生しました: {e}")
 
-    # 🌟ボタンを横並びに配置（右端に小さく破棄ボタン）
     col_reg, col_discard = st.columns([6, 1])
     
     with col_discard:
-        btn_discard = st.button("🗑️ 破棄", help="SPSに登録せず画像を取込済みへ移動します")
+        btn_discard = st.button("破棄", help="SPSに登録せず画像を取込済みへ移動します")
     
     with col_reg:
-        btn_register = st.button("📝 スコアデータを登録する", use_container_width=True, type="primary")
+        btn_register = st.button("スコアデータを登録する", use_container_width=True, type="primary")
 
     if btn_discard:
         move_images_to_processed(is_discard=True)
 
-    # 登録ボタンが押された時の処理
     if btn_register:
         
-        # ▼▼▼【追加】日時不明のブロック機能 ▼▼▼
         has_invalid_datetime = False
         for item in game_checkboxes:
             is_target = True if register_all else item["is_checked"]
             if is_target:
-                # 登録対象のデータの 日付(0)、開始(1)、終了(2) を取得
                 chk_d = str(item["export_row"][0]).strip()
                 chk_s = str(item["export_row"][1]).strip()
                 chk_e = str(item["export_row"][2]).strip()
                 
-                # いずれかが空欄、または「不明」という文字列のままならフラグを立てる
                 if not chk_d or chk_d == "日付不明" or not chk_s or chk_s == "時刻不明" or not chk_e or chk_e == "時刻不明":
                     has_invalid_datetime = True
                     break
         
         if has_invalid_datetime:
-            st.error("⚠️ 【登録エラー】 日付や開始・終了時刻が「不明」または空欄のままのデータが含まれています。対象データの「✏️ 手動修正」を開き、正しい日時を入力してから再度登録ボタンを押してください。")
-            st.stop() # ここで処理を完全ストップさせ、SPSへの書き込みを防ぐ
-        # ▲▲▲ ここまで ▲▲▲
+            st.error("【登録エラー】 日付や開始・終了時刻が「不明」または空欄のままのデータが含まれています。対象データの「手動修正」を開き、正しい日時を入力してから再度登録ボタンを押してください。")
+            st.stop() 
 
         with st.spinner("データを登録中..."):
             try:
@@ -4680,7 +4642,6 @@ if st.session_state.analyzed_results:
                 gc = gspread.authorize(creds_write)
                 drive_service_write = build('drive', 'v3', credentials=creds_write)
 
-                # 統合SPS「EagleBowl_ROLLERS」を検索
                 query = "name = 'EagleBowl_ROLLERS' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"
                 results = drive_service_write.files().list(q=query, fields="files(id, name)").execute()
                 sheets = results.get('files', [])
@@ -4691,26 +4652,21 @@ if st.session_state.analyzed_results:
                 sheet_id = sheets[0]['id']
                 sh = gc.open_by_key(sheet_id)
 
-                # ▼▼▼ 【追加】週1回の自動バックアップ処理（01〜32ローテーション上書き方式） ▼▼▼
                 BACKUP_FOLDER_ID = "1ONqsfeWmt6mT248fD7OuMhUdiqdQuoLa"
 
                 if BACKUP_FOLDER_ID != "ここにバックアップフォルダのIDを入力":
                     try:
-                        # 検索用DriveAPIクライアント（gc.auth を creds_write に修正）
                         drive_service_backup = build('drive', 'v3', credentials=creds_write)
                         
                         backup_ws = sh.worksheet("バックアップ管理")
                         last_backup = backup_ws.acell('A1').value
                         next_num_str = backup_ws.acell('B1').value
                         
-                        # 現在の「年-週番号」を取得
                         from datetime import datetime
                         now = datetime.now()
                         current_week = f"{now.isocalendar()[0]}-W{now.isocalendar()[1]:02d}"
                         
-                        # 今週まだバックアップを取っていなければ実行
                         if last_backup != current_week:
-                            # B1セルから次に書き込む番号(1〜32)を取得。空欄なら1にする
                             try:
                                 next_num = int(next_num_str) if next_num_str else 1
                             except:
@@ -4719,10 +4675,8 @@ if st.session_state.analyzed_results:
                             if next_num > 32:
                                 next_num = 1
                                 
-                            # ターゲットのファイル名を作成
                             target_name = f"EagleBowl_ROLLERS バックアップ{next_num:02d}"
                             
-                            # 指定フォルダ内から該当ファイルを検索
                             query = f"name = '{target_name}' and '{BACKUP_FOLDER_ID}' in parents and trashed = false"
                             results = drive_service_backup.files().list(
                                 q=query, spaces='drive', supportsAllDrives=True, includeItemsFromAllDrives=True
@@ -4730,55 +4684,46 @@ if st.session_state.analyzed_results:
                             items = results.get('files', [])
                             
                             if not items:
-                                st.warning(f"⚠️ バックアップ先ファイル「{target_name}」が見つかりませんでした。Googleドライブ上に同名のファイルが存在するか確認してください。")
+                                st.warning(f"バックアップ先ファイル「{target_name}」が見つかりませんでした。Googleドライブ上に同名のファイルが存在するか確認してください。")
                             else:
                                 backup_file_id = items[0]['id']
                                 backup_sh = gc.open_by_key(backup_file_id)
                                 old_worksheets = backup_sh.worksheets()
                                 
                                 
-                                # 1. マスターの全シートをバックアップ用ファイルにコピー
                                 copied_info = []
                                 for master_ws in sh.worksheets():
                                     res = master_ws.copy_to(backup_file_id)
                                     copied_info.append({'id': res['sheetId'], 'title': master_ws.title})
-                                    time.sleep(2) # API制限回避（503エラー対策で待機時間を延長）
+                                    time.sleep(2) 
                                     
-                                # 2. 元からあった古いシートをすべて削除
                                 for old_ws in old_worksheets:
                                     backup_sh.del_worksheet(old_ws)
                                     time.sleep(2)
                                     
-                                # 3. コピーしたシートの名前を元に戻す（「のコピー」を消去）
                                 for info in copied_info:
                                     ws_to_rename = backup_sh.get_worksheet_by_id(info['id'])
                                     ws_to_rename.update_title(info['title'])
                                     time.sleep(2)
                                     
-                                # 4. バックアップ管理シートの履歴を更新
                                 backup_ws.update_acell('A1', current_week)
                                 backup_ws.update_acell('B1', str(next_num + 1))
-                                st.info(f"💾 今週の初回登録のため、「{target_name}」に全シートを上書きバックアップしました。")
+                                st.info(f"今週の初回登録のため、「{target_name}」に全シートを上書きバックアップしました。")
                     except Exception as backup_e:
-                        st.warning(f"⚠️ バックアップ処理でエラーが発生しました（データの登録は続行します）: {backup_e}")
-                # ▲▲▲ ここまで ▲▲▲
+                        st.warning(f"バックアップ処理でエラーが発生しました（データの登録は続行します）: {backup_e}")
 
-                # 【改良点】「プレイヤー設定」シートからメールアドレスのマッピングを自動取得する
                 player_email_map = {}
                 try:
                     settings_sheet = sh.worksheet("プレイヤー設定")
                     settings_data = settings_sheet.get_all_values()
-                    # 1行目は見出しなので2行目以降をループ処理
                     for row in settings_data[1:]:
-                        # A列(row[0])がメール、B列(row[1])がプレイヤー名
                         if len(row) >= 2 and row[1]: 
                             player_email_map[row[1]] = row[0]
                 except gspread.exceptions.WorksheetNotFound:
-                    st.warning("⚠️ 「プレイヤー設定」シートが見つかりません。メールアドレスは空白で登録されます。")
+                    st.warning("「プレイヤー設定」シートが見つかりません。メールアドレスは空白で登録されます。")
                 except Exception as e:
-                    st.warning(f"⚠️ プレイヤー設定の読み込みに失敗しました: {e}")
+                    st.warning(f"プレイヤー設定の読み込みに失敗しました: {e}")
 
-                # 選択されたプレイヤーのメールアドレスを取得（見つからなければ空白）
                 user_email = player_email_map.get(selected_player, "")
                 
                 try:
@@ -4793,7 +4738,7 @@ if st.session_state.analyzed_results:
                 update_count = 0
                 
                 if not game_checkboxes:
-                    st.warning("⚠️ 登録対象のデータがありません。")
+                    st.warning("登録対象のデータがありません。")
                     st.stop()
                 
                 for item in game_checkboxes:
@@ -4809,14 +4754,13 @@ if st.session_state.analyzed_results:
             
                     selected_lane, oil_len, oil_vol, ball_used = input_data.get((item["img_idx"], item["local_idx"]), ("", "", "", ""))
 
-                    # A列・B列にメールアドレスとプレイヤー名を自動セット
                     formatted_row = [
-                        user_email,      # A列：取得したメールアドレス
-                        selected_player, # B列：プレイヤー名
-                        row[0], row[1], row[2], # C:日付, D:開始, E:終了
-                        selected_lane,   # F列:レーン
-                        row[4],          # G列:ゲーム数
-                        oil_len, oil_vol, ball_used, # H, I, J列
+                        user_email,      
+                        selected_player, 
+                        row[0], row[1], row[2], 
+                        selected_lane,   
+                        row[4],          
+                        oil_len, oil_vol, ball_used, 
                     ]
 
                     for f in range(9):
@@ -4833,12 +4777,11 @@ if st.session_state.analyzed_results:
                         row[throw_cols[20]], row[target_indices[11]]
                     ])
             
-                    formatted_row.append(row[50]) # トータルスコア
+                    formatted_row.append(row[50]) 
                     
                     unique_id = f"{selected_player}_{new_date}_{new_start}_{new_game}"
                     formatted_row.append(unique_id)
                     
-                    # BC列 (インデックス54) に 7-10 GAME フラグを追加
                     is_710_flag = row[51] if len(row) > 51 else False
                     formatted_row.append("TRUE" if is_710_flag else "FALSE")
                     
@@ -4869,10 +4812,8 @@ if st.session_state.analyzed_results:
                 
                 add_count = len(rows_to_append)
 
-                # === ▼▼▼ ここからAWARD集計機能の追加（全12項目対応・ブロック分割版） ▼▼▼ ===
                 all_master_data = worksheet.get_all_values()
                 
-                # 7-10G は通常のAWARD（統計）集計から完全に除外する
                 data_rows = []
                 for r in all_master_data[1:]:
                     if len(r) >= 53 and str(r[0]).strip():
@@ -4888,7 +4829,6 @@ if st.session_state.analyzed_results:
                     return (d, t, g_num)
                 data_rows.sort(key=sort_key)
                 
-                # ★ non_splits と is_target を廃止し、named_splits（ホワイトリスト）のみを定義
                 named_splits = {
                     "7-10": ("2P", "スネークアイ"),
                     "2-7": ("2P", "ベビースプリット"),
@@ -5046,7 +4986,7 @@ if st.session_state.analyzed_results:
                             elif p_str == "10":
                                 stats["pin_10_c"] += 1
                                 if res2 == "/": stats["pin_10_s"] += 1
-                            elif p_str in named_splits: # ★名前が一致したものだけを記録
+                            elif p_str in named_splits: 
                                 if p_str not in stats["splits"]: stats["splits"][p_str] = {"c": 0, "s": 0}
                                 stats["splits"][p_str]["c"] += 1
                                 if res2 == "/": stats["splits"][p_str]["s"] += 1
@@ -5103,7 +5043,7 @@ if st.session_state.analyzed_results:
                             elif p_str == "10":
                                 stats["pin_10_c"] += 1
                                 if res10_3 == "/": stats["pin_10_s"] += 1
-                            elif p_str in named_splits: # ★名前が一致したものだけを記録
+                            elif p_str in named_splits: 
                                 if p_str not in stats["splits"]: stats["splits"][p_str] = {"c": 0, "s": 0}
                                 stats["splits"][p_str]["c"] += 1
                                 if res10_3 == "/": stats["splits"][p_str]["s"] += 1
@@ -5133,7 +5073,7 @@ if st.session_state.analyzed_results:
                         elif p_str == "10":
                             stats["pin_10_c"] += 1
                             if res10_2 == "/": stats["pin_10_s"] += 1
-                        elif p_str in named_splits: # ★名前が一致したものだけを記録
+                        elif p_str in named_splits: 
                             if p_str not in stats["splits"]: stats["splits"][p_str] = {"c": 0, "s": 0}
                             stats["splits"][p_str]["c"] += 1
                             if res10_2 == "/": stats["splits"][p_str]["s"] += 1
@@ -5157,7 +5097,6 @@ if st.session_state.analyzed_results:
                     award_rows.append([email, n, "3.特定ピン", "④7番ピン", stats["pin_7_c"], stats["pin_7_s"], calc_rate(stats["pin_7_s"], stats["pin_7_c"])])
                     award_rows.append([email, n, "3.特定ピン", "⑤10番ピン", stats["pin_10_c"], stats["pin_10_s"], calc_rate(stats["pin_10_s"], stats["pin_10_c"])])
                         
-                    # ★ Othersを廃止し、名前付きスプリットのみを出力する
                     split_stats = {
                         "2P": {}, "3P": {}, "4_5P": {}
                     }
@@ -5221,12 +5160,10 @@ if st.session_state.analyzed_results:
                 award_sheet.clear()
                 if award_rows:
                     award_sheet.update(range_name="A1", values=award_rows)
-                # === ▲▲▲ AWARD集計機能の追加ここまで ▲▲▲ ===
 
-
-                st.success(f"🎉 登録完了！ 新規追加: {add_count}件 / 上書き更新: {update_count}件")
-                st.session_state.sps_registered = True # ★登録完了のフラグを立てる
-                move_images_to_processed(is_discard=False) # 🌟【追加】自動で移動を実行
+                st.success(f"登録完了！ 新規追加: {add_count}件 / 上書き更新: {update_count}件")
+                st.session_state.sps_registered = True 
+                move_images_to_processed(is_discard=False) 
 
             except Exception as e:
                 st.error(f"SPSへの登録中にエラーが発生しました: {e}")
