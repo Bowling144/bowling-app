@@ -3981,8 +3981,8 @@ if st.session_state.analyzed_results:
 
                 if BACKUP_FOLDER_ID != "ここにバックアップフォルダのIDを入力":
                     try:
-                        # 検索用DriveAPIクライアント（creds を gc.auth に修正）
-                        drive_service_backup = build('drive', 'v3', credentials=gc.auth)
+                        # 検索用DriveAPIクライアント（gc.auth を creds_write に修正）
+                        drive_service_backup = build('drive', 'v3', credentials=creds_write)
                         
                         backup_ws = sh.worksheet("バックアップ管理")
                         last_backup = backup_ws.acell('A1').value
