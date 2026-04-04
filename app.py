@@ -228,10 +228,143 @@ with st.sidebar:
     
     # 🌟【変更】権限によるモード制限のみ（APIキー入力欄は削除）
     if st.session_state.user_role in ["開発者", "管理者"]:
-        app_mode = st.radio("🚀 モード選択", ["📝 スコア登録", "📊 プレイヤー分析"], index=1)
+        app_mode = st.radio("🚀 モード選択", ["📝 スコア登録", "🛢️ オイル情報入力", "📊 プレイヤー分析"], index=0)
     else:
         app_mode = st.radio("🚀 モード選択", ["📊 プレイヤー分析"], index=0)
-        st.info("※ユーザ権限のため、スコア登録機能は表示されません。")
+        st.info("※ユーザ権限のため、スコア登録・オイル入力機能は表示されません。")
+
+# =========================================================
+# 🛢️ 【新機能】オイル情報入力モード
+# =========================================================
+if app_mode == "🛢️ オイル情報入力":
+    st.header("🛢️ オイル情報入力")
+    st.markdown("ボウリング場のオイル長とオイル量を記録・登録します。")
+    
+    # 修正機能（SPSリンクボタン）
+    sh = get_gspread_client()
+    if sh:
+        sheet_url = f"https://docs.google.com/spreadsheets/d/{sh.id}/edit"
+        st.link_button("✏️ オイル入力済みデータを修正する (SPSを展開)", sheet_url)
+        
+    # 日時のデフォルト値生成
+    from datetime import datetime, timedelta
+    if "oil_input_date" not in st.session_state:
+        st.session_state.oil_input_date = datetime.now().strftime("%y/%m/%d")
+    if "oil_input_time" not in st.session_state:
+        st.session_state.oil_input_time = (datetime.now() - timedelta(minutes=10)).strftime("%H:%M")
+        
+    # 入力欄のセッション初期化
+    for i in range(1, 19):
+        if f"oil_in_len_{i}" not in st.session_state:
+            st.session_state[f"oil_in_len_{i}"] = ""
+        if f"oil_in_vol_{i}" not in st.session_state:
+            st.session_state[f"oil_in_vol_{i}"] = ""
+
+    # 前回データコピー処理
+    def copy_latest_oil():
+        oil_data = st.session_state.get("oil_data", [])
+        if not oil_data and sh: # データがまだ取得されていなければここで取得
+            try:
+                oil_sheet = sh.worksheet("オイル入力")
+                oil_data_raw = oil_sheet.get_all_values()
+                oil_data = oil_data_raw[2:] if len(oil_data_raw) > 2 else []
+                st.session_state.oil_data = oil_data
+            except:
+                pass
+                
+        if oil_data:
+            latest = oil_data[-1]
+            for i in range(1, 19):
+                l_idx = i * 2
+                v_idx = i * 2 + 1
+                st.session_state[f"oil_in_len_{i}"] = latest[l_idx] if len(latest) > l_idx else ""
+                st.session_state[f"oil_in_vol_{i}"] = latest[v_idx] if len(latest) > v_idx else ""
+                
+    st.button("🔄 前回データをコピー (最新履歴)", on_click=copy_latest_oil)
+    
+    st.markdown("---")
+    col_date, col_time = st.columns(2)
+    with col_date:
+        st.text_input("日付 (YY/MM/DD)", key="oil_input_date")
+    with col_time:
+        st.text_input("時刻 (HH:MM)", key="oil_input_time")
+        
+    # ここまで同じボタンの処理（直近の入力済みレーンからコピー）
+    def fill_same_as_above(target_lane):
+        source_lane = None
+        for i in range(target_lane - 1, 0, -1):
+            if st.session_state[f"oil_in_len_{i}"] != "" or st.session_state[f"oil_in_vol_{i}"] != "":
+                source_lane = i
+                break
+        if source_lane:
+            src_len = st.session_state[f"oil_in_len_{source_lane}"]
+            src_vol = st.session_state[f"oil_in_vol_{source_lane}"]
+            for i in range(source_lane + 1, target_lane + 1):
+                st.session_state[f"oil_in_len_{i}"] = src_len
+                st.session_state[f"oil_in_vol_{i}"] = src_vol
+
+    st.markdown("### 🎳 各レーンのオイル設定")
+    c1, c2 = st.columns(2) # パソコン用に左右2列分割
+    for i in range(1, 19):
+        col = c1 if i <= 9 else c2
+        with col:
+            st.markdown(f"**{i} レーン**")
+            col_len, col_vol, col_btn = st.columns([1.5, 1.5, 1.2])
+            with col_len:
+                st.text_input("長さ(整数)", key=f"oil_in_len_{i}", label_visibility="collapsed", placeholder="長さ")
+            with col_vol:
+                st.text_input("量(小数)", key=f"oil_in_vol_{i}", label_visibility="collapsed", placeholder="量")
+            with col_btn:
+                if i > 1:
+                    st.button("ここまで同じ", key=f"btn_same_{i}", on_click=fill_same_as_above, args=(i,))
+
+    st.markdown("---")
+    if st.button("📝 オイル情報を登録する", type="primary", use_container_width=True):
+        error_msg = ""
+        row_to_add = [st.session_state.oil_input_date, st.session_state.oil_input_time]
+        
+        # 入力値の取得とバリデーション
+        for i in range(1, 19):
+            l_val = str(st.session_state[f"oil_in_len_{i}"]).strip()
+            v_val = str(st.session_state[f"oil_in_vol_{i}"]).strip()
+            
+            if l_val:
+                try:
+                    l_val = str(int(float(l_val))) # 整数化
+                except:
+                    error_msg = f"{i}レーンの長さは整数で入力してください。"
+                    break
+            if v_val:
+                try:
+                    v_val = f"{float(v_val):.1f}" # 小数第1位にフォーマット
+                except:
+                    error_msg = f"{i}レーンの量は数値で入力してください。"
+                    break
+                    
+            row_to_add.extend([l_val, v_val])
+            
+        if error_msg:
+            st.error(error_msg)
+        else:
+            with st.spinner("SPSに登録中..."):
+                try:
+                    if sh:
+                        oil_sheet = sh.worksheet("オイル入力")
+                        oil_sheet.append_row(row_to_add)
+                        
+                        # アプリ内キャッシュも更新
+                        if "oil_data" in st.session_state:
+                            st.session_state.oil_data.append(row_to_add)
+                            
+                        st.success("✅ オイル情報の登録が完了しました！")
+                    else:
+                        st.error("データベースに接続できませんでした。")
+                except Exception as e:
+                    st.error(f"⚠️ 登録に失敗しました: {e}")
+                    
+    # ⚠️ オイル入力モードの時は、これより下のコードを読み込まずにストップする
+    st.stop()
+
 
 # =========================================================
 # 📊 【新機能】プレイヤー分析ダッシュボード
