@@ -228,9 +228,9 @@ with st.sidebar:
     
     # 🌟【変更】権限によるモード制限のみ（APIキー入力欄は削除）
     if st.session_state.user_role in ["開発者", "管理者"]:
-        app_mode = st.radio("モード選択", ["スコア登録", "オイル情報入力", "プレイヤー分析", "データ比較"], index=0)
+        app_mode = st.radio("🚀 モード選択", ["📝 スコア登録", "🛢️ オイル情報入力", "📊 プレイヤー分析", "📈 データ比較"], index=0)
     else:
-        app_mode = st.radio("モード選択", ["プレイヤー分析"], index=0)
+        app_mode = st.radio("🚀 モード選択", ["📊 プレイヤー分析"], index=0)
         st.info("※非公開のプレイヤーのデータは表示されません")
 
 # =========================================================
@@ -2995,7 +2995,7 @@ st.markdown("<h3 style='text-align: center;'>☟　☟　☟</h3>", unsafe_allow
 fetch_button = st.button("🔄 スコアシート取込（MAX３枚）🔄", use_container_width=True)
 
 # ★ 追加：残ピン判定の閾値調整用スライダー
-with st.expander("🛠️ 残ピン判定の微調整"):
+with st.expander("残ピン判定の微調整"):
     st.markdown("<span style='font-size: 12px; color: silver;'>自動計算された残ピン判定の閾値に、この数値をプラスマイナスして一時的に調整します。<br>（ピンが反応しにくい場合はマイナスへ、過剰に反応する場合はプラスへ変更して再取込してください）</span>", unsafe_allow_html=True)
     
     # 🌟【変更】初期化ボタンとの連動処理
