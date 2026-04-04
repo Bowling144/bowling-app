@@ -2941,11 +2941,11 @@ if app_mode == "📈 データ比較":
                         st.warning("有効な日時データがないため表示できません。")
                     else:
                         if "折れ線" in sel_graph_pl:
-                            fig = px.line(df_line, x="datetime", y=y_col, color="プレイヤー", markers=True)
+                            fig = px.line(df_line, x="datetime", y=y_col, color="player", markers=True)
                             fig.update_layout(title=f"{sel_metric_pl} の時系列推移 (1ゲーム毎)", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
                             st.plotly_chart(fig, use_container_width=True)
                         elif "分布図" in sel_graph_pl:
-                            fig = px.scatter(df_line, x="datetime", y=y_col, color="プレイヤー", opacity=0.7)
+                            fig = px.scatter(df_line, x="datetime", y=y_col, color="player", opacity=0.7)
                             fig.update_layout(title=f"{sel_metric_pl} の分布 (1ゲーム毎)", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
                             st.plotly_chart(fig, use_container_width=True)
 
