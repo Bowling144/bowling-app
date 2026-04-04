@@ -2640,7 +2640,7 @@ if app_mode == "📈 データ比較":
                 score = int(row[52])
                 parts = date_str.split('/')
                 
-                # ▼ 修正：月別キーを「YYYY/MM」の形式にゼロ埋めし、文字列ソートでも確実に時系列順になるよう統一
+                # 月別キーを「YYYY/MM」の形式にゼロ埋め
                 if len(parts) >= 2:
                     y_str = parts[0][-2:] if len(parts[0]) >= 2 else parts[0].zfill(2)
                     y_full = f"20{y_str}"
@@ -2649,7 +2649,7 @@ if app_mode == "📈 データ比較":
                 else:
                     month_key = "不明"
 
-                # ▼ 修正：日付データ自体も厳密にパースし、エラーでスキップされるのを防ぐ
+                # 日付データの厳密パース
                 dt_val = pd.NaT
                 if len(parts) >= 3:
                     try:
@@ -2756,7 +2756,7 @@ if app_mode == "📈 データ比較":
 
                 parsed_row = {
                     "player": row[1],
-                    "datetime": dt_val, # 文字列ではなく、パース済みの厳密な日時
+                    "datetime": dt_val,
                     "month_key": month_key, "score": score, "max_strike_streak": max_streak,
                     "st_c": st_c, "st_s": st_s, "sp_c": sp_c, "sp_s": sp_s,
                     "pin7_c": pin7_c, "pin7_s": pin7_s, "pin10_c": pin10_c, "pin10_s": pin10_s,
@@ -2777,7 +2777,6 @@ if app_mode == "📈 データ比較":
     raw_df = pd.DataFrame(parse_master_data(master_data_raw))
 
     if not raw_df.empty:
-        # datetimeが正常にパースされたもののみで事前ソート
         raw_df = raw_df.dropna(subset=["datetime"]).sort_values("datetime", ascending=True)
         raw_df["game_num"] = raw_df.groupby("player").cumcount() + 1
         raw_df["rating"] = raw_df.groupby("player")["score"].transform(
@@ -2907,7 +2906,6 @@ if app_mode == "📈 データ比較":
         res = []
         for grp_vals, pdf in df.groupby(grp_cols):
             if x_col == "player":
-                # X軸がプレイヤーの場合はキーが1つになるための安全処理
                 val = grp_vals[0] if isinstance(grp_vals, tuple) else grp_vals
                 x_val = val
                 p_val = val
@@ -2933,13 +2931,16 @@ if app_mode == "📈 データ比較":
             elif sel_graph == "棒グラフ":
                 res_df = res_df.sort_values(x_col)
                 fig = px.bar(res_df, x=x_col, y=sel_yaxis, color="player", barmode="group", text_auto='.1f')
+                # ★修正：文字列の軸はカテゴリとしてソート順を強制（Plotlyの勝手な日付パースを防ぐ）
+                if x_col != "game_num": fig.update_xaxes(type='category', categoryorder='category ascending')
                 fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
                 st.plotly_chart(fig, use_container_width=True)
                 
             elif sel_graph == "折れ線グラフ":
-                # 必ずX軸の値でソートしてから描画することで時系列の交差を防ぐ
                 res_df = res_df.sort_values(x_col)
                 fig = px.line(res_df, x=x_col, y=sel_yaxis, color="player", markers=True)
+                # ★修正：文字列の軸はカテゴリとしてソート順を強制（Plotlyの勝手な日付パースを防ぐ）
+                if x_col != "game_num": fig.update_xaxes(type='category', categoryorder='category ascending')
                 fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
                 st.plotly_chart(fig, use_container_width=True)
                 
@@ -2947,6 +2948,8 @@ if app_mode == "📈 データ比較":
                 y_col_raw = Y_METRICS[sel_yaxis]["col"]
                 df_sorted = df.sort_values(x_col)
                 fig = px.box(df_sorted, x=x_col, y=y_col_raw, color="player", points="all")
+                # ★修正：文字列の軸はカテゴリとしてソート順を強制（Plotlyの勝手な日付パースを防ぐ）
+                if x_col != "game_num": fig.update_xaxes(type='category', categoryorder='category ascending')
                 fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='silver'))
                 st.plotly_chart(fig, use_container_width=True)
                 
