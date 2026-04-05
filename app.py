@@ -4497,6 +4497,14 @@ if st.session_state.analyzed_results is None:
             t3 = final_throws[20].replace("R:", "")
             put_rotated_text(output_img, t3, start_x_base + f * box_w + 17 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, throw_colors[20])
 
+            # ▼ 追加: AIが読み取った各フレームの累計トータルスコアを緑色の小さい文字で左下に描画
+            for f_tot in range(10):
+                val_tot = str(ai_frame_totals[f_tot])
+                if val_tot and val_tot != "0":
+                    tot_x = start_x_base + f_tot * box_w + 1.5 * current_scale
+                    tot_y = py1_local + 16 * current_scale
+                    put_rotated_text(output_img, val_tot, tot_x, tot_y, new_ref1[0], new_ref1[1], theta, (0, 220, 0), scale=0.45, thickness=1)
+
             clean_throws = [str(t).replace("R:", "") for t in final_throws]
             try:
                 calc_totals = calculate_bowling_score(clean_throws)
