@@ -1010,7 +1010,7 @@ if app_mode == "プレイヤー分析":
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 # 【02】 HOME：スコア推移グラフ
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-                def render_02_score_trend(chart_height=280): # ← ★引数を追加
+                def render_02_score_trend():
                     if player_games:
                         # 古い順に並び替えて折れ線グラフ化
                         chrono_games = list(reversed(player_games[:50]))
@@ -1062,7 +1062,7 @@ if app_mode == "プレイヤー分析":
                             paper_bgcolor='rgba(0,0,0,0)',
                             xaxis=dict(title="", range=[50, 0], showgrid=True, gridcolor='#444', tickmode='linear', tick0=0, dtick=5, color='gray', fixedrange=True),
                             yaxis=dict(title="", range=[0, 300], showgrid=True, gridcolor='#444', tickmode='linear', tick0=0, dtick=50, color='gray', fixedrange=True),
-                            height=chart_height, # ← ★ここを変更
+                            height=280,
                             margin=dict(l=30, r=30, t=10, b=10) # 左右の余白を少し増やして視覚的に中央へ寄せる
                         )
                         st.plotly_chart(fig_trend, use_container_width=True, config={'displayModeBar': False})
@@ -2190,7 +2190,7 @@ if app_mode == "プレイヤー分析":
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 # 【16】 STATS：レーティング推移（直近50ヶ月）
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-                def render_16_rating_trend(chart_height=280): # ← ★引数を追加
+                def render_16_rating_trend():
                     if player_games:
                         import plotly.graph_objects as go
                         
@@ -2285,7 +2285,7 @@ if app_mode == "プレイヤー分析":
                             paper_bgcolor='rgba(0,0,0,0)',
                             xaxis=dict(title="（ヶ月前）", range=[50, 0], showgrid=True, gridcolor='#444', tickmode='linear', tick0=0, dtick=5, color='gray', fixedrange=True),
                             yaxis=dict(title="Rt", range=[0.0, 18.0], showgrid=True, gridcolor='#444', tickmode='linear', tick0=0, dtick=2, color='gray', fixedrange=True),
-                            height=chart_height, # ← ★ここを変更
+                            height=280,
                             margin=dict(l=30, r=30, t=10, b=10)
                         )
                         st.plotly_chart(fig_rt, use_container_width=True, config={'displayModeBar': False})
@@ -5514,339 +5514,14 @@ if st.session_state.analyzed_results:
                 st.success(f"登録完了！ 新規追加: {add_count}件 / 上書き更新: {update_count}件")
                 st.session_state.sps_registered = True 
                 
-                # ▼▼▼ 修正の核心1：強制リロードされる【前】に、次の画面で使うユーザー情報（メアド）を保存する ▼▼▼
-                st.session_state.target_player = user_email
-                st.session_state.target_player_name = selected_player
-                
-                # ▼▼▼ 修正の核心2：強制リロードされる【前】に、画面状態を切り替えておく ▼▼▼
+                # キオスクモードの場合、登録完了後にSTATS画面へ遷移
                 if st.session_state.get("kiosk_mode"):
-                    st.session_state.app_state = "registration_complete"
-                else:
-                    st.session_state.app_state = "init"
-                
-                # 1. 画像を移動し、解析データをクリアする
-                # ⚠️注意：この関数（move_images_to_processed）の末尾で st.rerun() が実行され、ここで処理が新しい画面へ飛びます。
+                    st.session_state.kiosk_step = "stats"
+
                 move_images_to_processed(is_discard=False)
 
             except Exception as e:
                 st.error(f"SPSへの登録中にエラーが発生しました: {e}")
-
-# =========================================================
-# 📍 【ブロック 12】 登録完了画面（キオスク・ダッシュボード風UI）
-# =========================================================
-# ⚠️ 修正: ブロック11の if 文の外に出して、独立したブロックとして実行させます。
-if st.session_state.app_state == "registration_complete":
-    st.balloons()
-    
-    # 灰色の空欄ボックス（空のマーカーコンテナ）の隙間を消すためのCSSを追加
-    st.markdown("""
-    <style>
-    div[data-testid="stMarkdownContainer"]:has(.gold-btn-marker),
-    div[data-testid="stMarkdownContainer"]:has(.red-btn-marker) {
-        display: none !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-    
-    # 最も確実な「メールアドレス」をキーにしてデータを抽出する
-    target_email = st.session_state.get("target_player", "")
-    
-    try:
-        sh = get_gspread_client()
-        
-        # 最新のスコアデータを取得
-        ws_score = sh.worksheet("マスター")
-        data_score = ws_score.get_all_values()
-        import pandas as pd
-        df_score = pd.DataFrame(data_score[1:], columns=data_score[0])
-        
-        # メールアドレスで完全に一致する行だけを抽出
-        df_target = df_score[df_score["メールアドレス"] == target_email].copy()
-        
-        # プレイヤー名を取得して表示用に整形（例: "004_田中" -> "田中"）
-        if len(df_target) > 0:
-            raw_name = str(df_target.iloc[0]["プレイヤー"])
-            target_name = raw_name.split("_")[-1] if "_" in raw_name else raw_name
-        else:
-            target_name = "PLAYER"
-        
-        # ---------------------------------------------------------
-        # データ準備：マスターから対象の全ゲームリストを作成（7-10G除外）
-        # ---------------------------------------------------------
-        player_games = []
-        for _, row in df_target.iterrows():
-            is_710_game = (str(row.iloc[54]).strip().upper() == "TRUE") if len(row.values) > 54 else False
-            if not is_710_game:
-                try:
-                    score = int(row.iloc[52])
-                    player_games.append({"date": row.iloc[2], "time": row.iloc[3], "score": score})
-                except ValueError:
-                    pass
-        player_games.sort(key=lambda x: (x["date"], x["time"]), reverse=True)
-
-        # ---------------------------------------------------------
-        # データ計算：今月のスタッツ
-        # ---------------------------------------------------------
-        import datetime
-        import numpy as np
-        current_month = datetime.datetime.now().strftime("%y/%m")
-        df_this_month = df_target[df_target["日付"].str.startswith(current_month)].copy()
-        
-        games_this_month = len(df_this_month)
-        pins_this_month = df_this_month["スコア"].astype(int).sum() if games_this_month > 0 else 0
-        avg_this_month = round(pins_this_month / games_this_month, 1) if games_this_month > 0 else 0.0
-        high_this_month = df_this_month["スコア"].astype(int).max() if games_this_month > 0 else 0
-        
-        # 投球数（各フレームの投球マスに入力がある数をカウント）
-        throws_this_month = 0
-        throw_cols = [10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50]
-        for _, row in df_this_month.iterrows():
-            for c_idx in throw_cols:
-                if c_idx < len(row.values):
-                    val = str(row.iloc[c_idx]).strip()
-                    if val and val != "-" and val != "G":
-                        throws_this_month += 1
-                    elif val == "-" or val == "G":
-                         throws_this_month += 1 
-
-        # ---------------------------------------------------------
-        # データ計算：最新レーティング（左側用）
-        # ---------------------------------------------------------
-        try:
-            recent_50_scores = [g["score"] for g in player_games[:50]]
-            if len(recent_50_scores) > 0:
-                avg_50 = sum(recent_50_scores) / len(recent_50_scores)
-            else:
-                avg_50 = 0.0
-            
-            # レーティングの計算
-            a = avg_50
-            if a >= 230: rt = 18 + (a - 230) * (3 / 20)
-            elif a >= 210: rt = 15 + (a - 210) * (3 / 20)
-            elif a >= 190: rt = 12 + (a - 190) * (3 / 20)
-            elif a >= 170: rt = 9 + (a - 170) * (3 / 20)
-            elif a >= 145: rt = 6 + (a - 145) * (3 / 25)
-            elif a >= 95: rt = 1 + (a - 95) * 0.1
-            else: rt = a / 95
-            new_rating = round(max(1.0, rt), 2)
-            
-            if new_rating >= 16: new_flight = "SA"
-            elif new_rating >= 13: new_flight = "AA"
-            elif new_rating >= 10: new_flight = "A"
-            elif new_rating >= 8: new_flight = "BB"
-            elif new_rating >= 6: new_flight = "B"
-            elif new_rating >= 4: new_flight = "CC"
-            else: new_flight = "C"
-
-            # 色の計算
-            gauge_pct = min(100, max(0, int((new_rating / 18.0) * 100)))
-            if gauge_pct <= 25:
-                p = gauge_pct / 25
-                r, g, b = int(0 + (52-0)*p), int(188 + (168-188)*p), int(212 + (83-212)*p)
-            elif gauge_pct <= 50:
-                p = (gauge_pct - 25) / 25
-                r, g, b = int(52 + (251-52)*p), int(168 + (188-168)*p), int(83 + (4-83)*p)
-            elif gauge_pct <= 75:
-                p = (gauge_pct - 50) / 25
-                r, g, b = int(251 + (255-251)*p), int(188 + (102-188)*p), int(4 + (0-4)*p)
-            else:
-                p = (gauge_pct - 75) / 25
-                r, g, b = int(255 + (255-255)*p), int(102 + (59-102)*p), int(0 + (48-0)*p)
-            new_color = f"rgb({r},{g},{b})"
-            
-        except:
-            new_flight, new_rating, new_color = "C", 1.00, "#808080"
-            avg_50 = 0.0
-
-        st.markdown(f"<h3 style='text-align: center; color: #fcf6ba; margin-bottom: 20px;'>{target_name} - REGISTRATION COMPLETE</h3>", unsafe_allow_html=True)
-        
-        # --- 画面を左右に分割 ---
-        col_left, col_right = st.columns([1, 1.8])
-        
-        # ==========================
-        # ▼ 左側：レーティング＆ボタン ▼
-        # ==========================
-        with col_left:
-            html_card = f"""
-            <div style="background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 35px 10px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333; overflow: hidden;">
-            <div style="position: relative; width: 325px; height: 325px; margin: 0 auto; border-radius: 50%; background: conic-gradient({new_color} {int(gauge_pct*3.6)}deg, #333 0deg); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 25px {new_color};">
-                <div style="width: 277px; height: 277px; background-color: #1a1a1c; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-direction: column; box-shadow: inset 0 0 20px rgba(0,0,0,0.9);">
-                <div style="color: white; font-size: 80px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif; line-height: 1; text-shadow: 0 0 30px {new_color}, 0 0 60px {new_color};">{new_rating}</div>
-                </div>
-            </div>
-            <div style="text-align: center; margin-top: -45px; position: relative; z-index: 10; filter: drop-shadow(0 10px 10px rgba(0,0,0,0.8));">
-                <div style="display: inline-flex; align-items: flex-start; justify-content: center; box-sizing: border-box; width: 99px; height: 110px; padding-top: 15px; background: linear-gradient(135deg, #bf953f 0%, #fcf6ba 25%, #b38728 50%, #fbf5b7 75%, #aa771c 100%); clip-path: polygon(0% 0%, 100% 0%, 100% 75%, 50% 100%, 0% 75%); border-radius: 2px;">
-                <div style="color: {new_color}; font-size: 40px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif; text-shadow: 2px 2px 4px rgba(0,0,0,0.5), -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff; letter-spacing: 1px;">{new_flight}</div>
-                </div>
-            </div>
-            </div>
-            """
-            st.markdown(html_card, unsafe_allow_html=True)
-            
-            st.markdown("<div style='margin-top: 30px;'></div>", unsafe_allow_html=True)
-            
-            st.markdown("<div class='gold-btn-marker' style='display: none;'></div>", unsafe_allow_html=True)
-            if st.button("🔄 解析を続ける", use_container_width=True):
-                st.session_state.app_state = "init"
-                st.session_state.waiting_for_scan = False
-                st.rerun()
-
-            st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-
-            st.markdown("<div class='red-btn-marker' style='display: none;'></div>", unsafe_allow_html=True)
-            if st.button("🚪 CHECK-IN画面へ (終了)", use_container_width=True):
-                for key in ["kiosk_mode", "kiosk_user", "kiosk_step", "target_player", "target_player_name", "logged_in", "user_role"]:
-                    if key in st.session_state:
-                        del st.session_state[key]
-                st.session_state.app_state = "init"
-                st.rerun()
-
-        # ==========================
-        # ▼ 右側：3段構成の分析データ ▼
-        # ==========================
-        with col_right:
-            # 【1段目】 刺激的な今月のスタッツ表示（ネオン風サイバーデザイン）
-            stats_html = f"""
-            <div style="background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%); border: 2px solid #00f2fe; box-shadow: 0 0 15px rgba(0, 242, 254, 0.4); border-radius: 10px; padding: 15px; margin-bottom: 20px;">
-                <h4 style="margin: 0; color: #00f2fe; text-align: center; text-shadow: 0 0 10px #00f2fe; letter-spacing: 2px; font-style: italic;">⚡ THIS MONTH'S PERFORMANCE ⚡</h4>
-                <div style="display: flex; justify-content: space-around; margin-top: 10px; text-align: center;">
-                    <div>
-                        <div style="font-size: 11px; color: #b2bec3; font-weight: bold;">GAMES</div>
-                        <div style="font-size: 26px; font-weight: 900; color: #ffffff; text-shadow: 0 0 8px #ffffff;">{games_this_month}</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 11px; color: #b2bec3; font-weight: bold;">THROWS</div>
-                        <div style="font-size: 26px; font-weight: 900; color: #ffffff; text-shadow: 0 0 8px #ffffff;">{throws_this_month}</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 11px; color: #b2bec3; font-weight: bold;">PINS</div>
-                        <div style="font-size: 26px; font-weight: 900; color: #ffffff; text-shadow: 0 0 8px #ffffff;">{pins_this_month}</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 11px; color: #f1c40f; font-weight: bold;">AVE</div>
-                        <div style="font-size: 26px; font-weight: 900; color: #f1c40f; text-shadow: 0 0 10px #f1c40f;">{avg_this_month}</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 11px; color: #ff4757; font-weight: bold;">HIGH</div>
-                        <div style="font-size: 26px; font-weight: 900; color: #ff4757; text-shadow: 0 0 10px #ff4757;">{high_this_month}</div>
-                    </div>
-                </div>
-            </div>
-            """
-            st.markdown(stats_html, unsafe_allow_html=True)
-            
-            import plotly.express as px
-            import plotly.graph_objects as go
-            
-            # 【2段目】 50Gスコアトレンド
-            st.markdown("<div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 15px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333; margin-bottom: 20px;'>", unsafe_allow_html=True)
-            if len(player_games) > 0:
-                recent_50_scores = [g["score"] for g in player_games[:50]]
-                recent_50_scores.reverse()
-                x_vals = list(range(len(recent_50_scores), 0, -1))
-                y_vals = recent_50_scores
-                
-                st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif; text-align: center;'>RECENT 50 GAMES SCORE TREND</div>", unsafe_allow_html=True)
-                fig_trend = px.line(x=x_vals, y=y_vals, markers=True)
-                fig_trend.update_traces(line_color='#ff6600', marker=dict(color='#ff6600', size=6, line=dict(color='white', width=1)))
-                fig_trend.update_layout(
-                    plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
-                    xaxis=dict(title="", range=[50, 0], showgrid=True, gridcolor='#444', fixedrange=True),
-                    yaxis=dict(title="", range=[0, 300], showgrid=True, gridcolor='#444', fixedrange=True),
-                    height=200, margin=dict(l=30, r=30, t=10, b=10)
-                )
-                st.plotly_chart(fig_trend, use_container_width=True, config={'displayModeBar': False})
-            else:
-                 st.markdown("<div style='text-align: center; color: #555; padding: 20px;'>NO DATA</div>", unsafe_allow_html=True)
-            st.markdown("</div>", unsafe_allow_html=True)
-            
-            # 【3段目】 50ヶ月レーティング推移
-            st.markdown("<div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 15px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333;'>", unsafe_allow_html=True)
-            if len(player_games) > 0:
-                monthly_rt = {}
-                history_scores = []
-                chrono_games = list(reversed(player_games))
-                for g in chrono_games:
-                    date_str = str(g["date"]).strip()
-                    parts = date_str.split('/')
-                    if len(parts) >= 2:
-                        yy = int(parts[0])
-                        yyyy = 2000 + yy if yy < 100 else yy
-                        mm = int(parts[1])
-                        month_key = f"{yyyy:04d}/{mm:02d}"
-                    else:
-                        continue
-                        
-                    history_scores.append(g["score"])
-                    recent_50 = history_scores[-50:]
-                    
-                    a = sum(recent_50) / len(recent_50)
-                    if a >= 230: rt = 18 + (a - 230) * (3 / 20)
-                    elif a >= 210: rt = 15 + (a - 210) * (3 / 20)
-                    elif a >= 190: rt = 12 + (a - 190) * (3 / 20)
-                    elif a >= 170: rt = 9 + (a - 170) * (3 / 20)
-                    elif a >= 145: rt = 6 + (a - 145) * (3 / 25)
-                    elif a >= 95: rt = 1 + (a - 95) * 0.1
-                    else: rt = a / 95
-                    
-                    monthly_rt[month_key] = round(max(1.0, rt), 2)
-                    
-                sorted_months = sorted(monthly_rt.keys(), reverse=True)[:50]
-                sorted_months.reverse()
-                
-                st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif; text-align: center;'>RECENT 50 MONTHS RATING TREND</div>", unsafe_allow_html=True)
-                
-                if len(sorted_months) > 0:
-                    y_vals_rt = [monthly_rt[m] for m in sorted_months]
-                    num_months = len(sorted_months)
-                    x_vals_rt = list(range(num_months - 1, -1, -1))
-                    
-                    fig_rt = go.Figure()
-                    def get_rt_color(rt_val):
-                        gauge_pct = min(100, max(0, int((rt_val / 18.0) * 100)))
-                        if gauge_pct <= 25:
-                            p = gauge_pct / 25
-                            r, g, b = int(0 + (52-0)*p), int(188 + (168-188)*p), int(212 + (83-212)*p)
-                        elif gauge_pct <= 50:
-                            p = (gauge_pct - 25) / 25
-                            r, g, b = int(52 + (251-52)*p), int(168 + (188-168)*p), int(83 + (4-83)*p)
-                        elif gauge_pct <= 75:
-                            p = (gauge_pct - 50) / 25
-                            r, g, b = int(251 + (255-251)*p), int(188 + (102-188)*p), int(4 + (0-4)*p)
-                        else:
-                            p = (gauge_pct - 75) / 25
-                            r, g, b = int(255 + (255-255)*p), int(102 + (59-102)*p), int(0 + (48-0)*p)
-                        return f"rgb({r},{g},{b})"
-
-                    for i in range(len(x_vals_rt) - 1):
-                        x0, x1 = x_vals_rt[i], x_vals_rt[i+1]
-                        y0, y1 = y_vals_rt[i], y_vals_rt[i+1]
-                        color = get_rt_color(y1)
-                        fig_rt.add_trace(go.Scatter(
-                            x=[x0, x1], y=[y0, y1], mode='lines',
-                            line=dict(color=color, width=3), showlegend=False, hoverinfo="skip"
-                        ))
-                        
-                    fig_rt.add_trace(go.Scatter(
-                        x=x_vals_rt, y=y_vals_rt, mode='lines', line=dict(color='rgba(0,0,0,0)', width=0),
-                        showlegend=False, hovertemplate="<b>%{x}ヶ月前</b><br>Rt: %{y:.2f}<extra></extra>"
-                    ))
-                    
-                    fig_rt.update_layout(
-                        plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
-                        xaxis=dict(title="（ヶ月前）", range=[50, 0], showgrid=True, gridcolor='#444', fixedrange=True),
-                        yaxis=dict(title="Rt", range=[0.0, 18.0], showgrid=True, gridcolor='#444', fixedrange=True),
-                        height=200, margin=dict(l=30, r=30, t=10, b=10)
-                    )
-                    st.plotly_chart(fig_rt, use_container_width=True, config={'displayModeBar': False})
-                else:
-                    st.markdown("<div style='text-align: center; color: #555; padding: 20px;'>NO DATA</div>", unsafe_allow_html=True)
-            else:
-                 st.markdown("<div style='text-align: center; color: #555; padding: 20px;'>NO DATA</div>", unsafe_allow_html=True)
-            st.markdown("</div>", unsafe_allow_html=True)
-            
-    except Exception as e:
-        st.error(f"データの取得・計算中にエラーが発生しました: {e}")
 
 
 
