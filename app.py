@@ -3534,10 +3534,10 @@ with st.expander("残ピン判定の微調整"):
 
     col_sl, col_btn = st.columns([4, 1])
     with col_sl:
-        st.slider("閾値の調整値（％）", min_value=-20.0, max_value=20.0, step=0.05, key="pin_thresh_offset")
+        # value=1.0 を明示的に追加して、リセット時や初回表示時に-20.0になるのを防ぐ
+        st.slider("閾値の調整値（％）", min_value=-20.0, max_value=20.0, value=1.0, step=0.05, key="pin_thresh_offset")
     with col_btn:
-        st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True) 
-        st.button("初期値に戻す", on_click=reset_thresh, use_container_width=True)
+        st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
 
 # --- ボタン押下時の処理 ---
 if fetch_button:
