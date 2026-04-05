@@ -5530,27 +5530,27 @@ if st.session_state.analyzed_results:
 if st.session_state.app_state == "registration_complete":
     st.balloons()
     
-    # ユーザー情報の取得（処理中で保持している確実なセッションキーを使用）
-        target_email = st.session_state.get("target_player", "")
-        target_name = st.session_state.get("target_player_name", "")
+    # ユーザー情報の取得
+    target_email = st.session_state.get("target_player", "")
+    target_name = st.session_state.get("target_player_name", "")
+    
+    try:
+        sh = get_gspread_client()
         
-        try:
-            sh = get_gspread_client()
-            
-            # 最新のスコアデータを取得
-            ws_score = sh.worksheet("マスター")
-            data_score = ws_score.get_all_values()
-            import pandas as pd
-            df_score = pd.DataFrame(data_score[1:], columns=data_score[0])
-            # ▼ 列名「プレイヤー名」は存在しないため、一意の「メールアドレス」で検索する
-            df_target = df_score[df_score["メールアドレス"] == target_email].copy()
-            
-            # 最新の月間AWARDデータを取得
-            ws_monthly = sh.worksheet("MONTHLY AWARD")
-            data_monthly = ws_monthly.get_all_values()
-            df_monthly = pd.DataFrame(data_monthly[1:], columns=data_monthly[0])
-            # ▼ こちらも「メールアドレス」で検索する
-            df_monthly_target = df_monthly[df_monthly["メールアドレス"] == target_email].copy()
+        # 最新のスコアデータを取得
+        ws_score = sh.worksheet("マスター")
+        data_score = ws_score.get_all_values()
+        import pandas as pd
+        df_score = pd.DataFrame(data_score[1:], columns=data_score[0])
+        # 列名は「プレイヤー名」ではなく「メールアドレス」で検索
+        df_target = df_score[df_score["メールアドレス"] == target_email].copy()
+        
+        # 最新の月間AWARDデータを取得
+        ws_monthly = sh.worksheet("MONTHLY AWARD")
+        data_monthly = ws_monthly.get_all_values()
+        df_monthly = pd.DataFrame(data_monthly[1:], columns=data_monthly[0])
+        # ここも「メールアドレス」で検索
+        df_monthly_target = df_monthly[df_monthly["メールアドレス"] == target_email].copy()
         
         # ---------------------------------------------------------
         # データ計算：今月のスタッツ
@@ -5566,7 +5566,6 @@ if st.session_state.app_state == "registration_complete":
         high_this_month = df_this_month["スコア"].astype(int).max() if games_this_month > 0 else 0
         
         # 投球数（各フレームの投球マスに入力がある数をカウント）
-        # throw_colsは既存コードで定義済みの列インデックスを使用（7, 9, 11...）
         throws_this_month = 0
         for _, row in df_this_month.iterrows():
             for c_idx in throw_cols:
@@ -5713,12 +5712,23 @@ if st.session_state.app_state == "registration_complete":
             st.markdown("<div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 15px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333; margin-bottom: 20px;'>", unsafe_allow_html=True)
             
             if len(df_target) > 0:
+                # 折れ線グラフを描画するためのデータを準備（エラーを避けるために独立して記述）
                 recent_50_df = df_target.sort_values("日付", ascending=False).head(50).iloc[::-1]
-                # ここでリスト等のデータを渡す処理は簡略化し、直接関数を呼び出して高さを指定します。
-                # グラフ関数の内部で対象データ（player_games等）を参照しているため、
-                # グローバル変数にアクセスできる前提でそのまま関数を呼び出します。
-                # （本来は引数で渡すのが綺麗ですが、既存の構造に合わせます）
-                render_02_score_trend(chart_height=200)
+                x_vals = list(range(len(recent_50_df), 0, -1))
+                y_vals = recent_50_df["スコア"].astype(int).tolist()
+                
+                st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif; text-align: center;'>RECENT 50 GAMES SCORE TREND</div>", unsafe_allow_html=True)
+                fig_trend = px.line(x=x_vals, y=y_vals, markers=True)
+                fig_trend.update_traces(line_color='#ff6600', marker=dict(color='#ff6600', size=6, line=dict(color='white', width=1)))
+                fig_trend.update_layout(
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    xaxis=dict(title="", range=[50, 0], showgrid=True, gridcolor='#444', fixedrange=True),
+                    yaxis=dict(title="", range=[0, 300], showgrid=True, gridcolor='#444', fixedrange=True),
+                    height=200,
+                    margin=dict(l=30, r=30, t=10, b=10)
+                )
+                st.plotly_chart(fig_trend, use_container_width=True, config={'displayModeBar': False})
             else:
                  st.info("データがありません。")
             st.markdown("</div>", unsafe_allow_html=True)
@@ -5726,7 +5736,31 @@ if st.session_state.app_state == "registration_complete":
             # 【3段目】 50ヶ月レーティング推移（高さを200pxに圧縮）
             st.markdown("<div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 15px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333;'>", unsafe_allow_html=True)
             if len(df_monthly_target) > 0:
-                render_16_rating_trend(chart_height=200)
+                # 月ごとのレーティングデータを準備
+                month_cols = [c for c in df_monthly_target.columns if "/" in str(c) and len(str(c)) == 7]
+                month_cols_sorted = sorted(month_cols)[-50:]
+                y_vals_rt = []
+                x_vals_rt = list(range(len(month_cols_sorted) - 1, -1, -1))
+                
+                for m in month_cols_sorted:
+                    try:
+                        val_str = str(df_monthly_target.iloc[0][m])
+                        import re
+                        nums = re.findall(r"[-+]?\d*\.\d+|\d+", val_str)
+                        y_vals_rt.append(float(nums[0]) if nums else 0.0)
+                    except:
+                        y_vals_rt.append(0.0)
+
+                st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif; text-align: center;'>RECENT 50 MONTHS RATING TREND</div>", unsafe_allow_html=True)
+                fig_rt = go.Figure()
+                fig_rt.add_trace(go.Scatter(x=x_vals_rt, y=y_vals_rt, mode='lines+markers', line=dict(color='#bf953f', width=3), marker=dict(size=6, color='white')))
+                fig_rt.update_layout(
+                    plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                    xaxis=dict(title="（ヶ月前）", range=[50, 0], showgrid=True, gridcolor='#444', fixedrange=True),
+                    yaxis=dict(title="", showgrid=True, gridcolor='#444', fixedrange=True),
+                    height=200, margin=dict(l=30, r=30, t=10, b=10)
+                )
+                st.plotly_chart(fig_rt, use_container_width=True, config={'displayModeBar': False})
             else:
                  st.info("データがありません。")
             st.markdown("</div>", unsafe_allow_html=True)
