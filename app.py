@@ -5514,10 +5514,14 @@ if st.session_state.analyzed_results:
                 st.success(f"登録完了！ 新規追加: {add_count}件 / 上書き更新: {update_count}件")
                 st.session_state.sps_registered = True 
                 
-                # キオスクモードの場合、登録完了後にSTATS画面へ遷移
+                # ▼ ここで登録したプレイヤー名を保存し、完了画面で確実にデータを呼び出せるようにする
+                st.session_state.registered_player_name = selected_player
+                
+                # キオスクモードの場合、登録完了後に専用の完了画面へ遷移するフラグを立てる
                 if st.session_state.get("kiosk_mode"):
-                    st.session_state.app_state = "registration_complete" # STATSではなく専用の完了画面へ遷移
-                    st.rerun() # ここで画面を再描画して完了画面に切り替える
+                    st.session_state.app_state = "registration_complete" 
+                    # ⚠️ 修正: ここにあった st.rerun() を削除しました。
+                    # これがあると、すぐ下の画像移動処理（move_images_to_processed）が永遠に実行されません。
 
                 move_images_to_processed(is_discard=False)
 
@@ -5530,9 +5534,8 @@ if st.session_state.analyzed_results:
 if st.session_state.app_state == "registration_complete":
     st.balloons()
     
-    # ユーザー情報の取得
-    target_email = st.session_state.get("target_player", "")
-    target_name = st.session_state.get("target_player_name", "")
+    # ユーザー情報の取得（登録時に保存した確実な名前を使用）
+    target_name = st.session_state.get("registered_player_name", "")
     
     try:
         sh = get_gspread_client()
@@ -5542,7 +5545,9 @@ if st.session_state.app_state == "registration_complete":
         data_score = ws_score.get_all_values()
         import pandas as pd
         df_score = pd.DataFrame(data_score[1:], columns=data_score[0])
-        df_target = df_score[df_score["メールアドレス"] == target_email].copy()
+        
+        # ▼ 列名「メールアドレス」ではなく、確実な「プレイヤー」列で名前を検索する
+        df_target = df_score[df_score["プレイヤー"] == target_name].copy()
         
         # ---------------------------------------------------------
         # データ準備：マスターから対象の全ゲームリストを作成（7-10G除外）
@@ -5658,6 +5663,7 @@ if st.session_state.app_state == "registration_complete":
             
             st.markdown("<div style='margin-top: 30px;'></div>", unsafe_allow_html=True)
             
+            # 解析を続けるボタン（目立たせるゴールド）
             st.markdown("<div class='gold-btn-marker' style='display: none;'></div>", unsafe_allow_html=True)
             if st.button("🔄 解析を続ける", use_container_width=True):
                 st.session_state.app_state = "init"
@@ -5666,6 +5672,7 @@ if st.session_state.app_state == "registration_complete":
 
             st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
+            # CHECK-IN画面へボタン（目立たせるレッド）
             st.markdown("<div class='red-btn-marker' style='display: none;'></div>", unsafe_allow_html=True)
             if st.button("🚪 CHECK-IN画面へ (終了)", use_container_width=True):
                 for key in ["kiosk_mode", "kiosk_user", "kiosk_step", "target_player", "target_player_name", "logged_in", "user_role"]:
@@ -5715,9 +5722,11 @@ if st.session_state.app_state == "registration_complete":
             st.markdown("<div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 15px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333; margin-bottom: 20px;'>", unsafe_allow_html=True)
             
             if len(player_games) > 0:
-                recent_50_df = df_target.sort_values("日付", ascending=False).head(50).iloc[::-1]
-                x_vals = list(range(len(recent_50_df), 0, -1))
-                y_vals = recent_50_df["スコア"].astype(int).tolist()
+                # ▼ 7-10ゲームを含まない player_games のデータからグラフを描画
+                recent_50_scores = [g["score"] for g in player_games[:50]]
+                recent_50_scores.reverse() # 古い順から並べる
+                x_vals = list(range(len(recent_50_scores), 0, -1))
+                y_vals = recent_50_scores
                 
                 st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif; text-align: center;'>RECENT 50 GAMES SCORE TREND</div>", unsafe_allow_html=True)
                 fig_trend = px.line(x=x_vals, y=y_vals, markers=True)
