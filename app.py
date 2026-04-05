@@ -1058,7 +1058,6 @@ if app_mode == "プレイヤー分析":
                         # アプリ風にオレンジ色のグラフとダークテーマに設定
                         fig_trend.update_traces(line_color='#ff6600', marker=dict(color='#ff6600', size=6, line=dict(color='white', width=1)))
                         fig_trend.update_layout(
-                            fig_trend.update_layout(
                             plot_bgcolor='rgba(0,0,0,0)',
                             paper_bgcolor='rgba(0,0,0,0)',
                             xaxis=dict(title="", range=[50, 0], showgrid=True, gridcolor='#444', tickmode='linear', tick0=0, dtick=5, color='gray', fixedrange=True),
