@@ -800,8 +800,9 @@ if app_mode == "プレイヤー分析":
   </div>
   <div style="text-align: center; margin-top: -45px; position: relative; z-index: 10; filter: drop-shadow(0 10px 10px rgba(0,0,0,0.8));">
     <div style="display: inline-block; width: 21%; background: linear-gradient(135deg, #bf953f 0%, #fcf6ba 25%, #b38728 50%, #fbf5b7 75%, #aa771c 100%); padding: 12px 0px 20px 0px; clip-path: polygon(0% 0%, 100% 0%, 100% 75%, 50% 100%, 0% 75%); border-radius: 2px;">
-      <div style="color: {current_color}; font-size: 40px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif; text-shadow: 2px 2px 4px rgba(0,0,0,0.9), -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000; display: inline-block; letter-spacing: 2px;">{flight_short}</div>
+      <div style="color: {current_color}; font-size: 40px; font-weight: 900; font-family: 'Arial Black', Impact, sans-serif; text-shadow: 2px 2px 4px rgba(0,0,0,0.5), -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff; display: inline-block; letter-spacing: 2px;">{flight_short}</div>
     </div>
+  </div>
   
   <div style="text-align: center; margin-top: 40px; margin-bottom: 20px;">
     <div style="color: silver; font-size: 14px; font-weight: 900; letter-spacing: 1.5px; text-shadow: 0 0 8px rgba(192,192,192,0.6);">LAST 50 GAMES DATA</div>
