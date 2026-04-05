@@ -155,32 +155,36 @@ st.markdown("""
         color: #1a1a1c !important;
         font-size: 18px !important;
         font-weight: 900 !important;
-        border: 1px solid #fcf6ba !important;
-        box-shadow: 0 0 10px rgba(191, 149, 63, 0.4) !important;
-        border-radius: 8px !important;
+        border: 2px solid #fcf6ba !important;
+        box-shadow: 0 0 15px rgba(191, 149, 63, 0.6) !important;
+        border-radius: 12px !important;
+        letter-spacing: 2px !important;
         transition: all 0.3s ease !important;
+        min-height: 50px !important;
     }
     .gold-action-btn > button:hover {
         background: linear-gradient(145deg, #fcf6ba, #bf953f) !important;
         color: #000 !important;
-        box-shadow: 0 0 15px rgba(191, 149, 63, 0.8) !important;
+        box-shadow: 0 0 25px rgba(191, 149, 63, 0.9) !important;
         transform: translateY(-2px) !important;
     }
 
     /* ▼ 赤強調ボタン（登録実行） ▼ */
     .red-action-btn > button {
-        background: linear-gradient(145deg, #a73a3a, #7a2222) !important;
+        background: linear-gradient(145deg, #cd5c5c, #8b0000) !important;
         color: #ffffff !important;
         font-size: 18px !important;
         font-weight: 900 !important;
         border: 1px solid #ff7a7a !important;
-        box-shadow: 0 0 10px rgba(167, 58, 58, 0.4) !important;
+        box-shadow: 0 0 10px rgba(205, 92, 92, 0.4) !important;
         border-radius: 8px !important;
+        letter-spacing: 2px !important;
         transition: all 0.3s ease !important;
+        min-height: 50px !important;
     }
     .red-action-btn > button:hover {
-        background: linear-gradient(145deg, #ff7a7a, #a73a3a) !important;
-        box-shadow: 0 0 15px rgba(167, 58, 58, 0.8) !important;
+        background: linear-gradient(145deg, #ff7a7a, #cd5c5c) !important;
+        box-shadow: 0 0 15px rgba(205, 92, 92, 0.8) !important;
         transform: translateY(-2px) !important;
     }
 
@@ -4565,13 +4569,20 @@ if st.session_state.analyzed_results:
                     border: 1px solid #2a4473 !important; 
                 }
                 
-                /* ポップオーバー内の選択ボタンにうっすら色付け */
+                /* ポップオーバー内の選択ボタンの見た目 */
                 div[data-testid="stPopoverBody"] button[kind="secondary"] {
-                    background-color: #333338 !important;
+                    background-color: #2a2a2e !important;
                     border: 1px solid #555 !important;
                 }
                 div[data-testid="stPopoverBody"] button[kind="secondary"]:hover {
-                    background-color: #44444c !important;
+                    background-color: #bf953f !important;
+                    color: #000 !important;
+                }
+                /* 残ピン選択で選ばれたボタン（primary）の色 */
+                div[data-testid="stPopoverBody"] button[kind="primary"] {
+                    background-color: #ff2d55 !important;
+                    color: #ffffff !important;
+                    border: 1px solid #ffaaaa !important;
                 }
                 </style>
                 """, unsafe_allow_html=True)
@@ -4660,7 +4671,7 @@ if st.session_state.analyzed_results:
                     render_score_popover(c2, 19, "")
                     render_score_popover(c3, 20, "")
                     tot = frame_totals[9] if len(frame_totals) == 10 else ""
-                    st.markdown(f"<div class='frame-total' style='font-size:15px; background-color:#2a2a2e; color:#bf953f; border: 1px solid #bf953f;'>{tot}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='frame-total' style='font-size:15px; background-color:#4a3424; color:#bf953f; border: 1px solid #bf953f;'>{tot}</div>", unsafe_allow_html=True)
                     
                 st.markdown("---")
                 
@@ -4685,22 +4696,6 @@ if st.session_state.analyzed_results:
                     st.session_state[close_flag_key] = True
                     st.rerun()
                 st.markdown("</div>", unsafe_allow_html=True)
-                    row[2] = new_end
-                    if len(row) > 51:
-                        row[51] = is_710_checked
-                    else:
-                        row.append(is_710_checked)
-                    
-                    for i in range(21):
-                        row[throw_cols[i]] = curr_throws[i]
-                    for i in range(12):
-                        row[target_indices[i]] = ",".join(map(str, curr_pins[i]))
-                    
-                    if frame_totals and str(frame_totals[-1]).isdigit():
-                        row[50] = str(frame_totals[-1])
-                    
-                    st.session_state[close_flag_key] = True
-                    st.rerun()
 
     st.markdown("---")
     st.markdown("### レーン・オイル・ボール")
