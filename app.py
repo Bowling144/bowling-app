@@ -83,7 +83,7 @@ st.markdown("""
         margin-bottom: 0rem !important;
     }
     div[data-testid="stExpander"] summary p {
-        color: #ffb74d !important; /* 金色から薄いオレンジに変更 */
+        color: #B0C4DE !important; /* 金色から薄いライトスチールブルーに変更 */
         font-weight: bold !important;
     }
     
