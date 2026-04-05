@@ -5530,25 +5530,27 @@ if st.session_state.analyzed_results:
 if st.session_state.app_state == "registration_complete":
     st.balloons()
     
-    # ユーザー情報の取得
-    target_email = st.session_state.get("user_email", "")
-    target_name = st.session_state.get("kiosk_user", st.session_state.get("user_name", ""))
-    
-    try:
-        sh = get_gspread_client()
+    # ユーザー情報の取得（処理中で保持している確実なセッションキーを使用）
+        target_email = st.session_state.get("target_player", "")
+        target_name = st.session_state.get("target_player_name", "")
         
-        # 最新のスコアデータを取得
-        ws_score = sh.worksheet("マスター")
-        data_score = ws_score.get_all_values()
-        import pandas as pd
-        df_score = pd.DataFrame(data_score[1:], columns=data_score[0])
-        df_target = df_score[df_score["プレイヤー名"] == target_name].copy()
-        
-        # 最新の月間AWARDデータを取得
-        ws_monthly = sh.worksheet("MONTHLY AWARD")
-        data_monthly = ws_monthly.get_all_values()
-        df_monthly = pd.DataFrame(data_monthly[1:], columns=data_monthly[0])
-        df_monthly_target = df_monthly[df_monthly["プレイヤー名"] == target_name].copy()
+        try:
+            sh = get_gspread_client()
+            
+            # 最新のスコアデータを取得
+            ws_score = sh.worksheet("マスター")
+            data_score = ws_score.get_all_values()
+            import pandas as pd
+            df_score = pd.DataFrame(data_score[1:], columns=data_score[0])
+            # ▼ 列名「プレイヤー名」は存在しないため、一意の「メールアドレス」で検索する
+            df_target = df_score[df_score["メールアドレス"] == target_email].copy()
+            
+            # 最新の月間AWARDデータを取得
+            ws_monthly = sh.worksheet("MONTHLY AWARD")
+            data_monthly = ws_monthly.get_all_values()
+            df_monthly = pd.DataFrame(data_monthly[1:], columns=data_monthly[0])
+            # ▼ こちらも「メールアドレス」で検索する
+            df_monthly_target = df_monthly[df_monthly["メールアドレス"] == target_email].copy()
         
         # ---------------------------------------------------------
         # データ計算：今月のスタッツ
