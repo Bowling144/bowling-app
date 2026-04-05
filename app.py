@@ -394,6 +394,57 @@ with st.sidebar:
         app_mode = st.radio("モード選択", ["プレイヤー分析"], index=0)
         st.info("※非公開のプレイヤーのデータは表示されません")
 
+# ＃★★★★テンキー入力用共通関数群★★★★
+def tk_add(k, c): st.session_state[k] += c
+def tk_del(k): st.session_state[k] = st.session_state[k][:-1] if len(st.session_state[k]) > 0 else ""
+def tk_clr(k): st.session_state[k] = ""
+
+def render_tenkey(label, state_key, default_val, format_type="none", is_pw=False):
+    tracker_key = f"{state_key}_tracker"
+    if state_key not in st.session_state or st.session_state.get(tracker_key) != default_val:
+        dv = "" if default_val is None else str(default_val)
+        st.session_state[state_key] = dv.replace("/", "").replace(":", "")
+        st.session_state[tracker_key] = default_val
+        
+    raw_val = st.session_state[state_key]
+    display_val = raw_val
+    
+    if format_type == "date":
+        if len(raw_val) > 4: display_val = f"{raw_val[:2]}/{raw_val[2:4]}/{raw_val[4:6]}"
+        elif len(raw_val) > 2: display_val = f"{raw_val[:2]}/{raw_val[2:4]}"
+    elif format_type == "time":
+        if len(raw_val) > 2: display_val = f"{raw_val[:2]}:{raw_val[2:4]}"
+        
+    display_text = "*" * len(display_val) if is_pw else display_val
+
+    col1, col2 = st.columns([4, 1])
+    with col1:
+        st.text_input(label, value=display_text, disabled=True, key=f"disp_{state_key}")
+    with col2:
+        with st.popover("⌨"):
+            st.markdown("<div style='text-align:center; font-size:12px; color:gray; margin-bottom:5px;'>テンキー</div>", unsafe_allow_html=True)
+            r1c1, r1c2, r1c3 = st.columns(3)
+            r1c1.button("7", on_click=tk_add, args=(state_key, "7"), key=f"tk_7_{state_key}", use_container_width=True)
+            r1c2.button("8", on_click=tk_add, args=(state_key, "8"), key=f"tk_8_{state_key}", use_container_width=True)
+            r1c3.button("9", on_click=tk_add, args=(state_key, "9"), key=f"tk_9_{state_key}", use_container_width=True)
+            
+            r2c1, r2c2, r2c3 = st.columns(3)
+            r2c1.button("4", on_click=tk_add, args=(state_key, "4"), key=f"tk_4_{state_key}", use_container_width=True)
+            r2c2.button("5", on_click=tk_add, args=(state_key, "5"), key=f"tk_5_{state_key}", use_container_width=True)
+            r2c3.button("6", on_click=tk_add, args=(state_key, "6"), key=f"tk_6_{state_key}", use_container_width=True)
+            
+            r3c1, r3c2, r3c3 = st.columns(3)
+            r3c1.button("1", on_click=tk_add, args=(state_key, "1"), key=f"tk_1_{state_key}", use_container_width=True)
+            r3c2.button("2", on_click=tk_add, args=(state_key, "2"), key=f"tk_2_{state_key}", use_container_width=True)
+            r3c3.button("3", on_click=tk_add, args=(state_key, "3"), key=f"tk_3_{state_key}", use_container_width=True)
+            
+            r4c1, r4c2, r4c3 = st.columns(3)
+            r4c1.button("C", on_click=tk_clr, args=(state_key,), key=f"tk_C_{state_key}", use_container_width=True)
+            r4c2.button("0", on_click=tk_add, args=(state_key, "0"), key=f"tk_0_{state_key}", use_container_width=True)
+            r4c3.button("戻", on_click=tk_del, args=(state_key,), key=f"tk_D_{state_key}", use_container_width=True)
+            
+    return display_val
+
 # =========================================================
 # 【新機能】ユーザセルフ登録 (専用画面モード) の制御
 # =========================================================
@@ -439,7 +490,7 @@ if st.session_state.get("kiosk_mode"):
                 players = [row[1] for row in data[1:] if len(row) >= 5 and row[1]]
                 
                 selected_user = st.selectbox("プレイヤーを選択してください", ["選択してください"] + players)
-                kiosk_pw = st.text_input("パスワードを入力してください", type="password")
+                kiosk_pw = render_tenkey("パスワードを入力してください", "tk_kiosk_pass", "", format_type="none", is_pw=True)
                 
                 st.markdown("<br>", unsafe_allow_html=True)
                 if st.button("✅ 認証して登録画面へ進む", use_container_width=True):
@@ -4694,11 +4745,11 @@ if st.session_state.analyzed_results:
 
                 c_date, c_start, c_end = st.columns(3)
                 with c_date:
-                    new_date = st.text_input("日付", value=row[0], key=f"d_{img_idx}_{local_idx}")
+                    new_date = render_tenkey("日付", f"tk_d_{img_idx}_{local_idx}", row[0], format_type="date")
                 with c_start:
-                    new_start = st.text_input("開始時刻", value=row[1], key=f"s_{img_idx}_{local_idx}")
+                    new_start = render_tenkey("開始時刻", f"tk_s_{img_idx}_{local_idx}", row[1], format_type="time")
                 with c_end:
-                    new_end = st.text_input("終了時刻", value=row[2], key=f"e_{img_idx}_{local_idx}")
+                    new_end = render_tenkey("終了時刻", f"tk_e_{img_idx}_{local_idx}", row[2], format_type="time")
 
                 is_710_checked = st.checkbox("7-10G (セブン-テン ゲームとして登録)", value=bool(row[51]) if len(row) > 51 else False, key=f"710_{img_idx}_{local_idx}")
                 state_key = f"edit_data_{img_idx}_{local_idx}"
@@ -4985,11 +5036,12 @@ if st.session_state.analyzed_results:
         default_len, default_vol = get_oil_info(t_date, t_time, common_lane)
 
         with c_len:
-            common_len = st.text_input("オイル長 (ft)", value=default_len, key=f"c_len_{img_idx}", placeholder="例: 42")
+            common_len = render_tenkey("オイル長 (ft)", f"tk_c_len_{img_idx}", default_len, format_type="none")
         with c_vol:
-            common_vol = st.text_input("オイル量 (ml)", value=default_vol, key=f"c_vol_{img_idx}", placeholder="例: 25.5")
+            common_vol = render_tenkey("オイル量 (ml)", f"tk_c_vol_{img_idx}", default_vol, format_type="none")
             
-        common_ball = st.text_input("使用ボール", key=f"c_ball_{img_idx}", placeholder="例: ツアーダイナミクス")
+        ball_options = ["", "ソリッド", "パール", "ハイブリッド", "ウレタン", "ポリエステル (スペア用)"]
+        common_ball = st.selectbox("使用ボール", options=ball_options, index=0, key=f"c_ball_{img_idx}")
             
         with st.expander(f"画像 {img_idx+1} のゲームごとの個別設定"):
             for item in items:
@@ -4999,11 +5051,11 @@ if st.session_state.analyzed_results:
                 st.markdown(f"**{g_name}**")
                 i_c1, i_c2 = st.columns(2)
                 with i_c1:
-                    i_len = st.text_input(f"{g_name} オイル長", key=f"i_len_{img_idx}_{l_idx}", placeholder="共通を適用")
+                    i_len = render_tenkey(f"{g_name} オイル長", f"tk_i_len_{img_idx}_{l_idx}", "", format_type="none")
                 with i_c2:
-                    i_vol = st.text_input(f"{g_name} オイル量", key=f"i_vol_{img_idx}_{l_idx}", placeholder="共通を適用")
+                    i_vol = render_tenkey(f"{g_name} オイル量", f"tk_i_vol_{img_idx}_{l_idx}", "", format_type="none")
                 
-                i_ball = st.text_input(f"{g_name} 使用ボール", key=f"i_ball_{img_idx}_{l_idx}", placeholder="共通を適用")
+                i_ball = st.selectbox(f"{g_name} 使用ボール (空白は共通を適用)", options=ball_options, index=0, key=f"i_ball_{img_idx}_{l_idx}")
                 
                 final_len = i_len if i_len.strip() else common_len
                 final_vol = i_vol if i_vol.strip() else common_vol
@@ -5651,6 +5703,10 @@ if st.session_state.analyzed_results:
 
                 st.success(f"登録完了！ 新規追加: {add_count}件 / 上書き更新: {update_count}件")
                 st.session_state.sps_registered = True 
+                
+                # 登録成功時にテンキーの入力履歴をリセット
+                for k in list(st.session_state.keys()):
+                    if k.startswith("tk_"): del st.session_state[k]
                 
                 # キオスクモードの場合、登録完了後にSTATS画面へ遷移
                 if st.session_state.get("kiosk_mode"):
