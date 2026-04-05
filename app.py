@@ -3506,7 +3506,7 @@ if st.session_state.get("kiosk_mode"):
         fetch_button = st.button("スキャン・解析を開始する", use_container_width=True)
     else:
         fetch_button = False
-        st.button("待機をキャンセル", on_click=lambda: st.session_state.update(waiting_for_scan=False))
+        st.button("解析をキャンセルする", on_click=lambda: st.session_state.update(waiting_for_scan=False), use_container_width=True)
 else:
     fetch_button = st.button("スコアシート取込（1枚）", use_container_width=True)
 
