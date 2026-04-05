@@ -3538,7 +3538,7 @@ with st.expander("残ピン判定の微調整"):
         st.slider("閾値の調整値（％）", min_value=-20.0, max_value=20.0, value=1.0, step=0.05, key="pin_thresh_offset")
     with col_btn:
         st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
-
+        st.button("初期値に戻す", on_click=reset_thresh, use_container_width=True)
 # --- ボタン押下時の処理 ---
 if fetch_button:
     try:
