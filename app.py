@@ -83,7 +83,7 @@ st.markdown("""
         margin-bottom: 0rem !important;
     }
     div[data-testid="stExpander"] summary p {
-        color: #E0E0E0 !important; /* 金色から薄いライトグレーに変更 */
+        color: #E0E0E0 !important;
         font-weight: bold !important;
     }
     
@@ -118,8 +118,7 @@ st.markdown("""
         padding: 0px !important;
     }
     
-    /* ▼▼▼ 修正：アイコン要素を完全に消去し、中央揃え ▼▼▼ */
-    /* 教えていただいた expand_less などのアイコン要素(親spanごと)を非表示にする */
+    /* ▼▼▼ アイコン要素を完全に消去し、中央揃え ▼▼▼ */
     div[data-testid="stPopover"] button span:has(span[data-testid="stIconMaterial"]),
     div[data-testid="stPopover"] button span[data-testid="stIconMaterial"] {
         display: none !important;
@@ -142,74 +141,55 @@ st.markdown("""
         display: flex !important;
         justify-content: center !important;
     }
-    
     div[data-testid="stPopover"] button p {
         margin: 0 !important;
         text-align: center !important;
     }
-    /* ▲▲▲ ここまで ▲▲▲ */
 
-    /* ▼ ゴールド強調ボタン（取込・修正完了など） ▼ */
-    .gold-action-btn > button {
+    /* ========================================================
+       ▼ Streamlit用 確実なボタン色変更（マーカー方式） ▼
+       ======================================================== */
+    /* ゴールド強調ボタン（取込・修正完了など） */
+    div[data-testid="stElementContainer"]:has(.gold-btn-marker) + div[data-testid="stElementContainer"] button,
+    div.element-container:has(.gold-btn-marker) + div.element-container button {
         background: linear-gradient(145deg, #bf953f, #aa771c) !important;
         color: #1a1a1c !important;
         font-size: 18px !important;
         font-weight: 900 !important;
-        border: 1px solid #fcf6ba !important;
+        border: 2px solid #fcf6ba !important;
         box-shadow: 0 0 15px rgba(191, 149, 63, 0.6) !important;
         border-radius: 12px !important;
         letter-spacing: 2px !important;
         transition: all 0.3s ease !important;
-        min-height: 50px !important;
+        min-height: 55px !important;
     }
-    .gold-action-btn > button:hover {
+    div[data-testid="stElementContainer"]:has(.gold-btn-marker) + div[data-testid="stElementContainer"] button:hover,
+    div.element-container:has(.gold-btn-marker) + div.element-container button:hover {
         background: linear-gradient(145deg, #fcf6ba, #bf953f) !important;
         color: #000 !important;
         box-shadow: 0 0 25px rgba(191, 149, 63, 0.9) !important;
+        transform: translateY(-2px) !important;
     }
 
-    /* ▼ 赤強調ボタン（登録実行：薄めの赤） ▼ */
-    .red-action-btn > button {
-        background: linear-gradient(145deg, #ff6b6b, #ee5253) !important;
+    /* 赤強調ボタン（登録実行：薄めの赤） */
+    div[data-testid="stElementContainer"]:has(.red-btn-marker) + div[data-testid="stElementContainer"] button,
+    div.element-container:has(.red-btn-marker) + div.element-container button {
+        background: linear-gradient(145deg, #e66465, #c0392b) !important;
         color: #ffffff !important;
         font-size: 18px !important;
         font-weight: 900 !important;
         border: 1px solid #ff9f9f !important;
-        box-shadow: 0 0 15px rgba(255, 107, 107, 0.4) !important;
+        box-shadow: 0 0 15px rgba(230, 100, 101, 0.4) !important;
         border-radius: 12px !important;
         letter-spacing: 2px !important;
         transition: all 0.3s ease !important;
-        min-height: 50px !important;
+        min-height: 55px !important;
     }
-    .red-action-btn > button:hover {
-        background: linear-gradient(145deg, #ff8787, #ff6b6b) !important;
-        box-shadow: 0 0 25px rgba(255, 107, 107, 0.8) !important;
-    }
-
-    /* ▼ セルフチェックイン（プレミアム）用のスタイル ▼ */
-    .premium-header {
-        font-family: 'Playfair Display', serif;
-        color: #d4af37 !important;
-        text-align: center;
-        letter-spacing: 3px;
-        text-transform: uppercase;
-        font-size: 32px;
-        font-weight: 900;
-        text-shadow: 0 0 10px rgba(212,175,55,0.5);
-        margin-bottom: 30px;
-    }
-    .premium-btn > button {
-        background: linear-gradient(145deg, #d4af37, #aa771c) !important;
-        color: #000 !important;
-        font-size: 18px !important;
-        font-weight: bold !important;
-        border-radius: 8px !important;
-        border: none !important;
-        box-shadow: 0 4px 10px rgba(212, 175, 55, 0.4) !important;
-    }
-    .premium-btn > button:hover {
-        background: linear-gradient(145deg, #fcf6ba, #d4af37) !important;
-        color: #000 !important;
+    div[data-testid="stElementContainer"]:has(.red-btn-marker) + div[data-testid="stElementContainer"] button:hover,
+    div.element-container:has(.red-btn-marker) + div.element-container button:hover {
+        background: linear-gradient(145deg, #ff7979, #e66465) !important;
+        box-shadow: 0 0 25px rgba(230, 100, 101, 0.8) !important;
+        transform: translateY(-2px) !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -381,7 +361,7 @@ with st.sidebar:
 # 【新機能】ユーザセルフ登録 (専用画面モード) の制御
 # =========================================================
 if st.session_state.get("kiosk_mode"):
-    # 勝手にセッションが切れないようにバックグラウンドで1分ごとに通信を発生させる
+    # 勝手にセッションが切れないようにバックグラウンドで1分ごとに通信を発生
     import streamlit.components.v1 as components
     components.html("<script>setInterval(function(){window.parent.postMessage('ping', '*');}, 60000);</script>", height=0, width=0)
 
@@ -394,6 +374,12 @@ if st.session_state.get("kiosk_mode"):
             position: fixed; bottom: 10px; right: 10px; z-index: 9999; opacity: 0.1;
         }
         .kiosk-exit-btn:hover { opacity: 1.0; }
+        .kiosk-header {
+            font-family: 'Arial Black', Impact, sans-serif;
+            color: #d4af37 !important;
+            text-align: center; letter-spacing: 3px;
+            font-size: 36px; margin-top: 50px; margin-bottom: 30px;
+        }
         </style>
     """, unsafe_allow_html=True)
     
@@ -405,7 +391,7 @@ if st.session_state.get("kiosk_mode"):
     st.markdown("</div>", unsafe_allow_html=True)
 
     if st.session_state.get("kiosk_step") == "auth":
-        st.markdown("<div class='premium-header'>CHECK-IN</div>", unsafe_allow_html=True)
+        st.markdown("<div class='kiosk-header'>CHECK-IN</div>", unsafe_allow_html=True)
         
         col_c1, col_c2, col_c3 = st.columns([1, 2, 1])
         with col_c2:
@@ -418,7 +404,7 @@ if st.session_state.get("kiosk_mode"):
                 selected_user = st.selectbox("プレイヤーを選択してください", ["選択してください"] + players)
                 kiosk_pw = st.text_input("パスワードを入力してください", type="password")
                 
-                st.markdown("<br><div class='premium-btn'>", unsafe_allow_html=True)
+                st.markdown("<br>", unsafe_allow_html=True)
                 if st.button("✅ 認証して登録画面へ進む", use_container_width=True):
                     if selected_user == "選択してください":
                         st.error("プレイヤーを選択してください。")
@@ -436,10 +422,9 @@ if st.session_state.get("kiosk_mode"):
                             st.rerun()
                         else:
                             st.error("パスワードが正しくありません。")
-                st.markdown("</div>", unsafe_allow_html=True)
         st.stop()
         
-    # 認証後は既存のモード変数（app_mode）を上書きして、下の処理に合流させる
+    # 認証後は既存のモード変数（app_mode）を上書きして合流
     elif st.session_state.kiosk_step == "register":
         app_mode = "スコア登録"
     elif st.session_state.kiosk_step == "stats":
@@ -3269,9 +3254,8 @@ if "downloaded_images" not in st.session_state:
 
 st.markdown("<h3 style='text-align: center;'>☟　☟　☟</h3>", unsafe_allow_html=True)
 
-st.markdown("<div class='gold-action-btn'>", unsafe_allow_html=True)
+st.markdown("<div class='gold-btn-marker' style='display: none;'></div>", unsafe_allow_html=True)
 fetch_button = st.button("スコアシート取込（MAX３枚）", use_container_width=True)
-st.markdown("</div>", unsafe_allow_html=True)
 
 with st.expander("残ピン判定の微調整"):
     st.markdown("<span style='font-size: 12px; color: silver;'>自動計算された残ピン判定の閾値に、この数値をプラスマイナスして一時的に調整します。<br>（ピンが反応しにくい場合はマイナスへ、過剰に反応する場合はプラスへ変更して再取込してください）</span>", unsafe_allow_html=True)
@@ -4542,18 +4526,19 @@ if st.session_state.analyzed_results:
                     margin-top: 10px;
                     margin-bottom: 10px;
                 }
+                
                 /* 1投目の背景色：濃い目の緑色 */
-                div[data-testid="stHorizontalBlock"] > div:nth-child(1) div[data-testid="stPopover"] button {
+                div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(1) div[data-testid="stPopover"] > button {
                     background-color: #1b4528 !important; 
                     border: 1px solid #2d6b3e !important;
                 }
                 /* 2投目の背景色：濃い目の紺色 */
-                div[data-testid="stHorizontalBlock"] > div:nth-child(2) div[data-testid="stPopover"] button {
+                div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(2) div[data-testid="stPopover"] > button {
                     background-color: #1a2c4c !important; 
                     border: 1px solid #2a4473 !important;
                 }
                 /* 10Fの3投目の背景色：濃い目の紺色 */
-                div[data-testid="stHorizontalBlock"] > div:nth-child(3) div[data-testid="stPopover"] button {
+                div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(3) div[data-testid="stPopover"] > button {
                     background-color: #1a2c4c !important; 
                     border: 1px solid #2a4473 !important;
                 }
@@ -4561,18 +4546,19 @@ if st.session_state.analyzed_results:
                 /* ポップオーバー内の入力ボタンを色付け */
                 div[data-testid="stPopoverBody"] button {
                     min-height: 35px !important;
-                    color: white !important;
                 }
-                /* スコア数字ボタン */
-                div[data-testid="stPopoverBody"] button:not([kind="primary"]) {
+                div[data-testid="stPopoverBody"] button p {
+                    color: white !important;
+                    font-weight: bold !important;
+                }
+                /* スコア数字ボタン (未選択) */
+                div[data-testid="stPopoverBody"] button[kind="secondary"] {
                     background-color: #2c3e50 !important;
                     border: 1px solid #34495e !important;
                 }
-                /* ストライク/スペアは金文字で強調 */
-                div[data-testid="stPopoverBody"] button p:contains("X"),
-                div[data-testid="stPopoverBody"] button p:contains("/") {
-                    color: #bf953f !important;
-                    font-weight: 900 !important;
+                div[data-testid="stPopoverBody"] button[kind="secondary"]:hover {
+                    background-color: #bf953f !important;
+                    color: #000 !important;
                 }
                 /* 残ピン選択済み(赤) */
                 div[data-testid="stPopoverBody"] button[kind="primary"] {
@@ -4599,6 +4585,7 @@ if st.session_state.analyzed_results:
                     val = curr_throws[idx] if curr_throws[idx] else " "
                     with col_obj.popover(label=f"{val}", use_container_width=True):
                         st.markdown(f"**スコアと残ピンの修正**")
+                        
                         p_col1, p_col2 = st.columns([1, 1.2])
                         with p_col1:
                             st.markdown("<div style='font-size:12px; color:gray; text-align:center;'>スコア</div>", unsafe_allow_html=True)
@@ -4609,19 +4596,23 @@ if st.session_state.analyzed_results:
                                 if btn_cols[i % 3].button(display_choice, key=f"sel_{img_idx}_{local_idx}_{idx}_{i}", use_container_width=True):
                                     update_score_and_pins(idx, choice)
                                     st.rerun()
+                        
                         with p_col2:
                             st.markdown("<div style='font-size:12px; color:gray; text-align:center;'>残ピン切替</div>", unsafe_allow_html=True)
                             if idx <= 17: pin_idx = idx // 2
                             elif idx == 18: pin_idx = 9
                             elif idx == 19: pin_idx = 10
                             else: pin_idx = 11
+                            
                             active_pins = curr_pins[pin_idx]
+                            
                             def toggle_pin(p_num):
                                 if p_num in st.session_state[state_key]["pins"][pin_idx]:
                                     st.session_state[state_key]["pins"][pin_idx].remove(p_num)
                                 else:
                                     st.session_state[state_key]["pins"][pin_idx].append(p_num)
                                     st.session_state[state_key]["pins"][pin_idx].sort()
+                            
                             r1 = st.columns(4)
                             for i, p in enumerate([7, 8, 9, 10]):
                                 is_act = p in active_pins
@@ -4643,6 +4634,7 @@ if st.session_state.analyzed_results:
                                 toggle_pin(1); st.rerun()
 
                 sheet_cols = st.columns(10)
+                
                 for f in range(9):
                     with sheet_cols[f]:
                         st.markdown(f"<div style='text-align:center; font-size:12px; font-weight:700;'>{f+1}F</div>", unsafe_allow_html=True)
@@ -4651,6 +4643,7 @@ if st.session_state.analyzed_results:
                         render_score_popover(c2, f*2+1, "")
                         tot = frame_totals[f] if f < len(frame_totals) else ""
                         st.markdown(f"<div class='frame-total'>{tot}</div>", unsafe_allow_html=True)
+
                 with sheet_cols[9]:
                     st.markdown(f"<div style='text-align:center; font-size:12px; font-weight:700;'>10F</div>", unsafe_allow_html=True)
                     c1, c2, c3 = st.columns(3)
@@ -4658,10 +4651,11 @@ if st.session_state.analyzed_results:
                     render_score_popover(c2, 19, "")
                     render_score_popover(c3, 20, "")
                     tot = frame_totals[9] if len(frame_totals) == 10 else ""
-                    st.markdown(f"<div class='frame-total' style='font-size:15px; background-color:#4a3424; color:#bf953f; border: 1px solid #bf953f;'>{tot}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='frame-total' style='font-size:15px; background-color:#4a3424 !important; color:#ffffff !important; border: 1px solid #bf953f;'>{tot}</div>", unsafe_allow_html=True)
                     
                 st.markdown("---")
-                st.markdown("<div class='gold-action-btn'>", unsafe_allow_html=True)
+                
+                st.markdown("<div class='gold-btn-marker' style='display: none;'></div>", unsafe_allow_html=True)
                 if st.button("修正を完了して閉じる", key=f"update_{img_idx}_{local_idx}", type="secondary", use_container_width=True):
                     row[0] = new_date
                     row[1] = new_start
@@ -4670,12 +4664,15 @@ if st.session_state.analyzed_results:
                         row[51] = is_710_checked
                     else:
                         row.append(is_710_checked)
+                    
                     for i in range(21):
                         row[throw_cols[i]] = curr_throws[i]
                     for i in range(12):
                         row[target_indices[i]] = ",".join(map(str, curr_pins[i]))
+                    
                     if frame_totals and str(frame_totals[-1]).isdigit():
                         row[50] = str(frame_totals[-1])
+                    
                     st.session_state[close_flag_key] = True
                     st.rerun()
                 st.markdown("</div>", unsafe_allow_html=True)
@@ -4813,9 +4810,8 @@ if st.session_state.analyzed_results:
         btn_discard = st.button("破棄", help="SPSに登録せず画像を取込済みへ移動します")
     
     with col_reg:
-        st.markdown("<div class='red-action-btn'>", unsafe_allow_html=True)
+        st.markdown("<div class='red-btn-marker' style='display: none;'></div>", unsafe_allow_html=True)
         btn_register = st.button("スコアデータを登録する", use_container_width=True, type="primary")
-        st.markdown("</div>", unsafe_allow_html=True)
 
     if btn_discard:
         move_images_to_processed(is_discard=True)
