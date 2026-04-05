@@ -5542,22 +5542,28 @@ if st.session_state.app_state == "registration_complete":
         data_score = ws_score.get_all_values()
         import pandas as pd
         df_score = pd.DataFrame(data_score[1:], columns=data_score[0])
-        # 列名は「プレイヤー名」ではなく「メールアドレス」で検索
         df_target = df_score[df_score["メールアドレス"] == target_email].copy()
         
-        # 最新の月間AWARDデータを取得
-        ws_monthly = sh.worksheet("MONTHLY AWARD")
-        data_monthly = ws_monthly.get_all_values()
-        df_monthly = pd.DataFrame(data_monthly[1:], columns=data_monthly[0])
-        # ここも「メールアドレス」で検索
-        df_monthly_target = df_monthly[df_monthly["メールアドレス"] == target_email].copy()
-        
+        # ---------------------------------------------------------
+        # データ準備：マスターから対象の全ゲームリストを作成（7-10G除外）
+        # ---------------------------------------------------------
+        player_games = []
+        for _, row in df_target.iterrows():
+            is_710_game = (str(row.iloc[54]).strip().upper() == "TRUE") if len(row.values) > 54 else False
+            if not is_710_game:
+                try:
+                    score = int(row.iloc[52])
+                    player_games.append({"date": row.iloc[2], "time": row.iloc[3], "score": score})
+                except ValueError:
+                    pass
+        player_games.sort(key=lambda x: (x["date"], x["time"]), reverse=True)
+
         # ---------------------------------------------------------
         # データ計算：今月のスタッツ
         # ---------------------------------------------------------
         import datetime
         import numpy as np
-        current_month = datetime.datetime.now().strftime("%y/%m") # SPSのマスター日付は "26/04/05" のような形式
+        current_month = datetime.datetime.now().strftime("%y/%m") # SPSのマスター日付は "26/04/05" などの形式
         df_this_month = df_target[df_target["日付"].str.startswith(current_month)].copy()
         
         games_this_month = len(df_this_month)
@@ -5573,20 +5579,19 @@ if st.session_state.app_state == "registration_complete":
                 if val and val != "-" and val != "G":
                     throws_this_month += 1
                 elif val == "-" or val == "G":
-                     throws_this_month += 1 # ガターやミスも投球数に含める場合
+                     throws_this_month += 1 
 
         # ---------------------------------------------------------
         # データ計算：最新レーティング（左側用）
         # ---------------------------------------------------------
         try:
-            df_target_sorted = df_target.sort_values("日付", ascending=False)
-            recent_50_scores = df_target_sorted.head(50)["スコア"].astype(int).tolist()
+            recent_50_scores = [g["score"] for g in player_games[:50]]
             if len(recent_50_scores) > 0:
                 avg_50 = sum(recent_50_scores) / len(recent_50_scores)
             else:
                 avg_50 = 0.0
             
-            # calc_rating_flight関数と同等のロジックで計算
+            # レーティングの計算
             a = avg_50
             if a >= 230: rt = 18 + (a - 230) * (3 / 20)
             elif a >= 210: rt = 15 + (a - 210) * (3 / 20)
@@ -5653,7 +5658,6 @@ if st.session_state.app_state == "registration_complete":
             
             st.markdown("<div style='margin-top: 30px;'></div>", unsafe_allow_html=True)
             
-            # 解析を続けるボタン（目立たせるゴールド）
             st.markdown("<div class='gold-btn-marker' style='display: none;'></div>", unsafe_allow_html=True)
             if st.button("🔄 解析を続ける", use_container_width=True):
                 st.session_state.app_state = "init"
@@ -5662,7 +5666,6 @@ if st.session_state.app_state == "registration_complete":
 
             st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
-            # CHECK-IN画面へボタン（目立たせるレッド）
             st.markdown("<div class='red-btn-marker' style='display: none;'></div>", unsafe_allow_html=True)
             if st.button("🚪 CHECK-IN画面へ (終了)", use_container_width=True):
                 for key in ["kiosk_mode", "kiosk_user", "kiosk_step", "target_player", "target_player_name", "logged_in", "user_role"]:
@@ -5711,8 +5714,7 @@ if st.session_state.app_state == "registration_complete":
             # 【2段目】 50Gスコアトレンド（高さを200pxに圧縮）
             st.markdown("<div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 15px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333; margin-bottom: 20px;'>", unsafe_allow_html=True)
             
-            if len(df_target) > 0:
-                # 折れ線グラフを描画するためのデータを準備（エラーを避けるために独立して記述）
+            if len(player_games) > 0:
                 recent_50_df = df_target.sort_values("日付", ascending=False).head(50).iloc[::-1]
                 x_vals = list(range(len(recent_50_df), 0, -1))
                 y_vals = recent_50_df["スコア"].astype(int).tolist()
@@ -5735,32 +5737,92 @@ if st.session_state.app_state == "registration_complete":
             
             # 【3段目】 50ヶ月レーティング推移（高さを200pxに圧縮）
             st.markdown("<div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 15px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333;'>", unsafe_allow_html=True)
-            if len(df_monthly_target) > 0:
-                # 月ごとのレーティングデータを準備
-                month_cols = [c for c in df_monthly_target.columns if "/" in str(c) and len(str(c)) == 7]
-                month_cols_sorted = sorted(month_cols)[-50:]
-                y_vals_rt = []
-                x_vals_rt = list(range(len(month_cols_sorted) - 1, -1, -1))
+            if len(player_games) > 0:
+                # 月ごとのレーティングデータを生データから動的に再計算する
+                monthly_rt = {}
+                history_scores = []
                 
-                for m in month_cols_sorted:
-                    try:
-                        val_str = str(df_monthly_target.iloc[0][m])
-                        import re
-                        nums = re.findall(r"[-+]?\d*\.\d+|\d+", val_str)
-                        y_vals_rt.append(float(nums[0]) if nums else 0.0)
-                    except:
-                        y_vals_rt.append(0.0)
-
+                chrono_games = list(reversed(player_games))
+                for g in chrono_games:
+                    date_str = str(g["date"]).strip()
+                    parts = date_str.split('/')
+                    if len(parts) >= 2:
+                        yy = int(parts[0])
+                        yyyy = 2000 + yy if yy < 100 else yy
+                        mm = int(parts[1])
+                        month_key = f"{yyyy:04d}/{mm:02d}"
+                    else:
+                        continue
+                        
+                    history_scores.append(g["score"])
+                    recent_50 = history_scores[-50:]
+                    
+                    # レーティング計算
+                    a = sum(recent_50) / len(recent_50)
+                    if a >= 230: rt = 18 + (a - 230) * (3 / 20)
+                    elif a >= 210: rt = 15 + (a - 210) * (3 / 20)
+                    elif a >= 190: rt = 12 + (a - 190) * (3 / 20)
+                    elif a >= 170: rt = 9 + (a - 170) * (3 / 20)
+                    elif a >= 145: rt = 6 + (a - 145) * (3 / 25)
+                    elif a >= 95: rt = 1 + (a - 95) * 0.1
+                    else: rt = a / 95
+                    
+                    monthly_rt[month_key] = round(max(1.0, rt), 2)
+                    
+                sorted_months = sorted(monthly_rt.keys(), reverse=True)[:50]
+                sorted_months.reverse()
+                
                 st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif; text-align: center;'>RECENT 50 MONTHS RATING TREND</div>", unsafe_allow_html=True)
-                fig_rt = go.Figure()
-                fig_rt.add_trace(go.Scatter(x=x_vals_rt, y=y_vals_rt, mode='lines+markers', line=dict(color='#bf953f', width=3), marker=dict(size=6, color='white')))
-                fig_rt.update_layout(
-                    plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
-                    xaxis=dict(title="（ヶ月前）", range=[50, 0], showgrid=True, gridcolor='#444', fixedrange=True),
-                    yaxis=dict(title="", showgrid=True, gridcolor='#444', fixedrange=True),
-                    height=200, margin=dict(l=30, r=30, t=10, b=10)
-                )
-                st.plotly_chart(fig_rt, use_container_width=True, config={'displayModeBar': False})
+                
+                if len(sorted_months) > 0:
+                    y_vals_rt = [monthly_rt[m] for m in sorted_months]
+                    num_months = len(sorted_months)
+                    x_vals_rt = list(range(num_months - 1, -1, -1))
+                    
+                    fig_rt = go.Figure()
+                    
+                    # 線分ごとのグラデーション色分け用関数
+                    def get_rt_color(rt_val):
+                        gauge_pct = min(100, max(0, int((rt_val / 18.0) * 100)))
+                        if gauge_pct <= 25:
+                            p = gauge_pct / 25
+                            r, g, b = int(0 + (52-0)*p), int(188 + (168-188)*p), int(212 + (83-212)*p)
+                        elif gauge_pct <= 50:
+                            p = (gauge_pct - 25) / 25
+                            r, g, b = int(52 + (251-52)*p), int(168 + (188-168)*p), int(83 + (4-83)*p)
+                        elif gauge_pct <= 75:
+                            p = (gauge_pct - 50) / 25
+                            r, g, b = int(251 + (255-251)*p), int(188 + (102-188)*p), int(4 + (0-4)*p)
+                        else:
+                            p = (gauge_pct - 75) / 25
+                            r, g, b = int(255 + (255-255)*p), int(102 + (59-102)*p), int(0 + (48-0)*p)
+                        return f"rgb({r},{g},{b})"
+
+                    # 色を切り替えながら線を引く
+                    for i in range(len(x_vals_rt) - 1):
+                        x0, x1 = x_vals_rt[i], x_vals_rt[i+1]
+                        y0, y1 = y_vals_rt[i], y_vals_rt[i+1]
+                        color = get_rt_color(y1)
+                        fig_rt.add_trace(go.Scatter(
+                            x=[x0, x1], y=[y0, y1], mode='lines',
+                            line=dict(color=color, width=3), showlegend=False, hoverinfo="skip"
+                        ))
+                        
+                    # タップしたときのポップアップ数値用レイヤー
+                    fig_rt.add_trace(go.Scatter(
+                        x=x_vals_rt, y=y_vals_rt, mode='lines', line=dict(color='rgba(0,0,0,0)', width=0),
+                        showlegend=False, hovertemplate="<b>%{x}ヶ月前</b><br>Rt: %{y:.2f}<extra></extra>"
+                    ))
+                    
+                    fig_rt.update_layout(
+                        plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                        xaxis=dict(title="（ヶ月前）", range=[50, 0], showgrid=True, gridcolor='#444', fixedrange=True),
+                        yaxis=dict(title="Rt", range=[0.0, 18.0], showgrid=True, gridcolor='#444', fixedrange=True),
+                        height=200, margin=dict(l=30, r=30, t=10, b=10)
+                    )
+                    st.plotly_chart(fig_rt, use_container_width=True, config={'displayModeBar': False})
+                else:
+                    st.info("データがありません。")
             else:
                  st.info("データがありません。")
             st.markdown("</div>", unsafe_allow_html=True)
