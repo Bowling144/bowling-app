@@ -3300,15 +3300,17 @@ if "downloaded_images" not in st.session_state:
     st.session_state.downloaded_images = []    
 if "waiting_for_scan" not in st.session_state:
     st.session_state.waiting_for_scan = False
+if "last_file_id_at_click" not in st.session_state:
+    st.session_state.last_file_id_at_click = None
 
 st.markdown("<h3 style='text-align: center;'>☟　☟　☟</h3>", unsafe_allow_html=True)
 
 st.markdown("<div class='gold-btn-marker' style='display: none;'></div>", unsafe_allow_html=True)
 
-# ユーザーモード（キオスク）と通常モードでボタンの動作を分岐
+# --- モード別のボタン表示制御 ---
 if st.session_state.get("kiosk_mode"):
     if not st.session_state.waiting_for_scan:
-        fetch_button = st.button("スキャン待機を開始する", use_container_width=True)
+        fetch_button = st.button("スキャン・解析を開始する", use_container_width=True)
     else:
         fetch_button = False
         st.button("待機をキャンセル", on_click=lambda: st.session_state.update(waiting_for_scan=False))
@@ -3331,146 +3333,98 @@ with st.expander("残ピン判定の微調整"):
         st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True) 
         st.button("初期値に戻す", on_click=reset_thresh, use_container_width=True)
 
-# 取込ボタンが押された時の処理
+# --- ボタン押下時の処理 ---
 if fetch_button:
-    if st.session_state.get("kiosk_mode"):
-        st.session_state.waiting_for_scan = True
-        st.rerun()
-    else:
-        # 通常モード：即座に1枚だけ取得
-        gemini_api_key = st.secrets.get("gemini_api_key", "")
-        if not gemini_api_key:
-            st.error("StreamlitのSecretsに 'gemini_api_key' が設定されていません。")
-            st.stop()
-            
-        with st.spinner("Googleドライブを探索中..."):
-            try:
-                creds_json_str = st.secrets["google_credentials"]
-                creds_info = json.loads(creds_json_str, strict=False)
-                if "private_key" in creds_info:
-                    creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
+    try:
+        creds_json_str = st.secrets["google_credentials"]
+        creds_info = json.loads(creds_json_str, strict=False)
+        if "private_key" in creds_info:
+            creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
+        scopes = ['https://www.googleapis.com/auth/drive']
+        creds = service_account.Credentials.from_service_account_info(creds_info, scopes=scopes)
+        drive_service = build('drive', 'v3', credentials=creds)
 
-                scopes = [
-                    'https://www.googleapis.com/auth/spreadsheets',
-                    'https://www.googleapis.com/auth/drive'
-                ]
-                creds = service_account.Credentials.from_service_account_info(
-                    creds_info, scopes=scopes
-                )
-                drive_service = build('drive', 'v3', credentials=creds)
+        # フォルダIDを取得
+        folder_query = "name = 'Bowling_App' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+        f_res = drive_service.files().list(q=folder_query, fields="files(id)").execute()
+        folder_id = f_res.get('files', [{}])[0].get('id')
 
-                folder_query = "name = 'Bowling_App' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-                folder_results = drive_service.files().list(q=folder_query, fields="files(id, name)").execute()
-                folders = folder_results.get('files', [])
-                
-                if not folders:
-                    st.error("Googleドライブ内に「Bowling_App」という名前のフォルダが見つかりません。")
-                    st.stop()
-                    
-                FOLDER_ID = folders[0]['id']
-                query = f"'{FOLDER_ID}' in parents and mimeType='image/jpeg' and trashed=false"
-                
-                results = drive_service.files().list(
-                    q=query,
-                    orderBy="createdTime desc",
-                    pageSize=1,  # ← 1枚に制限
-                    fields="files(id, name)"
-                ).execute()
-                items = results.get('files', [])
+        if st.session_state.get("kiosk_mode"):
+            # 【重要】ボタンを押した時点での「最新のファイルID」を記録する（ベースライン）
+            q = f"'{folder_id}' in parents and mimeType='image/jpeg' and trashed=false"
+            res = drive_service.files().list(q=q, orderBy="createdTime desc", pageSize=1, fields="files(id)").execute()
+            items = res.get('files', [])
+            st.session_state.last_file_id_at_click = items[0]['id'] if items else "none"
+            st.session_state.waiting_for_scan = True
+            st.rerun()
+        else:
+            # 通常モード：最新を1枚だけ即時取得
+            q = f"'{folder_id}' in parents and mimeType='image/jpeg' and trashed=false"
+            res = drive_service.files().list(q=q, orderBy="createdTime desc", pageSize=1, fields="files(id, name)").execute()
+            items = res.get('files', [])
+            if not items:
+                st.error("画像が見つかりません。")
+            else:
+                item = items[0]
+                fh = io.BytesIO()
+                downloader = MediaIoBaseDownload(fh, drive_service.files().get_media(fileId=item['id']))
+                done = False
+                while not done: _, done = downloader.next_chunk()
+                st.session_state.raw_images_data = [{"name": item['name'], "bytes": fh.getvalue(), "file_id": item['id']}]
+                st.session_state.analyzed_results = None
+                st.rerun()
+    except Exception as e:
+        st.error(f"エラー: {e}")
 
-                if not items:
-                    st.error("画像が見つかりません。")
-                else:
-                    fetched_images = []
-                    for item in items:
-                        file_id = item['id']
-                        request = drive_service.files().get_media(fileId=file_id)
-                        fh = io.BytesIO()
-                        downloader = MediaIoBaseDownload(fh, request)
-                        done = False
-                        while not done:
-                            _, done = downloader.next_chunk()
-                        fetched_images.append({"name": item['name'], "bytes": fh.getvalue(), "file_id": file_id})
-
-                    st.session_state.raw_images_data = fetched_images
-                    st.session_state.analyzed_results = None
-                    st.success(f"{len(fetched_images)}枚の画像をセットしました！")
-                    st.rerun()
-                    
-            except Exception as e:
-                st.error(f"読み込みエラー: {e}")
-
-# ユーザー登録（キオスク）モードでの待機と自動検知処理
+# --- 新規画像検知（自動解析）ロジック ---
 if st.session_state.get("kiosk_mode") and st.session_state.get("waiting_for_scan"):
-    st.info("🔄 スキャナーにスコアシートをセットし、スキャンを実行してください...\n（画像の保存を自動で検知して解析を開始します）")
+    st.info("🔄 スキャナーでスコアシートをスキャンしてください...\n（新しく追加された画像を自動で検知して解析を開始します）")
     
-    with st.spinner("画像の追加を監視中... (最大約2分)"):
+    with st.spinner("画像の追加を監視中... (最大2分)"):
         try:
             creds_json_str = st.secrets["google_credentials"]
             creds_info = json.loads(creds_json_str, strict=False)
             if "private_key" in creds_info:
                 creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
-
-            scopes = [
-                'https://www.googleapis.com/auth/spreadsheets',
-                'https://www.googleapis.com/auth/drive'
-            ]
-            creds = service_account.Credentials.from_service_account_info(
-                creds_info, scopes=scopes
-            )
-            drive_service = build('drive', 'v3', credentials=creds)
+            drive_service = build('drive', 'v3', credentials=service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/drive']))
 
             folder_query = "name = 'Bowling_App' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-            folder_results = drive_service.files().list(q=folder_query, fields="files(id, name)").execute()
-            folders = folder_results.get('files', [])
+            f_res = drive_service.files().list(q=folder_query, fields="files(id)").execute()
+            folder_id = f_res.get('files', [{}])[0].get('id')
             
-            if not folders:
-                st.error("Googleドライブ内に「Bowling_App」という名前のフォルダが見つかりません。")
-                st.stop()
-                
-            FOLDER_ID = folders[0]['id']
-            query = f"'{FOLDER_ID}' in parents and mimeType='image/jpeg' and trashed=false"
+            query = f"'{folder_id}' in parents and mimeType='image/jpeg' and trashed=false"
             
-            found_file = False
-            # 3秒 × 40回 ＝ 約2分間ポーリング
-            for _ in range(40): 
-                results = drive_service.files().list(
-                    q=query,
-                    orderBy="createdTime desc",
-                    pageSize=1,
-                    fields="files(id, name)"
-                ).execute()
-                items = results.get('files', [])
+            # 約2分間、3秒おきにチェック
+            for _ in range(40):
+                res = drive_service.files().list(q=query, orderBy="createdTime desc", pageSize=1, fields="files(id, name)").execute()
+                items = res.get('files', [])
                 
                 if items:
-                    found_file = True
-                    item = items[0]
-                    file_id = item['id']
-                    request = drive_service.files().get_media(fileId=file_id)
-                    fh = io.BytesIO()
-                    downloader = MediaIoBaseDownload(fh, request)
-                    done = False
-                    while not done:
-                        _, done = downloader.next_chunk()
-                    
-                    st.session_state.raw_images_data = [{"name": item['name'], "bytes": fh.getvalue(), "file_id": file_id}]
-                    st.session_state.analyzed_results = None
-                    st.session_state.waiting_for_scan = False
-                    st.success("画像を検知しました！解析を開始します。")
-                    time.sleep(1)
-                    st.rerun()
-                    break
+                    current_id = items[0]['id']
+                    # 記録していたベースラインIDと異なる（＝新しいファイルが追加された）かチェック
+                    if current_id != st.session_state.last_file_id_at_click:
+                        item = items[0]
+                        fh = io.BytesIO()
+                        downloader = MediaIoBaseDownload(fh, drive_service.files().get_media(fileId=current_id))
+                        done = False
+                        while not done: _, done = downloader.next_chunk()
+                        
+                        st.session_state.raw_images_data = [{"name": item['name'], "bytes": fh.getvalue(), "file_id": current_id}]
+                        st.session_state.analyzed_results = None
+                        st.session_state.waiting_for_scan = False
+                        st.session_state.last_file_id_at_click = None # リセット
+                        st.success("新しい画像を検知しました！解析を開始します。")
+                        time.sleep(1)
+                        st.rerun()
+                        break
                 time.sleep(3)
-                
-            if not found_file:
+            else:
                 st.session_state.waiting_for_scan = False
-                st.error("タイムアウトしました。スキャンが完了しなかったか、通信エラーの可能性があります。再度待機を開始してください。")
-                time.sleep(3)
+                st.error("タイムアウトしました。もう一度実行してください。")
                 st.rerun()
         except Exception as e:
             st.session_state.waiting_for_scan = False
-            st.error(f"監視中にエラーが発生しました: {e}")
-            time.sleep(3)
+            st.error(f"エラー: {e}")
             st.rerun()
 
 if not st.session_state.raw_images_data:
