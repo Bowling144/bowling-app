@@ -4493,7 +4493,6 @@ if st.session_state.analyzed_results:
                 while len(frame_totals) < 10:
                     frame_totals.append("")
 
-                # 💡【確実版】手動修正画面・ポップオーバー用の強力なCSS
                 st.markdown("""
                 <style>
                 /* ① マス目の余白調整と文字色（白） */
@@ -4508,19 +4507,6 @@ if st.session_state.analyzed_results:
                     color: #ffffff !important;
                 }
                 
-                /* ④ 各フレームのトータルスコアの背景色：濃い目の茶色 */
-                .frame-total {
-                    text-align: center;
-                    font-weight: 900;
-                    font-size: 14px;
-                    background-color: #4a3424 !important; 
-                    color: #ffffff !important;
-                    border: 1px solid #6b4c35;
-                    border-radius: 4px;
-                    padding: 2px 0;
-                    margin-top: 1px;
-                }
-
                 .section-header {
                     font-size: 15px;
                     font-weight: 700;
@@ -4531,29 +4517,16 @@ if st.session_state.analyzed_results:
                     margin-bottom: 10px;
                 }
 
-                /* ② 1投目の背景色：濃い目の緑色（専用マーカーを使用） */
-                div[data-testid="stElementContainer"]:has(.pitch-1) + div[data-testid="stElementContainer"] div[data-testid="stPopover"] > button,
-                div.element-container:has(.pitch-1) + div.element-container div[data-testid="stPopover"] > button {
-                    background-color: #1b4528 !important; 
-                    border: 1px solid #2d6b3e !important;
-                }
-                
-                /* ③ 2投目＆3投目の背景色：濃い目の紺色（専用マーカーを使用） */
-                div[data-testid="stElementContainer"]:has(.pitch-2) + div[data-testid="stElementContainer"] div[data-testid="stPopover"] > button,
-                div.element-container:has(.pitch-2) + div.element-container div[data-testid="stPopover"] > button {
-                    background-color: #1a2c4c !important; 
-                    border: 1px solid #2a4473 !important;
-                }
-                
-                /* ⑥ ポップオーバー内（スコア・残ピン）のボタン配色 */
+                /* ⑥ ポップオーバー内のボタンを色付けするためのCSS */
                 div[data-testid="stPopoverBody"] button {
                     min-height: 35px !important;
                 }
                 div[data-testid="stPopoverBody"] button p {
                     color: #ffffff !important;
+                    font-weight: bold !important;
                 }
                 
-                /* ⑥ 未選択ボタン（スコア数字、未選択ピン）の色 */
+                /* スコア数字ボタン (未選択) */
                 div[data-testid="stPopoverBody"] button[kind="secondary"] {
                     background-color: #2c3e50 !important;
                     border: 1px solid #455a64 !important;
@@ -4565,7 +4538,7 @@ if st.session_state.analyzed_results:
                     color: #000000 !important;
                 }
                 
-                /* ⑥ 選択済みボタン（赤色にして目立たせる） */
+                /* 残ピン選択済み(赤) */
                 div[data-testid="stPopoverBody"] button[kind="primary"] {
                     background-color: #ff2d55 !important;
                     border: 2px solid #ffaaaa !important;
@@ -4587,11 +4560,23 @@ if st.session_state.analyzed_results:
                         elif idx == 19:
                             st.session_state[state_key]["throws"][20] = ""
                 
-                def render_score_popover(col_obj, idx, pitch_type):
+                # 💡 確実な色付けを行うためのカスタム描画関数
+                def render_score_popover(col_obj, idx, bg_color):
                     val = curr_throws[idx] if curr_throws[idx] else " "
                     with col_obj:
-                        # ②③ 色を塗るための専用マーカー（非表示）を配置
-                        st.markdown(f"<div class='{pitch_type}' style='display: none;'></div>", unsafe_allow_html=True)
+                        # ポップオーバーのトリガーボタンの背景色を、インラインCSSで強制的に指定するハック
+                        # Streamlitの標準ボタンは上書きが難しいため、ボタン全体を囲むdivにスタイルを当てるマーカーを置く
+                        marker_class = f"custom-bg-{idx}"
+                        st.markdown(f"""
+                        <style>
+                        div[data-testid="stElementContainer"]:has(.{marker_class}) + div[data-testid="stElementContainer"] div[data-testid="stPopover"] > button,
+                        div.element-container:has(.{marker_class}) + div.element-container div[data-testid="stPopover"] > button {{
+                            background-color: {bg_color} !important;
+                            border: 1px solid #444 !important;
+                        }}
+                        </style>
+                        <div class="{marker_class}" style="display:none;"></div>
+                        """, unsafe_allow_html=True)
                         
                         with st.popover(label=f"{val}", use_container_width=True):
                             st.markdown(f"**スコアと残ピンの修正**")
@@ -4643,26 +4628,32 @@ if st.session_state.analyzed_results:
                                 if r4[1].button("1" if is_act else " ", key=f"p_{img_idx}_{local_idx}_{idx}_1", type="primary" if is_act else "secondary"):
                                     toggle_pin(1); st.rerun()
 
+                # カラー定義（緑と紺）
+                COLOR_1ST = "#1b4528" # 濃い目の緑
+                COLOR_2ND = "#1a2c4c" # 濃い目の紺
+                COLOR_TOTAL_BG = "#4a3424" # 濃い目の茶色
+
                 sheet_cols = st.columns(10)
                 
                 for f in range(9):
                     with sheet_cols[f]:
                         st.markdown(f"<div style='text-align:center; font-size:12px; font-weight:700;'>{f+1}F</div>", unsafe_allow_html=True)
                         c1, c2 = st.columns(2)
-                        render_score_popover(c1, f*2, "pitch-1")    # 1投目は緑マーカー
-                        render_score_popover(c2, f*2+1, "pitch-2")  # 2投目は紺マーカー
+                        render_score_popover(c1, f*2, COLOR_1ST)    # 1投目は緑
+                        render_score_popover(c2, f*2+1, COLOR_2ND)  # 2投目は紺
                         tot = frame_totals[f] if f < len(frame_totals) else ""
-                        st.markdown(f"<div class='frame-total'>{tot}</div>", unsafe_allow_html=True)
+                        # ④ トータルは濃い茶色、文字白
+                        st.markdown(f"<div style='text-align:center; font-weight:900; font-size:14px; background-color:{COLOR_TOTAL_BG}; color:#ffffff; border:1px solid #6b4c35; border-radius:4px; padding:2px 0; margin-top:1px;'>{tot}</div>", unsafe_allow_html=True)
 
                 with sheet_cols[9]:
                     st.markdown(f"<div style='text-align:center; font-size:12px; font-weight:700;'>10F</div>", unsafe_allow_html=True)
                     c1, c2, c3 = st.columns(3)
-                    render_score_popover(c1, 18, "pitch-1")  # 10Fの1投目は緑
-                    render_score_popover(c2, 19, "pitch-2")  # 10Fの2投目は紺
-                    render_score_popover(c3, 20, "pitch-2")  # 10Fの3投目も紺
+                    render_score_popover(c1, 18, COLOR_1ST)  # 10Fの1投目は緑
+                    render_score_popover(c2, 19, COLOR_2ND)  # 10Fの2投目は紺
+                    render_score_popover(c3, 20, COLOR_2ND)  # 10Fの3投目も紺
                     tot = frame_totals[9] if len(frame_totals) == 10 else ""
-                    # ⑤ 10Fのみ、背景は茶色のまま枠線を金色に指定
-                    st.markdown(f"<div class='frame-total' style='font-size:15px; border: 2px solid #bf953f !important;'>{tot}</div>", unsafe_allow_html=True)
+                    # ④⑤ 10Fのみ、背景は茶色のまま枠線を金色に指定
+                    st.markdown(f"<div style='text-align:center; font-weight:900; font-size:15px; background-color:{COLOR_TOTAL_BG}; color:#ffffff; border: 2px solid #bf953f; border-radius:4px; padding:2px 0; margin-top:1px;'>{tot}</div>", unsafe_allow_html=True)
                     
                 st.markdown("---")
                 
