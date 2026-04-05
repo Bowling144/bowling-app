@@ -4564,13 +4564,6 @@ if st.session_state.analyzed_results:
                     margin-bottom: 10px;
                 }
 
-                /* ▼ 選択して展開しているポップオーバーを赤枠にして目立たせる ▼ */
-                div[data-testid="stPopover"] > button[aria-expanded="true"] {
-                    border: 3px solid #ff2d55 !important;
-                    box-shadow: 0 0 10px rgba(255, 45, 85, 0.8) !important;
-                    background-color: #3a1c24 !important;
-                }
-
                 /* ⑥ ポップオーバー内のボタンを色付けするためのCSS */
                 div[data-testid="stPopoverBody"] button {
                     min-height: 35px !important;
@@ -4580,46 +4573,23 @@ if st.session_state.analyzed_results:
                     font-weight: bold !important;
                 }
                 
-                /* ▼ スコア数字ボタン (1列目のみに適用、残ピンには影響させない) ▼ */
-                div[data-testid="stPopoverBody"] div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(1) button[kind="secondary"] {
+                /* スコア数字ボタン (未選択) */
+                div[data-testid="stPopoverBody"] button[kind="secondary"] {
                     background-color: #2c3e50 !important;
                     border: 1px solid #455a64 !important;
                 }
-                div[data-testid="stPopoverBody"] div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(1) button[kind="secondary"]:hover {
+                div[data-testid="stPopoverBody"] button[kind="secondary"]:hover {
                     background-color: #bf953f !important;
                 }
-                div[data-testid="stPopoverBody"] div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(1) button[kind="secondary"]:hover p {
+                div[data-testid="stPopoverBody"] button[kind="secondary"]:hover p {
                     color: #000000 !important;
                 }
                 
-                /* ▼▼ 残ピンエリア(2列目)専用の厳密なCSS ▼▼ */
-                /* はみ出し防止のため、文字サイズと余白を小さく */
-                div[data-testid="stPopoverBody"] div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(2) button {
-                    padding: 0 !important;
-                    min-height: 30px !important;
-                }
-                div[data-testid="stPopoverBody"] div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(2) button p {
-                    font-size: 11px !important;
-                    margin: 0 !important;
-                }
-
-                /* 残ピン無い(未選択) ボックスの背景をターコイズブルーに */
-                div[data-testid="stPopoverBody"] div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(2) button[kind="secondary"] {
-                    background-color: #40E0D0 !important;
-                    border: 1px solid #30B0A0 !important;
-                }
-                div[data-testid="stPopoverBody"] div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(2) button[kind="secondary"] p {
-                    color: #1a1a1c !important; /* 背景が明るいので文字は暗く */
-                }
-
-                /* 残ピン有る(選択済み) ボックスの背景を今の枠色(ピンクっぽい)に */
-                div[data-testid="stPopoverBody"] div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(2) button[kind="primary"] {
-                    background-color: #ffaaaa !important;
-                    border: 1px solid #ffaaaa !important;
-                    box-shadow: none !important;
-                }
-                div[data-testid="stPopoverBody"] div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(2) button[kind="primary"] p {
-                    color: #1a1a1c !important; /* 背景が明るいので文字は暗く */
+                /* 残ピン選択済み(赤) */
+                div[data-testid="stPopoverBody"] button[kind="primary"] {
+                    background-color: #ff2d55 !important;
+                    border: 2px solid #ffaaaa !important;
+                    box-shadow: 0 0 8px rgba(255, 45, 85, 0.6) !important;
                 }
                 </style>
                 """, unsafe_allow_html=True)
@@ -4640,37 +4610,20 @@ if st.session_state.analyzed_results:
                 # 💡 確実な色付けを行うためのカスタム描画関数
                 def render_score_popover(col_obj, idx, bg_color):
                     val = curr_throws[idx] if curr_throws[idx] else " "
-                    
-                    # 1投目は濃い緑、2投目(と10フレ3投目)は濃い青の枠線に設定
-                    border_color = "#2e8b57" if (idx % 2 == 0 and idx < 18) or idx == 18 else "#1e90ff"
-                    
                     with col_obj:
-                        marker_class = f"custom-bg-{img_idx}-{local_idx}-{idx}"
+                        # ポップオーバーのトリガーボタンの背景色を、インラインCSSで強制的に指定するハック
+                        # Streamlitの標準ボタンは上書きが難しいため、ボタン全体を囲むdivにスタイルを当てるマーカーを置く
+                        marker_class = f"custom-bg-{idx}"
                         st.markdown(f"""
                         <style>
-                        /* 展開していない(aria-expanded="false")時だけ1投目/2投目の枠色を適用 */
-                        div[data-testid="stElementContainer"]:has(.{marker_class}) + div[data-testid="stElementContainer"] div[data-testid="stPopover"] > button[aria-expanded="false"],
-                        div.element-container:has(.{marker_class}) + div.element-container div[data-testid="stPopover"] > button[aria-expanded="false"] {{
+                        div[data-testid="stElementContainer"]:has(.{marker_class}) + div[data-testid="stElementContainer"] div[data-testid="stPopover"] > button,
+                        div.element-container:has(.{marker_class}) + div.element-container div[data-testid="stPopover"] > button {{
                             background-color: {bg_color} !important;
-                            border: 2px solid {border_color} !important;
+                            border: 1px solid #444 !important;
                         }}
                         </style>
                         <div class="{marker_class}" style="display:none;"></div>
                         """, unsafe_allow_html=True)
-                        
-                        with st.popover(label=f"{val}", use_container_width=True):
-                            st.markdown(f"**スコアと残ピンの修正**")
-                            
-                            p_col1, p_col2 = st.columns([1, 1.2])
-                            with p_col1:
-                                st.markdown("<div style='font-size:12px; color:gray; text-align:center;'>スコア</div>", unsafe_allow_html=True)
-                                choices = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "X", "/", "-", "G", ""]
-                                btn_cols = st.columns(3)
-                                for i, choice in enumerate(choices):
-                                    display_choice = "空" if choice == "" else choice
-                                    if btn_cols[i % 3].button(display_choice, key=f"sel_{img_idx}_{local_idx}_{idx}_{i}", use_container_width=True):
-                                        update_score_and_pins(idx, choice)
-                                        st.rerun()
                             
                             with p_col2:
                                 st.markdown("<div style='font-size:12px; color:gray; text-align:center;'>残ピン切替</div>", unsafe_allow_html=True)
