@@ -4495,17 +4495,19 @@ if st.session_state.analyzed_results:
 
                 st.markdown("""
                 <style>
+                /* ① マス目の余白調整と文字色（白） */
                 [data-testid="stHorizontalBlock"] div[data-testid="stBlock"] button {
                     margin: 1px 0 !important;
                     padding: 2px !important;
                 }
-                /* マス目の数字・記号を白色、太字に */
+                div[data-testid="stPopover"] button p,
                 [data-testid="stHorizontalBlock"] div[data-testid="stBlock"] button p {
                     font-size: 14px !important;
                     font-weight: 900 !important;
                     color: #ffffff !important;
                 }
-                /* 累計トータルの背景色：濃い目の茶色 */
+                
+                /* ④ 各フレームのトータルスコアの背景色：濃い目の茶色 */
                 .frame-total {
                     text-align: center;
                     font-weight: 900;
@@ -4517,6 +4519,7 @@ if st.session_state.analyzed_results:
                     padding: 2px 0;
                     margin-top: 1px;
                 }
+
                 .section-header {
                     font-size: 15px;
                     font-weight: 700;
@@ -4526,41 +4529,44 @@ if st.session_state.analyzed_results:
                     margin-top: 10px;
                     margin-bottom: 10px;
                 }
-                
-                /* 1投目の背景色：濃い目の緑色 */
-                div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(1) div[data-testid="stPopover"] > button {
+
+                /* ② 1投目の背景色：濃い目の緑色 */
+                div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(1) button[aria-expanded] {
                     background-color: #1b4528 !important; 
                     border: 1px solid #2d6b3e !important;
                 }
-                /* 2投目の背景色：濃い目の紺色 */
-                div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(2) div[data-testid="stPopover"] > button {
-                    background-color: #1a2c4c !important; 
-                    border: 1px solid #2a4473 !important;
-                }
-                /* 10Fの3投目の背景色：濃い目の紺色 */
-                div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(3) div[data-testid="stPopover"] > button {
+                
+                /* ③ 2投目の背景色：濃い目の紺色 */
+                div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(2) button[aria-expanded] {
                     background-color: #1a2c4c !important; 
                     border: 1px solid #2a4473 !important;
                 }
                 
-                /* ポップオーバー内の入力ボタンを色付け */
+                /* ③ 10Fの3投目の背景色：濃い目の紺色 */
+                div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(3) button[aria-expanded] {
+                    background-color: #1a2c4c !important; 
+                    border: 1px solid #2a4473 !important;
+                }
+                
+                /* ⑥ ポップオーバー内（スコア・残ピン）のボタン配色 */
                 div[data-testid="stPopoverBody"] button {
                     min-height: 35px !important;
                 }
                 div[data-testid="stPopoverBody"] button p {
-                    color: white !important;
-                    font-weight: bold !important;
+                    color: #ffffff !important;
                 }
-                /* スコア数字ボタン (未選択) */
+                /* 未選択ボタン（スコア数字、未選択ピン） */
                 div[data-testid="stPopoverBody"] button[kind="secondary"] {
                     background-color: #2c3e50 !important;
-                    border: 1px solid #34495e !important;
+                    border: 1px solid #455a64 !important;
                 }
                 div[data-testid="stPopoverBody"] button[kind="secondary"]:hover {
                     background-color: #bf953f !important;
-                    color: #000 !important;
                 }
-                /* 残ピン選択済み(赤) */
+                div[data-testid="stPopoverBody"] button[kind="secondary"]:hover p {
+                    color: #000000 !important;
+                }
+                /* 選択済みボタン（選択された残ピン） */
                 div[data-testid="stPopoverBody"] button[kind="primary"] {
                     background-color: #ff2d55 !important;
                     border: 1px solid #ffaaaa !important;
@@ -4651,7 +4657,8 @@ if st.session_state.analyzed_results:
                     render_score_popover(c2, 19, "")
                     render_score_popover(c3, 20, "")
                     tot = frame_totals[9] if len(frame_totals) == 10 else ""
-                    st.markdown(f"<div class='frame-total' style='font-size:15px; background-color:#4a3424 !important; color:#ffffff !important; border: 1px solid #bf953f;'>{tot}</div>", unsafe_allow_html=True)
+                    # ⑤ 10Fのみ、背景は茶色のまま枠線を金色に指定
+                    st.markdown(f"<div class='frame-total' style='font-size:15px; border: 2px solid #bf953f !important;'>{tot}</div>", unsafe_allow_html=True)
                     
                 st.markdown("---")
                 
