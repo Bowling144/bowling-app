@@ -477,9 +477,22 @@ if st.session_state.get("kiosk_mode"):
     
     # 開発者向けの隠し終了ボタン（右下）
     st.markdown("<div class='kiosk-exit-btn'>", unsafe_allow_html=True)
-    if st.button("✖", key="kiosk_exit"):
-        st.session_state.kiosk_mode = False
-        st.rerun()
+    with st.popover("✖"):
+        st.markdown("<div style='color: silver; font-weight: bold; margin-bottom: 10px;'>キオスクモード終了</div>", unsafe_allow_html=True)
+        exit_pw = st.text_input("管理者/開発者パスワードを入力", type="password", key="kiosk_exit_pw")
+        if st.button("終了して戻る", use_container_width=True, key="kiosk_exit_btn"):
+            sh = get_gspread_client()
+            if sh:
+                ws = sh.worksheet("プレイヤー設定")
+                # ログイン時に保存している行番号から、現在ログイン中の大元ユーザーのパスワードを取得
+                row_data = ws.row_values(st.session_state.user_row_index)
+                if len(row_data) >= 5 and row_data[4] == exit_pw:
+                    st.session_state.kiosk_mode = False
+                    st.rerun()
+                else:
+                    st.error("パスワードが正しくありません。")
+            else:
+                st.error("データベースに接続できません。")
     st.markdown("</div>", unsafe_allow_html=True)
 
     if st.session_state.get("kiosk_step") == "auth":
