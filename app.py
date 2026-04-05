@@ -149,6 +149,41 @@ st.markdown("""
     }
     /* ▲▲▲ ここまで ▲▲▲ */
 
+    /* ▼ ゴールド強調ボタン（取込・修正完了など） ▼ */
+    .gold-action-btn > button {
+        background: linear-gradient(145deg, #bf953f, #aa771c) !important;
+        color: #1a1a1c !important;
+        font-size: 18px !important;
+        font-weight: 900 !important;
+        border: 1px solid #fcf6ba !important;
+        box-shadow: 0 0 10px rgba(191, 149, 63, 0.4) !important;
+        border-radius: 8px !important;
+        transition: all 0.3s ease !important;
+    }
+    .gold-action-btn > button:hover {
+        background: linear-gradient(145deg, #fcf6ba, #bf953f) !important;
+        color: #000 !important;
+        box-shadow: 0 0 15px rgba(191, 149, 63, 0.8) !important;
+        transform: translateY(-2px) !important;
+    }
+
+    /* ▼ 赤強調ボタン（登録実行） ▼ */
+    .red-action-btn > button {
+        background: linear-gradient(145deg, #a73a3a, #7a2222) !important;
+        color: #ffffff !important;
+        font-size: 18px !important;
+        font-weight: 900 !important;
+        border: 1px solid #ff7a7a !important;
+        box-shadow: 0 0 10px rgba(167, 58, 58, 0.4) !important;
+        border-radius: 8px !important;
+        transition: all 0.3s ease !important;
+    }
+    .red-action-btn > button:hover {
+        background: linear-gradient(145deg, #ff7a7a, #a73a3a) !important;
+        box-shadow: 0 0 15px rgba(167, 58, 58, 0.8) !important;
+        transform: translateY(-2px) !important;
+    }
+
     /* ▼ セルフチェックイン（プレミアム）用のスタイル ▼ */
     .premium-header {
         font-family: 'Playfair Display', serif;
@@ -3232,7 +3267,9 @@ if "downloaded_images" not in st.session_state:
 
 st.markdown("<h3 style='text-align: center;'>☟　☟　☟</h3>", unsafe_allow_html=True)
 
+st.markdown("<div class='gold-action-btn'>", unsafe_allow_html=True)
 fetch_button = st.button("スコアシート取込（MAX３枚）", use_container_width=True)
+st.markdown("</div>", unsafe_allow_html=True)
 
 with st.expander("残ピン判定の微調整"):
     st.markdown("<span style='font-size: 12px; color: silver;'>自動計算された残ピン判定の閾値に、この数値をプラスマイナスして一時的に調整します。<br>（ピンが反応しにくい場合はマイナスへ、過剰に反応する場合はプラスへ変更して再取込してください）</span>", unsafe_allow_html=True)
@@ -4476,17 +4513,20 @@ if st.session_state.analyzed_results:
                     margin: 1px 0 !important;
                     padding: 2px !important;
                 }
+                /* スコアの文字色を白に統一 */
                 [data-testid="stHorizontalBlock"] div[data-testid="stBlock"] button p {
                     font-size: 13px !important;
-                    font-weight: 700 !important;
+                    font-weight: 900 !important;
+                    color: #ffffff !important;
                 }
+                /* 累計トータルの背景色を濃い目の茶色に */
                 .frame-total {
                     text-align: center;
                     font-weight: 700;
                     font-size: 13px;
-                    background-color: #2a2a2e;
-                    color: silver;
-                    border: 1px solid #444;
+                    background-color: #4a3424; 
+                    color: #ffffff;
+                    border: 1px solid #6b4c35;
                     border-radius: 4px;
                     padding: 2px 0;
                     margin-top: 1px;
@@ -4503,14 +4543,36 @@ if st.session_state.analyzed_results:
                 div[data-testid="stPopoverBody"] button {
                     min-height: 30px !important;
                     padding: 0px !important;
+                    color: white !important;
                 }
+                /* 1投目の背景色：濃い目の緑色 */
                 div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"]:nth-child(2):last-child) > div[data-testid="stColumn"]:nth-child(1) div[data-testid="stPopover"] button,
-                div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"]:nth-child(3):last-child) > div[data-testid="stColumn"]:nth-child(1) div[data-testid="stPopover"] button { border: 2px solid #444 !important; }
+                div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"]:nth-child(3):last-child) > div[data-testid="stColumn"]:nth-child(1) div[data-testid="stPopover"] button { 
+                    background-color: #1b4528 !important; 
+                    border: 1px solid #2d6b3e !important; 
+                }
                 
+                /* 2投目の背景色：濃い目の紺色 */
                 div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"]:nth-child(2):last-child) > div[data-testid="stColumn"]:nth-child(2) div[data-testid="stPopover"] button,
-                div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"]:nth-child(3):last-child) > div[data-testid="stColumn"]:nth-child(2) div[data-testid="stPopover"] button { border: 2px solid #444 !important; }
+                div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"]:nth-child(3):last-child) > div[data-testid="stColumn"]:nth-child(2) div[data-testid="stPopover"] button { 
+                    background-color: #1a2c4c !important; 
+                    border: 1px solid #2a4473 !important; 
+                }
                 
-                div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"]:nth-child(3):last-child) > div[data-testid="stColumn"]:nth-child(3) div[data-testid="stPopover"] button { border: 2px solid #444 !important; }
+                /* 10Fの3投目の背景色：濃い目の紺色 */
+                div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"]:nth-child(3):last-child) > div[data-testid="stColumn"]:nth-child(3) div[data-testid="stPopover"] button { 
+                    background-color: #1a2c4c !important; 
+                    border: 1px solid #2a4473 !important; 
+                }
+                
+                /* ポップオーバー内の選択ボタンにうっすら色付け */
+                div[data-testid="stPopoverBody"] button[kind="secondary"] {
+                    background-color: #333338 !important;
+                    border: 1px solid #555 !important;
+                }
+                div[data-testid="stPopoverBody"] button[kind="secondary"]:hover {
+                    background-color: #44444c !important;
+                }
                 </style>
                 """, unsafe_allow_html=True)
 
@@ -4602,9 +4664,27 @@ if st.session_state.analyzed_results:
                     
                 st.markdown("---")
                 
+                st.markdown("<div class='gold-action-btn'>", unsafe_allow_html=True)
                 if st.button("修正を完了して閉じる", key=f"update_{img_idx}_{local_idx}", type="secondary", use_container_width=True):
                     row[0] = new_date
                     row[1] = new_start
+                    row[2] = new_end
+                    if len(row) > 51:
+                        row[51] = is_710_checked
+                    else:
+                        row.append(is_710_checked)
+                    
+                    for i in range(21):
+                        row[throw_cols[i]] = curr_throws[i]
+                    for i in range(12):
+                        row[target_indices[i]] = ",".join(map(str, curr_pins[i]))
+                    
+                    if frame_totals and str(frame_totals[-1]).isdigit():
+                        row[50] = str(frame_totals[-1])
+                    
+                    st.session_state[close_flag_key] = True
+                    st.rerun()
+                st.markdown("</div>", unsafe_allow_html=True)
                     row[2] = new_end
                     if len(row) > 51:
                         row[51] = is_710_checked
@@ -4755,7 +4835,9 @@ if st.session_state.analyzed_results:
         btn_discard = st.button("破棄", help="SPSに登録せず画像を取込済みへ移動します")
     
     with col_reg:
+        st.markdown("<div class='red-action-btn'>", unsafe_allow_html=True)
         btn_register = st.button("スコアデータを登録する", use_container_width=True, type="primary")
+        st.markdown("</div>", unsafe_allow_html=True)
 
     if btn_discard:
         move_images_to_processed(is_discard=True)
