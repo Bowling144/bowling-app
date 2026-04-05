@@ -4493,6 +4493,7 @@ if st.session_state.analyzed_results:
                 while len(frame_totals) < 10:
                     frame_totals.append("")
 
+                # 💡【確実版】手動修正画面・ポップオーバー用の強力なCSS
                 st.markdown("""
                 <style>
                 /* ① マス目の余白調整と文字色（白） */
@@ -4502,7 +4503,7 @@ if st.session_state.analyzed_results:
                 }
                 div[data-testid="stPopover"] button p,
                 [data-testid="stHorizontalBlock"] div[data-testid="stBlock"] button p {
-                    font-size: 14px !important;
+                    font-size: 15px !important;
                     font-weight: 900 !important;
                     color: #ffffff !important;
                 }
@@ -4511,7 +4512,7 @@ if st.session_state.analyzed_results:
                 .frame-total {
                     text-align: center;
                     font-weight: 900;
-                    font-size: 13px;
+                    font-size: 14px;
                     background-color: #4a3424 !important; 
                     color: #ffffff !important;
                     border: 1px solid #6b4c35;
@@ -4530,20 +4531,16 @@ if st.session_state.analyzed_results:
                     margin-bottom: 10px;
                 }
 
-                /* ② 1投目の背景色：濃い目の緑色 */
-                div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(1) button[aria-expanded] {
+                /* ② 1投目の背景色：濃い目の緑色（専用マーカーを使用） */
+                div[data-testid="stElementContainer"]:has(.pitch-1) + div[data-testid="stElementContainer"] div[data-testid="stPopover"] > button,
+                div.element-container:has(.pitch-1) + div.element-container div[data-testid="stPopover"] > button {
                     background-color: #1b4528 !important; 
                     border: 1px solid #2d6b3e !important;
                 }
                 
-                /* ③ 2投目の背景色：濃い目の紺色 */
-                div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(2) button[aria-expanded] {
-                    background-color: #1a2c4c !important; 
-                    border: 1px solid #2a4473 !important;
-                }
-                
-                /* ③ 10Fの3投目の背景色：濃い目の紺色 */
-                div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(3) button[aria-expanded] {
+                /* ③ 2投目＆3投目の背景色：濃い目の紺色（専用マーカーを使用） */
+                div[data-testid="stElementContainer"]:has(.pitch-2) + div[data-testid="stElementContainer"] div[data-testid="stPopover"] > button,
+                div.element-container:has(.pitch-2) + div.element-container div[data-testid="stPopover"] > button {
                     background-color: #1a2c4c !important; 
                     border: 1px solid #2a4473 !important;
                 }
@@ -4555,7 +4552,8 @@ if st.session_state.analyzed_results:
                 div[data-testid="stPopoverBody"] button p {
                     color: #ffffff !important;
                 }
-                /* 未選択ボタン（スコア数字、未選択ピン） */
+                
+                /* ⑥ 未選択ボタン（スコア数字、未選択ピン）の色 */
                 div[data-testid="stPopoverBody"] button[kind="secondary"] {
                     background-color: #2c3e50 !important;
                     border: 1px solid #455a64 !important;
@@ -4566,10 +4564,12 @@ if st.session_state.analyzed_results:
                 div[data-testid="stPopoverBody"] button[kind="secondary"]:hover p {
                     color: #000000 !important;
                 }
-                /* 選択済みボタン（選択された残ピン） */
+                
+                /* ⑥ 選択済みボタン（赤色にして目立たせる） */
                 div[data-testid="stPopoverBody"] button[kind="primary"] {
                     background-color: #ff2d55 !important;
-                    border: 1px solid #ffaaaa !important;
+                    border: 2px solid #ffaaaa !important;
+                    box-shadow: 0 0 8px rgba(255, 45, 85, 0.6) !important;
                 }
                 </style>
                 """, unsafe_allow_html=True)
@@ -4587,57 +4587,61 @@ if st.session_state.analyzed_results:
                         elif idx == 19:
                             st.session_state[state_key]["throws"][20] = ""
                 
-                def render_score_popover(col_obj, idx, label_prefix):
+                def render_score_popover(col_obj, idx, pitch_type):
                     val = curr_throws[idx] if curr_throws[idx] else " "
-                    with col_obj.popover(label=f"{val}", use_container_width=True):
-                        st.markdown(f"**スコアと残ピンの修正**")
+                    with col_obj:
+                        # ②③ 色を塗るための専用マーカー（非表示）を配置
+                        st.markdown(f"<div class='{pitch_type}' style='display: none;'></div>", unsafe_allow_html=True)
                         
-                        p_col1, p_col2 = st.columns([1, 1.2])
-                        with p_col1:
-                            st.markdown("<div style='font-size:12px; color:gray; text-align:center;'>スコア</div>", unsafe_allow_html=True)
-                            choices = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "X", "/", "-", "G", ""]
-                            btn_cols = st.columns(3)
-                            for i, choice in enumerate(choices):
-                                display_choice = "空" if choice == "" else choice
-                                if btn_cols[i % 3].button(display_choice, key=f"sel_{img_idx}_{local_idx}_{idx}_{i}", use_container_width=True):
-                                    update_score_and_pins(idx, choice)
-                                    st.rerun()
-                        
-                        with p_col2:
-                            st.markdown("<div style='font-size:12px; color:gray; text-align:center;'>残ピン切替</div>", unsafe_allow_html=True)
-                            if idx <= 17: pin_idx = idx // 2
-                            elif idx == 18: pin_idx = 9
-                            elif idx == 19: pin_idx = 10
-                            else: pin_idx = 11
+                        with st.popover(label=f"{val}", use_container_width=True):
+                            st.markdown(f"**スコアと残ピンの修正**")
                             
-                            active_pins = curr_pins[pin_idx]
+                            p_col1, p_col2 = st.columns([1, 1.2])
+                            with p_col1:
+                                st.markdown("<div style='font-size:12px; color:gray; text-align:center;'>スコア</div>", unsafe_allow_html=True)
+                                choices = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "X", "/", "-", "G", ""]
+                                btn_cols = st.columns(3)
+                                for i, choice in enumerate(choices):
+                                    display_choice = "空" if choice == "" else choice
+                                    if btn_cols[i % 3].button(display_choice, key=f"sel_{img_idx}_{local_idx}_{idx}_{i}", use_container_width=True):
+                                        update_score_and_pins(idx, choice)
+                                        st.rerun()
                             
-                            def toggle_pin(p_num):
-                                if p_num in st.session_state[state_key]["pins"][pin_idx]:
-                                    st.session_state[state_key]["pins"][pin_idx].remove(p_num)
-                                else:
-                                    st.session_state[state_key]["pins"][pin_idx].append(p_num)
-                                    st.session_state[state_key]["pins"][pin_idx].sort()
-                            
-                            r1 = st.columns(4)
-                            for i, p in enumerate([7, 8, 9, 10]):
-                                is_act = p in active_pins
-                                if r1[i].button(str(p) if is_act else " ", key=f"p_{img_idx}_{local_idx}_{idx}_{p}", type="primary" if is_act else "secondary"):
-                                    toggle_pin(p); st.rerun()
-                            r2 = st.columns([0.5, 1, 1, 1, 0.5])
-                            for i, p in enumerate([4, 5, 6]):
-                                is_act = p in active_pins
-                                if r2[i+1].button(str(p) if is_act else " ", key=f"p_{img_idx}_{local_idx}_{idx}_{p}", type="primary" if is_act else "secondary"):
-                                    toggle_pin(p); st.rerun()
-                            r3 = st.columns([1, 1, 1, 1])
-                            for i, p in enumerate([2, 3]):
-                                is_act = p in active_pins
-                                if r3[i+1].button(str(p) if is_act else " ", key=f"p_{img_idx}_{local_idx}_{idx}_{p}", type="primary" if is_act else "secondary"):
-                                    toggle_pin(p); st.rerun()
-                            r4 = st.columns([1.5, 1, 1.5])
-                            is_act = 1 in active_pins
-                            if r4[1].button("1" if is_act else " ", key=f"p_{img_idx}_{local_idx}_{idx}_1", type="primary" if is_act else "secondary"):
-                                toggle_pin(1); st.rerun()
+                            with p_col2:
+                                st.markdown("<div style='font-size:12px; color:gray; text-align:center;'>残ピン切替</div>", unsafe_allow_html=True)
+                                if idx <= 17: pin_idx = idx // 2
+                                elif idx == 18: pin_idx = 9
+                                elif idx == 19: pin_idx = 10
+                                else: pin_idx = 11
+                                
+                                active_pins = curr_pins[pin_idx]
+                                
+                                def toggle_pin(p_num):
+                                    if p_num in st.session_state[state_key]["pins"][pin_idx]:
+                                        st.session_state[state_key]["pins"][pin_idx].remove(p_num)
+                                    else:
+                                        st.session_state[state_key]["pins"][pin_idx].append(p_num)
+                                        st.session_state[state_key]["pins"][pin_idx].sort()
+                                
+                                r1 = st.columns(4)
+                                for i, p in enumerate([7, 8, 9, 10]):
+                                    is_act = p in active_pins
+                                    if r1[i].button(str(p) if is_act else " ", key=f"p_{img_idx}_{local_idx}_{idx}_{p}", type="primary" if is_act else "secondary"):
+                                        toggle_pin(p); st.rerun()
+                                r2 = st.columns([0.5, 1, 1, 1, 0.5])
+                                for i, p in enumerate([4, 5, 6]):
+                                    is_act = p in active_pins
+                                    if r2[i+1].button(str(p) if is_act else " ", key=f"p_{img_idx}_{local_idx}_{idx}_{p}", type="primary" if is_act else "secondary"):
+                                        toggle_pin(p); st.rerun()
+                                r3 = st.columns([1, 1, 1, 1])
+                                for i, p in enumerate([2, 3]):
+                                    is_act = p in active_pins
+                                    if r3[i+1].button(str(p) if is_act else " ", key=f"p_{img_idx}_{local_idx}_{idx}_{p}", type="primary" if is_act else "secondary"):
+                                        toggle_pin(p); st.rerun()
+                                r4 = st.columns([1.5, 1, 1.5])
+                                is_act = 1 in active_pins
+                                if r4[1].button("1" if is_act else " ", key=f"p_{img_idx}_{local_idx}_{idx}_1", type="primary" if is_act else "secondary"):
+                                    toggle_pin(1); st.rerun()
 
                 sheet_cols = st.columns(10)
                 
@@ -4645,17 +4649,17 @@ if st.session_state.analyzed_results:
                     with sheet_cols[f]:
                         st.markdown(f"<div style='text-align:center; font-size:12px; font-weight:700;'>{f+1}F</div>", unsafe_allow_html=True)
                         c1, c2 = st.columns(2)
-                        render_score_popover(c1, f*2, "")
-                        render_score_popover(c2, f*2+1, "")
+                        render_score_popover(c1, f*2, "pitch-1")    # 1投目は緑マーカー
+                        render_score_popover(c2, f*2+1, "pitch-2")  # 2投目は紺マーカー
                         tot = frame_totals[f] if f < len(frame_totals) else ""
                         st.markdown(f"<div class='frame-total'>{tot}</div>", unsafe_allow_html=True)
 
                 with sheet_cols[9]:
                     st.markdown(f"<div style='text-align:center; font-size:12px; font-weight:700;'>10F</div>", unsafe_allow_html=True)
                     c1, c2, c3 = st.columns(3)
-                    render_score_popover(c1, 18, "")
-                    render_score_popover(c2, 19, "")
-                    render_score_popover(c3, 20, "")
+                    render_score_popover(c1, 18, "pitch-1")  # 10Fの1投目は緑
+                    render_score_popover(c2, 19, "pitch-2")  # 10Fの2投目は紺
+                    render_score_popover(c3, 20, "pitch-2")  # 10Fの3投目も紺
                     tot = frame_totals[9] if len(frame_totals) == 10 else ""
                     # ⑤ 10Fのみ、背景は茶色のまま枠線を金色に指定
                     st.markdown(f"<div class='frame-total' style='font-size:15px; border: 2px solid #bf953f !important;'>{tot}</div>", unsafe_allow_html=True)
