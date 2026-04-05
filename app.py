@@ -5514,16 +5514,16 @@ if st.session_state.analyzed_results:
                 st.success(f"登録完了！ 新規追加: {add_count}件 / 上書き更新: {update_count}件")
                 st.session_state.sps_registered = True 
                 
-                # ▼ ここで登録したプレイヤー名を保存し、完了画面で確実にデータを呼び出せるようにする
-                st.session_state.registered_player_name = selected_player
-                
-                # キオスクモードの場合、登録完了後に専用の完了画面へ遷移するフラグを立てる
-                if st.session_state.get("kiosk_mode"):
-                    st.session_state.app_state = "registration_complete" 
-                    # ⚠️ 修正: ここにあった st.rerun() を削除しました。
-                    # これがあると、すぐ下の画像移動処理（move_images_to_processed）が永遠に実行されません。
-
+                # 1. まず画像を処理済みフォルダへ移動（確実に実行）
                 move_images_to_processed(is_discard=False)
+                
+                # 2. 状態を切り替えて画面を強制リロード（これにより新しい画面へ確実に移行する）
+                if st.session_state.get("kiosk_mode"):
+                    st.session_state.app_state = "registration_complete"
+                else:
+                    st.session_state.app_state = "init"
+                    
+                st.rerun() # ← ★重要：画面を再描画するコマンドを復活
 
             except Exception as e:
                 st.error(f"SPSへの登録中にエラーが発生しました: {e}")
@@ -5534,8 +5534,18 @@ if st.session_state.analyzed_results:
 if st.session_state.app_state == "registration_complete":
     st.balloons()
     
-    # ユーザー情報の取得（登録時に保存した確実な名前を使用）
-    target_name = st.session_state.get("registered_player_name", "")
+    # 灰色の空欄ボックス（空のマーカーコンテナ）の隙間を消すためのCSSを追加
+    st.markdown("""
+    <style>
+    div[data-testid="stMarkdownContainer"]:has(.gold-btn-marker),
+    div[data-testid="stMarkdownContainer"]:has(.red-btn-marker) {
+        display: none !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # 最も確実な「メールアドレス」をキーにしてデータを抽出する
+    target_email = st.session_state.get("target_player", "")
     
     try:
         sh = get_gspread_client()
@@ -5546,8 +5556,15 @@ if st.session_state.app_state == "registration_complete":
         import pandas as pd
         df_score = pd.DataFrame(data_score[1:], columns=data_score[0])
         
-        # ▼ 列名「メールアドレス」ではなく、確実な「プレイヤー」列で名前を検索する
-        df_target = df_score[df_score["プレイヤー"] == target_name].copy()
+        # メールアドレスで完全に一致する行だけを抽出
+        df_target = df_score[df_score["メールアドレス"] == target_email].copy()
+        
+        # プレイヤー名を取得して表示用に整形（例: "004_田中" -> "田中"）
+        if len(df_target) > 0:
+            raw_name = str(df_target.iloc[0]["プレイヤー"])
+            target_name = raw_name.split("_")[-1] if "_" in raw_name else raw_name
+        else:
+            target_name = "PLAYER"
         
         # ---------------------------------------------------------
         # データ準備：マスターから対象の全ゲームリストを作成（7-10G除外）
@@ -5568,7 +5585,7 @@ if st.session_state.app_state == "registration_complete":
         # ---------------------------------------------------------
         import datetime
         import numpy as np
-        current_month = datetime.datetime.now().strftime("%y/%m") # SPSのマスター日付は "26/04/05" などの形式
+        current_month = datetime.datetime.now().strftime("%y/%m")
         df_this_month = df_target[df_target["日付"].str.startswith(current_month)].copy()
         
         games_this_month = len(df_this_month)
@@ -5578,13 +5595,15 @@ if st.session_state.app_state == "registration_complete":
         
         # 投球数（各フレームの投球マスに入力がある数をカウント）
         throws_this_month = 0
+        throw_cols = [10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50]
         for _, row in df_this_month.iterrows():
             for c_idx in throw_cols:
-                val = str(row.iloc[c_idx]).strip()
-                if val and val != "-" and val != "G":
-                    throws_this_month += 1
-                elif val == "-" or val == "G":
-                     throws_this_month += 1 
+                if c_idx < len(row.values):
+                    val = str(row.iloc[c_idx]).strip()
+                    if val and val != "-" and val != "G":
+                        throws_this_month += 1
+                    elif val == "-" or val == "G":
+                         throws_this_month += 1 
 
         # ---------------------------------------------------------
         # データ計算：最新レーティング（左側用）
@@ -5644,7 +5663,6 @@ if st.session_state.app_state == "registration_complete":
         # ▼ 左側：レーティング＆ボタン ▼
         # ==========================
         with col_left:
-            # 簡易版のレーティングカード表示
             html_card = f"""
             <div style="background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 35px 10px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333; overflow: hidden;">
             <div style="position: relative; width: 325px; height: 325px; margin: 0 auto; border-radius: 50%; background: conic-gradient({new_color} {int(gauge_pct*3.6)}deg, #333 0deg); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 25px {new_color};">
@@ -5663,7 +5681,6 @@ if st.session_state.app_state == "registration_complete":
             
             st.markdown("<div style='margin-top: 30px;'></div>", unsafe_allow_html=True)
             
-            # 解析を続けるボタン（目立たせるゴールド）
             st.markdown("<div class='gold-btn-marker' style='display: none;'></div>", unsafe_allow_html=True)
             if st.button("🔄 解析を続ける", use_container_width=True):
                 st.session_state.app_state = "init"
@@ -5672,7 +5689,6 @@ if st.session_state.app_state == "registration_complete":
 
             st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
-            # CHECK-IN画面へボタン（目立たせるレッド）
             st.markdown("<div class='red-btn-marker' style='display: none;'></div>", unsafe_allow_html=True)
             if st.button("🚪 CHECK-IN画面へ (終了)", use_container_width=True):
                 for key in ["kiosk_mode", "kiosk_user", "kiosk_step", "target_player", "target_player_name", "logged_in", "user_role"]:
@@ -5718,13 +5734,11 @@ if st.session_state.app_state == "registration_complete":
             import plotly.express as px
             import plotly.graph_objects as go
             
-            # 【2段目】 50Gスコアトレンド（高さを200pxに圧縮）
+            # 【2段目】 50Gスコアトレンド
             st.markdown("<div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 15px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333; margin-bottom: 20px;'>", unsafe_allow_html=True)
-            
             if len(player_games) > 0:
-                # ▼ 7-10ゲームを含まない player_games のデータからグラフを描画
                 recent_50_scores = [g["score"] for g in player_games[:50]]
-                recent_50_scores.reverse() # 古い順から並べる
+                recent_50_scores.reverse()
                 x_vals = list(range(len(recent_50_scores), 0, -1))
                 y_vals = recent_50_scores
                 
@@ -5732,25 +5746,22 @@ if st.session_state.app_state == "registration_complete":
                 fig_trend = px.line(x=x_vals, y=y_vals, markers=True)
                 fig_trend.update_traces(line_color='#ff6600', marker=dict(color='#ff6600', size=6, line=dict(color='white', width=1)))
                 fig_trend.update_layout(
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
                     xaxis=dict(title="", range=[50, 0], showgrid=True, gridcolor='#444', fixedrange=True),
                     yaxis=dict(title="", range=[0, 300], showgrid=True, gridcolor='#444', fixedrange=True),
-                    height=200,
-                    margin=dict(l=30, r=30, t=10, b=10)
+                    height=200, margin=dict(l=30, r=30, t=10, b=10)
                 )
                 st.plotly_chart(fig_trend, use_container_width=True, config={'displayModeBar': False})
             else:
-                 st.info("データがありません。")
+                 # ▼ 灰色のボックス（st.info）を出さないように透明なテキストに置換
+                 st.markdown("<div style='text-align: center; color: #555; padding: 20px;'>NO DATA</div>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
             
-            # 【3段目】 50ヶ月レーティング推移（高さを200pxに圧縮）
+            # 【3段目】 50ヶ月レーティング推移
             st.markdown("<div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 15px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333;'>", unsafe_allow_html=True)
             if len(player_games) > 0:
-                # 月ごとのレーティングデータを生データから動的に再計算する
                 monthly_rt = {}
                 history_scores = []
-                
                 chrono_games = list(reversed(player_games))
                 for g in chrono_games:
                     date_str = str(g["date"]).strip()
@@ -5766,7 +5777,6 @@ if st.session_state.app_state == "registration_complete":
                     history_scores.append(g["score"])
                     recent_50 = history_scores[-50:]
                     
-                    # レーティング計算
                     a = sum(recent_50) / len(recent_50)
                     if a >= 230: rt = 18 + (a - 230) * (3 / 20)
                     elif a >= 210: rt = 15 + (a - 210) * (3 / 20)
@@ -5789,8 +5799,6 @@ if st.session_state.app_state == "registration_complete":
                     x_vals_rt = list(range(num_months - 1, -1, -1))
                     
                     fig_rt = go.Figure()
-                    
-                    # 線分ごとのグラデーション色分け用関数
                     def get_rt_color(rt_val):
                         gauge_pct = min(100, max(0, int((rt_val / 18.0) * 100)))
                         if gauge_pct <= 25:
@@ -5807,7 +5815,6 @@ if st.session_state.app_state == "registration_complete":
                             r, g, b = int(255 + (255-255)*p), int(102 + (59-102)*p), int(0 + (48-0)*p)
                         return f"rgb({r},{g},{b})"
 
-                    # 色を切り替えながら線を引く
                     for i in range(len(x_vals_rt) - 1):
                         x0, x1 = x_vals_rt[i], x_vals_rt[i+1]
                         y0, y1 = y_vals_rt[i], y_vals_rt[i+1]
@@ -5817,7 +5824,6 @@ if st.session_state.app_state == "registration_complete":
                             line=dict(color=color, width=3), showlegend=False, hoverinfo="skip"
                         ))
                         
-                    # タップしたときのポップアップ数値用レイヤー
                     fig_rt.add_trace(go.Scatter(
                         x=x_vals_rt, y=y_vals_rt, mode='lines', line=dict(color='rgba(0,0,0,0)', width=0),
                         showlegend=False, hovertemplate="<b>%{x}ヶ月前</b><br>Rt: %{y:.2f}<extra></extra>"
@@ -5831,9 +5837,11 @@ if st.session_state.app_state == "registration_complete":
                     )
                     st.plotly_chart(fig_rt, use_container_width=True, config={'displayModeBar': False})
                 else:
-                    st.info("データがありません。")
+                    # ▼ 灰色のボックス（st.info）を出さないように透明なテキストに置換
+                    st.markdown("<div style='text-align: center; color: #555; padding: 20px;'>NO DATA</div>", unsafe_allow_html=True)
             else:
-                 st.info("データがありません。")
+                 # ▼ 灰色のボックス（st.info）を出さないように透明なテキストに置換
+                 st.markdown("<div style='text-align: center; color: #555; padding: 20px;'>NO DATA</div>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
             
     except Exception as e:
