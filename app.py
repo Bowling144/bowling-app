@@ -4729,12 +4729,11 @@ if st.session_state.analyzed_results:
             if check_key not in st.session_state:
                 st.session_state[check_key] = True
 
-            # 上の段：【ゲーム数】日時 ｜ [レ] データ登録する（左寄せのまま、カラム幅の比率で距離を詰める）
-            # 文字数が増えた分、左カラムの比率を少しだけ大きくしています
+            # 上の段：【ゲーム数】日時 ｜ [レ] データ登録する
             chk_col1, chk_col2 = st.columns([2.5, 7.5])
             with chk_col1:
-                # ゲーム数を明るい水色（#00FFFF）と太字で追加
-                st.markdown(f"<div style='margin-top: 5px;'><span style='color: #00FFFF; font-weight: bold;'>【{game_name}】</span>{date_str}_{start_time}_{end_time} ｜</div>", unsafe_allow_html=True)
+                # 全体CSSの設定を上書きするため、色指定に !important を追加
+                st.markdown(f"<div style='margin-top: 5px;'><span style='color: #00FFFF !important; font-weight: bold;'>【{game_name}】</span>{date_str}_{start_time}_{end_time} ｜</div>", unsafe_allow_html=True)
             with chk_col2:
                 is_checked = st.checkbox(
                     "データ登録する", 
