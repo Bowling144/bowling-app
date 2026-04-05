@@ -5514,21 +5514,19 @@ if st.session_state.analyzed_results:
                 st.success(f"登録完了！ 新規追加: {add_count}件 / 上書き更新: {update_count}件")
                 st.session_state.sps_registered = True 
                 
-                # 1. まず画像を処理済みフォルダへ移動（確実に実行）
-                move_images_to_processed(is_discard=False)
+                # ▼▼▼ 修正の核心1：強制リロードされる【前】に、次の画面で使うユーザー情報（メアド）を保存する ▼▼▼
+                st.session_state.target_player = user_email
+                st.session_state.target_player_name = selected_player
                 
-                # ▼▼▼ 修正の核心：解析データをリセットして、前のスコア画面を完全に消去する ▼▼▼
-                st.session_state.analyzed_results = None
-                st.session_state.raw_images_data = []
-                st.session_state.downloaded_images = []
-                
-                # 2. 状態を切り替えて画面を強制リロード
+                # ▼▼▼ 修正の核心2：強制リロードされる【前】に、画面状態を切り替えておく ▼▼▼
                 if st.session_state.get("kiosk_mode"):
                     st.session_state.app_state = "registration_complete"
                 else:
                     st.session_state.app_state = "init"
-                    
-                st.rerun()
+                
+                # 1. 画像を移動し、解析データをクリアする
+                # ⚠️注意：この関数（move_images_to_processed）の末尾で st.rerun() が実行され、ここで処理が新しい画面へ飛びます。
+                move_images_to_processed(is_discard=False)
 
             except Exception as e:
                 st.error(f"SPSへの登録中にエラーが発生しました: {e}")
