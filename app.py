@@ -4722,17 +4722,16 @@ if st.session_state.analyzed_results:
             if calc_totals and calc_val == ai_total_int:
                 match_status = "計算一致"
             else:
-                # 黄色の代わりに、より目立つ赤背景と警告マークを採用
-                match_status = ":red-background[ ⚠️ 計算不一致 ⚠️ ]"
-
-            display_text = f"{date_str}_{start_time}_{end_time}_{game_name}｜トータル:{ai_total_str}_{match_status}"
+                # 濃い黄色（オレンジ）背景と警告マークを採用
+                match_status = ":orange-background[⚠️計算不一致]"
             
             check_key = f"check_{img_idx}_{local_idx}"
             if check_key not in st.session_state:
                 st.session_state[check_key] = True
 
+            # チェックボックスは「データ登録する」のみに変更
             is_checked = st.checkbox(
-                display_text, 
+                "データ登録する", 
                 key=check_key,
                 on_change=uncheck_all_if_needed,
                 args=(check_key,)
@@ -4758,8 +4757,10 @@ if st.session_state.analyzed_results:
                 st.session_state[edit_key] = False
                 st.session_state[close_flag_key] = False
 
+            # 手動修正トグルのテキストに、元々表示していたゲーム情報とトータルを結合
+            toggle_text = f"{date_str}_{start_time}_{end_time}_{game_name} を手動修正 ｜ トータル:{ai_total_str}_{match_status}"
 
-            if st.toggle(f"{game_name} を手動修正", key=edit_key):
+            if st.toggle(toggle_text, key=edit_key):
 
                 c_date, c_start, c_end = st.columns(3)
                 if st.session_state.get("kiosk_mode"):
