@@ -4729,13 +4729,18 @@ if st.session_state.analyzed_results:
             if check_key not in st.session_state:
                 st.session_state[check_key] = True
 
-            # 上の段：日時 ｜ データ登録する（チェックボックス）
-            is_checked = st.checkbox(
-                f"{date_str}_{start_time}_{end_time} ｜ データ登録する", 
-                key=check_key,
-                on_change=uncheck_all_if_needed,
-                args=(check_key,)
-            )
+            # 上の段：日時 ｜ [レ] データ登録する（カラムで分割して配置）
+            chk_col1, chk_col2 = st.columns([1.5, 3])
+            with chk_col1:
+                # 文字の高さがチェックボックスと合うように微調整
+                st.markdown(f"<div style='margin-top: 5px;'>{date_str}_{start_time}_{end_time} ｜</div>", unsafe_allow_html=True)
+            with chk_col2:
+                is_checked = st.checkbox(
+                    "データ登録する", 
+                    key=check_key,
+                    on_change=uncheck_all_if_needed,
+                    args=(check_key,)
+                )
 
             game_checkboxes.append({
                 "is_checked": is_checked,
