@@ -1047,9 +1047,6 @@ if app_mode == "プレイヤー分析":
                             st_vals.append(st_count)
                             sp_vals.append(sp_count)
 
-                        # グラフ用のダークコンテナ
-                        st.markdown("<div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 15px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333;'>", unsafe_allow_html=True)
-                        
                         # ▼ 1つ目のグラフ：スコア推移
                         st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif; text-align: center;'>RECENT 50 GAMES SCORE TREND</div>", unsafe_allow_html=True)
 
@@ -1062,7 +1059,7 @@ if app_mode == "プレイヤー分析":
                             paper_bgcolor='rgba(0,0,0,0)',
                             xaxis=dict(title="", range=[50, 0], showgrid=True, gridcolor='#444', tickmode='linear', tick0=0, dtick=5, color='gray', fixedrange=True),
                             yaxis=dict(title="", range=[0, 300], showgrid=True, gridcolor='#444', tickmode='linear', tick0=0, dtick=50, color='gray', fixedrange=True),
-                            height=230 if st.session_state.get("kiosk_mode") else 280,
+                            height=300 if st.session_state.get("kiosk_mode") else 280,
                             margin=dict(l=30, r=30, t=10, b=10) # 左右の余白を少し増やして視覚的に中央へ寄せる
                         )
                         st.plotly_chart(fig_trend, use_container_width=True, config={'displayModeBar': False})
@@ -1087,8 +1084,6 @@ if app_mode == "プレイヤー分析":
                                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(color='white'))
                             )
                             st.plotly_chart(fig_st_sp, use_container_width=True, config={'displayModeBar': False})
-
-                        st.markdown("</div>", unsafe_allow_html=True)
                     else:
                         st.info("データがありません。")
 
@@ -2286,7 +2281,7 @@ if app_mode == "プレイヤー分析":
                             paper_bgcolor='rgba(0,0,0,0)',
                             xaxis=dict(title="（ヶ月前）", range=[50, 0], showgrid=True, gridcolor='#444', tickmode='linear', tick0=0, dtick=5, color='gray', fixedrange=True),
                             yaxis=dict(title="Rt", range=[0.0, 18.0], showgrid=True, gridcolor='#444', tickmode='linear', tick0=0, dtick=2, color='gray', fixedrange=True),
-                            height=230 if st.session_state.get("kiosk_mode") else 280,
+                            height=300 if st.session_state.get("kiosk_mode") else 280,
                             margin=dict(l=30, r=30, t=10, b=10)
                         )
                         st.plotly_chart(fig_rt, use_container_width=True, config={'displayModeBar': False})
@@ -2905,30 +2900,35 @@ if app_mode == "プレイヤー分析":
 
                     # 3. HTMLでコンパクトに描画
                     html = f"""
-                    <div style="background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 15px 10px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-                        <div style="text-align: center; padding: 0 10px; border-right: 1px solid #444;">
-                            <div style="color: silver; font-size: 11px; font-weight: bold;">LATEST MONTH</div>
-                            <div style="color: #bf953f; font-size: 20px; font-weight: 900;">{latest_month}</div>
-                        </div>
-                        <div style="text-align: center; flex: 1;">
-                            <div style="color: gray; font-size: 11px; font-weight: bold;">G数</div>
-                            <div style="color: white; font-size: 18px; font-weight: bold;">{g_count}</div>
-                        </div>
-                        <div style="text-align: center; flex: 1;">
-                            <div style="color: gray; font-size: 11px; font-weight: bold;">投球数</div>
-                            <div style="color: white; font-size: 18px; font-weight: bold;">{pitches}</div>
-                        </div>
-                        <div style="text-align: center; flex: 1;">
-                            <div style="color: gray; font-size: 11px; font-weight: bold;">倒ピン</div>
-                            <div style="color: white; font-size: 18px; font-weight: bold;">{pin_falls}</div>
-                        </div>
-                        <div style="text-align: center; flex: 1;">
-                            <div style="color: #ff3b30; font-size: 11px; font-weight: bold;">AVE</div>
-                            <div style="color: white; font-size: 18px; font-weight: bold;">{ave}</div>
-                        </div>
-                        <div style="text-align: center; flex: 1;">
-                            <div style="color: #4285f4; font-size: 11px; font-weight: bold;">HIGH</div>
-                            <div style="color: white; font-size: 18px; font-weight: bold;">{h_score}</div>
+                    <div style="background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333; margin-bottom: 20px;">
+                        <div style="display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 20px;">
+                            <div style="text-align: center; padding: 10px 30px; background: #1a1a1c; border-radius: 10px; border: 1px solid #444; width: 100%; max-width: 250px; margin-bottom: 5px;">
+                                <div style="color: silver; font-size: 14px; font-weight: bold; letter-spacing: 1px;">LATEST MONTH</div>
+                                <div style="color: #bf953f; font-size: 28px; font-weight: 900;">{latest_month}</div>
+                            </div>
+                            
+                            <div style="display: flex; justify-content: space-between; width: 100%; text-align: center;">
+                                <div style="flex: 1;">
+                                    <div style="color: gray; font-size: 14px; font-weight: bold;">G数</div>
+                                    <div style="color: white; font-size: 26px; font-weight: bold;">{g_count}</div>
+                                </div>
+                                <div style="flex: 1;">
+                                    <div style="color: gray; font-size: 14px; font-weight: bold;">投球数</div>
+                                    <div style="color: white; font-size: 26px; font-weight: bold;">{pitches}</div>
+                                </div>
+                                <div style="flex: 1;">
+                                    <div style="color: gray; font-size: 14px; font-weight: bold;">倒ピン</div>
+                                    <div style="color: white; font-size: 26px; font-weight: bold;">{pin_falls}</div>
+                                </div>
+                                <div style="flex: 1;">
+                                    <div style="color: #ff3b30; font-size: 14px; font-weight: bold;">AVE</div>
+                                    <div style="color: white; font-size: 26px; font-weight: bold;">{ave}</div>
+                                </div>
+                                <div style="flex: 1;">
+                                    <div style="color: #4285f4; font-size: 14px; font-weight: bold;">HIGH</div>
+                                    <div style="color: white; font-size: 26px; font-weight: bold;">{h_score}</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     """
