@@ -4722,7 +4722,7 @@ if st.session_state.analyzed_results:
             if calc_totals and calc_val == ai_total_int:
                 match_status = "計算一致"
             else:
-                match_status = "不一致"
+                match_status = ":yellow-background[計算不一致]"
 
             display_text = f"{date_str}_{start_time}_{end_time}_{game_name}｜トータル:{ai_total_str}_{match_status}"
             
