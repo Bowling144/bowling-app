@@ -4564,14 +4564,7 @@ if st.session_state.analyzed_results:
                     margin-bottom: 10px;
                 }
 
-                /* ▼ 追加：選択して展開している小窓のボタンを赤枠にして目立たせる ▼ */
-                div[data-testid="stPopover"] > button[aria-expanded="true"] {
-                    border: 3px solid #ff2d55 !important;
-                    box-shadow: 0 0 10px rgba(255, 45, 85, 0.8) !important;
-                    background-color: #3a1c24 !important;
-                }
-
-                /* ⑥ ポップオーバー内のボタンを色付けするための基本CSS */
+                /* ⑥ ポップオーバー小窓内の基本設定 */
                 div[data-testid="stPopoverBody"] button {
                     min-height: 35px !important;
                 }
@@ -4579,52 +4572,76 @@ if st.session_state.analyzed_results:
                     color: #ffffff !important;
                     font-weight: bold !important;
                 }
+
+                /* ▼▼▼ メイン画面のマス目（1投目/2投目）の背景・枠色 ▼▼▼ */
+                /* 1投目（濃い緑） */
+                div[data-testid="stColumn"]:has(.pitch-1) div[data-testid="stPopover"] > button {
+                    background-color: #1a4d2a !important;
+                    border: 2px solid #2e8b57 !important;
+                    color: #ffffff !important;
+                }
+                div[data-testid="stColumn"]:has(.pitch-1) div[data-testid="stPopover"] > button p {
+                    color: #ffffff !important;
+                }
                 
-                /* ▼ スコア数字ボタン用 (score-area-markerの列のみ適用) ▼ */
-                div[data-testid="stColumn"]:has(.score-area-marker) button[kind="secondary"] {
+                /* 2投目・3投目（濃い青） */
+                div[data-testid="stColumn"]:has(.pitch-2) div[data-testid="stPopover"] > button {
+                    background-color: #102a43 !important;
+                    border: 2px solid #1e90ff !important;
+                    color: #ffffff !important;
+                }
+                div[data-testid="stColumn"]:has(.pitch-2) div[data-testid="stPopover"] > button p {
+                    color: #ffffff !important;
+                }
+
+                /* ▼▼▼ 選択して開いているマスの赤枠強調（最優先で上書きされるよう配置） ▼▼▼ */
+                div[data-testid="stColumn"] div[data-testid="stPopover"] > button[aria-expanded="true"] {
+                    background-color: #3a1c24 !important;
+                    border: 3px solid #ff2d55 !important;
+                    box-shadow: 0 0 12px #ff2d55 !important;
+                }
+
+                /* ▼▼▼ ポップオーバー小窓：スコア入力エリア ▼▼▼ */
+                div[data-testid="stPopoverBody"] div[data-testid="stColumn"]:has(.score-area-marker) button[kind="secondary"] {
                     background-color: #2c3e50 !important;
                     border: 1px solid #455a64 !important;
                 }
-                div[data-testid="stColumn"]:has(.score-area-marker) button[kind="secondary"]:hover {
+                div[data-testid="stPopoverBody"] div[data-testid="stColumn"]:has(.score-area-marker) button[kind="secondary"]:hover {
                     background-color: #bf953f !important;
                 }
-                div[data-testid="stColumn"]:has(.score-area-marker) button[kind="secondary"]:hover p {
+                div[data-testid="stPopoverBody"] div[data-testid="stColumn"]:has(.score-area-marker) button[kind="secondary"]:hover p {
                     color: #000000 !important;
                 }
-                div[data-testid="stColumn"]:has(.score-area-marker) button[kind="primary"] {
-                    background-color: #ff2d55 !important;
-                    border: 2px solid #ffaaaa !important;
-                    box-shadow: 0 0 8px rgba(255, 45, 85, 0.6) !important;
-                }
 
-                /* ▼▼ 残ピン切替ボタン専用の厳密なCSS (pin-area-markerの列のみ適用) ▼▼ */
-                /* はみ出し防止のため、文字サイズと余白を極限まで小さく */
-                div[data-testid="stColumn"]:has(.pin-area-marker) button {
-                    padding: 0 !important;
-                    min-height: 30px !important;
+                /* ▼▼▼ ポップオーバー小窓：残ピン切替エリア ▼▼▼ */
+                /* はみ出し防止（パディングと文字サイズの調整） */
+                div[data-testid="stPopoverBody"] div[data-testid="stColumn"]:has(.pin-area-marker) button {
+                    padding: 0px !important;
+                    min-height: 32px !important;
                 }
-                div[data-testid="stColumn"]:has(.pin-area-marker) button p {
-                    font-size: 11px !important;
+                div[data-testid="stPopoverBody"] div[data-testid="stColumn"]:has(.pin-area-marker) button p {
+                    font-size: 13px !important;
                     margin: 0 !important;
                 }
 
-                /* 残ピン無い(未選択) ボックスの背景をターコイズブルーに */
-                div[data-testid="stColumn"]:has(.pin-area-marker) button[kind="secondary"] {
+                /* 残ピン無い(ターコイズブルー) */
+                div[data-testid="stPopoverBody"] div[data-testid="stColumn"]:has(.pin-area-marker) button[kind="secondary"] {
                     background-color: #40E0D0 !important;
                     border: 1px solid #30B0A0 !important;
                 }
-                div[data-testid="stColumn"]:has(.pin-area-marker) button[kind="secondary"] p {
-                    color: #1a1a1c !important; /* 背景が明るいので文字は暗く */
+                div[data-testid="stPopoverBody"] div[data-testid="stColumn"]:has(.pin-area-marker) button[kind="secondary"],
+                div[data-testid="stPopoverBody"] div[data-testid="stColumn"]:has(.pin-area-marker) button[kind="secondary"] p {
+                    color: #1a1a1c !important; /* 背景が明るいので黒文字 */
                 }
 
-                /* 残ピン有る(選択済み) ボックスの背景を今の枠色(ピンクっぽい)に */
-                div[data-testid="stColumn"]:has(.pin-area-marker) button[kind="primary"] {
+                /* 残ピン有る(ピンク) */
+                div[data-testid="stPopoverBody"] div[data-testid="stColumn"]:has(.pin-area-marker) button[kind="primary"] {
                     background-color: #ffaaaa !important;
-                    border: 1px solid #ffaaaa !important;
-                    box-shadow: none !important;
+                    border: 1px solid #ff8888 !important;
                 }
-                div[data-testid="stColumn"]:has(.pin-area-marker) button[kind="primary"] p {
-                    color: #1a1a1c !important; /* 背景が明るいので文字は暗く */
+                div[data-testid="stPopoverBody"] div[data-testid="stColumn"]:has(.pin-area-marker) button[kind="primary"],
+                div[data-testid="stPopoverBody"] div[data-testid="stColumn"]:has(.pin-area-marker) button[kind="primary"] p {
+                    color: #1a1a1c !important; /* 背景が明るいので黒文字 */
                 }
                 </style>
                 """, unsafe_allow_html=True)
@@ -4646,30 +4663,19 @@ if st.session_state.analyzed_results:
                 def render_score_popover(col_obj, idx, bg_color):
                     val = curr_throws[idx] if curr_throws[idx] else " "
                     
-                    # 1投目(と10フレ1投目)は濃い緑、2投目(と10フレ2・3投目)は濃い青の枠線に設定
-                    border_color = "#2e8b57" if (idx % 2 == 0 and idx < 18) or idx == 18 else "#1e90ff"
+                    # 1投目か2投目かを判定するクラス名（10フレ1投目は1投目扱い、それ以外は2投目扱い）
+                    pitch_class = "pitch-1" if (idx % 2 == 0 and idx < 18) or idx == 18 else "pitch-2"
 
                     with col_obj:
-                        # 他のプレイヤー・画像の同インデックスと重複しないようマーカー名を一意にする
-                        marker_class = f"custom-bg-{img_idx}-{local_idx}-{idx}"
-                        st.markdown(f"""
-                        <style>
-                        /* 展開していない時だけ1投目/2投目の枠色を適用（展開中は赤枠にするため） */
-                        div[data-testid="stElementContainer"]:has(.{marker_class}) + div[data-testid="stElementContainer"] div[data-testid="stPopover"] > button[aria-expanded="false"],
-                        div.element-container:has(.{marker_class}) + div.element-container div[data-testid="stPopover"] > button[aria-expanded="false"] {{
-                            background-color: {bg_color} !important;
-                            border: 2px solid {border_color} !important;
-                        }}
-                        </style>
-                        <div class="{marker_class}" style="display:none;"></div>
-                        """, unsafe_allow_html=True)
+                        # CSSでこのマス目を確実・安全に狙い撃ちするための目印（不可視）
+                        st.markdown(f"<div class='{pitch_class}' style='display:none;'></div>", unsafe_allow_html=True)
                         
                         with st.popover(label=f"{val}", use_container_width=True):
                             st.markdown(f"**スコアと残ピンの修正**")
                             
                             p_col1, p_col2 = st.columns([1, 1.2])
                             with p_col1:
-                                st.markdown("<div class='score-area-marker' style='display:none;'></div>", unsafe_allow_html=True) # ▼ スコア列用の目印
+                                st.markdown("<div class='score-area-marker' style='display:none;'></div>", unsafe_allow_html=True) # スコア列用の目印
                                 st.markdown("<div style='font-size:12px; color:gray; text-align:center;'>スコア</div>", unsafe_allow_html=True)
                                 choices = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "X", "/", "-", "G", ""]
                                 btn_cols = st.columns(3)
@@ -4680,7 +4686,7 @@ if st.session_state.analyzed_results:
                                         st.rerun()
                             
                             with p_col2:
-                                st.markdown("<div class='pin-area-marker' style='display:none;'></div>", unsafe_allow_html=True) # ▼ 残ピン列用の目印
+                                st.markdown("<div class='pin-area-marker' style='display:none;'></div>", unsafe_allow_html=True) # 残ピン列用の目印
                                 st.markdown("<div style='font-size:12px; color:gray; text-align:center;'>残ピン切替</div>", unsafe_allow_html=True)
                                 if idx <= 17: pin_idx = idx // 2
                                 elif idx == 18: pin_idx = 9
