@@ -2900,38 +2900,37 @@ if app_mode == "プレイヤー分析":
 
                     # 3. HTMLでコンパクトに描画（修正版）
                     html = f"""
-                    <div style="background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333; margin-bottom: 20px;">
-                        <div style="display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 20px;">
-                            <div style="text-align: center; padding: 10px 30px; background: #1a1a1c; border-radius: 10px; border: 1px solid #444; width: 100%; max-width: 250px; margin-bottom: 5px;">
-                                <div style="color: silver; font-size: 14px; font-weight: bold; letter-spacing: 1px;">LATEST MONTH</div>
-                                <div style="color: #bf953f; font-size: 28px; font-weight: 900;">{latest_month}</div>
-                            </div>
-                            
-                            <div style="display: flex; justify-content: space-between; width: 100%; text-align: center;">
-                                <div style="flex: 1;">
-                                    <div style="color: gray; font-size: 14px; font-weight: bold;">G数</div>
-                                    <div style="color: white; font-size: 26px; font-weight: bold;">{g_count}</div>
-                                </div>
-                                <div style="flex: 1;">
-                                    <div style="color: gray; font-size: 14px; font-weight: bold;">投球数</div>
-                                    <div style="color: white; font-size: 26px; font-weight: bold;">{pitches}</div>
-                                </div>
-                                <div style="flex: 1;">
-                                    <div style="color: gray; font-size: 14px; font-weight: bold;">倒ピン</div>
-                                    <div style="color: white; font-size: 26px; font-weight: bold;">{pin_falls}</div>
-                                </div>
-                                <div style="flex: 1;">
-                                    <div style="color: #ff3b30; font-size: 14px; font-weight: bold;">AVE</div>
-                                    <div style="color: white; font-size: 26px; font-weight: bold;">{ave}</div>
-                                </div>
-                                <div style="flex: 1;">
-                                    <div style="color: #4285f4; font-size: 14px; font-weight: bold;">HIGH</div>
-                                    <div style="color: white; font-size: 26px; font-weight: bold;">{h_score}</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    """
+<div style="background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333; margin-bottom: 20px;">
+<div style="display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 20px;">
+<div style="text-align: center; padding: 10px 30px; background: #1a1a1c; border-radius: 10px; border: 1px solid #444; width: 100%; max-width: 250px; margin-bottom: 5px;">
+<div style="color: silver; font-size: 14px; font-weight: bold; letter-spacing: 1px;">LATEST MONTH</div>
+<div style="color: #bf953f; font-size: 28px; font-weight: 900;">{latest_month}</div>
+</div>
+<div style="display: flex; justify-content: space-between; width: 100%; text-align: center;">
+<div style="flex: 1;">
+<div style="color: gray; font-size: 14px; font-weight: bold;">G数</div>
+<div style="color: white; font-size: 26px; font-weight: bold;">{g_count}</div>
+</div>
+<div style="flex: 1;">
+<div style="color: gray; font-size: 14px; font-weight: bold;">投球数</div>
+<div style="color: white; font-size: 26px; font-weight: bold;">{pitches}</div>
+</div>
+<div style="flex: 1;">
+<div style="color: gray; font-size: 14px; font-weight: bold;">倒ピン</div>
+<div style="color: white; font-size: 26px; font-weight: bold;">{pin_falls}</div>
+</div>
+<div style="flex: 1;">
+<div style="color: #ff3b30; font-size: 14px; font-weight: bold;">AVE</div>
+<div style="color: white; font-size: 26px; font-weight: bold;">{ave}</div>
+</div>
+<div style="flex: 1;">
+<div style="color: #4285f4; font-size: 14px; font-weight: bold;">HIGH</div>
+<div style="color: white; font-size: 26px; font-weight: bold;">{h_score}</div>
+</div>
+</div>
+</div>
+</div>
+"""
                     st.markdown(html, unsafe_allow_html=True)
 
                 if st.session_state.get("kiosk_mode"):
