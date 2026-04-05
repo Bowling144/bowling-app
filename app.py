@@ -1058,34 +1058,36 @@ if app_mode == "プレイヤー分析":
                         # アプリ風にオレンジ色のグラフとダークテーマに設定
                         fig_trend.update_traces(line_color='#ff6600', marker=dict(color='#ff6600', size=6, line=dict(color='white', width=1)))
                         fig_trend.update_layout(
+                            fig_trend.update_layout(
                             plot_bgcolor='rgba(0,0,0,0)',
                             paper_bgcolor='rgba(0,0,0,0)',
                             xaxis=dict(title="", range=[50, 0], showgrid=True, gridcolor='#444', tickmode='linear', tick0=0, dtick=5, color='gray', fixedrange=True),
                             yaxis=dict(title="", range=[0, 300], showgrid=True, gridcolor='#444', tickmode='linear', tick0=0, dtick=50, color='gray', fixedrange=True),
-                            height=280,
+                            height=230 if st.session_state.get("kiosk_mode") else 280,
                             margin=dict(l=30, r=30, t=10, b=10) # 左右の余白を少し増やして視覚的に中央へ寄せる
                         )
                         st.plotly_chart(fig_trend, use_container_width=True, config={'displayModeBar': False})
 
-                        # ▼ 2つ目のグラフ：ストライク・スペア推移
-                        st.markdown("<hr style='border-top: 1px solid #444; margin: 20px 0px;'>", unsafe_allow_html=True)
-                        st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif; text-align: center;'>STRIKES & SPARES TREND</div>", unsafe_allow_html=True)
-
-                        fig_st_sp = go.Figure()
-                        # ★modeを 'lines' に変更し、markerの設定を削除
-                        fig_st_sp.add_trace(go.Scatter(x=x_vals, y=st_vals, mode='lines', name='STRIKE', line=dict(color='#4285f4', width=2)))
-                        fig_st_sp.add_trace(go.Scatter(x=x_vals, y=sp_vals, mode='lines', name='SPARE', line=dict(color='#34a853', width=2)))
-                        
-                        fig_st_sp.update_layout(
-                            plot_bgcolor='rgba(0,0,0,0)',
-                            paper_bgcolor='rgba(0,0,0,0)',
-                            xaxis=dict(title="", range=[50, 0], showgrid=True, gridcolor='#444', tickmode='linear', tick0=0, dtick=5, color='gray', fixedrange=True),
-                            yaxis=dict(title="", range=[0, 13], showgrid=True, gridcolor='#444', tickmode='linear', tick0=0, dtick=2, color='gray', fixedrange=True),
-                            height=280,
-                            margin=dict(l=30, r=30, t=10, b=10),
-                            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(color='white'))
-                        )
-                        st.plotly_chart(fig_st_sp, use_container_width=True, config={'displayModeBar': False})
+                        if not st.session_state.get("kiosk_mode"):
+                            # ▼ 2つ目のグラフ：ストライク・スペア推移
+                            st.markdown("<hr style='border-top: 1px solid #444; margin: 20px 0px;'>", unsafe_allow_html=True)
+                            st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif; text-align: center;'>STRIKES & SPARES TREND</div>", unsafe_allow_html=True)
+    
+                            fig_st_sp = go.Figure()
+                            # ★modeを 'lines' に変更し、markerの設定を削除
+                            fig_st_sp.add_trace(go.Scatter(x=x_vals, y=st_vals, mode='lines', name='STRIKE', line=dict(color='#4285f4', width=2)))
+                            fig_st_sp.add_trace(go.Scatter(x=x_vals, y=sp_vals, mode='lines', name='SPARE', line=dict(color='#34a853', width=2)))
+                            
+                            fig_st_sp.update_layout(
+                                plot_bgcolor='rgba(0,0,0,0)',
+                                paper_bgcolor='rgba(0,0,0,0)',
+                                xaxis=dict(title="", range=[50, 0], showgrid=True, gridcolor='#444', tickmode='linear', tick0=0, dtick=5, color='gray', fixedrange=True),
+                                yaxis=dict(title="", range=[0, 13], showgrid=True, gridcolor='#444', tickmode='linear', tick0=0, dtick=2, color='gray', fixedrange=True),
+                                height=280,
+                                margin=dict(l=30, r=30, t=10, b=10),
+                                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(color='white'))
+                            )
+                            st.plotly_chart(fig_st_sp, use_container_width=True, config={'displayModeBar': False})
 
                         st.markdown("</div>", unsafe_allow_html=True)
                     else:
@@ -2285,7 +2287,7 @@ if app_mode == "プレイヤー分析":
                             paper_bgcolor='rgba(0,0,0,0)',
                             xaxis=dict(title="（ヶ月前）", range=[50, 0], showgrid=True, gridcolor='#444', tickmode='linear', tick0=0, dtick=5, color='gray', fixedrange=True),
                             yaxis=dict(title="Rt", range=[0.0, 18.0], showgrid=True, gridcolor='#444', tickmode='linear', tick0=0, dtick=2, color='gray', fixedrange=True),
-                            height=280,
+                            height=230 if st.session_state.get("kiosk_mode") else 280,
                             margin=dict(l=30, r=30, t=10, b=10)
                         )
                         st.plotly_chart(fig_rt, use_container_width=True, config={'displayModeBar': False})
@@ -2805,23 +2807,161 @@ if app_mode == "プレイヤー分析":
                     "17_env_scatter": render_17_env_scatter
                 }
 
-                if st.session_state.get("kiosk_mode"):
-                    st.markdown("<h1 class='premium-header' style='font-size: 24px; margin-top: 10px;'>REGISTRATION COMPLETE</h1>", unsafe_allow_html=True)
-                    st.markdown("<div class='premium-btn'>", unsafe_allow_html=True)
-                    if st.button("✖ 閉じる (初期画面へ戻る)", use_container_width=True):
-                        st.session_state.kiosk_step = "auth"
-                        st.session_state.kiosk_user = None
-                        st.rerun()
-                    st.markdown("</div><br>", unsafe_allow_html=True)
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                # 【キオスク専用】 今月の簡易サマリー計算・描画
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                def render_kiosk_monthly_summary():
+                    if not player_games:
+                        return
                     
-                    col1, col2 = st.columns(2)
+                    # 1. 登録データの中で最新の月を探す
+                    latest_month = ""
+                    for g in player_games:
+                        try:
+                            parts = str(g["date"]).strip().split('/')
+                            if len(parts) >= 2:
+                                yy = int(parts[0])
+                                yyyy = 2000 + yy if yy < 100 else yy
+                                mm = int(parts[1])
+                                m_key = f"{yyyy:04d}/{mm:02d}"
+                                if m_key > latest_month:
+                                    latest_month = m_key
+                        except:
+                            pass
+                    
+                    if not latest_month:
+                        return
+
+                    # 2. その月のデータを集計
+                    g_count = 0
+                    total_score = 0
+                    h_score = 0
+                    pitches = 0
+                    pin_falls = 0
+
+                    def get_pins(val):
+                        v = str(val).replace("R:", "").strip().upper()
+                        if v == "X": return 10
+                        if v.isdigit(): return int(v)
+                        return 0
+
+                    for g in player_games:
+                        try:
+                            parts = str(g["date"]).strip().split('/')
+                            if len(parts) < 2: continue
+                            yy = int(parts[0])
+                            yyyy = 2000 + yy if yy < 100 else yy
+                            mm = int(parts[1])
+                            m_key = f"{yyyy:04d}/{mm:02d}"
+                            
+                            if m_key == latest_month:
+                                g_count += 1
+                                score = g["score"]
+                                total_score += score
+                                if score > h_score: h_score = score
+                                
+                                r = g["row"]
+                                for f in range(9):
+                                    res1 = str(r[10 + f * 4]).upper()
+                                    res2 = str(r[12 + f * 4]).upper()
+                                    pitches += 1
+                                    if "X" in res1:
+                                        pin_falls += 10
+                                    else:
+                                        pitches += 1
+                                        if "/" in res2:
+                                            pin_falls += 10
+                                        else:
+                                            pin_falls += get_pins(res1) + get_pins(res2)
+                                
+                                res10_1 = str(r[46]).upper() if len(r) > 46 else ""
+                                res10_2 = str(r[48]).upper() if len(r) > 48 else ""
+                                res10_3 = str(r[50]).upper() if len(r) > 50 else ""
+                                
+                                pitches += 1
+                                if "X" in res10_1:
+                                    pin_falls += 10
+                                    pitches += 1
+                                    if "X" in res10_2:
+                                        pin_falls += 10
+                                        pitches += 1
+                                        if "X" in res10_3: pin_falls += 10
+                                        else: pin_falls += get_pins(res10_3)
+                                    else:
+                                        if "/" in res10_3: pin_falls += 10
+                                        else: pin_falls += get_pins(res10_2) + get_pins(res10_3)
+                                else:
+                                    pitches += 1
+                                    if "/" in res10_2:
+                                        pin_falls += 10
+                                        pitches += 1
+                                        if "X" in res10_3: pin_falls += 10
+                                        else: pin_falls += get_pins(res10_3)
+                                    else:
+                                        pin_falls += get_pins(res10_1) + get_pins(res10_2)
+                        except:
+                            pass
+
+                    ave = round(total_score / g_count, 1) if g_count > 0 else 0.0
+
+                    # 3. HTMLでコンパクトに描画
+                    html = f"""
+                    <div style="background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 15px 10px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                        <div style="text-align: center; padding: 0 10px; border-right: 1px solid #444;">
+                            <div style="color: silver; font-size: 11px; font-weight: bold;">LATEST MONTH</div>
+                            <div style="color: #bf953f; font-size: 20px; font-weight: 900;">{latest_month}</div>
+                        </div>
+                        <div style="text-align: center; flex: 1;">
+                            <div style="color: gray; font-size: 11px; font-weight: bold;">G数</div>
+                            <div style="color: white; font-size: 18px; font-weight: bold;">{g_count}</div>
+                        </div>
+                        <div style="text-align: center; flex: 1;">
+                            <div style="color: gray; font-size: 11px; font-weight: bold;">投球数</div>
+                            <div style="color: white; font-size: 18px; font-weight: bold;">{pitches}</div>
+                        </div>
+                        <div style="text-align: center; flex: 1;">
+                            <div style="color: gray; font-size: 11px; font-weight: bold;">倒ピン</div>
+                            <div style="color: white; font-size: 18px; font-weight: bold;">{pin_falls}</div>
+                        </div>
+                        <div style="text-align: center; flex: 1;">
+                            <div style="color: #ff3b30; font-size: 11px; font-weight: bold;">AVE</div>
+                            <div style="color: white; font-size: 18px; font-weight: bold;">{ave}</div>
+                        </div>
+                        <div style="text-align: center; flex: 1;">
+                            <div style="color: #4285f4; font-size: 11px; font-weight: bold;">HIGH</div>
+                            <div style="color: white; font-size: 18px; font-weight: bold;">{h_score}</div>
+                        </div>
+                    </div>
+                    """
+                    st.markdown(html, unsafe_allow_html=True)
+
+                if st.session_state.get("kiosk_mode"):
+                    st.markdown("<h1 class='premium-header' style='font-size: 24px; margin-top: 0px; margin-bottom: 10px;'>REGISTRATION COMPLETE</h1>", unsafe_allow_html=True)
+                    
+                    col1, col2 = st.columns([1, 1])
                     with col1:
+                        # 左側：レーティングカード
                         render_01_rating_card()
+                        
+                        # 左側下段：横並びのボタン（装飾CSSを利用して目立たせる）
+                        b1, b2 = st.columns(2)
+                        with b1:
+                            st.markdown("<div class='red-btn-marker' style='display: none;'></div>", unsafe_allow_html=True)
+                            if st.button("CHECK-IN画面へ", use_container_width=True):
+                                st.session_state.kiosk_step = "auth"
+                                st.session_state.kiosk_user = None
+                                st.rerun()
+                        with b2:
+                            st.markdown("<div class='gold-btn-marker' style='display: none;'></div>", unsafe_allow_html=True)
+                            if st.button("解析を続ける", use_container_width=True):
+                                st.session_state.kiosk_step = "register"
+                                st.rerun()
+                    
                     with col2:
+                        # 右側：3段分割のコンテンツ
+                        render_kiosk_monthly_summary()
                         render_02_score_trend()
                         render_16_rating_trend()
-                        render_14_top10_scores()
-                        render_monthly_stats()
                 else:
                     # レイアウト辞書のキー（タブ名）からタブを生成
                     tab_titles = list(dashboard_layout.keys())
