@@ -4502,7 +4502,8 @@ if st.session_state.analyzed_results is None:
                 val_tot = str(ai_frame_totals[f_tot])
                 if val_tot and val_tot != "0":
                     tot_x = start_x_base + f_tot * box_w + 1.5 * current_scale
-                    tot_y = py1_local + 16 * current_scale
+                    # マスの全体の高さ（ph_full）を利用して、マスの一番下の左端に描画
+                    tot_y = py1_local + ph_full - 3 * current_scale
                     put_rotated_text(output_img, val_tot, tot_x, tot_y, new_ref1[0], new_ref1[1], theta, (0, 220, 0), scale=0.45, thickness=1)
 
             clean_throws = [str(t).replace("R:", "") for t in final_throws]
