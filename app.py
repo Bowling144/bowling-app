@@ -4585,11 +4585,33 @@ if st.session_state.analyzed_results:
                     color: #000000 !important;
                 }
                 
-                /* 残ピン選択済み(赤) */
+                /* スコア数字ボタン (選択済み) ※現状影響なし */
                 div[data-testid="stPopoverBody"] button[kind="primary"] {
                     background-color: #ff2d55 !important;
                     border: 2px solid #ffaaaa !important;
                     box-shadow: 0 0 8px rgba(255, 45, 85, 0.6) !important;
+                }
+
+                /* ▼ 新規追加：残ピン切替ボタン専用のCSS ▼ */
+                div[data-testid="stColumn"]:has(.pin-toggle-area) button p {
+                    font-size: 10px !important; /* 文字を小さくしてはみ出し防止 */
+                }
+                /* 残ピン無い(未選択) ボックスの背景をターコイズブルーに */
+                div[data-testid="stColumn"]:has(.pin-toggle-area) button[kind="secondary"] {
+                    background-color: #40E0D0 !important;
+                    border: 1px solid #40E0D0 !important;
+                }
+                div[data-testid="stColumn"]:has(.pin-toggle-area) button[kind="secondary"] p {
+                    color: #1a1a1c !important; /* 背景が明るいので文字は暗く */
+                }
+                /* 残ピン有る(選択済み) ボックスの背景を今の枠色(ピンクっぽい)に */
+                div[data-testid="stColumn"]:has(.pin-toggle-area) button[kind="primary"] {
+                    background-color: #ffaaaa !important;
+                    border: 1px solid #ffaaaa !important;
+                    box-shadow: none !important;
+                }
+                div[data-testid="stColumn"]:has(.pin-toggle-area) button[kind="primary"] p {
+                    color: #1a1a1c !important; /* 背景が明るいので文字は暗く */
                 }
                 </style>
                 """, unsafe_allow_html=True)
@@ -4616,8 +4638,8 @@ if st.session_state.analyzed_results:
                         marker_class = f"custom-bg-{idx}"
                         st.markdown(f"""
                         <style>
-                        div[data-testid="stElementContainer"]:has(.{marker_class}) + div[data-testid="stElementContainer"] div[data-testid="stPopover"] > button,
-                        div.element-container:has(.{marker_class}) + div.element-container div[data-testid="stPopover"] > button {{
+                        div[data-testid="stElementContainer"]:has(.{marker_class}) + div[data-testid="stElementContainer"] button,
+                        div.element-container:has(.{marker_class}) + div.element-container button {{
                             background-color: {bg_color} !important;
                             border: 1px solid #444 !important;
                         }}
@@ -4641,6 +4663,7 @@ if st.session_state.analyzed_results:
                             
                             with p_col2:
                                 st.markdown("<div style='font-size:12px; color:gray; text-align:center;'>残ピン切替</div>", unsafe_allow_html=True)
+                                st.markdown("<div class='pin-toggle-area' style='display:none;'></div>", unsafe_allow_html=True) # ▼ 新規追加：CSS用マーカー
                                 if idx <= 17: pin_idx = idx // 2
                                 elif idx == 18: pin_idx = 9
                                 elif idx == 19: pin_idx = 10
