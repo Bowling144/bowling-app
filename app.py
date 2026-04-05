@@ -148,6 +148,41 @@ st.markdown("""
         text-align: center !important;
     }
     /* ▲▲▲ ここまで ▲▲▲ */
+
+    /* ▼ セルフチェックイン（プレミアム）用のスタイル ▼ */
+    .premium-card {
+        background: linear-gradient(135deg, #151515 0%, #2a2a2e 100%);
+        border: 2px solid #d4af37;
+        border-radius: 15px;
+        padding: 30px;
+        box-shadow: 0 8px 25px rgba(212, 175, 55, 0.2);
+        margin: 20px auto;
+        max-width: 600px;
+    }
+    .premium-header {
+        font-family: 'Playfair Display', serif;
+        color: #d4af37 !important;
+        text-align: center;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        font-size: 32px;
+        font-weight: 900;
+        text-shadow: 0 0 10px rgba(212,175,55,0.5);
+        margin-bottom: 30px;
+    }
+    .premium-btn > button {
+        background: linear-gradient(145deg, #d4af37, #aa771c) !important;
+        color: #000 !important;
+        font-size: 18px !important;
+        font-weight: bold !important;
+        border-radius: 8px !important;
+        border: none !important;
+        box-shadow: 0 4px 10px rgba(212, 175, 55, 0.4) !important;
+    }
+    .premium-btn > button:hover {
+        background: linear-gradient(145deg, #fcf6ba, #d4af37) !important;
+        color: #000 !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -304,10 +339,57 @@ with st.sidebar:
                     st.markdown("友達はまだ登録されていません。")
     
     if st.session_state.user_role in ["開発者", "管理者"]:
-        app_mode = st.radio("モード選択", ["スコア登録", "オイル情報入力", "プレイヤー分析", "データ比較"], index=0)
+        app_mode = st.radio("モード選択", ["スコア登録", "プレミアム セルフチェックイン", "オイル情報入力", "プレイヤー分析", "データ比較"], index=0)
     else:
         app_mode = st.radio("モード選択", ["プレイヤー分析"], index=0)
         st.info("※非公開のプレイヤーのデータは表示されません")
+
+# =========================================================
+# 【新機能】プレミアム セルフチェックイン (Auth画面)
+# =========================================================
+if app_mode == "プレミアム セルフチェックイン":
+    # 勝手にセッションが切れないようにバックグラウンドで1分ごとに通信を発生させる
+    import streamlit.components.v1 as components
+    components.html("<script>setInterval(function(){window.parent.postMessage('ping', '*');}, 60000);</script>", height=0, width=0)
+
+    if "kiosk_step" not in st.session_state:
+        st.session_state.kiosk_step = "auth"
+        st.session_state.kiosk_user = None
+
+    if st.session_state.kiosk_step == "auth":
+        st.markdown("<div class='premium-header'>EAGLE ROLLERS<br>PREMIUM SELF CHECK-IN</div>", unsafe_allow_html=True)
+        st.markdown("<div class='premium-card'>", unsafe_allow_html=True)
+        
+        sh = get_gspread_client()
+        if sh:
+            ws = sh.worksheet("プレイヤー設定")
+            data = ws.get_all_values()
+            players = [row[1] for row in data[1:] if len(row) >= 5 and row[1]]
+            
+            selected_user = st.selectbox("プレイヤーを選択してください", ["選択してください"] + players)
+            kiosk_pw = st.text_input("パスワードを入力してください", type="password")
+            
+            st.markdown("<div class='premium-btn'>", unsafe_allow_html=True)
+            if st.button("次へ進む", use_container_width=True):
+                if selected_user == "選択してください":
+                    st.error("プレイヤーを選択してください。")
+                elif kiosk_pw == "":
+                    st.error("パスワードを入力してください。")
+                else:
+                    auth_success = False
+                    for row in data[1:]:
+                        if row[1] == selected_user and str(row[4]) == str(kiosk_pw):
+                            auth_success = True
+                            break
+                    if auth_success:
+                        st.session_state.kiosk_user = selected_user
+                        st.session_state.kiosk_step = "register"
+                        st.rerun()
+                    else:
+                        st.error("パスワードが正しくありません。")
+            st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+        st.stop()
 
 # =========================================================
 # 【新機能】オイル情報入力モード
@@ -509,7 +591,7 @@ if app_mode == "オイル情報入力":
 # =========================================================
 # 【新機能】プレイヤー分析ダッシュボード
 # =========================================================
-if app_mode == "プレイヤー分析":
+if app_mode == "プレイヤー分析" or (app_mode == "プレミアム セルフチェックイン" and st.session_state.get("kiosk_step") == "stats"):
     import plotly.graph_objects as go
     import plotly.express as px
     import gspread
@@ -627,9 +709,12 @@ if app_mode == "プレイヤー分析":
             </style>
             """, unsafe_allow_html=True)
             
-            # 選択肢をレーティング付きの表示名にする
-            selected_display = st.selectbox(" ", player_options, label_visibility="collapsed")
-            selected_player = player_name_map.get(selected_display, "")
+            if app_mode == "プレミアム セルフチェックイン":
+                selected_player = st.session_state.kiosk_user
+            else:
+                # 選択肢をレーティング付きの表示名にする
+                selected_display = st.selectbox(" ", player_options, label_visibility="collapsed")
+                selected_player = player_name_map.get(selected_display, "")
 
             if selected_player:
                 # 1. マスターシートから選択されたプレイヤーの「直近50ゲーム」と「7-10G」を抽出
@@ -2644,16 +2729,34 @@ if app_mode == "プレイヤー分析":
                     "17_env_scatter": render_17_env_scatter
                 }
 
-                # レイアウト辞書のキー（タブ名）からタブを生成
-                tab_titles = list(dashboard_layout.keys())
-                tabs = st.tabs(tab_titles)
-                
-                # 各タブの中に、指定された順序で関数を呼び出して描画
-                for i, tab_title in enumerate(tab_titles):
-                    with tabs[i]:
-                        for item_key in dashboard_layout[tab_title]:
-                            if item_key in render_functions:
-                                render_functions[item_key]()
+                if app_mode == "プレミアム セルフチェックイン":
+                    st.markdown("<h1 class='premium-header' style='font-size: 24px; margin-top: 10px;'>REGISTRATION COMPLETE</h1>", unsafe_allow_html=True)
+                    st.markdown("<div class='premium-btn'>", unsafe_allow_html=True)
+                    if st.button("✖ 閉じる (次の人の登録へ)", use_container_width=True):
+                        st.session_state.kiosk_step = "auth"
+                        st.session_state.kiosk_user = None
+                        st.rerun()
+                    st.markdown("</div><br>", unsafe_allow_html=True)
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        render_01_rating_card()
+                    with col2:
+                        render_02_score_trend()
+                        render_16_rating_trend()
+                        render_14_top10_scores()
+                        render_monthly_stats()
+                else:
+                    # レイアウト辞書のキー（タブ名）からタブを生成
+                    tab_titles = list(dashboard_layout.keys())
+                    tabs = st.tabs(tab_titles)
+                    
+                    # 各タブの中に、指定された順序で関数を呼び出して描画
+                    for i, tab_title in enumerate(tab_titles):
+                        with tabs[i]:
+                            for item_key in dashboard_layout[tab_title]:
+                                if item_key in render_functions:
+                                    render_functions[item_key]()
 
         except Exception as e:
             st.error(f"データ取得エラー: {e}")
@@ -4181,7 +4284,11 @@ if st.session_state.analyzed_results:
     elif "synced_player" not in st.session_state or st.session_state.synced_player not in player_list:
         st.session_state.synced_player = player_list[default_player_index] if player_list else ""
 
-    selected_player = st.selectbox("プレイヤー選択", player_list, index=default_player_index)
+    if st.session_state.get("kiosk_step") == "register":
+        default_player_index = player_list.index(st.session_state.kiosk_user) if st.session_state.kiosk_user in player_list else 0
+        selected_player = st.selectbox("プレイヤー選択", player_list, index=default_player_index, disabled=True)
+    else:
+        selected_player = st.selectbox("プレイヤー選択", player_list, index=default_player_index)
 
     st.markdown("---")
     
@@ -5191,6 +5298,11 @@ if st.session_state.analyzed_results:
 
                 st.success(f"登録完了！ 新規追加: {add_count}件 / 上書き更新: {update_count}件")
                 st.session_state.sps_registered = True 
+                
+                # キオスクモードの場合、登録完了後にSTATS画面へ遷移
+                if st.session_state.get("kiosk_step") == "register":
+                    st.session_state.kiosk_step = "stats"
+
                 move_images_to_processed(is_discard=False) 
 
             except Exception as e:
