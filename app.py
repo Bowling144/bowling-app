@@ -3893,7 +3893,8 @@ if st.session_state.analyzed_results is None:
                     pin_data = game_info['pin_data'][(f, row_idx, col_offset)]
                     pin_pct = pin_data['pct']
                     pts_y = pin_data['pts']
-                    cv2.polylines(output_img, [pts_y], isClosed=True, color=(0, 255, 255), thickness=1)
+                    # ▼枠線の色を黄色からオレンジ色(0, 165, 255)に変更
+                    cv2.polylines(output_img, [pts_y], isClosed=True, color=(0, 165, 255), thickness=1)
 
                     if pin_pct < dyn_thresh_empty: result = "EMPTY"
                     elif pin_pct < dyn_thresh_circle: result = "CIRCLE"
@@ -3908,7 +3909,8 @@ if st.session_state.analyzed_results is None:
                         frame_pins.append(pin_num)
                         p_top_left = tuple(pts_y[0][0])
                         p_bottom_right = tuple(pts_y[2][0])
-                        cv2.line(output_img, p_top_left, p_bottom_right, (0, 255, 255), 2)
+                        # ▼斜線の色を黄色からオレンジ色(0, 165, 255)に変更
+                        cv2.line(output_img, p_top_left, p_bottom_right, (0, 165, 255), 2)
                 frame_pins.sort()
                 all_frame_pins.append(frame_pins)
 
