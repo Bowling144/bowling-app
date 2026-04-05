@@ -417,9 +417,13 @@ def render_tenkey(label, state_key, default_val, format_type="none", is_pw=False
         
     display_text = "*" * len(display_val) if is_pw else display_val
 
+    # 値を画面に反映させるため、テキストボックスの内部状態を直接上書きする
+    st.session_state[f"disp_{state_key}"] = display_text
+
     col1, col2 = st.columns([4, 1])
     with col1:
-        st.text_input(label, value=display_text, disabled=True, key=f"disp_{state_key}")
+        # value引数を外し、内部状態(st.session_state)に表示を任せる
+        st.text_input(label, disabled=True, key=f"disp_{state_key}")
     with col2:
         with st.popover("⌨"):
             st.markdown("<div style='text-align:center; font-size:12px; color:gray; margin-bottom:5px;'>テンキー</div>", unsafe_allow_html=True)
