@@ -5536,6 +5536,7 @@ if st.session_state.analyzed_results:
 # =========================================================
 # 📍 【ブロック 12】 登録完了画面（キオスク・ダッシュボード風UI）
 # =========================================================
+# ⚠️ 修正: ブロック11の if 文の外に出して、独立したブロックとして実行させます。
 if st.session_state.app_state == "registration_complete":
     st.balloons()
     
@@ -5758,7 +5759,6 @@ if st.session_state.app_state == "registration_complete":
                 )
                 st.plotly_chart(fig_trend, use_container_width=True, config={'displayModeBar': False})
             else:
-                 # ▼ 灰色のボックス（st.info）を出さないように透明なテキストに置換
                  st.markdown("<div style='text-align: center; color: #555; padding: 20px;'>NO DATA</div>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
             
@@ -5842,10 +5842,8 @@ if st.session_state.app_state == "registration_complete":
                     )
                     st.plotly_chart(fig_rt, use_container_width=True, config={'displayModeBar': False})
                 else:
-                    # ▼ 灰色のボックス（st.info）を出さないように透明なテキストに置換
                     st.markdown("<div style='text-align: center; color: #555; padding: 20px;'>NO DATA</div>", unsafe_allow_html=True)
             else:
-                 # ▼ 灰色のボックス（st.info）を出さないように透明なテキストに置換
                  st.markdown("<div style='text-align: center; color: #555; padding: 20px;'>NO DATA</div>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
             
