@@ -4729,9 +4729,9 @@ if st.session_state.analyzed_results:
             if check_key not in st.session_state:
                 st.session_state[check_key] = True
 
-            # チェックボックスは「データ登録する」のみに変更
+            # 上の段：日時 ｜ データ登録する（チェックボックス）
             is_checked = st.checkbox(
-                "データ登録する", 
+                f"{date_str}_{start_time}_{end_time} ｜ データ登録する", 
                 key=check_key,
                 on_change=uncheck_all_if_needed,
                 args=(check_key,)
@@ -4757,8 +4757,8 @@ if st.session_state.analyzed_results:
                 st.session_state[edit_key] = False
                 st.session_state[close_flag_key] = False
 
-            # 手動修正トグルのテキストに、元々表示していたゲーム情報とトータルを結合
-            toggle_text = f"{date_str}_{start_time}_{end_time}_{game_name} を手動修正 ｜ トータル:{ai_total_str}_{match_status}"
+            # 下の段：ゲーム名 を手動修正 ｜ トータル:〇〇_計算一致/不一致（トグルスイッチ）
+            toggle_text = f"{game_name} を手動修正 ｜ トータル:{ai_total_str}_{match_status}"
 
             if st.toggle(toggle_text, key=edit_key):
 
