@@ -4729,11 +4729,11 @@ if st.session_state.analyzed_results:
             if check_key not in st.session_state:
                 st.session_state[check_key] = True
 
-            # 上の段：日時 ｜ [レ] データ登録する（幅を極力狭くし、文字を右に押し付けて隙間を消す）
-            chk_col1, chk_col2 = st.columns([1.2, 4])
+            # 上の段：日時 ｜ [レ] データ登録する（左寄せのまま、カラム幅の比率で距離を詰める）
+            chk_col1, chk_col2 = st.columns([2.5, 7.5])
             with chk_col1:
-                # text-align: right; を追加して右カラムのチェックボックスに隣接させる
-                st.markdown(f"<div style='margin-top: 5px; text-align: right;'>{date_str}_{start_time}_{end_time} ｜</div>", unsafe_allow_html=True)
+                # 左端を揃えたまま、カラム自体の幅を文字の長さに合わせて狭くする
+                st.markdown(f"<div style='margin-top: 5px;'>{date_str}_{start_time}_{end_time} ｜</div>", unsafe_allow_html=True)
             with chk_col2:
                 is_checked = st.checkbox(
                     "データ登録する", 
