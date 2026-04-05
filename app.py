@@ -5088,7 +5088,7 @@ if st.session_state.analyzed_results:
                 common_vol = st.text_input("オイル量 (ml)", value=default_vol, key=f"c_vol_{img_idx}", placeholder="例: 25.5")
             
         if st.session_state.get("kiosk_mode"):
-            ball_options = ["", "ソリッド", "パール", "ハイブリッド", "ウレタン", "ポリエステル (スペア用)"]
+            ball_options = ["", "ソリッド", "パール", "ハイブリッド", "ウレタン", "ハウスボール", "ポリエステル (スペア用)"]
             common_ball = st.selectbox("使用ボール", options=ball_options, index=0, key=f"c_ball_{img_idx}")
         else:
             common_ball = st.text_input("使用ボール", key=f"c_ball_{img_idx}", placeholder="例: ツアーダイナミクス")
