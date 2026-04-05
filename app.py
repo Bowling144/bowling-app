@@ -4585,32 +4585,40 @@ if st.session_state.analyzed_results:
                     color: #000000 !important;
                 }
                 
-                /* スコア数字ボタン (選択済み) ※現状影響なし */
+                /* スコア数字ボタン (選択済み) */
                 div[data-testid="stPopoverBody"] button[kind="primary"] {
                     background-color: #ff2d55 !important;
                     border: 2px solid #ffaaaa !important;
                     box-shadow: 0 0 8px rgba(255, 45, 85, 0.6) !important;
                 }
 
-                /* ▼ 新規追加：残ピン切替ボタン専用のCSS ▼ */
-                div[data-testid="stColumn"]:has(.pin-toggle-area) button p {
-                    font-size: 10px !important; /* 文字を小さくしてはみ出し防止 */
+                /* ▼ 新規追加：残ピン切替ボタン専用の厳密なCSS ▼ */
+                /* はみ出しを防ぐため、ボタンのパディングを極限まで削り、サイズを確保 */
+                div[data-testid="stPopoverBody"] div[data-testid="stColumn"]:has(.pin-toggle-area) button {
+                    padding: 0px !important;
+                    min-height: 30px !important;
                 }
+                div[data-testid="stPopoverBody"] div[data-testid="stColumn"]:has(.pin-toggle-area) button p {
+                    font-size: 13px !important; /* 10が消えないように適度な大きさに調整 */
+                    margin: 0 !important;
+                }
+                
                 /* 残ピン無い(未選択) ボックスの背景をターコイズブルーに */
-                div[data-testid="stColumn"]:has(.pin-toggle-area) button[kind="secondary"] {
+                div[data-testid="stPopoverBody"] div[data-testid="stColumn"]:has(.pin-toggle-area) button[kind="secondary"] {
                     background-color: #40E0D0 !important;
-                    border: 1px solid #40E0D0 !important;
+                    border: 1px solid #30B0A0 !important;
                 }
-                div[data-testid="stColumn"]:has(.pin-toggle-area) button[kind="secondary"] p {
+                div[data-testid="stPopoverBody"] div[data-testid="stColumn"]:has(.pin-toggle-area) button[kind="secondary"] p {
                     color: #1a1a1c !important; /* 背景が明るいので文字は暗く */
                 }
+                
                 /* 残ピン有る(選択済み) ボックスの背景を今の枠色(ピンクっぽい)に */
-                div[data-testid="stColumn"]:has(.pin-toggle-area) button[kind="primary"] {
+                div[data-testid="stPopoverBody"] div[data-testid="stColumn"]:has(.pin-toggle-area) button[kind="primary"] {
                     background-color: #ffaaaa !important;
-                    border: 1px solid #ffaaaa !important;
+                    border: 1px solid #ff8888 !important;
                     box-shadow: none !important;
                 }
-                div[data-testid="stColumn"]:has(.pin-toggle-area) button[kind="primary"] p {
+                div[data-testid="stPopoverBody"] div[data-testid="stColumn"]:has(.pin-toggle-area) button[kind="primary"] p {
                     color: #1a1a1c !important; /* 背景が明るいので文字は暗く */
                 }
                 </style>
@@ -4634,14 +4642,18 @@ if st.session_state.analyzed_results:
                     val = curr_throws[idx] if curr_throws[idx] else " "
                     with col_obj:
                         # ポップオーバーのトリガーボタンの背景色を、インラインCSSで強制的に指定するハック
-                        # Streamlitの標準ボタンは上書きが難しいため、ボタン全体を囲むdivにスタイルを当てるマーカーを置く
+                        # 内部のボタン(残ピンなど)の色を破壊しないよう「> div[data-testid='stPopover'] > button」と厳密に指定
                         marker_class = f"custom-bg-{idx}"
                         st.markdown(f"""
                         <style>
-                        div[data-testid="stElementContainer"]:has(.{marker_class}) + div[data-testid="stElementContainer"] button,
-                        div.element-container:has(.{marker_class}) + div.element-container button {{
+                        div[data-testid="stElementContainer"]:has(.{marker_class}) + div[data-testid="stElementContainer"] > div[data-testid="stPopover"] > button,
+                        div.element-container:has(.{marker_class}) + div.element-container > div[data-testid="stPopover"] > button {{
                             background-color: {bg_color} !important;
                             border: 1px solid #444 !important;
+                        }}
+                        div[data-testid="stElementContainer"]:has(.{marker_class}) + div[data-testid="stElementContainer"] > div[data-testid="stPopover"] > button p,
+                        div.element-container:has(.{marker_class}) + div.element-container > div[data-testid="stPopover"] > button p {{
+                            color: #ffffff !important;
                         }}
                         </style>
                         <div class="{marker_class}" style="display:none;"></div>
