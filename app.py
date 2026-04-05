@@ -163,11 +163,48 @@ st.markdown("""
         transition: all 0.3s ease !important;
         min-height: 55px !important;
     }
+    /* Streamlitの<p>タグによる文字色上書きを防ぐ */
+    div[data-testid="stElementContainer"]:has(.gold-btn-marker) + div[data-testid="stElementContainer"] button p,
+    div.element-container:has(.gold-btn-marker) + div.element-container button p {
+        color: #ffffff !important;
+        font-weight: 900 !important;
+    }
     div[data-testid="stElementContainer"]:has(.gold-btn-marker) + div[data-testid="stElementContainer"] button:hover,
     div.element-container:has(.gold-btn-marker) + div.element-container button:hover {
         background: linear-gradient(145deg, #fcf6ba, #bf953f) !important;
-        color: #000 !important;
+        color: #ffffff !important;
         box-shadow: 0 0 25px rgba(191, 149, 63, 0.9) !important;
+        transform: translateY(-2px) !important;
+    }
+    div[data-testid="stElementContainer"]:has(.gold-btn-marker) + div[data-testid="stElementContainer"] button:hover p,
+    div.element-container:has(.gold-btn-marker) + div.element-container button:hover p {
+        color: #ffffff !important;
+    }
+
+    /* 赤強調ボタン（登録実行：薄めの赤） */
+    div[data-testid="stElementContainer"]:has(.red-btn-marker) + div[data-testid="stElementContainer"] button,
+    div.element-container:has(.red-btn-marker) + div.element-container button {
+        background: linear-gradient(145deg, #e66465, #c0392b) !important;
+        color: #ffffff !important;
+        font-size: 18px !important;
+        font-weight: 900 !important;
+        border: 1px solid #ff9f9f !important;
+        box-shadow: 0 0 15px rgba(230, 100, 101, 0.4) !important;
+        border-radius: 12px !important;
+        letter-spacing: 2px !important;
+        transition: all 0.3s ease !important;
+        min-height: 55px !important;
+    }
+    /* Streamlitの<p>タグによる文字色上書きを防ぐ */
+    div[data-testid="stElementContainer"]:has(.red-btn-marker) + div[data-testid="stElementContainer"] button p,
+    div.element-container:has(.red-btn-marker) + div.element-container button p {
+        color: #ffffff !important;
+        font-weight: 900 !important;
+    }
+    div[data-testid="stElementContainer"]:has(.red-btn-marker) + div[data-testid="stElementContainer"] button:hover,
+    div.element-container:has(.red-btn-marker) + div.element-container button:hover {
+        background: linear-gradient(145deg, #ff7979, #e66465) !important;
+        box-shadow: 0 0 25px rgba(230, 100, 101, 0.8) !important;
         transform: translateY(-2px) !important;
     }
 
@@ -2836,12 +2873,22 @@ if app_mode == "データ比較":
         letter-spacing: 2px !important;
         transition: all 0.3s ease !important;
     }
+    /* Streamlitの<p>タグによる文字色上書きを防ぐ */
+    div[data-testid="stElementContainer"]:has(.initiate-marker) + div[data-testid="stElementContainer"] button p,
+    div.element-container:has(.initiate-marker) + div.element-container button p {
+        color: #ffffff !important;
+        font-weight: 900 !important;
+    }
     div[data-testid="stElementContainer"]:has(.initiate-marker) + div[data-testid="stElementContainer"] button:hover,
     div.element-container:has(.initiate-marker) + div.element-container button:hover {
         background: linear-gradient(145deg, #fcf6ba, #bf953f) !important;
         box-shadow: 0 0 25px rgba(191, 149, 63, 0.9) !important;
         transform: translateY(-2px) !important;
-        color: #000 !important;
+        color: #ffffff !important;
+    }
+    div[data-testid="stElementContainer"]:has(.initiate-marker) + div[data-testid="stElementContainer"] button:hover p,
+    div.element-container:has(.initiate-marker) + div.element-container button:hover p {
+        color: #ffffff !important;
     }
     </style>
     """, unsafe_allow_html=True)
