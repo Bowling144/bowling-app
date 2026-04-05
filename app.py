@@ -5517,13 +5517,18 @@ if st.session_state.analyzed_results:
                 # 1. まず画像を処理済みフォルダへ移動（確実に実行）
                 move_images_to_processed(is_discard=False)
                 
-                # 2. 状態を切り替えて画面を強制リロード（これにより新しい画面へ確実に移行する）
+                # ▼▼▼ 修正の核心：解析データをリセットして、前のスコア画面を完全に消去する ▼▼▼
+                st.session_state.analyzed_results = None
+                st.session_state.raw_images_data = []
+                st.session_state.downloaded_images = []
+                
+                # 2. 状態を切り替えて画面を強制リロード
                 if st.session_state.get("kiosk_mode"):
                     st.session_state.app_state = "registration_complete"
                 else:
                     st.session_state.app_state = "init"
                     
-                st.rerun() # ← ★重要：画面を再描画するコマンドを復活
+                st.rerun()
 
             except Exception as e:
                 st.error(f"SPSへの登録中にエラーが発生しました: {e}")
