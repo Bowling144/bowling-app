@@ -153,7 +153,7 @@ st.markdown("""
     div[data-testid="stElementContainer"]:has(.gold-btn-marker) + div[data-testid="stElementContainer"] button,
     div.element-container:has(.gold-btn-marker) + div.element-container button {
         background: linear-gradient(145deg, #bf953f, #aa771c) !important;
-        color: #1a1a1c !important;
+        color: #ffffff !important;
         font-size: 18px !important;
         font-weight: 900 !important;
         border: 2px solid #fcf6ba !important;
@@ -2826,7 +2826,7 @@ if app_mode == "データ比較":
     div[data-testid="stElementContainer"]:has(.initiate-marker) + div[data-testid="stElementContainer"] button,
     div.element-container:has(.initiate-marker) + div.element-container button {
         background: linear-gradient(145deg, #bf953f, #aa771c) !important;
-        color: #1a1a1c !important;
+        color: #ffffff !important;
         font-size: 24px !important;
         font-weight: 900 !important;
         border: 2px solid #fcf6ba !important;
