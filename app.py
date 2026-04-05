@@ -4744,12 +4744,20 @@ if st.session_state.analyzed_results:
             if st.toggle(f"{game_name} を手動修正", key=edit_key):
 
                 c_date, c_start, c_end = st.columns(3)
-                with c_date:
-                    new_date = render_tenkey("日付", f"tk_d_{img_idx}_{local_idx}", row[0], format_type="date")
-                with c_start:
-                    new_start = render_tenkey("開始時刻", f"tk_s_{img_idx}_{local_idx}", row[1], format_type="time")
-                with c_end:
-                    new_end = render_tenkey("終了時刻", f"tk_e_{img_idx}_{local_idx}", row[2], format_type="time")
+                if st.session_state.get("kiosk_mode"):
+                    with c_date:
+                        new_date = render_tenkey("日付", f"tk_d_{img_idx}_{local_idx}", row[0], format_type="date")
+                    with c_start:
+                        new_start = render_tenkey("開始時刻", f"tk_s_{img_idx}_{local_idx}", row[1], format_type="time")
+                    with c_end:
+                        new_end = render_tenkey("終了時刻", f"tk_e_{img_idx}_{local_idx}", row[2], format_type="time")
+                else:
+                    with c_date:
+                        new_date = st.text_input("日付", value=row[0], key=f"d_{img_idx}_{local_idx}")
+                    with c_start:
+                        new_start = st.text_input("開始時刻", value=row[1], key=f"s_{img_idx}_{local_idx}")
+                    with c_end:
+                        new_end = st.text_input("終了時刻", value=row[2], key=f"e_{img_idx}_{local_idx}")
 
                 is_710_checked = st.checkbox("7-10G (セブン-テン ゲームとして登録)", value=bool(row[51]) if len(row) > 51 else False, key=f"710_{img_idx}_{local_idx}")
                 state_key = f"edit_data_{img_idx}_{local_idx}"
@@ -5036,12 +5044,21 @@ if st.session_state.analyzed_results:
         default_len, default_vol = get_oil_info(t_date, t_time, common_lane)
 
         with c_len:
-            common_len = render_tenkey("オイル長 (ft)", f"tk_c_len_{img_idx}", default_len, format_type="none")
+            if st.session_state.get("kiosk_mode"):
+                common_len = render_tenkey("オイル長 (ft)", f"tk_c_len_{img_idx}", default_len, format_type="none")
+            else:
+                common_len = st.text_input("オイル長 (ft)", value=default_len, key=f"c_len_{img_idx}", placeholder="例: 42")
         with c_vol:
-            common_vol = render_tenkey("オイル量 (ml)", f"tk_c_vol_{img_idx}", default_vol, format_type="none")
+            if st.session_state.get("kiosk_mode"):
+                common_vol = render_tenkey("オイル量 (ml)", f"tk_c_vol_{img_idx}", default_vol, format_type="none")
+            else:
+                common_vol = st.text_input("オイル量 (ml)", value=default_vol, key=f"c_vol_{img_idx}", placeholder="例: 25.5")
             
-        ball_options = ["", "ソリッド", "パール", "ハイブリッド", "ウレタン", "ポリエステル (スペア用)"]
-        common_ball = st.selectbox("使用ボール", options=ball_options, index=0, key=f"c_ball_{img_idx}")
+        if st.session_state.get("kiosk_mode"):
+            ball_options = ["", "ソリッド", "パール", "ハイブリッド", "ウレタン", "ポリエステル (スペア用)"]
+            common_ball = st.selectbox("使用ボール", options=ball_options, index=0, key=f"c_ball_{img_idx}")
+        else:
+            common_ball = st.text_input("使用ボール", key=f"c_ball_{img_idx}", placeholder="例: ツアーダイナミクス")
             
         with st.expander(f"画像 {img_idx+1} のゲームごとの個別設定"):
             for item in items:
@@ -5051,11 +5068,21 @@ if st.session_state.analyzed_results:
                 st.markdown(f"**{g_name}**")
                 i_c1, i_c2 = st.columns(2)
                 with i_c1:
-                    i_len = render_tenkey(f"{g_name} オイル長", f"tk_i_len_{img_idx}_{l_idx}", "", format_type="none")
+                    if st.session_state.get("kiosk_mode"):
+                        i_len = render_tenkey(f"{g_name} オイル長", f"tk_i_len_{img_idx}_{l_idx}", "", format_type="none")
+                    else:
+                        i_len = st.text_input(f"{g_name} オイル長", key=f"i_len_{img_idx}_{l_idx}", placeholder="共通を適用")
                 with i_c2:
-                    i_vol = render_tenkey(f"{g_name} オイル量", f"tk_i_vol_{img_idx}_{l_idx}", "", format_type="none")
+                    if st.session_state.get("kiosk_mode"):
+                        i_vol = render_tenkey(f"{g_name} オイル量", f"tk_i_vol_{img_idx}_{l_idx}", "", format_type="none")
+                    else:
+                        i_vol = st.text_input(f"{g_name} オイル量", key=f"i_vol_{img_idx}_{l_idx}", placeholder="共通を適用")
                 
-                i_ball = st.selectbox(f"{g_name} 使用ボール (空白は共通を適用)", options=ball_options, index=0, key=f"i_ball_{img_idx}_{l_idx}")
+                if st.session_state.get("kiosk_mode"):
+                    ball_options = ["", "ソリッド", "パール", "ハイブリッド", "ウレタン", "ポリエステル (スペア用)"]
+                    i_ball = st.selectbox(f"{g_name} 使用ボール (空白は共通を適用)", options=ball_options, index=0, key=f"i_ball_{img_idx}_{l_idx}")
+                else:
+                    i_ball = st.text_input(f"{g_name} 使用ボール", key=f"i_ball_{img_idx}_{l_idx}", placeholder="共通を適用")
                 
                 final_len = i_len if i_len.strip() else common_len
                 final_vol = i_vol if i_vol.strip() else common_vol
