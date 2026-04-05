@@ -2898,7 +2898,7 @@ if app_mode == "プレイヤー分析":
 
                     ave = round(total_score / g_count, 1) if g_count > 0 else 0.0
 
-                    # 3. HTMLでコンパクトに描画
+                    # 3. HTMLでコンパクトに描画（修正版）
                     html = f"""
                     <div style="background: linear-gradient(145deg, #2a2a2e, #1c1c1e); padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #333; margin-bottom: 20px;">
                         <div style="display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 20px;">
