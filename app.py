@@ -4502,11 +4502,11 @@ if st.session_state.analyzed_results is None:
                 val_tot = str(ai_frame_totals[f_tot])
                 if val_tot and val_tot != "0":
                     # X座標: 1投目の列の左端から左へ約2mm（位置は維持）
-                    tot_x = start_x_base + f_tot * box_w - 2.5 * current_scale
+                    tot_x = start_x_base + f_tot * box_w - 1.0 * current_scale
                     # Y座標: 前回の +7.5 から 3mm分（3.0）引き、+4.5 に調整（一番下の線の上に乗る高さ）
                     tot_y = py1_local + ph_full + 4.5 * current_scale
                     # 文字サイズ（0.8）と色は維持
-                    put_rotated_text(output_img, val_tot, tot_x, tot_y, new_ref1[0], new_ref1[1], theta, (0, 220, 0), scale=0.8, thickness=1)
+                    put_rotated_text(output_img, val_tot, tot_x, tot_y, new_ref1[0], new_ref1[1], theta, (0, 220, 0), scale=0.6, thickness=1)
 
             clean_throws = [str(t).replace("R:", "") for t in final_throws]
             try:
