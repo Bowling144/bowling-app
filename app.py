@@ -4497,14 +4497,16 @@ if st.session_state.analyzed_results is None:
             t3 = final_throws[20].replace("R:", "")
             put_rotated_text(output_img, t3, start_x_base + f * box_w + 17 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, throw_colors[20])
 
-            # ▼ 追加: AIが読み取った各フレームの累計トータルスコアを緑色の小さい文字で左下に描画
+            # ▼ 追加: AIが読み取った各フレームの累計トータルスコアの描画（位置とサイズを微調整）
             for f_tot in range(10):
                 val_tot = str(ai_frame_totals[f_tot])
                 if val_tot and val_tot != "0":
-                    tot_x = start_x_base + f_tot * box_w + 1.5 * current_scale
-                    # マスの全体の高さ（ph_full）を利用して、マスの一番下の左端に描画
-                    tot_y = py1_local + ph_full - 3 * current_scale
-                    put_rotated_text(output_img, val_tot, tot_x, tot_y, new_ref1[0], new_ref1[1], theta, (0, 220, 0), scale=0.45, thickness=1)
+                    # X座標: 1投目の左端からさらに2mm程度左へ（1.5 から -0.5へ変更）
+                    tot_x = start_x_base + f_tot * box_w - 0.5 * current_scale
+                    # Y座標: マスの底辺（一番下の水色線）のちょうど真上に乗るよう調整
+                    tot_y = py1_local + ph_full - 0.5 * current_scale
+                    # サイズを約1.5倍(0.35 -> 0.55)に拡大
+                    put_rotated_text(output_img, val_tot, tot_x, tot_y, new_ref1[0], new_ref1[1], theta, (0, 220, 0), scale=0.55, thickness=1)
 
             clean_throws = [str(t).replace("R:", "") for t in final_throws]
             try:
