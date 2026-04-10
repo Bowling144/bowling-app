@@ -281,140 +281,6 @@ def update_announcement_data(sh, text):
     except: return False
 
 def sync_calendar_to_sps(sh):
-    """Google Driveの今月のPDFを読み込み、1ヶ月分のイベントとコメントをSPSに保存する"""
-    import datetime
-    import json
-    from google.genai import types
-    from google import genai
-    from google.oauth2 import service_account
-    from googleapiclient.discovery import build
-    
-    now = datetime.datetime.now()
-    try:
-        # 関数内で独立してAPI認証を行う（エラー回避のため）
-        creds_json_str = st.secrets["google_credentials"]
-        creds_info = json.loads(creds_json_str, strict=False)
-        if "private_key" in creds_info:
-            creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
-        
-        drive_creds = service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/drive'])
-        drive_service = build('drive', 'v3', credentials=drive_creds)
-        
-        gemini_api_key = st.secrets.get("gemini_api_key", "")
-        ai_client = genai.Client(api_key=gemini_api_key)
-
-        f_query = "name = 'イベントスケジュール' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-        folders = drive_service.files().list(q=f_query).execute().get('files', [])
-        if not folders: return "フォルダが見つかりません。"
-        
-        p_query = f"'{folders[0]['id']}' in parents and name contains '{now.month}月' and mimeType = 'application/pdf'"
-        files = drive_service.files().list(q=p_query).execute().get('files', [])
-        if not files: return "今月のPDFが見つかりません。"
-        
-        content = drive_service.files().get_media(fileId=files[0]['id']).execute()
-        
-        # ▼AIへの指示を変更：2枚目のコメントも取得させる
-        prompt = "このカレンダー（2枚目など全ページを含む）から1ヶ月分の【日付(M/D形式)】と【イベント名】、およびイベント名の下などに書かれている【イベントの解説やコメント】を抽出し、純粋なJSON配列 [{'date':'4/1', 'event':'イベント名', 'comment':'解説文'}, ...] 形式で出力して。イベントがない日は含めないで。"
-        
-        response = ai_client.models.generate_content(
-            model="gemini-2.5-pro", 
-            contents=[types.Part.from_bytes(data=content, mime_type="application/pdf"), prompt]
-        )
-        data = json.loads(response.text.replace("```json", "").replace("```", ""))
-        
-        wks = sh.worksheet("イベントカレンダー")
-        
-        # 1. 既存のデータを取得して記憶しておく（C列のコメントも含む）
-        existing_records = wks.get_all_values()
-        event_dict = {row[0]: (row[1], row[2] if len(row) > 2 else "") for row in existing_records if len(row) >= 2}
-        
-        # 2. 新しく読み取った今月（翌月）のデータを追加・上書きする
-        for d in data:
-            event_dict[d['date']] = (d['event'], d.get('comment', ''))
-            
-        # 3. 統合されたデータをシートに書き戻す
-        new_values = [[date, ev[0], ev[1]] for date, ev in event_dict.items()]
-        wks.clear()
-        wks.update(range_name="A1", values=new_values)
-        
-        return "更新完了！"
-    except Exception as e: return f"エラー: {str(e)}"
-
-def get_today_event_from_sps(sh):
-    """SPSのイベントカレンダーから今日の日付のイベントとコメントを取得"""
-    import datetime
-    now = datetime.datetime.now()
-    t1, t2 = f"{now.month}/{now.day}", f"{now.month:02d}/{now.day:02d}"
-    try:
-        records = sh.worksheet("イベントカレンダー").get_all_values()
-        for row in records:
-            if len(row) >= 2 and (row[0] == t1 or row[0] == t2):
-                ev_name = row[1]
-                ev_comment = row[2] if len(row) >= 3 else ""
-                return ev_name, ev_comment
-        return "イベント予定なし", ""
-    except: return "イベント予定なし", ""
-    now = datetime.datetime.now()
-    try:
-        f_query = "name = 'イベントスケジュール' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-        folders = drive_srv.files().list(q=f_query).execute().get('files', [])
-        if not folders: return "フォルダが見つかりません。"
-        
-        p_query = f"'{folders[0]['id']}' in parents and name contains '{now.month}月' and mimeType = 'application/pdf'"
-        files = drive_srv.files().list(q=p_query).execute().get('files', [])
-        if not files: return "今月のPDFが見つかりません。"
-        
-        content = drive_srv.files().get_media(fileId=files[0]['id']).execute()
-        prompt = "このカレンダーから1ヶ月分の【日付(M/D形式)】と【イベント名】を抽出し、純粋なJSON配列 [{'date':'4/1', 'event':'イベント名'}, ...] 形式で出力して。イベントがない日は含めないで。"
-        
-        # 確実に動作する最新のProモデルに指定
-        response = ai_client.models.generate_content(
-            model="gemini-2.5-pro", 
-            contents=[types.Part.from_bytes(data=content, mime_type="application/pdf"), prompt]
-        )
-        data = json.loads(response.text.replace("```json", "").replace("```", ""))
-        
-        wks = sh.worksheet("イベントカレンダー")
-        
-        # 1. 既存のデータを取得して記憶しておく
-        existing_records = wks.get_all_values()
-        event_dict = {row[0]: row[1] for row in existing_records if len(row) >= 2}
-        
-        # 2. 新しく読み取った今月（翌月）のデータを追加・上書きする
-        for d in data:
-            event_dict[d['date']] = d['event']
-            
-        # 3. 統合されたデータをシートに書き戻す
-        new_values = [[date, event] for date, event in event_dict.items()]
-        wks.clear()
-        wks.update(range_name="A1", values=new_values)
-        
-        return "更新完了！"
-    except Exception as e: return f"エラー: {str(e)}"
-
-def get_today_event_from_sps(sh):
-    """SPSのイベントカレンダーから今日の日付のイベントを取得"""
-    import datetime
-    now = datetime.datetime.now()
-    t1, t2 = f"{now.month}/{now.day}", f"{now.month:02d}/{now.day:02d}"
-    try:
-        records = sh.worksheet("イベントカレンダー").get_all_values()
-        for row in records:
-            if len(row) >= 2 and (row[0] == t1 or row[0] == t2): return row[1]
-        return "イベント予定なし"
-    except: return "イベント予定なし"
-# ▲ 追加ここまで ▲
-    try:
-        return sh.worksheet("お知らせ").acell("A1").value or "現在、お知らせはありません。"
-    except: return "現在、お知らせはありません。"
-
-def update_announcement_data(sh, text):
-    try:
-        sh.worksheet("お知らせ").update(range_name="A1", values=[[text]])
-        return True
-    except: return False
-
-def sync_calendar_to_sps(sh):
     """Google Driveの今月のPDFを読み込み、1ヶ月分のイベントをSPSに保存する"""
     import datetime
     import json
@@ -448,16 +314,28 @@ def sync_calendar_to_sps(sh):
         content = drive_service.files().get_media(fileId=files[0]['id']).execute()
         prompt = "このカレンダーから1ヶ月分の【日付(M/D形式)】と【イベント名】を抽出し、純粋なJSON配列 [{'date':'4/1', 'event':'イベント名'}, ...] 形式で出力して。イベントがない日は含めないで。"
         
-        # 確実で安定しているProモデルに変更
+        # 確実に動作する最新のProモデルに指定
         response = ai_client.models.generate_content(
-            model="gemini-2.5-pro",  # ◀ ここを 2.5 に変更するだけです
+            model="gemini-2.5-pro", 
             contents=[types.Part.from_bytes(data=content, mime_type="application/pdf"), prompt]
         )
         data = json.loads(response.text.replace("```json", "").replace("```", ""))
         
         wks = sh.worksheet("イベントカレンダー")
+        
+        # 1. 既存のデータを取得して記憶しておく
+        existing_records = wks.get_all_values()
+        event_dict = {row[0]: row[1] for row in existing_records if len(row) >= 2}
+        
+        # 2. 新しく読み取った今月（翌月）のデータを追加・上書きする
+        for d in data:
+            event_dict[d['date']] = d['event']
+            
+        # 3. 統合されたデータをシートに書き戻す
+        new_values = [[date, event] for date, event in event_dict.items()]
         wks.clear()
-        wks.update(range_name="A1", values=[[d['date'], d['event']] for d in data])
+        wks.update(range_name="A1", values=new_values)
+        
         return "更新完了！"
     except Exception as e: return f"エラー: {str(e)}"
 
@@ -3378,9 +3256,10 @@ if app_mode == "データ比較":
     st.markdown("""
     <style>
     /* initiate-marker を含んだコンテナの「次のコンテナ」にあるボタンを装飾 */
-    div[data-testid="stElementContainer"]:has(.initiate-marker) + div[data-testid="stElementContainer"] button,
-    div.element-container:has(.initiate-marker) + div.element-container button {
-        background: linear-gradient(145deg, #bf953f, #aa771c) !important;
+    /* 赤強調ボタン（登録実行：薄めの赤） */
+    div[data-testid="stElementContainer"]:has(.red-btn-marker) + div[data-testid="stElementContainer"] button,
+    div.element-container:has(.red-btn-marker) + div.element-container button {
+        background: linear-gradient(145deg, #e66465, #c0392b) !important;
         color: #ffffff !important;
         font-size: 24px !important;
         font-weight: 900 !important;
