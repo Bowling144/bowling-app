@@ -4929,6 +4929,13 @@ if st.session_state.analyzed_results:
                 def update_score_and_pins(idx, choice):
                     st.session_state[state_key]["throws"][idx] = choice
                     if choice == "X":
+                        # ▼ Xを選択したとき、自動で残ピン無し（リストを空）に切り替える
+                        if idx <= 17: pin_idx = idx // 2
+                        elif idx == 18: pin_idx = 9
+                        elif idx == 19: pin_idx = 10
+                        else: pin_idx = 11
+                        st.session_state[state_key]["pins"][pin_idx] = []
+
                         if idx < 18 and idx % 2 == 0:
                             st.session_state[state_key]["throws"][idx+1] = ""
                         elif idx == 18:
@@ -4955,13 +4962,31 @@ if st.session_state.analyzed_results:
                             with p_col1:
                                 st.markdown("<div class='score-area-marker' style='display:none;'></div>", unsafe_allow_html=True) # スコア列用の目印
                                 st.markdown("<div style='font-size:12px; color:gray; text-align:center;'>スコア</div>", unsafe_allow_html=True)
-                                choices = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "X", "/", "-", "G", ""]
-                                btn_cols = st.columns(3)
-                                for i, choice in enumerate(choices):
+                                
+                                # ▼ 手動入力テンキーの配置をご要望の通りに変更
+                                def draw_btn(choice, col_layout):
                                     display_choice = "空" if choice == "" else choice
-                                    if btn_cols[i % 3].button(display_choice, key=f"sel_{img_idx}_{local_idx}_{idx}_{i}", use_container_width=True):
+                                    # / や 空文字 がキー名にそのまま使えないためエスケープ
+                                    safe_key_suffix = "slash" if choice == "/" else ("empty" if choice == "" else choice)
+                                    if col_layout.button(display_choice, key=f"sel_{img_idx}_{local_idx}_{idx}_{safe_key_suffix}", use_container_width=True):
                                         update_score_and_pins(idx, choice)
                                         st.rerun()
+
+                                # 上の段に1, 2, 3
+                                r1 = st.columns(3)
+                                for i, c in enumerate(["1", "2", "3"]): draw_btn(c, r1[i])
+                                # 次の段に4, 5, 6
+                                r2 = st.columns(3)
+                                for i, c in enumerate(["4", "5", "6"]): draw_btn(c, r2[i])
+                                # 次の段に7, 8, 9
+                                r3 = st.columns(3)
+                                for i, c in enumerate(["7", "8", "9"]): draw_btn(c, r3[i])
+                                # 次の段にX, /
+                                r4 = st.columns(2)
+                                for i, c in enumerate(["X", "/"]): draw_btn(c, r4[i])
+                                # 次の段にG, -, 空
+                                r5 = st.columns(3)
+                                for i, c in enumerate(["G", "-", ""]): draw_btn(c, r5[i])
                             
                             with p_col2:
                                 st.markdown("<div class='pin-area-marker' style='display:none;'></div>", unsafe_allow_html=True) # 残ピン列用の目印
