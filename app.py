@@ -306,8 +306,20 @@ def sync_calendar_to_sps(sh, ai_client, drive_srv):
         data = json.loads(response.text.replace("```json", "").replace("```", ""))
         
         wks = sh.worksheet("イベントカレンダー")
+        
+        # 1. 既存のデータを取得して記憶しておく
+        existing_records = wks.get_all_values()
+        event_dict = {row[0]: row[1] for row in existing_records if len(row) >= 2}
+        
+        # 2. 新しく読み取った今月（翌月）のデータを追加・上書きする
+        for d in data:
+            event_dict[d['date']] = d['event']
+            
+        # 3. 統合されたデータをシートに書き戻す
+        new_values = [[date, event] for date, event in event_dict.items()]
         wks.clear()
-        wks.update(range_name="A1", values=[[d['date'], d['event']] for d in data])
+        wks.update(range_name="A1", values=new_values)
+        
         return "更新完了！"
     except Exception as e: return f"エラー: {str(e)}"
 
