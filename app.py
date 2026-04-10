@@ -265,8 +265,63 @@ def get_gspread_client():
     if results.get('files', []):
         return gc.open_by_key(results['files'][0]['id'])
     return None
-# ▼▼▼ 追加：お知らせ・イベント機能用共通関数 ▼▼▼
+
+# =========================================================
+# ▼ 追加：お知らせ・イベント機能用共通関数 ▼
+# =========================================================
 def get_announcement_data(sh):
+    try:
+        return sh.worksheet("お知らせ").acell("A1").value or "現在、お知らせはありません。"
+    except: return "現在、お知らせはありません。"
+
+def update_announcement_data(sh, text):
+    try:
+        sh.worksheet("お知らせ").update(range_name="A1", values=[[text]])
+        return True
+    except: return False
+
+def sync_calendar_to_sps(sh, ai_client, drive_srv):
+    """Google Driveの今月のPDFを読み込み、1ヶ月分のイベントをSPSに保存する"""
+    import datetime
+    import json
+    from google.genai import types
+    now = datetime.datetime.now()
+    try:
+        f_query = "name = 'イベントスケジュール' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+        folders = drive_srv.files().list(q=f_query).execute().get('files', [])
+        if not folders: return "フォルダが見つかりません。"
+        
+        p_query = f"'{folders[0]['id']}' in parents and name contains '{now.month}月' and mimeType = 'application/pdf'"
+        files = drive_srv.files().list(q=p_query).execute().get('files', [])
+        if not files: return "今月のPDFが見つかりません。"
+        
+        content = drive_srv.files().get_media(fileId=files[0]['id']).execute()
+        prompt = "このカレンダーから1ヶ月分の【日付(M/D形式)】と【イベント名】を抽出し、純粋なJSON配列 [{'date':'4/1', 'event':'イベント名'}, ...] 形式で出力して。イベントがない日は含めないで。"
+        
+        response = ai_client.models.generate_content(
+            model="gemini-2.0-pro-exp-02-05", 
+            contents=[types.Part.from_bytes(data=content, mime_type="application/pdf"), prompt]
+        )
+        data = json.loads(response.text.replace("```json", "").replace("```", ""))
+        
+        wks = sh.worksheet("イベントカレンダー")
+        wks.clear()
+        wks.update(range_name="A1", values=[[d['date'], d['event']] for d in data])
+        return "更新完了！"
+    except Exception as e: return f"エラー: {str(e)}"
+
+def get_today_event_from_sps(sh):
+    """SPSのイベントカレンダーから今日の日付のイベントを取得"""
+    import datetime
+    now = datetime.datetime.now()
+    t1, t2 = f"{now.month}/{now.day}", f"{now.month:02d}/{now.day:02d}"
+    try:
+        records = sh.worksheet("イベントカレンダー").get_all_values()
+        for row in records:
+            if len(row) >= 2 and (row[0] == t1 or row[0] == t2): return row[1]
+        return "イベント予定なし"
+    except: return "イベント予定なし"
+# ▲ 追加ここまで ▲
     try:
         return sh.worksheet("お知らせ").acell("A1").value or "現在、お知らせはありません。"
     except: return "現在、お知らせはありません。"
@@ -463,11 +518,14 @@ with st.sidebar:
         st.markdown("---")
         st.subheader("🛠 管理ツール")
         with st.expander("📢 お知らせ・イベント編集"):
+            # データベース接続を確保
+            sh_admin = get_gspread_client()
+            
             # お知らせ更新
-            ann_current = get_announcement_data(sh) if 'get_announcement_data' in globals() else ""
+            ann_current = get_announcement_data(sh_admin) if sh_admin else ""
             new_ann = st.text_area("お知らせ編集", value=ann_current, height=100)
             if st.button("お知らせを保存"):
-                if update_announcement_data(sh, new_ann): 
+                if sh_admin and update_announcement_data(sh_admin, new_ann): 
                     st.success("保存完了")
                     import time
                     time.sleep(1)
@@ -477,9 +535,23 @@ with st.sidebar:
             # カレンダー手動読込
             st.write("📅 カレンダーPDF解析")
             if st.button("AIで今月のPDFを読込・保存"):
-                with st.spinner("AIが解析中..."):
-                    res = sync_calendar_to_sps(sh) # ◀ clientを削除
-                    st.info(res)
+                if sh_admin:
+                    with st.spinner("AIが解析中..."):
+                        # APIキーとサービスの初期化
+                        gemini_api_key = st.secrets.get("gemini_api_key", "")
+                        admin_client = genai.Client(api_key=gemini_api_key)
+                        
+                        creds_json_str = st.secrets["google_credentials"]
+                        creds_info = json.loads(creds_json_str, strict=False)
+                        if "private_key" in creds_info:
+                            creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
+                        drive_creds = service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/drive'])
+                        admin_drive_service = build('drive', 'v3', credentials=drive_creds)
+                        
+                        res = sync_calendar_to_sps(sh_admin, admin_client, admin_drive_service)
+                        st.info(res)
+                else:
+                    st.error("データベースに接続できません。")
         # ▲ 追加ここまで ▲
 
         st.markdown("---")
@@ -840,53 +912,6 @@ if app_mode == "プレイヤー分析":
 
     # 🎯 ダーツライブ準拠：レーティング＆フライト計算関数
     def calc_rating_flight(recent_scores):
-        try:
-            return sh.worksheet("お知らせ").acell("A1").value or "現在、お知らせはありません。"
-        except: return "現在、お知らせはありません。"
-
-    def update_announcement_data(sh, text):
-        try:
-            sh.worksheet("お知らせ").update(range_name="A1", values=[[text]])
-            return True
-        except: return False
-
-    def sync_calendar_to_sps(sh, ai_client):
-        """Google Driveの今月のPDFを読み込み、1ヶ月分のイベントをSPSに保存する"""
-        import datetime
-        now = datetime.datetime.now()
-        try:
-            f_query = "name = 'イベントスケジュール' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-            folders = drive_service.files().list(q=f_query).execute().get('files', [])
-            if not folders: return "フォルダが見つかりません。"
-            
-            p_query = f"'{folders[0]['id']}' in parents and name contains '{now.month}月' and mimeType = 'application/pdf'"
-            files = drive_service.files().list(q=p_query).execute().get('files', [])
-            if not files: return "今月のPDFが見つかりません。"
-            
-            content = drive_service.files().get_media(fileId=files[0]['id']).execute()
-            prompt = "このカレンダーから1ヶ月分の【日付(M/D形式)】と【イベント名】を抽出し、純粋なJSON配列 [{'date':'4/1', 'event':'イベント名'}, ...] 形式で出力して。イベントがない日は含めないで。"
-            
-            response = ai_client.models.generate_content(model="gemini-2.0-pro-exp-02-05", contents=[types.Part.from_bytes(data=content, mime_type="application/pdf"), prompt])
-            data = json.loads(response.text.replace("```json", "").replace("```", ""))
-            
-            wks = sh.worksheet("イベントカレンダー")
-            wks.clear()
-            wks.update(range_name="A1", values=[[d['date'], d['event']] for d in data])
-            return "更新完了！"
-        except Exception as e: return f"エラー: {str(e)}"
-
-    def get_today_event_from_sps(sh):
-        """SPSのイベントカレンダーから今日の日付のイベントを取得"""
-        import datetime
-        now = datetime.datetime.now()
-        t1, t2 = f"{now.month}/{now.day}", f"{now.month:02d}/{now.day:02d}"
-        try:
-            records = sh.worksheet("イベントカレンダー").get_all_values()
-            for row in records:
-                if len(row) >= 2 and (row[0] == t1 or row[0] == t2): return row[1]
-            return "イベント予定なし"
-        except: return "イベント予定なし"
-    # ▲ 追加ここまで ▲
 
     # 🎯 ダーツライブ準拠：レーティング＆フライト計算関数
     def calc_rating_flight(recent_scores):
