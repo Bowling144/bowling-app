@@ -284,6 +284,8 @@ def sync_calendar_to_sps(sh):
     """Google Driveの今月のPDFを読み込み、1ヶ月分のイベントをSPSに保存する"""
     import datetime
     import json
+    import time
+    import random
     from google.genai import types
     from google import genai
     from google.oauth2 import service_account
@@ -314,11 +316,35 @@ def sync_calendar_to_sps(sh):
         content = drive_service.files().get_media(fileId=files[0]['id']).execute()
         prompt = "このカレンダー（1枚目）とイベント一覧（2枚目）から、1ヶ月分の【日付(M/D形式)】、【イベント名】、および【イベントの説明文章】（2枚目のイベント名の下の行事名やゲーム数・参加費・詳細説明など）を抽出し、純粋なJSON配列 [{'date':'4/1', 'event':'イベント名', 'desc':'説明文章'}, ...] 形式で出力して。イベントがない日は含めないで。"
         
-        # 確実で安定しているProモデルに変更
-        response = ai_client.models.generate_content(
-            model="gemini-2.5-pro",  # ◀ ここを 2.5 に変更するだけです
-            contents=[types.Part.from_bytes(data=content, mime_type="application/pdf"), prompt]
-        )
+        # --- サーバー高負荷対策（自動リトライ処理）を追加 ---
+        max_retries = 5
+        response = None
+        last_error = ""
+
+        for attempt in range(max_retries):
+            try:
+                response = ai_client.models.generate_content(
+                    model="gemini-2.5-pro",
+                    contents=[types.Part.from_bytes(data=content, mime_type="application/pdf"), prompt]
+                )
+                break  # 成功したらループを抜ける
+            except Exception as e:
+                last_error = str(e)
+                error_msg = last_error.lower()
+                # 503エラーや利用制限エラーの場合は待機して再試行
+                if any(err in error_msg for err in ["429", "too many requests", "quota", "503", "unavailable", "high demand", "overloaded"]):
+                    if attempt < max_retries - 1:
+                        # 徐々に待機時間を長くする（2秒, 4秒, 8秒... + ランダムなブレ）
+                        wait_sec = (2 ** (attempt + 1)) + random.uniform(0, 1)
+                        time.sleep(wait_sec)
+                        continue
+                # その他のエラー、またはリトライ上限に達した場合はループを抜ける
+                break
+        
+        if not response:
+            return f"AI解析エラー: サーバーが混雑しています。数分待ってから再度お試しください。（詳細: {last_error}）"
+        # ------------------------------------------------
+
         data = json.loads(response.text.replace("```json", "").replace("```", ""))
         
         wks = sh.worksheet("イベントカレンダー")
