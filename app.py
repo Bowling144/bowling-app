@@ -280,6 +280,71 @@ def update_announcement_data(sh, text):
         return True
     except: return False
 
+def sync_calendar_to_sps(sh, ai_client, drive_srv):
+    """Google Driveの今月のPDFを読み込み、1ヶ月分のイベントをSPSに保存する"""
+    import datetime
+    import json
+    from google.genai import types
+    now = datetime.datetime.now()
+    try:
+        f_query = "name = 'イベントスケジュール' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+        folders = drive_srv.files().list(q=f_query).execute().get('files', [])
+        if not folders: return "フォルダが見つかりません。"
+        
+        p_query = f"'{folders[0]['id']}' in parents and name contains '{now.month}月' and mimeType = 'application/pdf'"
+        files = drive_srv.files().list(q=p_query).execute().get('files', [])
+        if not files: return "今月のPDFが見つかりません。"
+        
+        content = drive_srv.files().get_media(fileId=files[0]['id']).execute()
+        prompt = "このカレンダーから1ヶ月分の【日付(M/D形式)】と【イベント名】を抽出し、純粋なJSON配列 [{'date':'4/1', 'event':'イベント名'}, ...] 形式で出力して。イベントがない日は含めないで。"
+        
+        # 確実に動作する最新のProモデルに指定
+        response = ai_client.models.generate_content(
+            model="gemini-2.5-pro", 
+            contents=[types.Part.from_bytes(data=content, mime_type="application/pdf"), prompt]
+        )
+        data = json.loads(response.text.replace("```json", "").replace("```", ""))
+        
+        wks = sh.worksheet("イベントカレンダー")
+        
+        # 1. 既存のデータを取得して記憶しておく
+        existing_records = wks.get_all_values()
+        event_dict = {row[0]: row[1] for row in existing_records if len(row) >= 2}
+        
+        # 2. 新しく読み取った今月（翌月）のデータを追加・上書きする
+        for d in data:
+            event_dict[d['date']] = d['event']
+            
+        # 3. 統合されたデータをシートに書き戻す
+        new_values = [[date, event] for date, event in event_dict.items()]
+        wks.clear()
+        wks.update(range_name="A1", values=new_values)
+        
+        return "更新完了！"
+    except Exception as e: return f"エラー: {str(e)}"
+
+def get_today_event_from_sps(sh):
+    """SPSのイベントカレンダーから今日の日付のイベントを取得"""
+    import datetime
+    now = datetime.datetime.now()
+    t1, t2 = f"{now.month}/{now.day}", f"{now.month:02d}/{now.day:02d}"
+    try:
+        records = sh.worksheet("イベントカレンダー").get_all_values()
+        for row in records:
+            if len(row) >= 2 and (row[0] == t1 or row[0] == t2): return row[1]
+        return "イベント予定なし"
+    except: return "イベント予定なし"
+# ▲ 追加ここまで ▲
+    try:
+        return sh.worksheet("お知らせ").acell("A1").value or "現在、お知らせはありません。"
+    except: return "現在、お知らせはありません。"
+
+def update_announcement_data(sh, text):
+    try:
+        sh.worksheet("お知らせ").update(range_name="A1", values=[[text]])
+        return True
+    except: return False
+
 def sync_calendar_to_sps(sh):
     """Google Driveの今月のPDFを読み込み、1ヶ月分のイベントをSPSに保存する"""
     import datetime
@@ -314,28 +379,16 @@ def sync_calendar_to_sps(sh):
         content = drive_service.files().get_media(fileId=files[0]['id']).execute()
         prompt = "このカレンダーから1ヶ月分の【日付(M/D形式)】と【イベント名】を抽出し、純粋なJSON配列 [{'date':'4/1', 'event':'イベント名'}, ...] 形式で出力して。イベントがない日は含めないで。"
         
-        # 確実に動作する最新のProモデルに指定
+        # 確実で安定しているProモデルに変更
         response = ai_client.models.generate_content(
-            model="gemini-2.5-pro", 
+            model="gemini-2.5-pro",  # ◀ ここを 2.5 に変更するだけです
             contents=[types.Part.from_bytes(data=content, mime_type="application/pdf"), prompt]
         )
         data = json.loads(response.text.replace("```json", "").replace("```", ""))
         
         wks = sh.worksheet("イベントカレンダー")
-        
-        # 1. 既存のデータを取得して記憶しておく
-        existing_records = wks.get_all_values()
-        event_dict = {row[0]: row[1] for row in existing_records if len(row) >= 2}
-        
-        # 2. 新しく読み取った今月（翌月）のデータを追加・上書きする
-        for d in data:
-            event_dict[d['date']] = d['event']
-            
-        # 3. 統合されたデータをシートに書き戻す
-        new_values = [[date, event] for date, event in event_dict.items()]
         wks.clear()
-        wks.update(range_name="A1", values=new_values)
-        
+        wks.update(range_name="A1", values=[[d['date'], d['event']] for d in data])
         return "更新完了！"
     except Exception as e: return f"エラー: {str(e)}"
 
@@ -991,41 +1044,8 @@ if app_mode == "プレイヤー分析":
                 st.markdown("<hr style='border:1px solid #444; margin: 30px 0;'>", unsafe_allow_html=True)
 
                 # ② 本日のイベント表示（SPSから読込 ＋ 派手なUI）
-                try:
-                    ev_name, ev_comment = get_today_event_from_sps(sh) if 'get_today_event_from_sps' in globals() else ("イベント予定なし", "")
-                except ValueError:
-                    # 互換性フォールバック（過去のキャッシュ等によるエラー防止）
-                    res = get_today_event_from_sps(sh)
-                    if isinstance(res, tuple): ev_name, ev_comment = res
-                    else: ev_name, ev_comment = res, ""
-                
+                ev_name = get_today_event_from_sps(sh) if 'get_today_event_from_sps' in globals() else "イベント予定なし"
                 if ev_name and ev_name != "イベント予定なし":
-                    # コメントが存在する場合はHTML要素を追加
-                    comment_html = f"<p style='color:#00FFFF; font-size:18px; font-weight:bold; margin: 15px 0 0 0;'>{ev_comment}</p>" if ev_comment else ""
-                    
-                    st.markdown("""
-                    <style>
-                    @keyframes neon { 0%,100% { text-shadow: 0 0 10px #FF107A, 0 0 20px #FF107A; } 50% { text-shadow: 0 0 5px #FF107A, 0 0 10px #FF107A; } }
-                    @keyframes bounce { 0%,20%,50%,80%,100% { transform: translateY(0); } 40% { transform: translateY(-10px); } 60% { transform: translateY(-5px); } }
-                    .ev-box { background: linear-gradient(145deg, #1a1a1c, #2a1020); border: 2px solid #FF107A; border-radius: 15px; padding: 40px; text-align: center; box-shadow: 0 0 20px rgba(255,16,122,0.4); margin-bottom: 20px; }
-                    .ev-main { font-size: 48px; font-weight: 900; color: white; animation: neon 2s infinite; margin: 15px 0; }
-                    </style>
-                    """, unsafe_allow_html=True)
-
-                    st.markdown(f"""
-                    <div class="ev-box">
-                        <p style="color:#FFD700;font-size:20px;font-weight:bold;margin:0;">🎳 TODAY's EVENT 🎳</p>
-                        <p class="ev-main">{ev_name}</p>
-                        {comment_html}
-                        <p style="color:#bbb;font-size:16px;margin-top:25px;">詳細はカレンダーをチェック！</p>
-                        <p style="color:#00FFFF;font-size:36px;animation:bounce 2s infinite;margin-top:10px;">☟</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    with st.expander("📅 カレンダー原本で詳細を確認する"):
-                        st.info("※ここにカレンダー原本画像が表示されます。")
-                else:
-                    st.markdown("### 🗓 本日のイベント\n今日は特別なイベントの予定はありません。通常営業でお待ちしております！")
                     st.markdown("""
                     <style>
                     @keyframes neon { 0%,100% { text-shadow: 0 0 10px #FF107A, 0 0 20px #FF107A; } 50% { text-shadow: 0 0 5px #FF107A, 0 0 10px #FF107A; } }
@@ -3256,10 +3276,9 @@ if app_mode == "データ比較":
     st.markdown("""
     <style>
     /* initiate-marker を含んだコンテナの「次のコンテナ」にあるボタンを装飾 */
-    /* 赤強調ボタン（登録実行：薄めの赤） */
-    div[data-testid="stElementContainer"]:has(.red-btn-marker) + div[data-testid="stElementContainer"] button,
-    div.element-container:has(.red-btn-marker) + div.element-container button {
-        background: linear-gradient(145deg, #e66465, #c0392b) !important;
+    div[data-testid="stElementContainer"]:has(.initiate-marker) + div[data-testid="stElementContainer"] button,
+    div.element-container:has(.initiate-marker) + div.element-container button {
+        background: linear-gradient(145deg, #bf953f, #aa771c) !important;
         color: #ffffff !important;
         font-size: 24px !important;
         font-weight: 900 !important;
@@ -6024,6 +6043,7 @@ if st.session_state.analyzed_results:
 
             except Exception as e:
                 st.error(f"SPSへの登録中にエラーが発生しました: {e}")
+
 
 
 
