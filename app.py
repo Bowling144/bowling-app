@@ -280,60 +280,67 @@ def update_announcement_data(sh, text):
         return True
     except: return False
 
-def sync_calendar_to_sps(sh, ai_client, drive_srv):
+def sync_calendar_to_sps(sh):
     """Google Driveの今月のPDFを読み込み、1ヶ月分のイベントをSPSに保存する"""
     import datetime
     import json
     from google.genai import types
+    from google import genai
+    from google.oauth2 import service_account
+    from googleapiclient.discovery import build
+    
     now = datetime.datetime.now()
     try:
+        # 関数内で独立してAPI認証を行う（エラー回避のため）
+        creds_json_str = st.secrets["google_credentials"]
+        creds_info = json.loads(creds_json_str, strict=False)
+        if "private_key" in creds_info:
+            creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
+        
+        drive_creds = service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/drive'])
+        drive_service = build('drive', 'v3', credentials=drive_creds)
+        
+        gemini_api_key = st.secrets.get("gemini_api_key", "")
+        ai_client = genai.Client(api_key=gemini_api_key)
+
         f_query = "name = 'イベントスケジュール' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-        folders = drive_srv.files().list(q=f_query).execute().get('files', [])
+        folders = drive_service.files().list(q=f_query).execute().get('files', [])
         if not folders: return "フォルダが見つかりません。"
         
         p_query = f"'{folders[0]['id']}' in parents and name contains '{now.month}月' and mimeType = 'application/pdf'"
-        files = drive_srv.files().list(q=p_query).execute().get('files', [])
+        files = drive_service.files().list(q=p_query).execute().get('files', [])
         if not files: return "今月のPDFが見つかりません。"
         
-        content = drive_srv.files().get_media(fileId=files[0]['id']).execute()
-        prompt = "このカレンダーから1ヶ月分の【日付(M/D形式)】と【イベント名】を抽出し、純粋なJSON配列 [{'date':'4/1', 'event':'イベント名'}, ...] 形式で出力して。イベントがない日は含めないで。"
+        content = drive_service.files().get_media(fileId=files[0]['id']).execute()
+        prompt = "このカレンダー（1枚目）とイベント一覧（2枚目）から、1ヶ月分の【日付(M/D形式)】、【イベント名】、および【イベントの説明文章】（2枚目のイベント名の下の行事名やゲーム数・参加費・詳細説明など）を抽出し、純粋なJSON配列 [{'date':'4/1', 'event':'イベント名', 'desc':'説明文章'}, ...] 形式で出力して。イベントがない日は含めないで。"
         
-        # 確実に動作する最新のProモデルに指定
+        # 確実で安定しているProモデルに変更
         response = ai_client.models.generate_content(
-            model="gemini-2.5-pro", 
+            model="gemini-2.5-pro",  # ◀ ここを 2.5 に変更するだけです
             contents=[types.Part.from_bytes(data=content, mime_type="application/pdf"), prompt]
         )
         data = json.loads(response.text.replace("```json", "").replace("```", ""))
         
         wks = sh.worksheet("イベントカレンダー")
-        
-        # 1. 既存のデータを取得して記憶しておく
-        existing_records = wks.get_all_values()
-        event_dict = {row[0]: row[1] for row in existing_records if len(row) >= 2}
-        
-        # 2. 新しく読み取った今月（翌月）のデータを追加・上書きする
-        for d in data:
-            event_dict[d['date']] = d['event']
-            
-        # 3. 統合されたデータをシートに書き戻す
-        new_values = [[date, event] for date, event in event_dict.items()]
         wks.clear()
-        wks.update(range_name="A1", values=new_values)
-        
+        wks.update(range_name="A1", values=[[d.get('date', ''), d.get('event', ''), d.get('desc', '')] for d in data])
         return "更新完了！"
     except Exception as e: return f"エラー: {str(e)}"
 
 def get_today_event_from_sps(sh):
-    """SPSのイベントカレンダーから今日の日付のイベントを取得"""
+    """SPSのイベントカレンダーから今日の日付のイベントと説明を取得"""
     import datetime
     now = datetime.datetime.now()
     t1, t2 = f"{now.month}/{now.day}", f"{now.month:02d}/{now.day:02d}"
     try:
         records = sh.worksheet("イベントカレンダー").get_all_values()
         for row in records:
-            if len(row) >= 2 and (row[0] == t1 or row[0] == t2): return row[1]
-        return "イベント予定なし"
-    except: return "イベント予定なし"
+            if len(row) >= 2 and (row[0] == t1 or row[0] == t2):
+                event_name = row[1]
+                event_desc = row[2] if len(row) > 2 else ""
+                return event_name, event_desc
+        return "イベント予定なし", ""
+    except: return "イベント予定なし", ""
 # ▲ 追加ここまで ▲
     try:
         return sh.worksheet("お知らせ").acell("A1").value or "現在、お知らせはありません。"
@@ -1044,7 +1051,12 @@ if app_mode == "プレイヤー分析":
                 st.markdown("<hr style='border:1px solid #444; margin: 30px 0;'>", unsafe_allow_html=True)
 
                 # ② 本日のイベント表示（SPSから読込 ＋ 派手なUI）
-                ev_name = get_today_event_from_sps(sh) if 'get_today_event_from_sps' in globals() else "イベント予定なし"
+                ev_result = get_today_event_from_sps(sh) if 'get_today_event_from_sps' in globals() else ("イベント予定なし", "")
+                if isinstance(ev_result, tuple):
+                    ev_name, ev_desc = ev_result
+                else:
+                    ev_name, ev_desc = ev_result, ""
+                    
                 if ev_name and ev_name != "イベント予定なし":
                     st.markdown("""
                     <style>
@@ -1052,22 +1064,45 @@ if app_mode == "プレイヤー分析":
                     @keyframes bounce { 0%,20%,50%,80%,100% { transform: translateY(0); } 40% { transform: translateY(-10px); } 60% { transform: translateY(-5px); } }
                     .ev-box { background: linear-gradient(145deg, #1a1a1c, #2a1020); border: 2px solid #FF107A; border-radius: 15px; padding: 40px; text-align: center; box-shadow: 0 0 20px rgba(255,16,122,0.4); margin-bottom: 20px; }
                     .ev-main { font-size: 48px; font-weight: 900; color: white; animation: neon 2s infinite; margin: 15px 0; }
+                    .ev-desc { font-size: 16px; color: #E0E0E0; margin: 10px 0; padding: 15px; background: rgba(0,0,0,0.5); border-radius: 8px; text-align: left; white-space: pre-wrap; }
                     </style>
                     """, unsafe_allow_html=True)
+
+                    desc_html = f'<div class="ev-desc">{ev_desc}</div>' if ev_desc else ""
 
                     st.markdown(f"""
                     <div class="ev-box">
                         <p style="color:#FFD700;font-size:20px;font-weight:bold;margin:0;">🎳 TODAY's EVENT 🎳</p>
                         <p class="ev-main">{ev_name}</p>
+                        {desc_html}
                         <p style="color:#bbb;font-size:16px;margin-top:20px;">詳細はカレンダーをチェック！</p>
                         <p style="color:#00FFFF;font-size:36px;animation:bounce 2s infinite;margin-top:10px;">☟</p>
                     </div>
                     """, unsafe_allow_html=True)
                     
                     with st.expander("📅 カレンダー原本で詳細を確認する"):
-                        st.info("※ここにカレンダー原本画像が表示されます。")
+                        try:
+                            import datetime
+                            import base64
+                            now = datetime.datetime.now()
+                            f_query = "name = 'イベントスケジュール' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+                            folders = drive_service.files().list(q=f_query).execute().get('files', [])
+                            if folders:
+                                p_query = f"'{folders[0]['id']}' in parents and name contains '{now.month}月' and mimeType = 'application/pdf'"
+                                files = drive_service.files().list(q=p_query, fields="files(id)").execute().get('files', [])
+                                if files:
+                                    pdf_content = drive_service.files().get_media(fileId=files[0]['id']).execute()
+                                    base64_pdf = base64.b64encode(pdf_content).decode('utf-8')
+                                    pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600" type="application/pdf"></iframe>'
+                                    st.markdown(pdf_display, unsafe_allow_html=True)
+                                else:
+                                    st.info("今月のスケジュールPDFが見つかりません。")
+                            else:
+                                st.info("「イベントスケジュール」フォルダが見つかりません。")
+                        except Exception as e:
+                            st.error(f"カレンダーの読み込みに失敗しました: {e}")
                 else:
-                    st.markdown("### 🗓 本日のイベント\n今日は特別なイベントの予定はありません。通常営業でお待ちしております！")
+                    st.markdown("### 🗓 本日のイベント\n今日はイベントの予定はありません。通常営業でお待ちしております！")
             # ▲ 追加ここまで ▲
 
             if selected_player:
