@@ -298,9 +298,9 @@ def sync_calendar_to_sps(sh, ai_client, drive_srv):
         content = drive_srv.files().get_media(fileId=files[0]['id']).execute()
         prompt = "このカレンダーから1ヶ月分の【日付(M/D形式)】と【イベント名】を抽出し、純粋なJSON配列 [{'date':'4/1', 'event':'イベント名'}, ...] 形式で出力して。イベントがない日は含めないで。"
         
-        # 確実で安定しているProモデルに変更
+        # 確実に動作する最新のProモデルに指定
         response = ai_client.models.generate_content(
-            model="gemini-1.5-pro", 
+            model="gemini-2.5-pro", 
             contents=[types.Part.from_bytes(data=content, mime_type="application/pdf"), prompt]
         )
         data = json.loads(response.text.replace("```json", "").replace("```", ""))
