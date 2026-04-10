@@ -910,8 +910,7 @@ if app_mode == "プレイヤー分析":
     from google.oauth2 import service_account
     from googleapiclient.discovery import build
 
-    # 🎯 ダーツライブ準拠：レーティング＆フライト計算関数
-    def calc_rating_flight(recent_scores):
+
 
     # 🎯 ダーツライブ準拠：レーティング＆フライト計算関数
     def calc_rating_flight(recent_scores):
