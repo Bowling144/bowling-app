@@ -388,6 +388,30 @@ with st.sidebar:
             st.session_state.kiosk_mode = True
             st.session_state.kiosk_step = "auth"
             st.rerun()
+
+        # ▼ 追加：管理者・開発者専用メニューをサイドバーに配置 ▼
+        st.markdown("---")
+        st.subheader("🛠 管理ツール")
+        with st.expander("📢 お知らせ・イベント編集"):
+            # お知らせ更新
+            ann_current = get_announcement_data(sh) if 'get_announcement_data' in globals() else ""
+            new_ann = st.text_area("お知らせ編集", value=ann_current, height=100)
+            if st.button("お知らせを保存"):
+                if update_announcement_data(sh, new_ann): 
+                    st.success("保存完了")
+                    import time
+                    time.sleep(1)
+                    st.rerun()
+            
+            st.markdown("---")
+            # カレンダー手動読込
+            st.write("📅 カレンダーPDF解析")
+            if st.button("AIで今月のPDFを読込・保存"):
+                with st.spinner("AIが解析中..."):
+                    res = sync_calendar_to_sps(sh, client)
+                    st.info(res)
+        # ▲ 追加ここまで ▲
+
         st.markdown("---")
         app_mode = st.radio("モード選択", ["スコア登録", "オイル情報入力", "プレイヤー分析", "データ比較"], index=0)
     else:
@@ -744,6 +768,56 @@ if app_mode == "プレイヤー分析":
     from google.oauth2 import service_account
     from googleapiclient.discovery import build
 
+    # ▼ 追加：お知らせ・イベント機能用関数 ▼
+    def get_announcement_data(sh):
+        try:
+            return sh.worksheet("お知らせ").acell("A1").value or "現在、お知らせはありません。"
+        except: return "現在、お知らせはありません。"
+
+    def update_announcement_data(sh, text):
+        try:
+            sh.worksheet("お知らせ").update(range_name="A1", values=[[text]])
+            return True
+        except: return False
+
+    def sync_calendar_to_sps(sh, ai_client):
+        """Google Driveの今月のPDFを読み込み、1ヶ月分のイベントをSPSに保存する"""
+        import datetime
+        now = datetime.datetime.now()
+        try:
+            f_query = "name = 'イベントスケジュール' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+            folders = drive_service.files().list(q=f_query).execute().get('files', [])
+            if not folders: return "フォルダが見つかりません。"
+            
+            p_query = f"'{folders[0]['id']}' in parents and name contains '{now.month}月' and mimeType = 'application/pdf'"
+            files = drive_service.files().list(q=p_query).execute().get('files', [])
+            if not files: return "今月のPDFが見つかりません。"
+            
+            content = drive_service.files().get_media(fileId=files[0]['id']).execute()
+            prompt = "このカレンダーから1ヶ月分の【日付(M/D形式)】と【イベント名】を抽出し、純粋なJSON配列 [{'date':'4/1', 'event':'イベント名'}, ...] 形式で出力して。イベントがない日は含めないで。"
+            
+            response = ai_client.models.generate_content(model="gemini-2.0-pro-exp-02-05", contents=[types.Part.from_bytes(data=content, mime_type="application/pdf"), prompt])
+            data = json.loads(response.text.replace("```json", "").replace("```", ""))
+            
+            wks = sh.worksheet("イベントカレンダー")
+            wks.clear()
+            wks.update(range_name="A1", values=[[d['date'], d['event']] for d in data])
+            return "更新完了！"
+        except Exception as e: return f"エラー: {str(e)}"
+
+    def get_today_event_from_sps(sh):
+        """SPSのイベントカレンダーから今日の日付のイベントを取得"""
+        import datetime
+        now = datetime.datetime.now()
+        t1, t2 = f"{now.month}/{now.day}", f"{now.month:02d}/{now.day:02d}"
+        try:
+            records = sh.worksheet("イベントカレンダー").get_all_values()
+            for row in records:
+                if len(row) >= 2 and (row[0] == t1 or row[0] == t2): return row[1]
+            return "イベント予定なし"
+        except: return "イベント予定なし"
+    # ▲ 追加ここまで ▲
+
     # 🎯 ダーツライブ準拠：レーティング＆フライト計算関数
     def calc_rating_flight(recent_scores):
         if not recent_scores: return 0.0, "UNRATED", 0.0
@@ -859,6 +933,45 @@ if app_mode == "プレイヤー分析":
                 # 選択肢をレーティング付きの表示名にする
                 selected_display = st.selectbox(" ", player_options, label_visibility="collapsed")
                 selected_player = player_name_map.get(selected_display, "")
+
+            # ▼ 追加：プレイヤー未選択時（初期画面）の表示処理 ▼
+            if not selected_player:
+                st.info("上部のドロップダウンからプレイヤーを選択してください。")
+                st.markdown("<br>", unsafe_allow_html=True)
+                
+                # ① お知らせの表示
+                announcement = get_announcement_data(sh) if 'get_announcement_data' in globals() else "現在、お知らせはありません。"
+                st.markdown("### 📢 お知らせ")
+                st.markdown(f'<div style="background-color:#2a2a2e;padding:20px;border-radius:10px;border-left:5px solid #00FFFF;margin-bottom:20px;"><p style="color:white;font-size:16px;white-space:pre-wrap;margin:0;">{announcement}</p></div>', unsafe_allow_html=True)
+
+                st.markdown("<hr style='border:1px solid #444; margin: 30px 0;'>", unsafe_allow_html=True)
+
+                # ② 本日のイベント表示（SPSから読込 ＋ 派手なUI）
+                ev_name = get_today_event_from_sps(sh) if 'get_today_event_from_sps' in globals() else "イベント予定なし"
+                if ev_name and ev_name != "イベント予定なし":
+                    st.markdown("""
+                    <style>
+                    @keyframes neon { 0%,100% { text-shadow: 0 0 10px #FF107A, 0 0 20px #FF107A; } 50% { text-shadow: 0 0 5px #FF107A, 0 0 10px #FF107A; } }
+                    @keyframes bounce { 0%,20%,50%,80%,100% { transform: translateY(0); } 40% { transform: translateY(-10px); } 60% { transform: translateY(-5px); } }
+                    .ev-box { background: linear-gradient(145deg, #1a1a1c, #2a1020); border: 2px solid #FF107A; border-radius: 15px; padding: 40px; text-align: center; box-shadow: 0 0 20px rgba(255,16,122,0.4); margin-bottom: 20px; }
+                    .ev-main { font-size: 48px; font-weight: 900; color: white; animation: neon 2s infinite; margin: 15px 0; }
+                    </style>
+                    """, unsafe_allow_html=True)
+
+                    st.markdown(f"""
+                    <div class="ev-box">
+                        <p style="color:#FFD700;font-size:20px;font-weight:bold;margin:0;">🎳 TODAY's EVENT 🎳</p>
+                        <p class="ev-main">{ev_name}</p>
+                        <p style="color:#bbb;font-size:16px;margin-top:20px;">詳細はカレンダーをチェック！</p>
+                        <p style="color:#00FFFF;font-size:36px;animation:bounce 2s infinite;margin-top:10px;">☟</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    with st.expander("📅 カレンダー原本で詳細を確認する"):
+                        st.info("※ここにカレンダー原本画像が表示されます。")
+                else:
+                    st.markdown("### 🗓 本日のイベント\n今日は特別なイベントの予定はありません。通常営業でお待ちしております！")
+            # ▲ 追加ここまで ▲
 
             if selected_player:
                 # 1. マスターシートから選択されたプレイヤーの「直近50ゲーム」と「7-10G」を抽出
