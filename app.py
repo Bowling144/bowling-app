@@ -384,28 +384,10 @@ with st.sidebar:
                     st.markdown("友達はまだ登録されていません。")
     
     if st.session_state.user_role in ["開発者", "管理者"]:
-        if st.sidebar.button("🤖 ユーザセルフ登録を起動 (キオスクモード)"):
+        if st.button("🖥️ ユーザセルフ登録を起動", type="primary", use_container_width=True):
             st.session_state.kiosk_mode = True
+            st.session_state.kiosk_step = "auth"
             st.rerun()
-
-        # ▼ 管理者・開発者専用メニューをサイドバーに追加
-        if st.session_state.get("user_role") in ["開発者", "管理者"]:
-            st.sidebar.markdown("---")
-            st.sidebar.subheader("🛠 管理ツール")
-            with st.sidebar.expander("📢 お知らせ・イベント編集"):
-                # お知らせ更新
-                ann = get_announcement_data(sh)
-                new_ann = st.text_area("お知らせ編集", value=ann, height=100)
-                if st.button("お知らせを保存"):
-                    if update_announcement_data(sh, new_ann): st.success("保存完了")
-                
-                st.markdown("---")
-                # カレンダー手動読込
-                st.write("📅 カレンダーPDF解析")
-                if st.button("AIでPDFを再読込"):
-                    with st.spinner("AIが解析中..."):
-                        res = sync_calendar_to_sps(sh, client)
-                        st.info(res)
         st.markdown("---")
         app_mode = st.radio("モード選択", ["スコア登録", "オイル情報入力", "プレイヤー分析", "データ比較"], index=0)
     else:
@@ -762,56 +744,6 @@ if app_mode == "プレイヤー分析":
     from google.oauth2 import service_account
     from googleapiclient.discovery import build
 
-    # --- 追加：お知らせ・イベント機能用関数 ---
-    def get_announcement_data(sh):
-        try:
-            wks = sh.worksheet("お知らせ")
-            return wks.acell("A1").value or "現在、お知らせはありません。"
-        except: return "現在、お知らせはありません。"
-
-    def update_announcement_data(sh, text):
-        try:
-            wks = sh.worksheet("お知らせ")
-            wks.update(range_name="A1", values=[[text]])
-            return True
-        except: return False
-
-    def sync_calendar_to_sps(sh, client):
-        """Google DriveからPDFを読み込み、1ヶ月分のイベントをSPSに保存する"""
-        import datetime
-        now = datetime.datetime.now()
-        try:
-            # 1. フォルダ検索
-            f_query = "name = 'イベントスケジュール' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-            folders = drive_service.files().list(q=f_query).execute().get('files', [])
-            if not folders: return "フォルダが見つかりません。"
-            # 2. PDF検索 (今月のもの)
-            p_query = f"'{folders[0]['id']}' in parents and name contains '{now.month}月' and mimeType = 'application/pdf'"
-            files = drive_service.files().list(q=p_query).execute().get('files', [])
-            if not files: return "今月のPDFが見つかりません。"
-            # 3. ダウンロード & AI解析
-            content = drive_service.files().get_media(fileId=files[0]['id']).execute()
-            prompt = "このカレンダーから1ヶ月分の【日付(M/D形式)】と【イベント名】を抽出し、純粋なJSON配列 [{'date':'4/1', 'event':'イベント名'}, ...] 形式で出力して。イベントがない日は含めないで。"
-            response = client.models.generate_content(model="gemini-2.0-pro-exp-02-05", contents=[types.Part.from_bytes(data=content, mime_type="application/pdf"), prompt])
-            data = json.loads(response.text.replace("```json", "").replace("```", ""))
-            # 4. SPS書き込み
-            wks = sh.worksheet("イベントカレンダー")
-            wks.clear()
-            wks.update(range_name="A1", values=[[d['date'], d['event']] for d in data])
-            return "更新完了！"
-        except Exception as e: return f"エラー: {str(e)}"
-
-    def get_today_event_from_sps(sh):
-        import datetime
-        now = datetime.datetime.now()
-        t1, t2 = f"{now.month}/{now.day}", f"{now.month:02d}/{now.day:02d}"
-        try:
-            records = sh.worksheet("イベントカレンダー").get_all_values()
-            for row in records:
-                if len(row) >= 2 and (row[0] == t1 or row[0] == t2): return row[1]
-            return "イベント予定なし"
-        except: return "イベント予定なし"
-
     # 🎯 ダーツライブ準拠：レーティング＆フライト計算関数
     def calc_rating_flight(recent_scores):
         if not recent_scores: return 0.0, "UNRATED", 0.0
@@ -927,37 +859,6 @@ if app_mode == "プレイヤー分析":
                 # 選択肢をレーティング付きの表示名にする
                 selected_display = st.selectbox(" ", player_options, label_visibility="collapsed")
                 selected_player = player_name_map.get(selected_display, "")
-
-            # ▼ 初期表示（お知らせと本日のイベント）
-            if not selected_player:
-                st.info("上部のドロップダウンからプレイヤーを選択してください。")
-                st.markdown("<br>", unsafe_allow_html=True)
-                
-                # ① お知らせ
-                announcement = get_announcement_data(sh)
-                st.markdown(f'<div style="background-color:#2a2a2e;padding:20px;border-radius:10px;border-left:5px solid #00FFFF;margin-bottom:20px;"><p style="color:white;font-size:16px;margin:0;">{announcement}</p></div>', unsafe_allow_html=True)
-
-                st.markdown("<hr style='border:1px solid #444; margin: 30px 0;'>", unsafe_allow_html=True)
-
-                # ② 本日のイベント（派手なデザイン）
-                ev_name = get_today_event_from_sps(sh)
-                if ev_name and ev_name != "イベント予定なし":
-                    st.markdown("""
-                    <style>
-                    @keyframes neon { 0%,100% { text-shadow: 0 0 10px #FF107A, 0 0 20px #FF107A; } 50% { text-shadow: 0 0 5px #FF107A, 0 0 10px #FF107A; } }
-                    .ev-box { background: linear-gradient(145deg, #1a1a1c, #2a1020); border: 2px solid #FF107A; border-radius: 15px; padding: 40px; text-align: center; box-shadow: 0 0 20px rgba(255,16,122,0.4); }
-                    .ev-main { font-size: 52px; font-weight: 900; color: white; animation: neon 1.5s infinite; margin: 15px 0; }
-                    </style>
-                    <div class="ev-box">
-                        <p style="color:#FFD700;font-size:20px;font-weight:bold;margin:0;">🎳 TODAY's EVENT 🎳</p>
-                        <p class="ev-main">""" + ev_name + """</p>
-                        <p style="color:#00FFFF;font-size:36px;animation: bounce 2s infinite;margin-top:20px;">☟</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    with st.expander("📅 カレンダー原本で詳細を確認する"):
-                        st.info("※ここにカレンダー原本画像が表示されます。")
-                else:
-                    st.markdown("### 🗓 本日のイベント\n今日は特別なイベントの予定はありません。")
 
             if selected_player:
                 # 1. マスターシートから選択されたプレイヤーの「直近50ゲーム」と「7-10G」を抽出
@@ -5932,6 +5833,8 @@ if st.session_state.analyzed_results:
 
             except Exception as e:
                 st.error(f"SPSへの登録中にエラーが発生しました: {e}")
+
+
 
 
 
