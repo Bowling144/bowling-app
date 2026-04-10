@@ -744,6 +744,42 @@ if app_mode == "プレイヤー分析":
     from google.oauth2 import service_account
     from googleapiclient.discovery import build
 
+    # ▼▼▼ 追加：お知らせ・イベント機能用の関数（AIは使わずSPSから読み込む） ▼▼▼
+    def get_announcement_data(sh):
+        try:
+            wks = sh.worksheet("お知らせ")
+            val = wks.acell("A1").value
+            return val if val else "現在、お知らせはありません。"
+        except:
+            return "現在、お知らせはありません。"
+
+    def update_announcement_data(sh, text):
+        try:
+            wks = sh.worksheet("お知らせ")
+            wks.update(range_name="A1", values=[[text]])
+            return True
+        except:
+            return False
+
+    def get_today_event_from_sps(sh):
+        """SPSの「イベントカレンダー」シートから今日の日付に一致するイベントを取得"""
+        import datetime
+        now = datetime.datetime.now()
+        today_str1 = f"{now.month}/{now.day}"
+        today_str2 = f"{now.month:02d}/{now.day:02d}" 
+        
+        try:
+            wks = sh.worksheet("イベントカレンダー")
+            records = wks.get_all_values()
+            for row in records:
+                if len(row) >= 2:
+                    if row[0] == today_str1 or row[0] == today_str2:
+                        return row[1] if row[1] else "イベント予定なし"
+            return "イベント予定なし"
+        except Exception:
+            return "イベント予定なし"
+    # ▲▲▲ 追加ここまで ▲▲▲
+
     # 🎯 ダーツライブ準拠：レーティング＆フライト計算関数
     def calc_rating_flight(recent_scores):
         if not recent_scores: return 0.0, "UNRATED", 0.0
@@ -859,6 +895,97 @@ if app_mode == "プレイヤー分析":
                 # 選択肢をレーティング付きの表示名にする
                 selected_display = st.selectbox(" ", player_options, label_visibility="collapsed")
                 selected_player = player_name_map.get(selected_display, "")
+
+            # ▼▼▼ 追加：プレイヤーが選択されていない時（初期画面）の処理 ▼▼▼
+            if not selected_player:
+                st.info("上部のドロップダウンからプレイヤーを選択してください。")
+                st.markdown("<br>", unsafe_allow_html=True)
+                
+                # --- ① お知らせ欄 ---
+                st.markdown("### 📢 お知らせ")
+                announcement = get_announcement_data(sh)
+                
+                st.markdown(f"""
+                    <div style="background-color: #2a2a2e; padding: 20px; border-radius: 10px; border-left: 5px solid #00FFFF; margin-bottom: 20px;">
+                        <p style="color: white; font-size: 16px; white-space: pre-wrap; margin: 0;">{announcement}</p>
+                    </div>
+                """, unsafe_allow_html=True)
+
+                if st.session_state.get("user_role") in ["開発者", "管理者"]:
+                    with st.expander("🛠 管理者メニュー：お知らせを更新する"):
+                        new_msg = st.text_area("新しいメッセージを入力", value=announcement, height=100)
+                        if st.button("お知らせを更新"):
+                            if update_announcement_data(sh, new_msg):
+                                st.success("更新しました。")
+                                import time
+                                time.sleep(1)
+                                st.rerun()
+
+                st.markdown("<hr style='border:1px solid #444; margin: 30px 0;'>", unsafe_allow_html=True)
+
+                # --- ② 本日のイベント欄（SPSから読み込み ＋ 派手なUI） ---
+                today_event_name = get_today_event_from_sps(sh)
+                
+                if today_event_name and today_event_name != "イベント予定なし":
+                    st.markdown("""
+                    <style>
+                    @keyframes neon-flicker {
+                      0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+                        text-shadow: 0 0 5px #FF107A, 0 0 10px #FF107A, 0 0 20px #FF107A, 0 0 40px #FF107A;
+                      }
+                      20%, 24%, 55% { text-shadow: none; }
+                    }
+                    @keyframes bounce {
+                      0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+                      40% { transform: translateY(-10px); }
+                      60% { transform: translateY(-5px); }
+                    }
+                    .event-container {
+                        background: linear-gradient(145deg, #1a1a1c 0%, #2a1020 100%);
+                        border: 2px solid #FF107A;
+                        border-radius: 15px;
+                        padding: 40px 20px;
+                        text-align: center;
+                        box-shadow: 0 0 20px rgba(255, 16, 122, 0.4);
+                        margin-bottom: 20px;
+                    }
+                    .event-title-small {
+                        color: #FFD700;
+                        font-size: 20px;
+                        font-weight: bold;
+                        letter-spacing: 3px;
+                        margin: 0 0 15px 0;
+                    }
+                    .event-main-text {
+                        font-size: 48px;
+                        font-weight: 900;
+                        color: #FFFFFF;
+                        margin: 10px 0;
+                        animation: neon-flicker 3s infinite alternate;
+                    }
+                    .arrow-down {
+                        font-size: 36px;
+                        color: #00FFFF;
+                        animation: bounce 2s infinite;
+                        margin-top: 20px;
+                    }
+                    </style>
+                    """, unsafe_allow_html=True)
+
+                    st.markdown(f"""
+                    <div class="event-container">
+                        <p class="event-title-small">🎳 TODAY's EVENT 🎳</p>
+                        <p class="event-main-text">{today_event_name}</p>
+                        <p style="color: #bbb; font-size: 16px; margin-top: 25px;">詳細はカレンダーをチェック！</p>
+                        <div class="arrow-down">☟</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    with st.expander("📅 カレンダー原本で時間・参加費を確認する"):
+                        st.info("※ここにカレンダー原本の画像を表示する処理を配置します。")
+                else:
+                    st.markdown("### 🗓 本日のイベント\n今日は特別なイベントの予定はありません。通常営業でお待ちしております！")
+            # ▲▲▲ 追加ここまで ▲▲▲
 
             if selected_player:
                 # 1. マスターシートから選択されたプレイヤーの「直近50ゲーム」と「7-10G」を抽出
