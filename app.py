@@ -537,18 +537,7 @@ with st.sidebar:
             if st.button("AIで今月のPDFを読込・保存"):
                 if sh_admin:
                     with st.spinner("AIが解析中..."):
-                        # APIキーとサービスの初期化
-                        gemini_api_key = st.secrets.get("gemini_api_key", "")
-                        admin_client = genai.Client(api_key=gemini_api_key)
-                        
-                        creds_json_str = st.secrets["google_credentials"]
-                        creds_info = json.loads(creds_json_str, strict=False)
-                        if "private_key" in creds_info:
-                            creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
-                        drive_creds = service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/drive'])
-                        admin_drive_service = build('drive', 'v3', credentials=drive_creds)
-                        
-                        res = sync_calendar_to_sps(sh_admin, admin_client, admin_drive_service)
+                        res = sync_calendar_to_sps(sh_admin)
                         st.info(res)
                 else:
                     st.error("データベースに接続できません。")
