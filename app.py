@@ -3650,16 +3650,23 @@ status_text = st.empty()
 # =========================================================
 prompt_metadata = """
 画像はボウリングのスコアシートの全体写真です。
-この画像から「日付」「最初のゲーム数」「開始時刻」「終了時刻」「レーン番号」「プレイヤーネーム」を探し出し、以下のJSON形式で出力してください。
+この画像から「日付」「最初のゲーム数」「全体の開始時刻」「全体の終了時刻」「レーン番号」「プレイヤーネーム」および「各ゲームの開始・終了時刻」を探し出し、以下のJSON形式で出力してください。
 
 【ルール】
 1. 日付: 中央上部にある黒い文字。「YY/MM/DD」の形式で "date" に出力。
 2. 最初のゲーム数: 一番上のゲームのスコア欄の左端に記載。フレームという文字の下GAMEの下に改行されて数字を記載。GAME1, GAME7, GAME13, GAME19, GAME25のいずれか。「1」などの数値のみを "start_game_num" に出力。
-3. 開始時刻: 1枚のスコアシートの日付の右下に記載。1ゲーム目の開始時刻と終了時刻が左右に並んでいて、その左側の時刻が開始時刻。"HH:MM" 形式で "start_time" に出力。見つからなければ "時刻不明" にする。
-4. 終了時刻: 1枚のスコアシートの一番最後のゲームの9フレーム目のスコア欄の上部に記載。開始時刻と終了時刻が左右に並んでいて、その右側の時刻が終了時刻。"HH:MM" 形式で "end_time" に出力。見つからなければ "時刻不明" にする。
+3. 全体の開始時刻: 1枚のスコアシートの日付の右下に記載。1ゲーム目の開始時刻と終了時刻が左右に並んでいて、その左側の時刻が開始時刻。"HH:MM" 形式で "start_time" に出力。見つからなければ "時刻不明" にする。
+4. 全体の終了時刻: 1枚のスコアシートの一番最後のゲームの9フレーム目のスコア欄の上部に記載。開始時刻と終了時刻が左右に並んでいて、その右側の時刻が終了時刻。"HH:MM" 形式で "end_time" に出力。見つからなければ "時刻不明" にする。
 5. レーン番号: 「ゲーム日付」の右側にある「使用レーン」の右に記載されている数字。1から18までの単独の整数か、「1-2」「3-4」「5-6」「7-8」「9-10」「11-12」「13-14」「15-16」「17-18」または、その逆の「2-1」から「18-17」までの文字列を "lane" に出力。見つからなければ空文字にする。
 6. プレイヤーネーム: 一番上のゲームのスコア欄の左上の「プレーヤ ネーム」の文字の右側に書かれている名前を "player_name" に出力。見つからなければ空文字にする。
-7. Markdownの記号などは一切含めず、純粋なJSON文字列だけを出力してください。
+7. 各ゲームの時刻: 画像の上から順に、各ゲームごとの開始時刻と終了時刻を読み取り、配列 "games_time" に出力してください。各ゲームの時刻はスコア欄の周辺（主に9フレーム目の上部など）に記載されています。
+   【重要な自己検証ステップ】
+   読み取った各時刻について、以下の論理チェックを必ず行ってください。
+   a. 各ゲームの開始時刻・終了時刻が、全体の「開始時刻」と「終了時刻」の間に入っているか。
+   b. 同一ゲーム内で「開始時刻 ＜ 終了時刻」となっているか（開始と終了がテレコになっていないか）。
+   c. 「前のゲームの終了時刻 ≦ 次のゲームの開始時刻」となっているか。
+   ※もし上記チェックに1つでも矛盾（NG）がある場合、推測で大幅に時刻を捏造するのではなく、間違っている箇所を特定し、その部分の画像をもう一度よく観察して正確な数字を読み直してください。
+8. Markdownの記号などは一切含めず、純粋なJSON文字列だけを出力してください。
 
 【出力フォーマット例】
 {
@@ -3668,7 +3675,19 @@ prompt_metadata = """
   "start_time": "14:12",
   "end_time": "15:30",
   "lane": "1-2",
-  "player_name": "TARO"
+  "player_name": "TARO",
+  "games_time": [
+    {
+      "game_index": 1,
+      "start_time": "14:12",
+      "end_time": "14:25"
+    },
+    {
+      "game_index": 2,
+      "start_time": "14:25",
+      "end_time": "14:40"
+    }
+  ]
 }
 """
 
@@ -4357,8 +4376,10 @@ if st.session_state.analyzed_results is None:
             ai_score_data = {"games": []}
 
         global_date = str(ai_meta_data.get("date", "日付不明")).replace("-", "/")
-        start_time = str(ai_meta_data.get("start_time", "時刻不明"))
-        end_time = str(ai_meta_data.get("end_time", "時刻不明"))
+        global_start_time = str(ai_meta_data.get("start_time", "時刻不明"))
+        global_end_time = str(ai_meta_data.get("end_time", "時刻不明"))
+        games_time_list = ai_meta_data.get("games_time", [])
+        
         try:
             base_game_num = int(ai_meta_data.get("start_game_num", 1))
         except:
@@ -4377,12 +4398,21 @@ if st.session_state.analyzed_results is None:
             py1_local = parsed_data['py1_local']
             new_ref1 = parsed_data['new_ref1']
 
+            # AIが取得した各ゲームの時刻を取得（取得できていない場合は全体の開始/終了時刻をフォールバックとして使用）
+            g_start_time = global_start_time
+            g_end_time = global_end_time
+            if group_idx < len(games_time_list):
+                g_time_info = games_time_list[group_idx]
+                if g_time_info.get("start_time") and g_time_info.get("start_time") != "時刻不明":
+                    g_start_time = str(g_time_info["start_time"])
+                if g_time_info.get("end_time") and g_time_info.get("end_time") != "時刻不明":
+                    g_end_time = str(g_time_info["end_time"])
+
             row_data = [""] * 52
             row_data[0] = global_date
-            row_data[1] = start_time
-            row_data[2] = end_time 
+            row_data[1] = g_start_time
+            row_data[2] = g_end_time 
             row_data[3] = str(ai_meta_data.get("lane") or "")
-
             games_list = ai_score_data.get("games") or []
             g_info = games_list[group_idx] if group_idx < len(games_list) else {}
 
