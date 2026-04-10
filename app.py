@@ -369,7 +369,7 @@ def sync_calendar_to_sps(sh):
         
         # 確実で安定しているProモデルに変更
         response = ai_client.models.generate_content(
-            model="gemini-1.5-pro", 
+            model="gemini-2.5-pro",  # ◀ ここを 2.5 に変更するだけです
             contents=[types.Part.from_bytes(data=content, mime_type="application/pdf"), prompt]
         )
         data = json.loads(response.text.replace("```json", "").replace("```", ""))
