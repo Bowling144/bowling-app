@@ -1094,8 +1094,8 @@ if app_mode == "プレイヤー分析":
                     @keyframes neon { 0%,100% { text-shadow: 0 0 10px #FF107A, 0 0 20px #FF107A; } 50% { text-shadow: 0 0 5px #FF107A, 0 0 10px #FF107A; } }
                     @keyframes bounce { 0%,20%,50%,80%,100% { transform: translateY(0); } 40% { transform: translateY(-10px); } 60% { transform: translateY(-5px); } }
                     .ev-box { background: linear-gradient(145deg, #1a1a1c, #2a1020); border: 2px solid #FF107A; border-radius: 15px; padding: 25px 20px 5px 20px; text-align: center; box-shadow: 0 0 20px rgba(255,16,122,0.4); margin-bottom: 10px; }
-                    .ev-main { font-size: 45px; font-weight: 900; color: white; animation: neon 2s infinite; margin: 15px 0 5px 0; line-height: 1.2; }
-                    .ev-desc { font-size: 15px; color: #FFB6C1; margin: 0 0 15px 0; line-height: 1.4; text-align: center; }
+                    .ev-main { font-size: 50px; font-weight: 900; color: white; animation: neon 2s infinite; margin: 15px 0 5px 0; line-height: 1.2; }
+                    .ev-desc { font-size: 18px; color: #FFB6C1; margin: 0 0 15px 0; line-height: 1.4; text-align: center; }
                     </style>
                     """, unsafe_allow_html=True)
 
