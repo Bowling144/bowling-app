@@ -543,6 +543,8 @@ with st.sidebar:
             new_ann = st.text_area("編集", value=ann_current, height=100)
             if st.button("を保存"):
                 if sh_admin and update_announcement_data(sh_admin, new_ann): 
+                    # 保存直前のモードをセッションに退避
+                    st.session_state.current_app_mode = st.session_state.get("sidebar_app_mode_radio", "スコア登録")
                     st.success("保存完了")
                     time.sleep(1)
                     st.rerun()
@@ -596,6 +598,8 @@ with st.sidebar:
                 with st.spinner(f"{selected_name} を解析中..."):
                     res = sync_calendar_to_sps(sh_admin, selected_id) 
                     if "完了" in res:
+                        # 保存直前のモードをセッションに退避
+                        st.session_state.current_app_mode = st.session_state.get("sidebar_app_mode_radio", "スコア登録")
                         st.success(res)
                         time.sleep(2)
                         st.rerun()
@@ -615,9 +619,20 @@ with st.sidebar:
             )
 
         st.markdown("---")
-        app_mode = st.radio("モード選択", ["スコア登録", "オイル情報入力", "プレイヤー分析", "データ比較"], index=0)
+        
+        # 退避していたモードがあればそれを初期値に、なければ「スコア登録」
+        saved_mode = st.session_state.get("current_app_mode", "スコア登録")
+        options = ["スコア登録", "オイル情報入力", "プレイヤー分析", "データ比較"]
+        default_idx = options.index(saved_mode) if saved_mode in options else 0
+        
+        app_mode = st.radio("モード選択", options, index=default_idx, key="sidebar_app_mode_radio")
     else:
-        app_mode = st.radio("モード選択", ["プレイヤー分析"], index=0)
+        # 一般ユーザーの場合
+        saved_mode = st.session_state.get("current_app_mode", "プレイヤー分析")
+        options = ["プレイヤー分析"]
+        default_idx = options.index(saved_mode) if saved_mode in options else 0
+        
+        app_mode = st.radio("モード選択", options, index=default_idx, key="sidebar_app_mode_radio")
         st.info("※非公開のプレイヤーのデータは表示されません")
 
 # ＃★★★★テンキー入力用共通関数群★★★★
@@ -735,6 +750,15 @@ if st.session_state.get("kiosk_mode"):
                 selected_user = st.selectbox("プレイヤーを選択してください", ["選択してください"] + players)
                 kiosk_pw = render_tenkey("パスワードを入力してください", "tk_kiosk_pass", "", format_type="none", is_pw=True)
                 
+                # ▼ キオスクモード用の解析設定（判定方式切替）を追加
+                st.markdown("<br>", unsafe_allow_html=True)
+                with st.expander("⚙️ 解析設定 (残ピン判定方式)"):
+                    st.radio(
+                        "残ピン閾値の判定方式", 
+                        ["4箇所基準", "全体分布基準"], 
+                        key="thresh_method_setting"
+                    )
+
                 st.markdown("<br>", unsafe_allow_html=True)
                 if st.button("✅ 認証して登録画面へ進む", use_container_width=True):
                     if selected_user == "選択してください":
