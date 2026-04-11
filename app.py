@@ -649,7 +649,8 @@ with st.sidebar:
                     creds_info = json.loads(creds_json_str, strict=False)
                     if "private_key" in creds_info:
                         creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
-                    drive_creds = service_account.Credentials.from_service_account_info(creds_info, scopes=['[https://www.googleapis.com/auth/drive](https://www.googleapis.com/auth/drive)'])
+                    # URLのMarkdown記法を修正
+                    drive_creds = service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/drive'])
                     drive_service = build('drive', 'v3', credentials=drive_creds)
                     
                     # fieldsにnameを追加して明示的に取得
@@ -1220,6 +1221,10 @@ if app_mode == "プレイヤー分析":
                                     st.markdown(iframe_html, unsafe_allow_html=True)
                                 else:
                                     st.info("今月のスケジュールPDFが見つかりません。")
+                            else:
+                                st.info("「イベントスケジュール」フォルダが見つかりません。")
+                        except Exception as e:
+                            st.error(f"カレンダーの読み込みに失敗しました: {e}")
                             else:
                                 st.info("「イベントスケジュール」フォルダが見つかりません。")
                         except Exception as e:
