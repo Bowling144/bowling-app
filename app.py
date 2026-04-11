@@ -280,7 +280,7 @@ def update_announcement_data(sh, text):
         return True
     except: return False
 
-def sync_calendar_to_sps(sh, file_id=None):
+def sync_calendar_to_sps(sh, file_id):
     """Google Driveの指定されたPDFを読み込み、1ヶ月分のイベントをSPSに保存する"""
     import json
     import time
@@ -308,18 +308,18 @@ def sync_calendar_to_sps(sh, file_id=None):
         
         content = drive_service.files().get_media(fileId=file_id).execute()
         
-        # ▼ AIがカレンダーのマス目をサボらずに1日ずつ読むように「ステップ」で強制するプロンプト
+        # ▼ 1枚目のイベントも確実に拾うように強化したプロンプト
         prompt = """あなたはカレンダーから予定を漏れなく抽出するプロフェッショナルです。
 添付されたPDF（1枚目がマトリックス状のカレンダー、2枚目が行事予定表）から、1ヶ月分の全イベント情報を抽出してください。
 
 【厳格な抽出ステップ】
-ステップ1: まず「1枚目のカレンダー」のマス目を、1日から月末まで1日ずつ順番に目で追って確認してください。「昼得デー」「フレンドシップ」など、カレンダーのマス内に書かれている文字は、大小問わず**絶対に漏らさず全て**抽出してください。
-ステップ2: 次に「2枚目の行事予定表」を確認し、大会などのイベントに紐づく「行事名（補足説明）」があれば取得してください。
-ステップ3: 以下のJSON配列形式で出力してください。カレンダー（1枚目）にしか載っていないイベントは `desc` を空文字にしてください。
-[{"date":"4/1", "event":"昼得デー", "desc":""}, {"date":"4/2", "event":"〇〇大会", "desc":"行事名など"}, ...]
+ステップ1: まず「1枚目のカレンダー」のマス目を、1日から末日まで順番にすべて確認してください。「昼得デー」「フレンドシップ」など、マス内に書かれている文字は、大小問わず**漏らさず全て**抽出してください。
+ステップ2: 次に「2枚目の行事予定表」を確認し、1枚目で取得したイベントと同じ日のものがあれば、その「大会名」のすぐ下に書かれている【行事名】の文字列だけを抽出して `desc` に入れてください。
+ステップ3: 以下のJSON配列形式で出力してください。補足説明（行事名）がない場合は `desc` を空文字（""）にしてください。
+[{"date":"4/1", "event":"イベント名", "desc":"行事名"}, ...]
 
-【禁止事項（これらが含まれると重大なシステムエラーになります）】
-・「時間（10:00〜など）」「ゲーム数（4Gなど）」「参加費・金額（¥〇〇など）」は event にも desc にも**絶対に含めない**でください。
+【禁止事項：保障問題に繋がるため厳守してください】
+・「時間（10:00〜、PM1:30など）」「ゲーム数（4Gなど）」「参加費・金額（¥1,700など）」の情報は、eventにもdescにも**一文字も含めないでください**。
 ・Markdown（```json 等）は含めず、純粋な配列 [ ] から始まる文字列のみを出力してください。"""
         
         # --- サーバー高負荷対策（自動リトライ＆モデル切り替え） ---
@@ -649,17 +649,18 @@ with st.sidebar:
                     creds_info = json.loads(creds_json_str, strict=False)
                     if "private_key" in creds_info:
                         creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
-                    drive_creds = service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/drive'])
+                    drive_creds = service_account.Credentials.from_service_account_info(creds_info, scopes=['[https://www.googleapis.com/auth/drive](https://www.googleapis.com/auth/drive)'])
                     drive_service = build('drive', 'v3', credentials=drive_creds)
                     
+                    # fieldsにnameを追加して明示的に取得
                     f_query = "name = 'イベントスケジュール' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-                    folders = drive_service.files().list(q=f_query).execute().get('files', [])
+                    folders = drive_service.files().list(q=f_query, fields="files(id, name)").execute().get('files', [])
                     
                     pdf_dict = {}
                     if folders:
                         folder_id = folders[0]['id']
                         p_query = f"'{folder_id}' in parents and mimeType = 'application/pdf' and trashed = false"
-                        pdf_files = drive_service.files().list(q=p_query, orderBy="createdTime desc").execute().get('files', [])
+                        pdf_files = drive_service.files().list(q=p_query, orderBy="createdTime desc", fields="files(id, name)").execute().get('files', [])
                         pdf_dict = {f['name']: f['id'] for f in pdf_files}
                 except Exception as e:
                     st.error(f"ファイル一覧の取得に失敗しました: {e}")
@@ -669,20 +670,23 @@ with st.sidebar:
                 st.warning("「イベントスケジュール」フォルダ内にPDFが見つかりませんでした。")
                 return
                 
-            st.markdown("AIに読み込ませるPDFを選択してください。")
+            st.markdown("解析するファイルを選択してください。")
             selected_name = st.selectbox("対象ファイル", list(pdf_dict.keys()), label_visibility="collapsed")
             selected_id = pdf_dict[selected_name]
             
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("AI解析を実行して保存", type="primary", use_container_width=True):
+            if st.button("🚀 AI解析を実行して保存", type="primary", use_container_width=True):
                 with st.spinner(f"{selected_name} を解析中..."):
                     res = sync_calendar_to_sps(sh_admin, selected_id) 
-                    st.success(res) if "完了" in res else st.error(res)
-                    time.sleep(2)
-                    st.rerun()
+                    if "完了" in res:
+                        st.success(res)
+                        time.sleep(2)
+                        st.rerun()
+                    else:
+                        st.error(res)
 
         # ダイアログを呼び出すボタン（サイドバーに常駐）
-        if st.button("📅 カレンダーPDF解析を起動", use_container_width=True):
+        if st.button("📅 PDFを選択して同期開始", use_container_width=True):
             open_calendar_sync_dialog()
 
         st.markdown("---")
@@ -1202,11 +1206,13 @@ if app_mode == "プレイヤー分析":
                             import datetime
                             import base64
                             now = datetime.datetime.now()
+                            # folders取得時に fields="files(id, name)" を追加
                             f_query = "name = 'イベントスケジュール' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-                            folders = drive_service.files().list(q=f_query).execute().get('files', [])
+                            folders = drive_service.files().list(q=f_query, fields="files(id, name)").execute().get('files', [])
                             if folders:
                                 p_query = f"'{folders[0]['id']}' in parents and name contains '{now.month}月' and mimeType = 'application/pdf'"
-                                files = drive_service.files().list(q=p_query, fields="files(id)").execute().get('files', [])
+                                # files取得時に fields="files(id, name)" を指定
+                                files = drive_service.files().list(q=p_query, fields="files(id, name)").execute().get('files', [])
                                 if files:
                                     pdf_content = drive_service.files().get_media(fileId=files[0]['id']).execute()
                                     
