@@ -4453,8 +4453,9 @@ if st.session_state.analyzed_results is None:
         thresh_method = st.session_state.get("thresh_method_setting", "新方式 (指定箇所基準)")
         
         if thresh_method == "新方式 (指定箇所基準)":
-            dyn_thresh_green = max(pcts_green) + 2.0 + offset if pcts_green else dyn_thresh_empty_base
-            dyn_thresh_orange = max(pcts_orange) + 2.0 + offset if pcts_orange else dyn_thresh_empty_base
+            # ▼ 最大値(max)から平均値(sum/len)に変更
+            dyn_thresh_green = (sum(pcts_green) / len(pcts_green)) + 2.0 + offset if pcts_green else dyn_thresh_empty_base
+            dyn_thresh_orange = (sum(pcts_orange) / len(pcts_orange)) + 2.0 + offset if pcts_orange else dyn_thresh_empty_base
         else:
             dyn_thresh_green = dyn_thresh_empty_base
             dyn_thresh_orange = dyn_thresh_empty_base
