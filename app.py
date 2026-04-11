@@ -379,11 +379,20 @@ def get_today_event_from_sps(sh):
     t1, t2 = f"{now.month}/{now.day}", f"{now.month:02d}/{now.day:02d}"
     try:
         records = sh.worksheet("イベントカレンダー").get_all_values()
+        events = []
+        descs = []
         for row in records:
             if len(row) >= 2 and (row[0] == t1 or row[0] == t2):
-                event_name = row[1]
-                event_desc = row[2] if len(row) > 2 else ""
-                return event_name, event_desc
+                events.append(row[1])
+                if len(row) > 2 and row[2]:
+                    descs.append(row[2])
+        
+        if events:
+            # 複数ある場合はイベント名を「＆」で結合、説明文を改行とハイフンで結合
+            event_name = " ＆ ".join(events)
+            event_desc = "\n---\n".join(descs) if descs else ""
+            return event_name, event_desc
+            
         return "イベント予定なし", ""
     except: return "イベント予定なし", ""
 # ▲ 追加ここまで ▲
