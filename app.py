@@ -1228,10 +1228,6 @@ if app_mode == "プレイヤー分析":
                                 st.info("「イベントスケジュール」フォルダが見つかりません。")
                         except Exception as e:
                             st.error(f"カレンダーの読み込みに失敗しました: {e}")
-                            else:
-                                st.info("「イベントスケジュール」フォルダが見つかりません。")
-                        except Exception as e:
-                            st.error(f"カレンダーの読み込みに失敗しました: {e}")
                 else:
                     st.markdown("### 🗓 本日のイベント\n今日はイベントの予定はありません。通常営業でお待ちしております！")
             # ▲ 追加ここまで ▲
