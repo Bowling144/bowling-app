@@ -505,13 +505,14 @@ def get_today_event_from_sps(sh):
     t1, t2 = f"{now.month}/{now.day}", f"{now.month:02d}/{now.day:02d}"
     try:
         records = sh.worksheet("イベントカレンダー").get_all_values()
+        events = []
         for row in records:
             if len(row) >= 2 and (row[0] == t1 or row[0] == t2):
-                event_name = row[1]
-                event_desc = row[2] if len(row) > 2 else ""
-                return event_name, event_desc
-        return "イベント予定なし", ""
-    except: return "イベント予定なし", ""
+                e_name = row[1]
+                e_desc = row[2] if len(row) > 2 else ""
+                events.append({"name": e_name, "desc": e_desc})
+        return events if events else []
+    except: return []
 # ▲▲▲ 追加ここまで ▲▲▲
 
 # --- セッション初期化 ---
@@ -1197,22 +1198,38 @@ if app_mode == "プレイヤー分析":
                 st.markdown("<hr style='border:1px solid #444; margin: 30px 0;'>", unsafe_allow_html=True)
 
                 # ② 本日のイベント表示（SPSから読込 ＋ 派手なUI）
-                ev_result = get_today_event_from_sps(sh) if 'get_today_event_from_sps' in globals() else ("イベント予定なし", "")
+                ev_result = get_today_event_from_sps(sh) if 'get_today_event_from_sps' in globals() else []
+                
+                # 過去の形式(tuple)が返ってきた場合の安全対策
                 if isinstance(ev_result, tuple):
-                    ev_name, ev_desc = ev_result
-                else:
-                    ev_name, ev_desc = ev_result, ""
-                    
-                if ev_name and ev_name != "イベント予定なし":
+                    ev_result = [{"name": ev_result[0], "desc": ev_result[1]}] if ev_result[0] and ev_result[0] != "イベント予定なし" else []
+
+                if ev_result and len(ev_result) > 0:
                     st.markdown("""
                     <style>
                     @keyframes neon { 0%,100% { text-shadow: 0 0 10px #FF107A, 0 0 20px #FF107A; } 50% { text-shadow: 0 0 5px #FF107A, 0 0 10px #FF107A; } }
                     @keyframes bounce { 0%,20%,50%,80%,100% { transform: translateY(0); } 40% { transform: translateY(-10px); } 60% { transform: translateY(-5px); } }
-                    .ev-box { background: linear-gradient(145deg, #1a1a1c, #2a1020); border: 2px solid #FF107A; border-radius: 15px; padding: 40px; text-align: center; box-shadow: 0 0 20px rgba(255,16,122,0.4); margin-bottom: 20px; }
-                    .ev-main { font-size: 48px; font-weight: 900; color: white; animation: neon 2s infinite; margin: 15px 0; }
-                    .ev-desc { font-size: 16px; color: #E0E0E0; margin: 10px 0; padding: 15px; background: rgba(0,0,0,0.5); border-radius: 8px; text-align: left; line-height: 1.5; }
+                    .ev-box { background: linear-gradient(145deg, #1a1a1c, #2a1020); border: 2px solid #FF107A; border-radius: 15px; padding: 25px 20px 10px 20px; text-align: center; box-shadow: 0 0 20px rgba(255,16,122,0.4); margin-bottom: 10px; }
+                    .ev-main { font-size: 32px; font-weight: 900; color: white; animation: neon 2s infinite; margin: 15px 0 5px 0; line-height: 1.2; }
+                    .ev-desc { font-size: 15px; color: #00FFFF; margin: 0 0 15px 0; line-height: 1.4; text-align: center; }
                     </style>
                     """, unsafe_allow_html=True)
+
+                    events_html = ""
+                    for ev in ev_result:
+                        events_html += f'<p class="ev-main">{ev["name"]}</p>'
+                        if ev["desc"]:
+                            safe_desc = str(ev["desc"]).replace('\n', '<br>')
+                            events_html += f'<p class="ev-desc">{safe_desc}</p>'
+
+                    html_content = f'''<div class="ev-box">
+<p style="color:#FFD700;font-size:20px;font-weight:bold;margin:0 0 5px 0;">🎳 TODAY's EVENT 🎳</p>
+{events_html}
+<p style="color:#bbb;font-size:16px;margin-top:20px;margin-bottom:0;">詳細はカレンダーをチェック！</p>
+<p style="color:#00FFFF;font-size:36px;animation:bounce 2s infinite;margin:0;">☟</p>
+</div>'''
+
+                    st.markdown(html_content, unsafe_allow_html=True)
 
                     # ▼ 修正箇所：テキスト内の改行コード(\n)をHTMLの改行タグ(<br>)に変換し、全体を1行のHTMLとして出力する
                     safe_ev_desc = str(ev_desc).replace('\n', '<br>')
