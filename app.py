@@ -611,7 +611,6 @@ with st.sidebar:
             st.session_state.kiosk_step = "auth"
             st.rerun()
 
-        # ▼ 追加：管理者・開発者専用メニューをサイドバーに配置 ▼
         st.markdown("---")
         st.subheader("🛠 管理ツール")
         with st.expander("📢 お知らせ・イベント編集"):
@@ -664,18 +663,6 @@ with st.sidebar:
                     with st.spinner(f"{selected_name} を解析中..."):
                         res = sync_calendar_to_sps(sh_admin, selected_id) 
                         st.info(res)
-
-        st.markdown("---")
-            # カレンダー手動読込
-            st.write("📅 カレンダーPDF解析")
-            if st.button("AIで今月のPDFを読込・保存"):
-                if sh_admin:
-                    with st.spinner("AIが解析中..."):
-                        res = sync_calendar_to_sps(sh_admin)
-                        st.info(res)
-                else:
-                    st.error("データベースに接続できません。")
-        # ▲ 追加ここまで ▲
 
         st.markdown("---")
         app_mode = st.radio("モード選択", ["スコア登録", "オイル情報入力", "プレイヤー分析", "データ比較"], index=0)
