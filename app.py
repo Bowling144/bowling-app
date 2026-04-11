@@ -1071,78 +1071,78 @@ if app_mode == "プレイヤー分析":
                     st.markdown("### お知らせ")
                     # color, font-size, font-family に !important を追加
                     st.markdown(f'<div style="background-color:#2a2a2e;padding:20px;border-radius:10px;border-left:5px solid #00FFFF;margin-bottom:20px;"><p style="color:#00FFFF;font-size:22px;font-weight:bold;white-space:pre-wrap;margin:0;">{announcement}</p></div>', unsafe_allow_html=True)
-                st.markdown("<hr style='border:1px solid #444; margin: 30px 0;'>", unsafe_allow_html=True)
+                    st.markdown("<hr style='border:1px solid #444; margin: 30px 0;'>", unsafe_allow_html=True)
 
-                # ② 本日のイベント表示（SPSから読込 ＋ 派手なUI）
-                ev_result = get_today_event_from_sps(sh) if 'get_today_event_from_sps' in globals() else []
-                
-                # 後続の画像検索ロジックなどでエラーが出ないよう、変数を初期化
-                ev_name = "イベント予定なし"
-                ev_desc = ""
-                
-                # 過去の形式(tuple)が返ってきた場合の安全対策
-                if isinstance(ev_result, tuple):
-                    ev_result = [{"name": ev_result[0], "desc": ev_result[1]}] if ev_result[0] and ev_result[0] != "イベント予定なし" else []
+                    # ② 本日のイベント表示（SPSから読込 ＋ 派手なUI）
+                    ev_result = get_today_event_from_sps(sh) if 'get_today_event_from_sps' in globals() else []
+                    
+                    # 後続の画像検索ロジックなどでエラーが出ないよう、変数を初期化
+                    ev_name = "イベント予定なし"
+                    ev_desc = ""
+                    
+                    # 過去の形式(tuple)が返ってきた場合の安全対策
+                    if isinstance(ev_result, tuple):
+                        ev_result = [{"name": ev_result[0], "desc": ev_result[1]}] if ev_result[0] and ev_result[0] != "イベント予定なし" else []
 
-                if ev_result and len(ev_result) > 0:
-                    # 後続ロジック用に代表値を代入
-                    ev_name = " ＆ ".join([e["name"] for e in ev_result])
-                    ev_desc = "\n".join([e["desc"] for e in ev_result if e["desc"]])
+                    if ev_result and len(ev_result) > 0:
+                        # 後続ロジック用に代表値を代入
+                        ev_name = " ＆ ".join([e["name"] for e in ev_result])
+                        ev_desc = "\n".join([e["desc"] for e in ev_result if e["desc"]])
 
-                    st.markdown("""
-                    <style>
-                    @keyframes neon { 0%,100% { text-shadow: 0 0 10px #FF107A, 0 0 20px #FF107A; } 50% { text-shadow: 0 0 5px #FF107A, 0 0 10px #FF107A; } }
-                    @keyframes bounce { 0%,20%,50%,80%,100% { transform: translateY(0); } 40% { transform: translateY(-10px); } 60% { transform: translateY(-5px); } }
-                    .ev-box { background: linear-gradient(145deg, #1a1a1c, #2a1020); border: 2px solid #FF107A; border-radius: 15px; padding: 25px 20px 5px 20px; text-align: center; box-shadow: 0 0 20px rgba(255,16,122,0.4); margin-bottom: 10px; }
-                    .ev-main { font-size: 45px !important; font-weight: 900; color: white; animation: neon 2s infinite; margin: 15px 0 5px 0; line-height: 1.2; }
-                    .ev-desc { font-size: 22px !important; color: #FFB6C1; margin: 0 0 15px 0; line-height: 1.4; text-align: center; }
-                    </style>
-                    """, unsafe_allow_html=True)
+                        st.markdown("""
+                        <style>
+                        @keyframes neon { 0%,100% { text-shadow: 0 0 10px #FF107A, 0 0 20px #FF107A; } 50% { text-shadow: 0 0 5px #FF107A, 0 0 10px #FF107A; } }
+                        @keyframes bounce { 0%,20%,50%,80%,100% { transform: translateY(0); } 40% { transform: translateY(-10px); } 60% { transform: translateY(-5px); } }
+                        .ev-box { background: linear-gradient(145deg, #1a1a1c, #2a1020); border: 2px solid #FF107A; border-radius: 15px; padding: 25px 20px 5px 20px; text-align: center; box-shadow: 0 0 20px rgba(255,16,122,0.4); margin-bottom: 10px; }
+                        .ev-main { font-size: 45px !important; font-weight: 900; color: white; animation: neon 2s infinite; margin: 15px 0 5px 0; line-height: 1.2; }
+                        .ev-desc { font-size: 22px !important; color: #FFB6C1; margin: 0 0 15px 0; line-height: 1.4; text-align: center; }
+                        </style>
+                        """, unsafe_allow_html=True)
 
-                    events_html = ""
-                    for ev in ev_result:
-                        events_html += f'<p class="ev-main">{ev["name"]}</p>'
-                        if ev["desc"]:
-                            safe_desc = str(ev["desc"]).replace('\n', '<br>')
-                            events_html += f'<p class="ev-desc">{safe_desc}</p>'
+                        events_html = ""
+                        for ev in ev_result:
+                            events_html += f'<p class="ev-main">{ev["name"]}</p>'
+                            if ev["desc"]:
+                                safe_desc = str(ev["desc"]).replace('\n', '<br>')
+                                events_html += f'<p class="ev-desc">{safe_desc}</p>'
 
-                    html_content = f'''<div class="ev-box">
+                        html_content = f'''<div class="ev-box">
 <p style="color:#FFB6C1;font-size:30px;font-weight:bold;margin:0 0 5px 0;">🎳 TODAY's EVENT 🎳</p>
 {events_html}
 <p style="color:#FFB6C1;font-size:16px;margin-top:5px;margin-bottom:0;">詳細はカレンダーをチェック！</p>
 <p style="color:#FFB6C1;font-size:36px;animation:bounce 2s infinite;margin:-15px 0 -10px 0;">☟</p>
 </div>'''
 
-                    st.markdown(html_content, unsafe_allow_html=True)
-                    
-                    with st.expander("📅 イベントカレンダーを表示"):
-                        try:
-                            f_query = "name = 'イベントスケジュール' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-                            folders = drive_service.files().list(q=f_query, fields="files(id, name)").execute().get('files', [])
-                            
-                            if folders:
-                                import datetime
-                                now = datetime.datetime.now()
-                                p_query = f"'{folders[0]['id']}' in parents and name contains '{now.month}月' and mimeType = 'application/pdf'"
+                        st.markdown(html_content, unsafe_allow_html=True)
+                        
+                        with st.expander("📅 イベントカレンダーを表示"):
+                            try:
+                                f_query = "name = 'イベントスケジュール' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+                                folders = drive_service.files().list(q=f_query, fields="files(id, name)").execute().get('files', [])
                                 
-                                # orderByを追加して、同じ「4月」でも最新のファイルを一番目(files[0])に来るようにする
-                                files = drive_service.files().list(q=p_query, fields="files(id, name)", orderBy="createdTime desc").execute().get('files', [])
-                                
-                                if files:
-                                    file_id = files[0]['id']
+                                if folders:
+                                    import datetime
+                                    now = datetime.datetime.now()
+                                    p_query = f"'{folders[0]['id']}' in parents and name contains '{now.month}月' and mimeType = 'application/pdf'"
                                     
-                                    # Google Driveの公式プレビューを直接埋め込む（Chromeのブロックを回避）
-                                    preview_url = f"https://drive.google.com/file/d/{file_id}/preview"
-                                    iframe_html = f'<iframe src="{preview_url}" width="100%" height="800" style="border:none;" allow="autoplay"></iframe>'
-                                    st.markdown(iframe_html, unsafe_allow_html=True)
+                                    # orderByを追加して、同じ「4月」でも最新のファイルを一番目(files[0])に来るようにする
+                                    files = drive_service.files().list(q=p_query, fields="files(id, name)", orderBy="createdTime desc").execute().get('files', [])
+                                    
+                                    if files:
+                                        file_id = files[0]['id']
+                                        
+                                        # Google Driveの公式プレビューを直接埋め込む（Chromeのブロックを回避）
+                                        preview_url = f"https://drive.google.com/file/d/{file_id}/preview"
+                                        iframe_html = f'<iframe src="{preview_url}" width="100%" height="800" style="border:none;" allow="autoplay"></iframe>'
+                                        st.markdown(iframe_html, unsafe_allow_html=True)
+                                    else:
+                                        st.info("今月のスケジュールPDFが見つかりません。")
                                 else:
-                                    st.info("今月のスケジュールPDFが見つかりません。")
-                            else:
-                                st.info("「イベントスケジュール」フォルダが見つかりません。")
-                        except Exception as e:
-                            st.error(f"カレンダーの読み込みに失敗しました: {e}")
-                else:
-                    st.markdown("### 🗓 本日のイベント\n今日はイベントの予定はありません。通常営業でお待ちしております！")
+                                    st.info("「イベントスケジュール」フォルダが見つかりません。")
+                            except Exception as e:
+                                st.error(f"カレンダーの読み込みに失敗しました: {e}")
+                    else:
+                        st.markdown("### 🗓 本日のイベント\n今日はイベントの予定はありません。通常営業でお待ちしております！")
             # ▲ 追加ここまで ▲
 
             if selected_player:
