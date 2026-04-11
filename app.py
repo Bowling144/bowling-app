@@ -1206,12 +1206,15 @@ if app_mode == "プレイヤー分析":
                         try:
                             f_query = "name = 'イベントスケジュール' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
                             folders = drive_service.files().list(q=f_query, fields="files(id, name)").execute().get('files', [])
+                            
                             if folders:
                                 import datetime
                                 now = datetime.datetime.now()
                                 p_query = f"'{folders[0]['id']}' in parents and name contains '{now.month}月' and mimeType = 'application/pdf'"
+                                
                                 # orderByを追加して、同じ「4月」でも最新のファイルを一番目(files[0])に来るようにする
                                 files = drive_service.files().list(q=p_query, fields="files(id, name)", orderBy="createdTime desc").execute().get('files', [])
+                                
                                 if files:
                                     file_id = files[0]['id']
                                     
