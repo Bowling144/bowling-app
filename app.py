@@ -271,140 +271,14 @@ def get_gspread_client():
 # =========================================================
 def get_announcement_data(sh):
     try:
-        # シート名を "" から "お知らせ" に変更
+        # シート名を "お知らせ" に修正
         return sh.worksheet("お知らせ").acell("A1").value or "現在、はありません。"
     except: return "現在、はありません。"
 
 def update_announcement_data(sh, text):
     try:
-        # シート名を "" から "お知らせ" に変更
+        # シート名を "お知らせ" に修正
         sh.worksheet("お知らせ").update(range_name="A1", values=[[text]])
-        return True
-    except: return False
-
-def sync_calendar_to_sps(sh, file_id):
-    """Google Driveの指定されたPDFを読み込み、1ヶ月分のイベントをSPSに保存する"""
-    import json
-    import time
-    import random
-    import re
-    from google.genai import types
-    from google import genai
-    from google.oauth2 import service_account
-    from googleapiclient.discovery import build
-    
-    try:
-        creds_json_str = st.secrets["google_credentials"]
-        creds_info = json.loads(creds_json_str, strict=False)
-        if "private_key" in creds_info:
-            creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
-        
-        drive_creds = service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/drive'])
-        drive_service = build('drive', 'v3', credentials=drive_creds)
-        
-        gemini_api_key = st.secrets.get("gemini_api_key", "")
-        ai_client = genai.Client(api_key=gemini_api_key)
-
-        if not file_id:
-            return "ファイルIDが指定されていません。"
-        
-        content = drive_service.files().get_media(fileId=file_id).execute()
-        
-        # ▼ 1枚目のイベントも確実に拾うように強化したプロンプト
-        prompt = """あなたはカレンダーから予定を漏れなく抽出するプロフェッショナルです。
-添付されたPDF（1枚目がマトリックス状のカレンダー、2枚目が行事予定表）から、1ヶ月分の全イベント情報を抽出してください。
-
-【厳格な抽出ステップ】
-ステップ1: まず「1枚目のカレンダー」のマス目を、1日から末日まで順番にすべて確認してください。「昼得デー」「フレンドシップ」など、マス内に書かれている文字は、大小問わず**漏らさず全て**抽出してください。
-ステップ2: 次に「2枚目の行事予定表」を確認し、1枚目で取得したイベントと同じ日のものがあれば、その「大会名」のすぐ下に書かれている【行事名】の文字列だけを抽出して `desc` に入れてください。
-ステップ3: 以下のJSON配列形式で出力してください。補足説明（行事名）がない場合は `desc` を空文字（""）にしてください。
-[{"date":"4/1", "event":"イベント名", "desc":"行事名"}, ...]
-
-【禁止事項：保障問題に繋がるため厳守してください】
-・「時間（10:00〜、PM1:30など）」「ゲーム数（4Gなど）」「参加費・金額（¥1,700など）」の情報は、eventにもdescにも**一文字も含めないでください**。
-・Markdown（```json 等）は含めず、純粋な配列 [ ] から始まる文字列のみを出力してください。"""
-        
-        # --- サーバー高負荷対策（自動リトライ＆モデル切り替え） ---
-        max_retries = 5
-        response = None
-        last_error = ""
-        success = False
-        
-        # 2.5-pro がダメなら 1.5-pro で予備実行する
-        for attempt_model in ["gemini-2.5-pro", "gemini-1.5-pro"]:
-            for attempt in range(max_retries):
-                try:
-                    response = ai_client.models.generate_content(
-                        model=attempt_model,
-                        contents=[types.Part.from_bytes(data=content, mime_type="application/pdf"), prompt]
-                    )
-                    if not response or not response.text:
-                        raise ValueError("AIからの応答が空でした。")
-                    success = True
-                    break
-                except Exception as e:
-                    last_error = str(e)
-                    error_msg = last_error.lower()
-                    # いかなるエラーでも、リトライ上限までは待機してやり直す
-                    if attempt < max_retries - 1:
-                        wait_sec = (2 ** (attempt + 1)) + random.uniform(0, 1)
-                        time.sleep(wait_sec)
-                        continue
-                    break 
-            if success:
-                break
-        
-        if not success or not response:
-            return f"AI解析エラー: サーバーが混雑しています。時間を置いて再度お試しください。（詳細: {last_error}）"
-
-        # 正規表現を使って確実にJSON配列部分だけを抽出する
-        raw_text = response.text
-        json_match = re.search(r'\[.*\]', raw_text, re.DOTALL)
-        if json_match:
-            json_str = json_match.group(0)
-        else:
-            return "AIが期待するJSON形式でデータを出力しませんでした。"
-            
-        data = json.loads(json_str)
-        
-        wks = sh.worksheet("イベントカレンダー")
-        wks.clear()
-        # 日付、イベント名、説明文（desc）の3つを書き込む
-        wks.update(range_name="A1", values=[[d.get('date', ''), d.get('event', ''), d.get('desc', '')] for d in data])
-        return "更新完了！"
-    except Exception as e: return f"エラー: {str(e)}"
-
-def get_today_event_from_sps(sh):
-    """SPSのイベントカレンダーから今日の日付のイベントと説明を取得"""
-    import datetime
-    now = datetime.datetime.now()
-    t1, t2 = f"{now.month}/{now.day}", f"{now.month:02d}/{now.day:02d}"
-    try:
-        records = sh.worksheet("イベントカレンダー").get_all_values()
-        events = []
-        descs = []
-        for row in records:
-            if len(row) >= 2 and (row[0] == t1 or row[0] == t2):
-                events.append(row[1])
-                if len(row) > 2 and row[2]:
-                    descs.append(row[2])
-        
-        if events:
-            # 複数ある場合はイベント名を「＆」で結合、説明文を改行とハイフンで結合
-            event_name = " ＆ ".join(events)
-            event_desc = "\n---\n".join(descs) if descs else ""
-            return event_name, event_desc
-            
-        return "イベント予定なし", ""
-    except: return "イベント予定なし", ""
-# ▲ 追加ここまで ▲
-    try:
-        return sh.worksheet("").acell("A1").value or "現在、はありません。"
-    except: return "現在、はありません。"
-
-def update_announcement_data(sh, text):
-    try:
-        sh.worksheet("").update(range_name="A1", values=[[text]])
         return True
     except: return False
 
