@@ -1233,17 +1233,9 @@ if app_mode == "プレイヤー分析":
                     html_content = f'''<div class="ev-box">
 <p style="color:#FFD700;font-size:20px;font-weight:bold;margin:0 0 5px 0;">🎳 TODAY's EVENT 🎳</p>
 {events_html}
-<p style="color:#FFB6C1;font-size:16px;margin-top:10px;margin-bottom:0;">詳細はカレンダーをチェック！</p>
-<p style="color:#00FFFF;font-size:36px;animation:bounce 2s infinite;margin:-10px 0 0 0;">☟</p>
+<p style="color:#FFB6C1;font-size:16px;margin-top:5px;margin-bottom:0;">詳細はカレンダーをチェック！</p>
+<p style="color:#FFB6C1;font-size:36px;animation:bounce 2s infinite;margin:-15px 0 -10px 0;">☟</p>
 </div>'''
-
-                    st.markdown(html_content, unsafe_allow_html=True)
-
-                    # ▼ 修正箇所：テキスト内の改行コード(\n)をHTMLの改行タグ(<br>)に変換し、全体を1行のHTMLとして出力する
-                    safe_ev_desc = str(ev_desc).replace('\n', '<br>')
-                    desc_html = f'<div class="ev-desc">{safe_ev_desc}</div>' if safe_ev_desc else ""
-
-                    html_content = f'<div class="ev-box"><p style="color:#FFD700;font-size:20px;font-weight:bold;margin:0;">🎳 TODAY\'s EVENT 🎳</p><p class="ev-main">{ev_name}</p>{desc_html}<p style="color:#bbb;font-size:16px;margin-top:20px;">詳細はカレンダーをチェック！</p><p style="color:#00FFFF;font-size:36px;animation:bounce 2s infinite;margin-top:10px;">☟</p></div>'
 
                     st.markdown(html_content, unsafe_allow_html=True)
                     
