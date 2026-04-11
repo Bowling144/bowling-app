@@ -4316,7 +4316,7 @@ if st.session_state.analyzed_results is None:
             ph_full = (local_y1 - local_y0) - (m_y * 2)
             ph_box = ph_full * 0.7
             py1_local_box = py1_local + (ph_full - ph_box)
-            gy_local = start_y_base + 0.3 * current_scale
+            gy_local = start_y_base - 0.7 * current_scale
 
             box_w = 15.17 * current_scale
             box_h = 17.2 * current_scale
