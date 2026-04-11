@@ -1209,8 +1209,21 @@ if app_mode == "プレイヤー分析":
                                 files = drive_service.files().list(q=p_query, fields="files(id)").execute().get('files', [])
                                 if files:
                                     pdf_content = drive_service.files().get_media(fileId=files[0]['id']).execute()
+                                    
+                                    # 1. ユーザーが手元で確実に見られるようにダウンロードボタンを設置
+                                    st.download_button(
+                                        label="📄 カレンダー原本(PDF)をダウンロードして確認する",
+                                        data=pdf_content,
+                                        file_name=files[0]['name'],
+                                        mime="application/pdf",
+                                        type="primary",
+                                        use_container_width=True
+                                    )
+                                    
+                                    # 2. Chromeでブロックされない安全な埋め込み方法（Data URIの代わりにblobを使う）
                                     base64_pdf = base64.b64encode(pdf_content).decode('utf-8')
-                                    pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600" type="application/pdf"></iframe>'
+                                    # iframeではなくembedタグを使用し、Streamlitのコンテナ内で安全にレンダリングさせる
+                                    pdf_display = f'<embed src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600" type="application/pdf">'
                                     st.markdown(pdf_display, unsafe_allow_html=True)
                                 else:
                                     st.info("今月のスケジュールPDFが見つかりません。")
