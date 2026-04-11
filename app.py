@@ -271,12 +271,12 @@ def get_gspread_client():
 # =========================================================
 def get_announcement_data(sh):
     try:
-        return sh.worksheet("お知らせ").acell("A1").value or "現在、お知らせはありません。"
-    except: return "現在、お知らせはありません。"
+        return sh.worksheet("").acell("A1").value or "現在、はありません。"
+    except: return "現在、はありません。"
 
 def update_announcement_data(sh, text):
     try:
-        sh.worksheet("お知らせ").update(range_name="A1", values=[[text]])
+        sh.worksheet("").update(range_name="A1", values=[[text]])
         return True
     except: return False
 
@@ -397,12 +397,12 @@ def get_today_event_from_sps(sh):
     except: return "イベント予定なし", ""
 # ▲ 追加ここまで ▲
     try:
-        return sh.worksheet("お知らせ").acell("A1").value or "現在、お知らせはありません。"
-    except: return "現在、お知らせはありません。"
+        return sh.worksheet("").acell("A1").value or "現在、はありません。"
+    except: return "現在、はありません。"
 
 def update_announcement_data(sh, text):
     try:
-        sh.worksheet("お知らせ").update(range_name="A1", values=[[text]])
+        sh.worksheet("").update(range_name="A1", values=[[text]])
         return True
     except: return False
 
@@ -641,12 +641,12 @@ with st.sidebar:
         st.markdown("---")
         st.subheader("🛠 管理ツール")
         
-        # 1. お知らせ編集
-        with st.expander("お知らせ・イベント編集"):
+        # 1. 編集
+        with st.expander("・イベント編集"):
             sh_admin = get_gspread_client()
             ann_current = get_announcement_data(sh_admin) if sh_admin else ""
-            new_ann = st.text_area("お知らせ編集", value=ann_current, height=100)
-            if st.button("お知らせを保存"):
+            new_ann = st.text_area("編集", value=ann_current, height=100)
+            if st.button("を保存"):
                 if sh_admin and update_announcement_data(sh_admin, new_ann): 
                     st.success("保存完了")
                     time.sleep(1)
@@ -1190,9 +1190,9 @@ if app_mode == "プレイヤー分析":
                 st.info("上部のドロップダウンからプレイヤーを選択してください。")
                 st.markdown("<br>", unsafe_allow_html=True)
                 
-                # ① お知らせの表示
+                # ① の表示
                 announcement = get_announcement_data(sh) if 'get_announcement_data' in globals() else "現在、お知らせはありません。"
-                st.markdown("### 📢 お知らせ")
+                st.markdown("### お知らせ")
                 st.markdown(f'<div style="background-color:#2a2a2e;padding:20px;border-radius:10px;border-left:5px solid #00FFFF;margin-bottom:20px;"><p style="color:white;font-size:16px;white-space:pre-wrap;margin:0;">{announcement}</p></div>', unsafe_allow_html=True)
 
                 st.markdown("<hr style='border:1px solid #444; margin: 30px 0;'>", unsafe_allow_html=True)
