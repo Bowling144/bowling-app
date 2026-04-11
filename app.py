@@ -1107,7 +1107,7 @@ if app_mode == "プレイヤー分析":
                             events_html += f'<p class="ev-desc">{safe_desc}</p>'
 
                     html_content = f'''<div class="ev-box">
-<p style="color:#FFD700;font-size:30px;font-weight:bold;margin:0 0 5px 0;">🎳 TODAY's EVENT 🎳</p>
+<p style="color:#FFB6C1;font-size:30px;font-weight:bold;margin:0 0 5px 0;">🎳 TODAY's EVENT 🎳</p>
 {events_html}
 <p style="color:#FFB6C1;font-size:16px;margin-top:5px;margin-bottom:0;">詳細はカレンダーをチェック！</p>
 <p style="color:#FFB6C1;font-size:36px;animation:bounce 2s infinite;margin:-15px 0 -10px 0;">☟</p>
