@@ -271,12 +271,14 @@ def get_gspread_client():
 # =========================================================
 def get_announcement_data(sh):
     try:
-        return sh.worksheet("").acell("A1").value or "現在、はありません。"
+        # シート名を "" から "お知らせ" に変更
+        return sh.worksheet("お知らせ").acell("A1").value or "現在、はありません。"
     except: return "現在、はありません。"
 
 def update_announcement_data(sh, text):
     try:
-        sh.worksheet("").update(range_name="A1", values=[[text]])
+        # シート名を "" から "お知らせ" に変更
+        sh.worksheet("お知らせ").update(range_name="A1", values=[[text]])
         return True
     except: return False
 
