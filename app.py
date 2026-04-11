@@ -389,6 +389,9 @@ def sync_calendar_to_sps(sh):
     """Google Driveの今月のPDFを読み込み、1ヶ月分のイベントをSPSに保存する"""
     import datetime
     import json
+    import time
+    import random
+    import re
     from google.genai import types
     from google import genai
     from google.oauth2 import service_account
@@ -417,32 +420,75 @@ def sync_calendar_to_sps(sh):
         if not files: return "今月のPDFが見つかりません。"
         
         content = drive_service.files().get_media(fileId=files[0]['id']).execute()
-        prompt = "このカレンダーから1ヶ月分の【日付(M/D形式)】と【イベント名】を抽出し、純粋なJSON配列 [{'date':'4/1', 'event':'イベント名'}, ...] 形式で出力して。イベントがない日は含めないで。"
         
-        # 確実で安定しているProモデルに変更
-        response = ai_client.models.generate_content(
-            model="gemini-2.5-pro",  # ◀ ここを 2.5 に変更するだけです
-            contents=[types.Part.from_bytes(data=content, mime_type="application/pdf"), prompt]
-        )
-        data = json.loads(response.text.replace("```json", "").replace("```", ""))
+        # PDF2枚目の説明文も含めて取得するプロンプト
+        prompt = "このカレンダー（1枚目）とイベント一覧（2枚目）から、1ヶ月分の【日付(M/D形式)】、【イベント名】、および【イベントの説明文章】（2枚目のイベント名の下の行事名やゲーム数・参加費・詳細説明など）を抽出し、純粋なJSON配列 [{'date':'4/1', 'event':'イベント名', 'desc':'説明文章'}, ...] 形式で出力して。イベントがない日は含めないで。"
+        
+        # --- サーバー高負荷対策（自動リトライ＆モデル切り替え） ---
+        max_retries = 5
+        response = None
+        last_error = ""
+        success = False
+        
+        # 2.5-pro がダメなら 1.5-pro で予備実行する
+        for attempt_model in ["gemini-2.5-pro", "gemini-1.5-pro"]:
+            for attempt in range(max_retries):
+                try:
+                    response = ai_client.models.generate_content(
+                        model=attempt_model,
+                        contents=[types.Part.from_bytes(data=content, mime_type="application/pdf"), prompt]
+                    )
+                    # 応答がない場合はエラー扱いにする
+                    if not response or not response.text:
+                        raise ValueError("AIからの応答が空でした。")
+                    success = True
+                    break
+                except Exception as e:
+                    last_error = str(e)
+                    error_msg = last_error.lower()
+                    # いかなるエラーでも、リトライ上限までは待機してやり直す
+                    if attempt < max_retries - 1:
+                        wait_sec = (2 ** (attempt + 1)) + random.uniform(0, 1)
+                        time.sleep(wait_sec)
+                        continue
+                    break # このモデルでのリトライを諦める
+            if success:
+                break
+        
+        if not success or not response:
+            return f"AI解析エラー: サーバーが混雑しています。時間を置いて再度お試しください。（詳細: {last_error}）"
+
+        # 正規表現を使って確実にJSON配列部分だけを抽出する
+        raw_text = response.text
+        json_match = re.search(r'\[.*\]', raw_text, re.DOTALL)
+        if json_match:
+            json_str = json_match.group(0)
+        else:
+            return "AIが期待するJSON形式でデータを出力しませんでした。"
+            
+        data = json.loads(json_str)
         
         wks = sh.worksheet("イベントカレンダー")
         wks.clear()
-        wks.update(range_name="A1", values=[[d['date'], d['event']] for d in data])
+        # 日付、イベント名、説明文（desc）の3つを書き込む
+        wks.update(range_name="A1", values=[[d.get('date', ''), d.get('event', ''), d.get('desc', '')] for d in data])
         return "更新完了！"
     except Exception as e: return f"エラー: {str(e)}"
 
 def get_today_event_from_sps(sh):
-    """SPSのイベントカレンダーから今日の日付のイベントを取得"""
+    """SPSのイベントカレンダーから今日の日付のイベントと説明を取得"""
     import datetime
     now = datetime.datetime.now()
     t1, t2 = f"{now.month}/{now.day}", f"{now.month:02d}/{now.day:02d}"
     try:
         records = sh.worksheet("イベントカレンダー").get_all_values()
         for row in records:
-            if len(row) >= 2 and (row[0] == t1 or row[0] == t2): return row[1]
-        return "イベント予定なし"
-    except: return "イベント予定なし"
+            if len(row) >= 2 and (row[0] == t1 or row[0] == t2):
+                event_name = row[1]
+                event_desc = row[2] if len(row) > 2 else ""
+                return event_name, event_desc
+        return "イベント予定なし", ""
+    except: return "イベント予定なし", ""
 # ▲▲▲ 追加ここまで ▲▲▲
 
 # --- セッション初期化 ---
