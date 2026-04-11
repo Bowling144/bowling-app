@@ -233,7 +233,7 @@ st.markdown("""
 
 st.markdown("""
 <div style='text-align: center; font-size: 36px; white-space: nowrap; margin-bottom: 16px; font-weight: bold; font-family: "Arial Black", Impact, sans-serif;'>
-    <span style='background: linear-gradient(135deg, #bf953f 0%, #fcf6ba 20%, #555555 35%, #b38728 55%, #ffffff 75%, #aa771c 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(2px 4px 4px rgba(0,0,0,0.8)); padding-right: 5px;'>EAGLE ROLLERS</span>
+    <span style='background: linear-gradient(135deg, #bf953f 0%, #fcf6ba 20%, #555555 35%, #b38728 55%, #ffffff 75%, #aa771c 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(2px 4px 4px rgba(0,0,0,0.8)); padding-right: 5px;'>EAGLE ROLLERS(β版)</span>
 </div>
 """, unsafe_allow_html=True)
 
