@@ -1203,33 +1203,38 @@ if app_mode == "プレイヤー分析":
                     
                     with st.expander("📅 カレンダー原本で詳細を確認する"):
                         try:
-                            import datetime
                             import base64
-                            now = datetime.datetime.now()
-                            # folders取得時に fields="files(id, name)" を追加
                             f_query = "name = 'イベントスケジュール' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
                             folders = drive_service.files().list(q=f_query, fields="files(id, name)").execute().get('files', [])
                             if folders:
+                                import datetime
+                                now = datetime.datetime.now()
                                 p_query = f"'{folders[0]['id']}' in parents and name contains '{now.month}月' and mimeType = 'application/pdf'"
-                                # files取得時に fields="files(id, name)" を指定
-                                files = drive_service.files().list(q=p_query, fields="files(id, name)").execute().get('files', [])
+                                # fieldsに webViewLink を追加してプレビューURLを取得
+                                files = drive_service.files().list(q=p_query, fields="files(id, name, webViewLink)").execute().get('files', [])
                                 if files:
-                                    pdf_content = drive_service.files().get_media(fileId=files[0]['id']).execute()
+                                    file_id = files[0]['id']
+                                    file_name = files[0]['name']
+                                    preview_url = files[0].get('webViewLink')
                                     
-                                    # 1. ユーザーが手元で確実に見られるようにダウンロードボタンを設置
+                                    # 1. 確実に表示するための「別タブで開く」ボタン
+                                    if preview_url:
+                                        st.link_button("🌐 カレンダーを全画面表示で確認する", preview_url, type="primary", use_container_width=True)
+                                    
+                                    pdf_content = drive_service.files().get_media(fileId=file_id).execute()
+                                    
+                                    # 2. ダウンロードボタン（オフライン確認用）
                                     st.download_button(
-                                        label="📄 カレンダー原本(PDF)をダウンロードして確認する",
+                                        label="📄 カレンダー(PDF)をダウンロードする",
                                         data=pdf_content,
-                                        file_name=files[0]['name'],
+                                        file_name=file_name,
                                         mime="application/pdf",
-                                        type="primary",
                                         use_container_width=True
                                     )
                                     
-                                    # 2. Chromeでブロックされない安全な埋め込み方法（Data URIの代わりにblobを使う）
+                                    # 3. インライン表示（embedタグで試行）
                                     base64_pdf = base64.b64encode(pdf_content).decode('utf-8')
-                                    # iframeではなくembedタグを使用し、Streamlitのコンテナ内で安全にレンダリングさせる
-                                    pdf_display = f'<embed src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600" type="application/pdf">'
+                                    pdf_display = f'<embed src="data:application/pdf;base64,{base64_pdf}" width="100%" height="800" type="application/pdf">'
                                     st.markdown(pdf_display, unsafe_allow_html=True)
                                 else:
                                     st.info("今月のスケジュールPDFが見つかりません。")
