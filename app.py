@@ -1185,21 +1185,17 @@ if app_mode == "プレイヤー分析":
                     @keyframes bounce { 0%,20%,50%,80%,100% { transform: translateY(0); } 40% { transform: translateY(-10px); } 60% { transform: translateY(-5px); } }
                     .ev-box { background: linear-gradient(145deg, #1a1a1c, #2a1020); border: 2px solid #FF107A; border-radius: 15px; padding: 40px; text-align: center; box-shadow: 0 0 20px rgba(255,16,122,0.4); margin-bottom: 20px; }
                     .ev-main { font-size: 48px; font-weight: 900; color: white; animation: neon 2s infinite; margin: 15px 0; }
-                    .ev-desc { font-size: 16px; color: #E0E0E0; margin: 10px 0; padding: 15px; background: rgba(0,0,0,0.5); border-radius: 8px; text-align: left; white-space: pre-wrap; }
+                    .ev-desc { font-size: 16px; color: #E0E0E0; margin: 10px 0; padding: 15px; background: rgba(0,0,0,0.5); border-radius: 8px; text-align: left; line-height: 1.5; }
                     </style>
                     """, unsafe_allow_html=True)
 
-                    desc_html = f'<div class="ev-desc">{ev_desc}</div>' if ev_desc else ""
+                    # ▼ 修正箇所：テキスト内の改行コード(\n)をHTMLの改行タグ(<br>)に変換し、全体を1行のHTMLとして出力する
+                    safe_ev_desc = str(ev_desc).replace('\n', '<br>')
+                    desc_html = f'<div class="ev-desc">{safe_ev_desc}</div>' if safe_ev_desc else ""
 
-                    st.markdown(f"""
-                    <div class="ev-box">
-                        <p style="color:#FFD700;font-size:20px;font-weight:bold;margin:0;">🎳 TODAY's EVENT 🎳</p>
-                        <p class="ev-main">{ev_name}</p>
-                        {desc_html}
-                        <p style="color:#bbb;font-size:16px;margin-top:20px;">詳細はカレンダーをチェック！</p>
-                        <p style="color:#00FFFF;font-size:36px;animation:bounce 2s infinite;margin-top:10px;">☟</p>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    html_content = f'<div class="ev-box"><p style="color:#FFD700;font-size:20px;font-weight:bold;margin:0;">🎳 TODAY\'s EVENT 🎳</p><p class="ev-main">{ev_name}</p>{desc_html}<p style="color:#bbb;font-size:16px;margin-top:20px;">詳細はカレンダーをチェック！</p><p style="color:#00FFFF;font-size:36px;animation:bounce 2s infinite;margin-top:10px;">☟</p></div>'
+
+                    st.markdown(html_content, unsafe_allow_html=True)
                     
                     with st.expander("📅 カレンダー原本で詳細を確認する"):
                         try:
