@@ -708,7 +708,7 @@ with st.sidebar:
                         st.error(res)
 
         # ダイアログを呼び出すボタン（サイドバーに常駐）
-        if st.button("📅 PDFを選択して同期開始", use_container_width=True):
+        if st.button("📅 イベントスケジュールの同期", use_container_width=True):
             open_calendar_sync_dialog()
 
         st.markdown("---")
@@ -1187,7 +1187,7 @@ if app_mode == "プレイヤー分析":
 
             # ▼ 追加：プレイヤー未選択時（初期画面）の表示処理 ▼
             if not selected_player:
-                st.info("上部のドロップダウンからプレイヤーを選択してください。")
+                st.info("上部のドロップダウンからプレイヤーを選択してください")
                 st.markdown("<br>", unsafe_allow_html=True)
                 
                 # ① の表示
@@ -1239,7 +1239,7 @@ if app_mode == "プレイヤー分析":
 
                     st.markdown(html_content, unsafe_allow_html=True)
                     
-                    with st.expander("📅 カレンダー原本で詳細を確認する"):
+                    with st.expander("📅 イベントカレンダーを表示"):
                         try:
                             f_query = "name = 'イベントスケジュール' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
                             folders = drive_service.files().list(q=f_query, fields="files(id, name)").execute().get('files', [])
