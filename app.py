@@ -382,9 +382,8 @@ def update_announcement_data(sh, text):
         return True
     except: return False
 
-def sync_calendar_to_sps(sh):
-    """Google Driveの今月のPDFを読み込み、1ヶ月分のイベントをSPSに保存する"""
-    import datetime
+def sync_calendar_to_sps(sh, file_id):
+    """Google Driveの指定されたPDFを読み込み、1ヶ月分のイベントをSPSに保存する"""
     import json
     import time
     import random
@@ -394,9 +393,7 @@ def sync_calendar_to_sps(sh):
     from google.oauth2 import service_account
     from googleapiclient.discovery import build
     
-    now = datetime.datetime.now()
     try:
-        # 関数内で独立してAPI認証を行う（エラー回避のため）
         creds_json_str = st.secrets["google_credentials"]
         creds_info = json.loads(creds_json_str, strict=False)
         if "private_key" in creds_info:
@@ -408,18 +405,13 @@ def sync_calendar_to_sps(sh):
         gemini_api_key = st.secrets.get("gemini_api_key", "")
         ai_client = genai.Client(api_key=gemini_api_key)
 
-        f_query = "name = 'イベントスケジュール' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-        folders = drive_service.files().list(q=f_query).execute().get('files', [])
-        if not folders: return "フォルダが見つかりません。"
+        if not file_id:
+            return "ファイルIDが指定されていません。"
         
-        p_query = f"'{folders[0]['id']}' in parents and name contains '{now.month}月' and mimeType = 'application/pdf'"
-        files = drive_service.files().list(q=p_query).execute().get('files', [])
-        if not files: return "今月のPDFが見つかりません。"
+        content = drive_service.files().get_media(fileId=file_id).execute()
         
-        content = drive_service.files().get_media(fileId=files[0]['id']).execute()
-        
-        # PDF2枚目の説明文も含めて取得するプロンプト
-        prompt = "このカレンダー（1枚目）とイベント一覧（2枚目）から、1ヶ月分の【日付(M/D形式)】、【イベント名】、および【イベントの説明文章】（2枚目のイベント名の下の行事名やゲーム数・参加費・詳細説明など）を抽出し、純粋なJSON配列 [{'date':'4/1', 'event':'イベント名', 'desc':'説明文章'}, ...] 形式で出力して。イベントがない日は含めないで。"
+        # 金額や時間を除外し、純粋なイベント説明（行事名など）のみを取得するプロンプト
+        prompt = "このカレンダー（1枚目）とイベント一覧（2枚目）から、1ヶ月分の【日付(M/D形式)】、【大会名(イベント名)】、および【行事名】を抽出し、純粋なJSON配列 [{'date':'4/1', 'event':'大会名', 'desc':'行事名'}, ...] 形式で出力してください。\n\n※厳守事項※\n1. 'desc' には、大会名のすぐ下に記載されている「行事名」の文字列のみを入れてください。\n2. 「ゲーム数（〇G）」「参加費・金額（¥〇〇など）」「時間（PM〇:〇〇など）」の数字や情報は、トラブル防止のため **絶対に** 含めないでください。\n3. イベントがない日は含めないでください。"
         
         # --- サーバー高負荷対策（自動リトライ＆モデル切り替え） ---
         max_retries = 5
@@ -435,7 +427,6 @@ def sync_calendar_to_sps(sh):
                         model=attempt_model,
                         contents=[types.Part.from_bytes(data=content, mime_type="application/pdf"), prompt]
                     )
-                    # 応答がない場合はエラー扱いにする
                     if not response or not response.text:
                         raise ValueError("AIからの応答が空でした。")
                     success = True
@@ -448,7 +439,7 @@ def sync_calendar_to_sps(sh):
                         wait_sec = (2 ** (attempt + 1)) + random.uniform(0, 1)
                         time.sleep(wait_sec)
                         continue
-                    break # このモデルでのリトライを諦める
+                    break 
             if success:
                 break
         
