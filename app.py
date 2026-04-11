@@ -282,7 +282,6 @@ def update_announcement_data(sh, text):
 
 def sync_calendar_to_sps(sh, file_id=None):
     """Google Driveの指定されたPDFを読み込み、1ヶ月分のイベントをSPSに保存する"""
-    import datetime
     import json
     import time
     import random
@@ -309,13 +308,22 @@ def sync_calendar_to_sps(sh, file_id=None):
         
         content = drive_service.files().get_media(fileId=file_id).execute()
         
-        prompt = "このカレンダー（1枚目）とイベント一覧（2枚目）から、1ヶ月分の【日付(M/D形式)】、【大会名(イベント名)】、および【行事名】を抽出し、純粋なJSON配列 [{'date':'4/1', 'event':'大会名', 'desc':'行事名'}, ...] 形式で出力してください。\n\n※厳守事項※\n1. 'desc' には、大会名のすぐ下に記載されている「行事名」の文字列のみを入れてください。\n2. 「ゲーム数（〇G）」「参加費・金額（¥〇〇など）」「時間（PM〇:〇〇など）」の数字や情報は、トラブル防止のため **絶対に** 含めないでください。\n3. イベントがない日は含めないでください。"
+        # ▼ 1枚目のカレンダーと2枚目のリストの両方を確実に拾うように指示を改善
+        prompt = """このPDF（1枚目のカレンダーと2枚目の行事予定表）から、1ヶ月分のすべてのイベントを抽出し、純粋なJSON配列 [{'date':'4/1', 'event':'イベント名', 'desc':'説明・行事名'}, ...] 形式で出力してください。
+
+【抽出ルール】
+1. 1枚目のカレンダーに記載されている日々のイベント（例：「昼得デー」「フレンドシップ」など）と、2枚目の行事予定表に記載されている大会の両方を**すべて漏れなく**抽出してください。
+2. `desc`（説明）には、2枚目の「行事名」など、イベント名に付随する補足説明のみを入れてください。1枚目のカレンダーのみに記載されていて補足説明がない場合は、`desc`は空文字（""）にしてください。
+3. トラブル防止のため、「時間（PM〇:〇〇など）」「ゲーム数（〇Gなど）」「参加費・金額（¥〇〇など）」は、`event`にも`desc`にも**絶対に含めない**でください。
+4. イベントが何もない日は出力に含めないでください。"""
         
+        # --- サーバー高負荷対策（自動リトライ＆モデル切り替え） ---
         max_retries = 5
         response = None
         last_error = ""
         success = False
         
+        # 2.5-pro がダメなら 1.5-pro で予備実行する
         for attempt_model in ["gemini-2.5-pro", "gemini-1.5-pro"]:
             for attempt in range(max_retries):
                 try:
@@ -330,11 +338,11 @@ def sync_calendar_to_sps(sh, file_id=None):
                 except Exception as e:
                     last_error = str(e)
                     error_msg = last_error.lower()
-                    if any(err in error_msg for err in ["429", "too many requests", "quota", "503", "unavailable", "high demand", "overloaded"]):
-                        if attempt < max_retries - 1:
-                            wait_sec = (2 ** (attempt + 1)) + random.uniform(0, 1)
-                            time.sleep(wait_sec)
-                            continue
+                    # いかなるエラーでも、リトライ上限までは待機してやり直す
+                    if attempt < max_retries - 1:
+                        wait_sec = (2 ** (attempt + 1)) + random.uniform(0, 1)
+                        time.sleep(wait_sec)
+                        continue
                     break 
             if success:
                 break
@@ -342,6 +350,7 @@ def sync_calendar_to_sps(sh, file_id=None):
         if not success or not response:
             return f"AI解析エラー: サーバーが混雑しています。時間を置いて再度お試しください。（詳細: {last_error}）"
 
+        # 正規表現を使って確実にJSON配列部分だけを抽出する
         raw_text = response.text
         json_match = re.search(r'\[.*\]', raw_text, re.DOTALL)
         if json_match:
@@ -353,6 +362,7 @@ def sync_calendar_to_sps(sh, file_id=None):
         
         wks = sh.worksheet("イベントカレンダー")
         wks.clear()
+        # 日付、イベント名、説明文（desc）の3つを書き込む
         wks.update(range_name="A1", values=[[d.get('date', ''), d.get('event', ''), d.get('desc', '')] for d in data])
         return "更新完了！"
     except Exception as e: return f"エラー: {str(e)}"
