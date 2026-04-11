@@ -25,208 +25,208 @@ st.markdown("""
     <style>
     /* アプリ全体をAWARD風のダークテーマに */
     .stApp {
-        background-color: #1a1a1c !important;
-        color: silver !important;
+        background-color: #1a1a1c;
+        color: silver;
     }
     
     /* ヘッダーや通常テキストの色をAWARD風（silver）に統一 */
-    h1, h2, h3, h4, h5, h6, p, span, label {
-        color: silver !important;
+    .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6, .stApp p, .stApp span, .stApp label {
+        color: silver;
     }
     
     /* 入力ウィジェットのコンテナ（背景色と枠線） */
-    div[data-baseweb="input"], 
-    div[data-baseweb="select"] > div, 
-    div[data-baseweb="textarea"] > div,
-    div[data-baseweb="checkbox"] > div {
-        background-color: #2a2a2e !important;
-        border: 1px solid #444 !important;
-        border-radius: 8px !important;
+    .stApp div[data-baseweb="input"], 
+    .stApp div[data-baseweb="select"] > div, 
+    .stApp div[data-baseweb="textarea"] > div,
+    .stApp div[data-baseweb="checkbox"] > div {
+        background-color: #2a2a2e;
+        border: 1px solid #444;
+        border-radius: 8px;
     }
     
     /* 入力テキストカラー */
-    input, textarea, div[data-baseweb="select"] {
-        color: white !important;
+    .stApp input, .stApp textarea, .stApp div[data-baseweb="select"] {
+        color: white;
     }
     
     /* プルダウンのメニューリスト */
-    ul[role="listbox"] {
-        background-color: #2a2a2e !important;
-        border: 1px solid #444 !important;
+    .stApp ul[role="listbox"] {
+        background-color: #2a2a2e;
+        border: 1px solid #444;
     }
-    li[role="option"] {
-        color: white !important;
+    .stApp li[role="option"] {
+        color: white;
     }
-    li[role="option"]:hover {
-        background-color: #1c1c1e !important;
+    .stApp li[role="option"]:hover {
+        background-color: #1c1c1e;
     }
 
     /* ボタンの共通スタイル */
-    button[kind="primary"], button[kind="secondary"] {
-        background: linear-gradient(145deg, #2a2a2e, #1c1c1e) !important;
-        border: 1px solid #333 !important;
-        color: #bf953f !important;
-        border-radius: 8px !important;
-        font-weight: bold !important;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3) !important;
+    .stApp button[kind="primary"], .stApp button[kind="secondary"] {
+        background: linear-gradient(145deg, #2a2a2e, #1c1c1e);
+        border: 1px solid #333;
+        color: #bf953f;
+        border-radius: 8px;
+        font-weight: bold;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
     }
-    button[kind="primary"]:hover, button[kind="secondary"]:hover {
-        border-color: #bf953f !important;
-        color: white !important;
+    .stApp button[kind="primary"]:hover, .stApp button[kind="secondary"]:hover {
+        border-color: #bf953f;
+        color: white;
     }
 
     /* Expander（折りたたみ） */
-    div[data-testid="stExpander"] {
-        background-color: #1c1c1e !important;
-        border: 1px solid #333 !important;
-        border-radius: 8px !important;
-        margin-bottom: 0rem !important;
+    .stApp div[data-testid="stExpander"] {
+        background-color: #1c1c1e;
+        border: 1px solid #333;
+        border-radius: 8px;
+        margin-bottom: 0rem;
     }
-    div[data-testid="stExpander"] summary p {
-        color: #E0E0E0 !important;
-        font-weight: bold !important;
+    .stApp div[data-testid="stExpander"] summary p {
+        color: #E0E0E0;
+        font-weight: bold;
     }
     
     /* サイドバー背景 */
-    section[data-testid="stSidebar"] {
-        background-color: #1c1c1e !important;
-        border-right: 1px solid #333 !important;
+    .stApp section[data-testid="stSidebar"] {
+        background-color: #1c1c1e;
+        border-right: 1px solid #333;
     }
     
     /* データフレームの背景等 */
-    div[data-testid="stDataFrame"] {
-        background-color: #1a1a1c !important;
+    .stApp div[data-testid="stDataFrame"] {
+        background-color: #1a1a1c;
     }
 
     /* スマホ画面で強制的に横並び（st.columns）を維持するための安全な設定 */
     @media (max-width: 768px) {
-        div[data-testid="stHorizontalBlock"] {
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;
+        .stApp div[data-testid="stHorizontalBlock"] {
+            flex-direction: row;
+            flex-wrap: nowrap;
         }
-        div[data-testid="stColumn"] {
-            width: auto !important;
-            flex: 1 1 0% !important;
-            min-width: 0 !important;
+        .stApp div[data-testid="stColumn"] {
+            width: auto;
+            flex: 1 1 0%;
+            min-width: 0;
         }
     }
     /* 10フレームなどの横幅を確保するため入力欄の余白を少し圧縮 */
-    .stTextInput > div > div > input {
-        padding: 0.3rem !important;
+    .stApp .stTextInput > div > div > input {
+        padding: 0.3rem;
     }
-    .stMultiSelect > div > div > div {
-        padding: 0px !important;
+    .stApp .stMultiSelect > div > div > div {
+        padding: 0px;
     }
     
     /* ▼▼▼ アイコン要素を完全に消去し、中央揃え ▼▼▼ */
-    div[data-testid="stPopover"] button span:has(span[data-testid="stIconMaterial"]),
-    div[data-testid="stPopover"] button span[data-testid="stIconMaterial"] {
-        display: none !important;
-        width: 0px !important;
-        margin: 0px !important;
+    .stApp div[data-testid="stPopover"] button span:has(span[data-testid="stIconMaterial"]),
+    .stApp div[data-testid="stPopover"] button span[data-testid="stIconMaterial"] {
+        display: none;
+        width: 0px;
+        margin: 0px;
     }
     
     /* ボタンの余白を消して中央に寄せる */
-    div[data-testid="stPopover"] button {
-        padding-left: 0px !important;
-        padding-right: 0px !important;
-        display: flex !important;
-        justify-content: center !important;
-        align-items: center !important;
+    .stApp div[data-testid="stPopover"] button {
+        padding-left: 0px;
+        padding-right: 0px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
     }
     
     /* 文字のコンテナを100%にして中央揃え */
-    div[data-testid="stPopover"] button div[data-testid="stMarkdownContainer"] {
-        width: 100% !important;
-        display: flex !important;
-        justify-content: center !important;
+    .stApp div[data-testid="stPopover"] button div[data-testid="stMarkdownContainer"] {
+        width: 100%;
+        display: flex;
+        justify-content: center;
     }
-    div[data-testid="stPopover"] button p {
-        margin: 0 !important;
-        text-align: center !important;
+    .stApp div[data-testid="stPopover"] button p {
+        margin: 0;
+        text-align: center;
     }
 
     /* ========================================================
        ▼ Streamlit用 確実なボタン色変更（マーカー方式） ▼
        ======================================================== */
     /* ゴールド強調ボタン（取込・修正完了など） */
-    div[data-testid="stElementContainer"]:has(.gold-btn-marker) + div[data-testid="stElementContainer"] button,
-    div.element-container:has(.gold-btn-marker) + div.element-container button {
-        background: linear-gradient(145deg, #bf953f, #aa771c) !important;
-        color: #ffffff !important;
-        font-size: 18px !important;
-        font-weight: 900 !important;
-        border: 2px solid #fcf6ba !important;
-        box-shadow: 0 0 15px rgba(191, 149, 63, 0.6) !important;
-        border-radius: 12px !important;
-        letter-spacing: 2px !important;
-        transition: all 0.3s ease !important;
-        min-height: 55px !important;
+    .stApp div[data-testid="stElementContainer"]:has(.gold-btn-marker) + div[data-testid="stElementContainer"] button,
+    .stApp div.element-container:has(.gold-btn-marker) + div.element-container button {
+        background: linear-gradient(145deg, #bf953f, #aa771c);
+        color: #ffffff;
+        font-size: 18px;
+        font-weight: 900;
+        border: 2px solid #fcf6ba;
+        box-shadow: 0 0 15px rgba(191, 149, 63, 0.6);
+        border-radius: 12px;
+        letter-spacing: 2px;
+        transition: all 0.3s ease;
+        min-height: 55px;
     }
     /* Streamlitの<p>タグによる文字色上書きを防ぐ */
-    div[data-testid="stElementContainer"]:has(.gold-btn-marker) + div[data-testid="stElementContainer"] button p,
-    div.element-container:has(.gold-btn-marker) + div.element-container button p {
-        color: #ffffff !important;
-        font-weight: 900 !important;
+    .stApp div[data-testid="stElementContainer"]:has(.gold-btn-marker) + div[data-testid="stElementContainer"] button p,
+    .stApp div.element-container:has(.gold-btn-marker) + div.element-container button p {
+        color: #ffffff;
+        font-weight: 900;
     }
-    div[data-testid="stElementContainer"]:has(.gold-btn-marker) + div[data-testid="stElementContainer"] button:hover,
-    div.element-container:has(.gold-btn-marker) + div.element-container button:hover {
-        background: linear-gradient(145deg, #fcf6ba, #bf953f) !important;
-        color: #ffffff !important;
-        box-shadow: 0 0 25px rgba(191, 149, 63, 0.9) !important;
-        transform: translateY(-2px) !important;
+    .stApp div[data-testid="stElementContainer"]:has(.gold-btn-marker) + div[data-testid="stElementContainer"] button:hover,
+    .stApp div.element-container:has(.gold-btn-marker) + div.element-container button:hover {
+        background: linear-gradient(145deg, #fcf6ba, #bf953f);
+        color: #ffffff;
+        box-shadow: 0 0 25px rgba(191, 149, 63, 0.9);
+        transform: translateY(-2px);
     }
-    div[data-testid="stElementContainer"]:has(.gold-btn-marker) + div[data-testid="stElementContainer"] button:hover p,
-    div.element-container:has(.gold-btn-marker) + div.element-container button:hover p {
-        color: #ffffff !important;
+    .stApp div[data-testid="stElementContainer"]:has(.gold-btn-marker) + div[data-testid="stElementContainer"] button:hover p,
+    .stApp div.element-container:has(.gold-btn-marker) + div.element-container button:hover p {
+        color: #ffffff;
     }
 
     /* 赤強調ボタン（登録実行：薄めの赤） */
-    div[data-testid="stElementContainer"]:has(.red-btn-marker) + div[data-testid="stElementContainer"] button,
-    div.element-container:has(.red-btn-marker) + div.element-container button {
-        background: linear-gradient(145deg, #e66465, #c0392b) !important;
-        color: #ffffff !important;
-        font-size: 18px !important;
-        font-weight: 900 !important;
-        border: 1px solid #ff9f9f !important;
-        box-shadow: 0 0 15px rgba(230, 100, 101, 0.4) !important;
-        border-radius: 12px !important;
-        letter-spacing: 2px !important;
-        transition: all 0.3s ease !important;
-        min-height: 55px !important;
+    .stApp div[data-testid="stElementContainer"]:has(.red-btn-marker) + div[data-testid="stElementContainer"] button,
+    .stApp div.element-container:has(.red-btn-marker) + div.element-container button {
+        background: linear-gradient(145deg, #e66465, #c0392b);
+        color: #ffffff;
+        font-size: 18px;
+        font-weight: 900;
+        border: 1px solid #ff9f9f;
+        box-shadow: 0 0 15px rgba(230, 100, 101, 0.4);
+        border-radius: 12px;
+        letter-spacing: 2px;
+        transition: all 0.3s ease;
+        min-height: 55px;
     }
     /* Streamlitの<p>タグによる文字色上書きを防ぐ */
-    div[data-testid="stElementContainer"]:has(.red-btn-marker) + div[data-testid="stElementContainer"] button p,
-    div.element-container:has(.red-btn-marker) + div.element-container button p {
-        color: #ffffff !important;
-        font-weight: 900 !important;
+    .stApp div[data-testid="stElementContainer"]:has(.red-btn-marker) + div[data-testid="stElementContainer"] button p,
+    .stApp div.element-container:has(.red-btn-marker) + div.element-container button p {
+        color: #ffffff;
+        font-weight: 900;
     }
-    div[data-testid="stElementContainer"]:has(.red-btn-marker) + div[data-testid="stElementContainer"] button:hover,
-    div.element-container:has(.red-btn-marker) + div.element-container button:hover {
-        background: linear-gradient(145deg, #ff7979, #e66465) !important;
-        box-shadow: 0 0 25px rgba(230, 100, 101, 0.8) !important;
-        transform: translateY(-2px) !important;
+    .stApp div[data-testid="stElementContainer"]:has(.red-btn-marker) + div[data-testid="stElementContainer"] button:hover,
+    .stApp div.element-container:has(.red-btn-marker) + div.element-container button:hover {
+        background: linear-gradient(145deg, #ff7979, #e66465);
+        box-shadow: 0 0 25px rgba(230, 100, 101, 0.8);
+        transform: translateY(-2px);
     }
 
     /* 赤強調ボタン（登録実行：薄めの赤） */
-    div[data-testid="stElementContainer"]:has(.red-btn-marker) + div[data-testid="stElementContainer"] button,
-    div.element-container:has(.red-btn-marker) + div.element-container button {
-        background: linear-gradient(145deg, #e66465, #c0392b) !important;
-        color: #ffffff !important;
-        font-size: 18px !important;
-        font-weight: 900 !important;
-        border: 1px solid #ff9f9f !important;
-        box-shadow: 0 0 15px rgba(230, 100, 101, 0.4) !important;
-        border-radius: 12px !important;
-        letter-spacing: 2px !important;
-        transition: all 0.3s ease !important;
-        min-height: 55px !important;
+    .stApp div[data-testid="stElementContainer"]:has(.red-btn-marker) + div[data-testid="stElementContainer"] button,
+    .stApp div.element-container:has(.red-btn-marker) + div.element-container button {
+        background: linear-gradient(145deg, #e66465, #c0392b);
+        color: #ffffff;
+        font-size: 18px;
+        font-weight: 900;
+        border: 1px solid #ff9f9f;
+        box-shadow: 0 0 15px rgba(230, 100, 101, 0.4);
+        border-radius: 12px;
+        letter-spacing: 2px;
+        transition: all 0.3s ease;
+        min-height: 55px;
     }
-    div[data-testid="stElementContainer"]:has(.red-btn-marker) + div[data-testid="stElementContainer"] button:hover,
-    div.element-container:has(.red-btn-marker) + div.element-container button:hover {
-        background: linear-gradient(145deg, #ff7979, #e66465) !important;
-        box-shadow: 0 0 25px rgba(230, 100, 101, 0.8) !important;
-        transform: translateY(-2px) !important;
+    .stApp div[data-testid="stElementContainer"]:has(.red-btn-marker) + div[data-testid="stElementContainer"] button:hover,
+    .stApp div.element-container:has(.red-btn-marker) + div.element-container button:hover {
+        background: linear-gradient(145deg, #ff7979, #e66465);
+        box-shadow: 0 0 25px rgba(230, 100, 101, 0.8);
+        transform: translateY(-2px);
     }
     </style>
 """, unsafe_allow_html=True)
