@@ -3820,15 +3820,15 @@ with st.expander("残ピン判定の微調整"):
     st.markdown("<span style='font-size: 12px; color: silver;'>自動計算された残ピン判定の閾値に、この数値をプラスマイナスして一時的に調整します。<br>（ピンが反応しにくい場合はマイナスへ、過剰に反応する場合はプラスへ変更して再取込してください）</span>", unsafe_allow_html=True)
     
     if "pin_thresh_offset" not in st.session_state:
-        st.session_state.pin_thresh_offset = 1.0
+        st.session_state.pin_thresh_offset = 2.0
 
     def reset_thresh():
-        st.session_state.pin_thresh_offset = 1.0
+        st.session_state.pin_thresh_offset = 2.0
 
     col_sl, col_btn = st.columns([4, 1])
     with col_sl:
-        # value=1.0 を明示的に追加して、リセット時や初回表示時に-20.0になるのを防ぐ
-        st.slider("閾値の調整値（％）", min_value=-20.0, max_value=20.0, value=1.0, step=0.05, key="pin_thresh_offset")
+        # value=2.0 を明示的に追加して、リセット時や初回表示時に-20.0になるのを防ぐ
+        st.slider("閾値の調整値（％）", min_value=-20.0, max_value=20.0, value=2.0, step=0.05, key="pin_thresh_offset")
     with col_btn:
         st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
         st.button("初期値に戻す", on_click=reset_thresh, use_container_width=True)
@@ -4413,7 +4413,7 @@ if st.session_state.analyzed_results is None:
             else:
                 dyn_thresh_empty_base = np.max(all_global_pin_pcts) + 5.0
         
-        offset = st.session_state.get("pin_thresh_offset", 1.0)
+        offset = st.session_state.get("pin_thresh_offset", 2.0)
         dyn_thresh_empty_base = dyn_thresh_empty_base + offset
         
         # 新方式（指定箇所基準）の閾値計算と枠描画
@@ -4452,9 +4452,9 @@ if st.session_state.analyzed_results is None:
         thresh_method = st.session_state.get("thresh_method_setting", "新方式 (指定箇所基準)")
         
         if thresh_method == "新方式 (指定箇所基準)":
-            # ▼ 最大値(max)から平均値(sum/len)に変更
-            dyn_thresh_green = (sum(pcts_green) / len(pcts_green)) + 2.0 + offset if pcts_green else dyn_thresh_empty_base
-            dyn_thresh_orange = (sum(pcts_orange) / len(pcts_orange)) + 2.0 + offset if pcts_orange else dyn_thresh_empty_base
+            # ▼ 固定の 2.0 加算を廃止し、スライダーの offset (初期値2.0) のみを加算するように変更
+            dyn_thresh_green = (sum(pcts_green) / len(pcts_green)) + offset if pcts_green else dyn_thresh_empty_base
+            dyn_thresh_orange = (sum(pcts_orange) / len(pcts_orange)) + offset if pcts_orange else dyn_thresh_empty_base
         else:
             dyn_thresh_green = dyn_thresh_empty_base
             dyn_thresh_orange = dyn_thresh_empty_base
