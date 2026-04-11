@@ -280,8 +280,8 @@ def update_announcement_data(sh, text):
         return True
     except: return False
 
-def sync_calendar_to_sps(sh):
-    """Google Driveの今月のPDFを読み込み、1ヶ月分のイベントをSPSに保存する"""
+def sync_calendar_to_sps(sh, file_id=None):
+    """Google Driveの指定されたPDFを読み込み、1ヶ月分のイベントをSPSに保存する"""
     import datetime
     import json
     import time
@@ -292,7 +292,6 @@ def sync_calendar_to_sps(sh):
     from google.oauth2 import service_account
     from googleapiclient.discovery import build
     
-    now = datetime.datetime.now()
     try:
         creds_json_str = st.secrets["google_credentials"]
         creds_info = json.loads(creds_json_str, strict=False)
@@ -305,37 +304,11 @@ def sync_calendar_to_sps(sh):
         gemini_api_key = st.secrets.get("gemini_api_key", "")
         ai_client = genai.Client(api_key=gemini_api_key)
 
-        f_query = "name = 'イベントスケジュール' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-        folders = drive_service.files().list(q=f_query).execute().get('files', [])
-        if not folders: return "フォルダが見つかりません。"
+        if not file_id:
+            return "ファイルIDが指定されていません。"
         
-        st.write("📅 カレンダー解析（ファイル指定）")
-if st.button("フォルダ内のPDF一覧を確認"):
-    if sh_admin:
-        # フォルダ内のPDFを全件リストアップ
-        f_query = "name = 'イベントスケジュール' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-        folders = drive_service.files().list(q=f_query).execute().get('files', [])
-        if folders:
-            folder_id = folders[0]['id']
-            p_query = f"'{folder_id}' in parents and mimeType = 'application/pdf' and trashed = false"
-            # 日付順（新しい順）に並べて取得
-            pdf_files = drive_service.files().list(q=p_query, orderBy="createdTime desc").execute().get('files', [])
-            st.session_state.found_pdf_list = {f['name']: f['id'] for f in pdf_files}
-    else:
-        st.error("データベースに接続できません。")
-
-# ファイルが見つかっている場合に選択肢を表示
-if "found_pdf_list" in st.session_state and st.session_state.found_pdf_list:
-    selected_name = st.selectbox("解析するファイルを選択", list(st.session_state.found_pdf_list.keys()))
-    selected_id = st.session_state.found_pdf_list[selected_name]
-    
-    if st.button("AI解析を実行して保存"):
-        with st.spinner(f"{selected_name} を解析中..."):
-            # ここでselected_idをsync_calendar_to_spsに渡して実行する
-            res = sync_calendar_to_sps(sh_admin, selected_id) 
-            st.info(res)
+        content = drive_service.files().get_media(fileId=file_id).execute()
         
-        # ▼ 時間や金額を確実に排除し、「行事名」のみをピンポイントで狙うプロンプトに修正
         prompt = "このカレンダー（1枚目）とイベント一覧（2枚目）から、1ヶ月分の【日付(M/D形式)】、【大会名(イベント名)】、および【行事名】を抽出し、純粋なJSON配列 [{'date':'4/1', 'event':'大会名', 'desc':'行事名'}, ...] 形式で出力してください。\n\n※厳守事項※\n1. 'desc' には、大会名のすぐ下に記載されている「行事名」の文字列のみを入れてください。\n2. 「ゲーム数（〇G）」「参加費・金額（¥〇〇など）」「時間（PM〇:〇〇など）」の数字や情報は、トラブル防止のため **絶対に** 含めないでください。\n3. イベントがない日は含めないでください。"
         
         max_retries = 5
@@ -357,10 +330,11 @@ if "found_pdf_list" in st.session_state and st.session_state.found_pdf_list:
                 except Exception as e:
                     last_error = str(e)
                     error_msg = last_error.lower()
-                    if attempt < max_retries - 1:
-                        wait_sec = (2 ** (attempt + 1)) + random.uniform(0, 1)
-                        time.sleep(wait_sec)
-                        continue
+                    if any(err in error_msg for err in ["429", "too many requests", "quota", "503", "unavailable", "high demand", "overloaded"]):
+                        if attempt < max_retries - 1:
+                            wait_sec = (2 ** (attempt + 1)) + random.uniform(0, 1)
+                            time.sleep(wait_sec)
+                            continue
                     break 
             if success:
                 break
@@ -641,20 +615,57 @@ with st.sidebar:
         st.markdown("---")
         st.subheader("🛠 管理ツール")
         with st.expander("📢 お知らせ・イベント編集"):
-            # データベース接続を確保
             sh_admin = get_gspread_client()
             
-            # お知らせ更新
             ann_current = get_announcement_data(sh_admin) if sh_admin else ""
             new_ann = st.text_area("お知らせ編集", value=ann_current, height=100)
             if st.button("お知らせを保存"):
                 if sh_admin and update_announcement_data(sh_admin, new_ann): 
                     st.success("保存完了")
-                    import time
                     time.sleep(1)
                     st.rerun()
             
             st.markdown("---")
+            st.write("📅 カレンダーPDF解析（ファイル指定）")
+            
+            if st.button("フォルダ内のPDF一覧を確認"):
+                if sh_admin:
+                    try:
+                        creds_json_str = st.secrets["google_credentials"]
+                        creds_info = json.loads(creds_json_str, strict=False)
+                        if "private_key" in creds_info:
+                            creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
+                        drive_creds = service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/drive'])
+                        drive_service = build('drive', 'v3', credentials=drive_creds)
+                        
+                        f_query = "name = 'イベントスケジュール' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+                        folders = drive_service.files().list(q=f_query).execute().get('files', [])
+                        if folders:
+                            folder_id = folders[0]['id']
+                            p_query = f"'{folder_id}' in parents and mimeType = 'application/pdf' and trashed = false"
+                            pdf_files = drive_service.files().list(q=p_query, orderBy="createdTime desc").execute().get('files', [])
+                            if pdf_files:
+                                st.session_state.found_pdf_list = {f['name']: f['id'] for f in pdf_files}
+                                st.rerun()
+                            else:
+                                st.warning("フォルダ内にPDFが見つかりませんでした。")
+                        else:
+                            st.warning("「イベントスケジュール」フォルダが見つかりません。")
+                    except Exception as e:
+                        st.error(f"ファイル一覧の取得に失敗しました: {e}")
+                else:
+                    st.error("データベースに接続できません。")
+            
+            if "found_pdf_list" in st.session_state and st.session_state.found_pdf_list:
+                selected_name = st.selectbox("解析するファイルを選択", list(st.session_state.found_pdf_list.keys()))
+                selected_id = st.session_state.found_pdf_list[selected_name]
+                
+                if st.button("AI解析を実行して保存", type="primary"):
+                    with st.spinner(f"{selected_name} を解析中..."):
+                        res = sync_calendar_to_sps(sh_admin, selected_id) 
+                        st.info(res)
+
+        st.markdown("---")
             # カレンダー手動読込
             st.write("📅 カレンダーPDF解析")
             if st.button("AIで今月のPDFを読込・保存"):
