@@ -584,8 +584,16 @@ with st.sidebar:
                         st.error(res)
 
         # ダイアログを呼び出すボタン（サイドバーに常駐）
-        if st.button("📅 イベントスケジュールの同期", use_container_width=True):
+        if st.button("イベントスケジュールの同期", use_container_width=True):
             open_calendar_sync_dialog()
+
+        # 3. 解析設定
+        with st.expander("・解析設定"):
+            st.radio(
+                "残ピン閾値の判定方式", 
+                ["4箇所基準", "全体分布基準"], 
+                key="thresh_method_setting"
+            )
 
         st.markdown("---")
         app_mode = st.radio("モード選択", ["スコア登録", "オイル情報入力", "プレイヤー分析", "データ比較"], index=0)
@@ -4006,6 +4014,37 @@ prompt_score = """
 # =========================================================
 # 📍 【ブロック 4】 共通関数・定数定義
 # =========================================================
+def get_pin_pos(pin_num):
+    mapping = {
+        7: (0, 0.0), 8: (0, 1.0), 9: (0, 2.0), 10: (0, 3.0),
+        4: (1, 0.5), 5: (1, 1.5), 6: (1, 2.5),
+        2: (2, 1.0), 3: (2, 2.0),
+        1: (3, 1.5)
+    }
+    return mapping[pin_num]
+
+def is_green_group(g_idx, f_idx, pin):
+    if g_idx == 1:
+        if f_idx == 5 and pin in [1]: return True
+    elif g_idx == 2:
+        if f_idx == 3 and pin in [3,4,5,6,7,8,9,10]: return True
+        if f_idx == 4 and pin in [1,2,3,4,7,8,9,10]: return True
+        if f_idx == 5 and pin in [1,2,3,4,5,6]: return True
+        if f_idx == 6 and pin in [1,2,3,4,8,9,10]: return True
+        if f_idx == 7 and pin in [3,4,5,6,7,8,9,10]: return True
+        if f_idx == 8 and pin in [7]: return True
+    elif g_idx == 3:
+        if f_idx == 3 and pin in [1,2,3,4,5,6,8,9,10]: return True
+        if f_idx == 4 and pin in [1,2,3,4,5,6,7,8,9,10]: return True
+        if f_idx == 5 and pin in [1,2,3,4,5,6,7,8,9,10]: return True
+        if f_idx == 6 and pin in [1,2,3,4,5,6,7,8,9,10]: return True
+        if f_idx == 7 and pin in [1,2,3,4,5,6,7,8,9,10]: return True
+    elif g_idx == 4:
+        if f_idx == 4 and pin in [9,10]: return True
+        if f_idx == 5 and pin in [4,5,6,7,8,9,10]: return True
+        if f_idx == 6 and pin in [7,8,9]: return True
+    return False
+
 def calculate_bowling_score(throws):
     def get_val(idx):
         if idx >= len(throws): return 0
@@ -4346,7 +4385,7 @@ if st.session_state.analyzed_results is None:
 
             games_data.append(game_info)
 
-        dyn_thresh_empty = 20.0
+        dyn_thresh_empty_base = 20.0
         dyn_thresh_pink = 24.0
 
         if all_global_pin_pcts:
@@ -4368,25 +4407,75 @@ if st.session_state.analyzed_results is None:
                             current_zeros = [i]
                     if len(current_zeros) > len(longest_zeros): longest_zeros = current_zeros
                     valley_idx = longest_zeros[int(len(longest_zeros) * 0.6)]
-                    dyn_thresh_empty = peak1_idx + valley_idx
+                    dyn_thresh_empty_base = peak1_idx + valley_idx
                 else:
                     valley_idx = np.argmin(between_hist)
-                    dyn_thresh_empty = peak1_idx + valley_idx
+                    dyn_thresh_empty_base = peak1_idx + valley_idx
             else:
-                dyn_thresh_empty = np.max(all_global_pin_pcts) + 5.0
+                dyn_thresh_empty_base = np.max(all_global_pin_pcts) + 5.0
         
         offset = st.session_state.get("pin_thresh_offset", 1.0)
-        dyn_thresh_empty = dyn_thresh_empty + offset
+        dyn_thresh_empty_base = dyn_thresh_empty_base + offset
+        
+        # 新方式（指定箇所基準）の閾値計算と枠描画
+        pcts_green = []
+        pcts_orange = []
+        
+        def safe_calc_mid(g1, f1, p1, g2, f2, p2, color):
+            if g1 < len(games_data) and g2 < len(games_data):
+                def get_pts(g, f, p):
+                    row_idx, col_offset = get_pin_pos(p)
+                    return games_data[g]['pin_data'][(f, row_idx, col_offset)]['pts']
+                
+                pts1 = get_pts(g1, f1, p1)
+                pts2 = get_pts(g2, f2, p2)
+                mid_pts = ((pts1 + pts2) / 2).astype(np.int32)
+                
+                rx, ry, rw, rh = cv2.boundingRect(mid_pts)
+                crop_y = thresh_ink_rotated[max(0, ry):ry+rh, max(0, rx):rx+rw]
+                pixels_y = crop_y.shape[0] * crop_y.shape[1]
+                pct = (cv2.countNonZero(crop_y) / pixels_y * 100) if pixels_y > 0 else 0
+                
+                cv2.polylines(output_img, [mid_pts], isClosed=True, color=color, thickness=3)
+                return pct
+            return None
 
-        dyn_thresh_circle = dyn_thresh_empty + 12.0
+        # 緑の指定枠
+        for g1,f1,p1, g2,f2,p2 in [(2,3,6, 2,4,4), (2,5,1, 2,6,1), (3,3,1, 3,4,1), (3,6,1, 3,7,1)]:
+            val = safe_calc_mid(g1,f1,p1, g2,f2,p2, (0, 255, 0))
+            if val is not None: pcts_green.append(val)
+        
+        # 橙の指定枠
+        for g1,f1,p1, g2,f2,p2 in [(0,2,1, 0,3,1), (1,7,1, 1,8,1), (2,0,3, 2,1,2), (4,7,1, 4,8,1)]:
+            val = safe_calc_mid(g1,f1,p1, g2,f2,p2, (0, 165, 255))
+            if val is not None: pcts_orange.append(val)
+
+        thresh_method = st.session_state.get("thresh_method_setting", "新方式 (指定箇所基準)")
+        
+        if thresh_method == "新方式 (指定箇所基準)":
+            dyn_thresh_green = max(pcts_green) + 2.0 + offset if pcts_green else dyn_thresh_empty_base
+            dyn_thresh_orange = max(pcts_orange) + 2.0 + offset if pcts_orange else dyn_thresh_empty_base
+        else:
+            dyn_thresh_green = dyn_thresh_empty_base
+            dyn_thresh_orange = dyn_thresh_empty_base
+
+        dyn_thresh_circle_green = dyn_thresh_green + 12.0
+        dyn_thresh_circle_orange = dyn_thresh_orange + 12.0
 
         valid_1st_throw_pcts = []
-        for game_info in games_data:
+        for group_idx, game_info in enumerate(games_data):
             for f in range(10):
                 frame_pins = []
                 for row_idx, col_offset in pin_positions:
                     pin_pct = game_info['pin_data'][(f, row_idx, col_offset)]['pct']
-                    if pin_pct >= dyn_thresh_empty: frame_pins.append(1)
+                    if row_idx == 0: pin_num = 7 + int(col_offset)
+                    elif row_idx == 1: pin_num = 4 + int(col_offset - 0.5)
+                    elif row_idx == 2: pin_num = 2 + int(col_offset - 1.0)
+                    elif row_idx == 3: pin_num = 1
+                    
+                    is_green = is_green_group(group_idx, f, pin_num)
+                    thresh_to_use = dyn_thresh_green if is_green else dyn_thresh_orange
+                    if pin_pct >= thresh_to_use: frame_pins.append(1)
                 if len(frame_pins) > 0:
                     valid_1st_throw_pcts.append(game_info['light_purple_data'][f]['pct'])
 
@@ -4396,9 +4485,15 @@ if st.session_state.analyzed_results is None:
         plt.style.use('dark_background')
         fig, ax1 = plt.subplots(figsize=(4.5, 2.25))
         ax2 = ax1.twinx()
-        ax1.hist(all_global_pin_pcts, bins=50, range=(0,100), color='yellow', alpha=0.6, label=f'Pins (Thresh: {dyn_thresh_empty:.1f}%)')
+        ax1.hist(all_global_pin_pcts, bins=50, range=(0,100), color='yellow', alpha=0.6, label='Pins Dist')
         ax2.hist(all_global_light_purple_pcts, bins=50, range=(0,100), color='mediumpurple', alpha=0.6, label=f'1st Throw (Thresh: {dyn_thresh_pink:.1f}%)')
-        ax1.axvline(dyn_thresh_empty, color='yellow', linestyle='dashed', linewidth=2)
+        
+        if thresh_method == "新方式 (指定箇所基準)":
+            ax1.axvline(dyn_thresh_green, color='green', linestyle='dashed', linewidth=2, label=f'Green Thresh ({dyn_thresh_green:.1f}%)')
+            ax1.axvline(dyn_thresh_orange, color='orange', linestyle='dashed', linewidth=2, label=f'Orange Thresh ({dyn_thresh_orange:.1f}%)')
+        else:
+            ax1.axvline(dyn_thresh_empty_base, color='yellow', linestyle='dashed', linewidth=2, label=f'Pins Thresh ({dyn_thresh_empty_base:.1f}%)')
+            
         ax1.axvline(dyn_thresh_pink, color='magenta', linestyle='dashed', linewidth=2)
         lines_1, labels_1 = ax1.get_legend_handles_labels()
         lines_2, labels_2 = ax2.get_legend_handles_labels()
@@ -4447,24 +4542,28 @@ if st.session_state.analyzed_results is None:
                     pin_data = game_info['pin_data'][(f, row_idx, col_offset)]
                     pin_pct = pin_data['pct']
                     pts_y = pin_data['pts']
-                    # ▼枠線の色を黄色からオレンジ色(0, 165, 255)に変更
-                    cv2.polylines(output_img, [pts_y], isClosed=True, color=(0, 165, 255), thickness=1)
-
-                    if pin_pct < dyn_thresh_empty: result = "EMPTY"
-                    elif pin_pct < dyn_thresh_circle: result = "CIRCLE"
-                    else: result = "DOUBLE"
-
+                    
                     if row_idx == 0: pin_num = 7 + int(col_offset)
                     elif row_idx == 1: pin_num = 4 + int(col_offset - 0.5)
                     elif row_idx == 2: pin_num = 2 + int(col_offset - 1.0)
                     elif row_idx == 3: pin_num = 1
 
+                    is_green = is_green_group(group_idx, f, pin_num)
+                    box_color = (0, 255, 0) if is_green else (0, 165, 255)
+                    cv2.polylines(output_img, [pts_y], isClosed=True, color=box_color, thickness=1)
+
+                    current_empty_thresh = dyn_thresh_green if is_green else dyn_thresh_orange
+                    current_circle_thresh = dyn_thresh_circle_green if is_green else dyn_thresh_circle_orange
+
+                    if pin_pct < current_empty_thresh: result = "EMPTY"
+                    elif pin_pct < current_circle_thresh: result = "CIRCLE"
+                    else: result = "DOUBLE"
+
                     if result in ["CIRCLE", "DOUBLE"]:
                         frame_pins.append(pin_num)
                         p_top_left = tuple(pts_y[0][0])
                         p_bottom_right = tuple(pts_y[2][0])
-                        # ▼斜線の色を黄色からオレンジ色(0, 165, 255)に変更
-                        cv2.line(output_img, p_top_left, p_bottom_right, (0, 165, 255), 2)
+                        cv2.line(output_img, p_top_left, p_bottom_right, box_color, 2)
                 frame_pins.sort()
                 all_frame_pins.append(frame_pins)
 
