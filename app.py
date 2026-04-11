@@ -309,11 +309,31 @@ def sync_calendar_to_sps(sh):
         folders = drive_service.files().list(q=f_query).execute().get('files', [])
         if not folders: return "フォルダが見つかりません。"
         
-        p_query = f"'{folders[0]['id']}' in parents and name contains '{now.month}月' and mimeType = 'application/pdf'"
-        files = drive_service.files().list(q=p_query).execute().get('files', [])
-        if not files: return "今月のPDFが見つかりません。"
-        
-        content = drive_service.files().get_media(fileId=files[0]['id']).execute()
+        st.write("📅 カレンダー解析（ファイル指定）")
+if st.button("フォルダ内のPDF一覧を確認"):
+    if sh_admin:
+        # フォルダ内のPDFを全件リストアップ
+        f_query = "name = 'イベントスケジュール' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+        folders = drive_service.files().list(q=f_query).execute().get('files', [])
+        if folders:
+            folder_id = folders[0]['id']
+            p_query = f"'{folder_id}' in parents and mimeType = 'application/pdf' and trashed = false"
+            # 日付順（新しい順）に並べて取得
+            pdf_files = drive_service.files().list(q=p_query, orderBy="createdTime desc").execute().get('files', [])
+            st.session_state.found_pdf_list = {f['name']: f['id'] for f in pdf_files}
+    else:
+        st.error("データベースに接続できません。")
+
+# ファイルが見つかっている場合に選択肢を表示
+if "found_pdf_list" in st.session_state and st.session_state.found_pdf_list:
+    selected_name = st.selectbox("解析するファイルを選択", list(st.session_state.found_pdf_list.keys()))
+    selected_id = st.session_state.found_pdf_list[selected_name]
+    
+    if st.button("AI解析を実行して保存"):
+        with st.spinner(f"{selected_name} を解析中..."):
+            # ここでselected_idをsync_calendar_to_spsに渡して実行する
+            res = sync_calendar_to_sps(sh_admin, selected_id) 
+            st.info(res)
         
         # ▼ 時間や金額を確実に排除し、「行事名」のみをピンポイントで狙うプロンプトに修正
         prompt = "このカレンダー（1枚目）とイベント一覧（2枚目）から、1ヶ月分の【日付(M/D形式)】、【大会名(イベント名)】、および【行事名】を抽出し、純粋なJSON配列 [{'date':'4/1', 'event':'大会名', 'desc':'行事名'}, ...] 形式で出力してください。\n\n※厳守事項※\n1. 'desc' には、大会名のすぐ下に記載されている「行事名」の文字列のみを入れてください。\n2. 「ゲーム数（〇G）」「参加費・金額（¥〇〇など）」「時間（PM〇:〇〇など）」の数字や情報は、トラブル防止のため **絶対に** 含めないでください。\n3. イベントがない日は含めないでください。"
