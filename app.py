@@ -1193,7 +1193,7 @@ if app_mode == "プレイヤー分析":
                 # ① お知らせの表示
                 announcement = get_announcement_data(sh) if 'get_announcement_data' in globals() else "現在、お知らせはありません。"
                 st.markdown("### 📢 お知らせ")
-                st.markdown(f'<div style="background-color:#2a2a2e;padding:20px;border-radius:10px;border-left:5px solid #00FFFF;margin-bottom:20px;"><p style="color:white;font-size:16px;white-space:pre-wrap;margin:0;">{announcement}</p></div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="background-color:#2a2a2e;padding:20px;border-radius:10px;border-left:5px solid #FFB6C1;margin-bottom:20px;"><p style="color:white;font-size:16px;white-space:pre-wrap;margin:0;">{announcement}</p></div>', unsafe_allow_html=True)
 
                 st.markdown("<hr style='border:1px solid #444; margin: 30px 0;'>", unsafe_allow_html=True)
 
