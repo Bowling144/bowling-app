@@ -228,6 +228,11 @@ st.markdown("""
         box-shadow: 0 0 25px rgba(230, 100, 101, 0.8);
         transform: translateY(-2px);
     }
+
+    /* 実行中の「Running...」やコードの表示を隠す */
+    [data-testid="stStatusWidget"] {
+        visibility: hidden !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -398,6 +403,20 @@ if "logged_in" not in st.session_state:
     st.session_state.user_name = ""
     st.session_state.user_role = ""
     st.session_state.user_public = ""
+
+# --- 日付変更（午前0時跨ぎ）の自動更新チェック ---
+import datetime
+now_jst = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=+9)))
+current_date = now_jst.date()
+
+if "last_run_date" not in st.session_state:
+    st.session_state.last_run_date = current_date
+
+# 日付が変わっていたらキャッシュをクリアして再起動
+if st.session_state.last_run_date != current_date:
+    st.cache_data.clear()
+    st.session_state.last_run_date = current_date
+    st.rerun()
 
 # --- ログイン画面 ---
 if not st.session_state.logged_in:
