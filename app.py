@@ -869,6 +869,9 @@ if st.session_state.get("kiosk_mode"):
                         if auth_success:
                             st.session_state.kiosk_user = selected_user
                             st.session_state.kiosk_step = "register"
+                            # 認証成功と同時にパスワード入力欄のセッションをクリアする
+                            if "tk_kiosk_pass" in st.session_state:
+                                st.session_state["tk_kiosk_pass"] = ""
                             st.rerun()
                         else:
                             st.error("パスワードが正しくありません。")
