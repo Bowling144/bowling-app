@@ -387,8 +387,6 @@ def sync_calendar_to_sps(sh, file_id):
 
 @st.cache_data(ttl=600)
 def get_today_event_from_sps(_sh):
-    @st.cache_data(ttl=600)
-def get_today_event_from_sps(_sh):
     """SPSのイベントカレンダーから今日の日付のイベントと説明を取得"""
     import datetime
     now = datetime.datetime.now()
