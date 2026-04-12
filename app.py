@@ -1141,6 +1141,9 @@ if app_mode == "オイル情報入力":
                                     row.extend([row_dict[i][0], row_dict[i][1]])
                                 else:
                                     row.extend(["", ""])
+                            
+                            # ▼ 追加：AM列（39列目）にファイル名を記録
+                            row.append(q_item["file_name"])
                             rows_to_add.append(row)
                         
                         for r in rows_to_add:
@@ -1246,6 +1249,9 @@ if app_mode == "オイル情報入力":
                     break
                     
             row_to_add.extend([l_val, v_val])
+            
+        # ▼ 追加：AM列（39列目）に手動入力であることを記録
+        row_to_add.append("手動入力")
             
         if error_msg:
             st.error(error_msg)
@@ -1521,28 +1527,55 @@ if app_mode == "プレイヤー分析":
                         else:
                             st.markdown("<span style='font-size: 14px; color: gray;'>明日のイベントはありません。</span>", unsafe_allow_html=True)
                     
-                    with st.expander("💧 本日のレーンコンディション"):
+                    with st.expander("🎳 本日のレーンコンディション"):
                         try:
-                            # ご指定いただいた「読込み済みオイル画像」フォルダのIDを使用
-                            oil_folder_id = "1bGH88kJ-wA0QsV8S2rVGHoWlO65wIHsG"
-                            p_query = f"'{oil_folder_id}' in parents and mimeType = 'image/jpeg' and trashed = false"
+                            # 本日の日付を YY/MM/DD で取得
+                            now_j = datetime.now(timezone(timedelta(hours=+9), 'JST'))
+                            today_yymmdd = now_j.strftime("%y/%m/%d")
                             
-                            files = drive_service.files().list(q=p_query, fields="files(id, name)", orderBy="createdTime desc", pageSize=1).execute().get('files', [])
-                            if files:
-                                file_id = files[0]['id']
-                                file_name = files[0]['name']
-                                st.markdown(f"<span style='color: silver; font-size: 12px;'>最新の更新: {file_name}</span>", unsafe_allow_html=True)
-                                
-                                # 画像を直接読み込んで表示する
-                                fh = io.BytesIO()
-                                downloader = MediaIoBaseDownload(fh, drive_service.files().get_media(fileId=file_id))
-                                done = False
-                                while not done: _, done = downloader.next_chunk()
-                                st.image(Image.open(fh), use_container_width=True)
+                            # 本日のオイル登録データを抽出
+                            today_oil_rows = [row for row in st.session_state.get("oil_data", []) if str(row[0]).strip() == today_yymmdd]
+                            
+                            if not today_oil_rows:
+                                st.info("本日のオイル情報はまだ登録されていません。")
                             else:
-                                st.info("読込み済みのオイル画像が見つかりません。")
+                                # AM列（インデックス38）の画像ファイル名を取得
+                                target_files = []
+                                manual_flag = False
+                                for r in today_oil_rows:
+                                    if len(r) > 38:
+                                        fname = str(r[38]).strip()
+                                        if fname and fname != "手動入力" and fname not in target_files:
+                                            target_files.append(fname)
+                                        elif fname == "手動入力":
+                                            manual_flag = True
+                                
+                                if target_files:
+                                    oil_folder_id = "1bGH88kJ-wA0QsV8S2rVGHoWlO65wIHsG"
+                                    st.markdown(f"<span style='color: silver; font-size: 12px;'>本日の登録画像 ({len(target_files)}件)</span>", unsafe_allow_html=True)
+                                    for fname in target_files:
+                                        p_query = f"'{oil_folder_id}' in parents and name = '{fname}' and trashed = false"
+                                        files = drive_service.files().list(q=p_query, fields="files(id, name)", pageSize=1).execute().get('files', [])
+                                        if files:
+                                            file_id = files[0]['id']
+                                            st.markdown(f"**📄 {fname}**")
+                                            fh = io.BytesIO()
+                                            downloader = MediaIoBaseDownload(fh, drive_service.files().get_media(fileId=file_id))
+                                            done = False
+                                            while not done: _, done = downloader.next_chunk()
+                                            st.image(Image.open(fh), use_container_width=True)
+                                        else:
+                                            st.warning(f"画像「{fname}」がDrive上に見つかりません。")
+                                            
+                                    if manual_flag:
+                                        st.markdown("<span style='color: silver; font-size: 12px;'>※一部のレーンは手動で入力されています（画像無し）</span>", unsafe_allow_html=True)
+                                else:
+                                    if manual_flag:
+                                        st.info("本日のオイル情報は手動で入力されています（画像無し）")
+                                    else:
+                                        st.info("本日のオイル画像は登録されていません。")
                         except Exception as e:
-                            st.error(f"画像の読み込みに失敗しました: {e}")
+                            st.error(f"情報の読み込みに失敗しました: {e}")
             # ▲ 追加ここまで ▲
 
             if selected_player:
