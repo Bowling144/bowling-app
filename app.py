@@ -1090,7 +1090,7 @@ if app_mode == "オイル情報入力":
                 creds_json_str = st.secrets["google_credentials"]
                 creds_info = json.loads(creds_json_str, strict=False)
                 if "private_key" in creds_info: creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
-                drive_service = build('drive', 'v3', credentials=service_account.Credentials.from_service_account_info(creds_info, scopes=['[https://www.googleapis.com/auth/drive](https://www.googleapis.com/auth/drive)']))
+                drive_service = build('drive', 'v3', credentials=service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/drive']))
                 file_id = st.session_state.oil_scan_data["file_id"]
                 dest_folder_id = "1bGH88kJ-wA0QsV8S2rVGHoWlO65wIHsG"
                 file_obj = drive_service.files().get(fileId=file_id, fields='parents').execute()
