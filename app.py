@@ -418,10 +418,10 @@ def get_tomorrow_event_from_sps(_sh):
     except: return []
 
 @st.cache_data(ttl=300)
-def get_past_suggestions(sh, col_index):
+def get_past_suggestions(_sh, col_index):
     """指定した列（1始まり）から重複を除いた過去の入力履歴を取得する"""
     try:
-        ws = sh.worksheet("マスター")
+        ws = _sh.worksheet("マスター")
         vals = ws.col_values(col_index)
         if len(vals) <= 1: return []
         # 重複削除、空文字削除
