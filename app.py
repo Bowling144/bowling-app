@@ -4052,7 +4052,12 @@ if fetch_button:
 
 # --- 新規画像検知（自動解析）ロジック ---
 if st.session_state.get("kiosk_mode") and st.session_state.get("waiting_for_scan"):
-    st.info("🔄 スキャナーでスコアシートをスキャンしてください...\n（新しく追加された画像を自動で検知して解析を開始します）")
+    st.markdown("""
+    <div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); border: 2px solid #bf953f; border-radius: 12px; padding: 30px; text-align: center; box-shadow: 0 0 25px rgba(191, 149, 63, 0.6); margin-bottom: 20px;'>
+        <div style='color: #fcf6ba; font-size: 30px; font-weight: 900; margin-bottom: 10px; letter-spacing: 2px;'>🔄 スキャナーでスコアシートをスキャンしてください</div>
+        <div style='color: silver; font-size: 16px; font-weight: bold;'>（新しく追加された画像を自動で検知して解析を開始します）</div>
+    </div>
+    """, unsafe_allow_html=True)
     
     with st.spinner("画像の追加を監視中... (最大2分)"):
         try:
@@ -4102,7 +4107,15 @@ if st.session_state.get("kiosk_mode") and st.session_state.get("waiting_for_scan
             st.rerun()
 
 if not st.session_state.raw_images_data:
-    st.info("　")
+    if st.session_state.get("kiosk_mode") and st.session_state.get("kiosk_step") == "register":
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        if st.button("🚪 CHECK-IN画面へ戻る", type="secondary", use_container_width=True):
+            st.session_state.kiosk_step = "auth"
+            st.session_state.kiosk_user = None
+            st.session_state.waiting_for_scan = False
+            st.rerun()
+    else:
+        st.info("　")
     st.stop()
 
 gemini_api_key = st.secrets.get("gemini_api_key", "")
@@ -5858,6 +5871,15 @@ if st.session_state.analyzed_results:
     with col_reg:
         st.markdown("<div class='red-btn-marker' style='display: none;'></div>", unsafe_allow_html=True)
         btn_register = st.button("スコアデータを登録する", use_container_width=True, type="primary")
+
+    # ▼ キオスクモード時のみ、破棄して認証画面に戻るボタンを追加
+    if st.session_state.get("kiosk_mode"):
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("🚪 破棄してCHECK-IN画面へ戻る", type="secondary", use_container_width=True):
+            st.session_state.kiosk_step = "auth"
+            st.session_state.kiosk_user = None
+            st.session_state.waiting_for_scan = False
+            btn_discard = True
 
     if btn_discard:
         move_images_to_processed(is_discard=True)
