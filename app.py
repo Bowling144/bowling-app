@@ -1047,11 +1047,11 @@ if app_mode == "オイル情報入力":
                 else:
                     st.session_state.waiting_for_oil_scan = False
                     st.error("タイムアウトしました。")
-                    st.rerun()
+                    st.stop()
             except Exception as e:
                 st.session_state.waiting_for_oil_scan = False
-                st.error(f"エラー: {e}")
-                st.rerun()
+                st.error(f"エラー内容（これを教えてください）: {e}")
+                st.stop()
 
     # ▼▼▼ AI読み取り結果の確認とキュー追加UI ▼▼▼
     if st.session_state.oil_scan_data:
