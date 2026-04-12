@@ -387,6 +387,8 @@ def sync_calendar_to_sps(sh, file_id):
 
 @st.cache_data(ttl=600)
 def get_today_event_from_sps(_sh):
+    @st.cache_data(ttl=600)
+def get_today_event_from_sps(_sh):
     """SPSのイベントカレンダーから今日の日付のイベントと説明を取得"""
     import datetime
     now = datetime.datetime.now()
@@ -400,6 +402,21 @@ def get_today_event_from_sps(_sh):
                 e_desc = row[2] if len(row) > 2 else ""
                 events.append({"name": e_name, "desc": e_desc})
         return events if events else []
+    except: return []
+
+@st.cache_data(ttl=600)
+def get_tomorrow_event_from_sps(_sh):
+    """SPSのイベントカレンダーから明日の日付のイベント名のみを取得"""
+    import datetime
+    tm = datetime.datetime.now() + datetime.timedelta(days=1)
+    t1, t2 = f"{tm.month}/{tm.day}", f"{tm.month:02d}/{tm.day:02d}"
+    try:
+        records = _sh.worksheet("イベントカレンダー").get_all_values()
+        events = []
+        for row in records:
+            if len(row) >= 2 and (row[0] == t1 or row[0] == t2):
+                events.append(row[1])
+        return events
     except: return []
 # ▲▲▲ 追加ここまで ▲▲▲
 
@@ -1160,6 +1177,15 @@ if app_mode == "プレイヤー分析":
                     ev_name = "イベント予定なし"
                     ev_desc = ""
                     
+                    # 日付表示の準備
+                    import datetime
+                    wdays = ["月", "火", "水", "木", "金", "土", "日"]
+                    now_dt = datetime.datetime.now()
+                    tmr_dt = now_dt + datetime.timedelta(days=1)
+                    
+                    today_str = f"🎳 {now_dt.month}/{now_dt.day}({wdays[now_dt.weekday()]}) TODAY's EVENT 🎳"
+                    tmr_str = f"🎳 {tmr_dt.month}/{tmr_dt.day}({wdays[tmr_dt.weekday()]}) TOMORROW's EVENT 🎳"
+                    
                     # 過去の形式(tuple)が返ってきた場合の安全対策
                     if isinstance(ev_result, tuple):
                         ev_result = [{"name": ev_result[0], "desc": ev_result[1]}] if ev_result[0] and ev_result[0] != "イベント予定なし" else []
@@ -1186,10 +1212,19 @@ if app_mode == "プレイヤー分析":
                                 safe_desc = str(ev["desc"]).replace('\n', '<br>')
                                 events_html += f'<p class="ev-desc">{safe_desc}</p>'
 
+                        # ▼ TOMORROW'S EVENT の取得とHTML組み立て
+                        tm_events = get_tomorrow_event_from_sps(sh) if 'get_tomorrow_event_from_sps' in globals() else []
+                        tm_html = ""
+                        if tm_events:
+                            tm_html = f'<p style="color:gray;font-size:30px;font-weight:bold;margin:25px 0 5px 0;">{tmr_str}</p>'
+                            for t_name in tm_events:
+                                tm_html += f'<p style="color:gray;font-size:22px;margin:0 0 5px 0;line-height:1.4;">{t_name}</p>'
+
                         html_content = f'''<div class="ev-box">
-<p style="color:#FFB6C1;font-size:30px;font-weight:bold;margin:0 0 5px 0;">🎳 TODAY's EVENT 🎳</p>
+<p style="color:#FFB6C1;font-size:30px;font-weight:bold;margin:0 0 5px 0;">{today_str}</p>
 {events_html}
-<p style="color:#FFB6C1;font-size:16px;margin-top:5px;margin-bottom:0;">詳細はカレンダーをチェック！</p>
+{tm_html}
+<p style="color:#FFB6C1;font-size:16px;margin-top:15px;margin-bottom:0;">詳細はカレンダーをチェック！</p>
 <p style="color:#FFB6C1;font-size:36px;animation:bounce 2s infinite;margin:-15px 0 -10px 0;">☟</p>
 </div>'''
 
@@ -1222,7 +1257,17 @@ if app_mode == "プレイヤー分析":
                             except Exception as e:
                                 st.error(f"カレンダーの読み込みに失敗しました: {e}")
                     else:
-                        st.markdown("### 🗓 本日のイベント\n今日はイベントの予定はありません。通常営業でお待ちしております！")
+                        # イベントがない場合の表示にもTOMORROWの情報を追加
+                        tm_events = get_tomorrow_event_from_sps(sh) if 'get_tomorrow_event_from_sps' in globals() else []
+                        
+                        st.markdown(f"### {today_str}\n今日はイベントの予定はありません。通常営業でお待ちしております！")
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        st.markdown(f"<h3 style='color: gray;'>{tmr_str}</h3>", unsafe_allow_html=True)
+                        if tm_events:
+                            for t_name in tm_events:
+                                st.markdown(f"<span style='font-size: 14px; color: gray;'>{t_name}</span>", unsafe_allow_html=True)
+                        else:
+                            st.markdown("<span style='font-size: 14px; color: gray;'>明日のイベントはありません。</span>", unsafe_allow_html=True)
             # ▲ 追加ここまで ▲
 
             if selected_player:
