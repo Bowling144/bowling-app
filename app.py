@@ -685,15 +685,6 @@ with st.sidebar:
         if st.button("イベントスケジュールの同期", use_container_width=True):
             open_calendar_sync_dialog()
 
-        # 3. 解析設定
-        with st.expander("・解析設定"):
-            st.radio(
-                "残ピン閾値の判定方式", 
-                ["4箇所基準", "全体分布基準"], 
-                key="thresh_method_sidebar",
-                on_change=lambda: st.session_state.update({"thresh_method_setting": st.session_state.thresh_method_sidebar})
-            )
-
         st.markdown("---")
         
         # 退避していたモードがあればそれを初期値に、なければ「スコア登録」
