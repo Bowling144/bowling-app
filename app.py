@@ -1223,8 +1223,8 @@ if app_mode == "プレイヤー分析":
 <p style="color:#FFB6C1;font-size:30px;font-weight:bold;margin:0 0 5px 0;">{today_str}</p>
 {events_html}
 {tm_html}
-<p style="color:#FFB6C1;font-size:16px;margin-top:15px;margin-bottom:0;">詳細はカレンダーをチェック！</p>
-<p style="color:#FFB6C1;font-size:36px;animation:bounce 2s infinite;margin:-15px 0 -10px 0;">☟</p>
+<p style="color:#F7E7CE;font-size:16px;margin-top:15px;margin-bottom:0;">詳細はカレンダーをチェック！</p>
+<p style="color:#F7E7CE;font-size:36px;animation:bounce 2s infinite;margin:-15px 0 -10px 0;">☟</p>
 </div>'''
 
                         st.markdown(html_content, unsafe_allow_html=True)
