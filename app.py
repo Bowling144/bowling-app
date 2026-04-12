@@ -3994,31 +3994,31 @@ if st.session_state.get("kiosk_mode") and st.session_state.get("waiting_for_scan
     </div>
     """, unsafe_allow_html=True)
     
-    with st.expander("残ピン判定の微調整"):
-        st.markdown("<span style='font-size: 12px; color: silver;'>自動計算された残ピン判定の閾値に、この数値をプラスマイナスして一時的に調整します。<br>（ピンが反応しにくい場合はマイナスへ、過剰に反応する場合はプラスへ変更して再取込してください）</span>", unsafe_allow_html=True)
-        
-        if "pin_thresh_offset" not in st.session_state:
-            st.session_state.pin_thresh_offset = 0.0
-
-        def reset_thresh():
-            st.session_state.pin_thresh_offset = 0.0
-
-        col_sl, col_btn = st.columns([4, 1])
-        with col_sl:
-            st.slider("閾値の調整値（％）", min_value=-20.0, max_value=20.0, value=0.0, step=0.05, key="pin_thresh_offset")
-        with col_btn:
-            st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
-            st.button("初期値に戻す", on_click=reset_thresh, use_container_width=True)
-            
-        st.markdown("<hr style='border-top: 1px dashed #444; margin: 10px 0;'>", unsafe_allow_html=True)
-        st.radio(
-                    "残ピン閾値の判定方式", 
-                    ["4箇所基準", "全体分布基準"], 
-                    horizontal=True,
-                    key="thresh_method_standby",
-                    on_change=lambda: st.session_state.update({"thresh_method_setting": st.session_state.thresh_method_standby})
-                )
+with st.expander("残ピン判定の微調整"):
+    st.markdown("<span style='font-size: 12px; color: silver;'>自動計算された残ピン判定の閾値に、この数値をプラスマイナスして一時的に調整します。<br>（ピンが反応しにくい場合はマイナスへ、過剰に反応する場合はプラスへ変更して再取込してください）</span>", unsafe_allow_html=True)
     
+    if "pin_thresh_offset" not in st.session_state:
+        st.session_state.pin_thresh_offset = 0.0
+
+    def reset_thresh():
+        st.session_state.pin_thresh_offset = 0.0
+
+    col_sl, col_btn = st.columns([4, 1])
+    with col_sl:
+        st.slider("閾値の調整値（％）", min_value=-20.0, max_value=20.0, value=0.0, step=0.05, key="pin_thresh_offset")
+    with col_btn:
+        st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+        st.button("初期値に戻す", on_click=reset_thresh, use_container_width=True)
+        
+    st.markdown("<hr style='border-top: 1px dashed #444; margin: 10px 0;'>", unsafe_allow_html=True)
+    st.radio(
+                "残ピン閾値の判定方式", 
+                ["4箇所基準", "全体分布基準"], 
+                horizontal=True,
+                key="thresh_method_standby",
+                on_change=lambda: st.session_state.update({"thresh_method_setting": st.session_state.thresh_method_standby})
+            )
+
 # 通常モード用の解析ボタン定義（誤消去の復元）
 fetch_button = False
 if not (st.session_state.get("kiosk_mode") and st.session_state.get("waiting_for_scan")):
