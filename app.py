@@ -1200,6 +1200,8 @@ if app_mode == "プレイヤー分析":
                         .ev-box { background: linear-gradient(145deg, #1a1a1c, #2a1020); border: 2px solid #FF107A; border-radius: 15px; padding: 25px 20px 5px 20px; text-align: center; box-shadow: 0 0 20px rgba(255,16,122,0.4); margin-bottom: 10px; }
                         .ev-main { font-size: 45px !important; font-weight: 900; color: white; animation: neon 2s infinite; margin: 15px 0 5px 0; line-height: 1.2; }
                         .ev-desc { font-size: 22px !important; color: #FFB6C1; margin: 0 0 15px 0; line-height: 1.4; text-align: center; }
+                        /* 明日のイベント用のグレーネオンクラスを追加 */
+                        .ev-main-tmr { font-size: 45px !important; font-weight: 900; color: gray; animation: neon 2s infinite; margin: 15px 0 5px 0; line-height: 1.2; }
                         </style>
                         """, unsafe_allow_html=True)
 
@@ -1216,8 +1218,8 @@ if app_mode == "プレイヤー分析":
                         if tm_events:
                             tm_html = f'<p style="color:gray;font-size:30px;font-weight:bold;margin:25px 0 5px 0;">{tmr_str}</p>'
                             for t_name in tm_events:
-                                # 今日のイベント名 (ev-main: 45px/900) と同じフォント設定を適用
-                                tm_html += f'<p style="color:gray;font-size:45px;font-weight:900;margin:15px 0 5px 0;line-height:1.2;text-align:center;">{t_name}</p>'
+                                # ev-main と全く同じ装飾で色だけグレーのクラスを適用
+                                tm_html += f'<p class="ev-main-tmr">{t_name}</p>'
 
                         html_content = f'''<div class="ev-box">
 <p style="color:#FFB6C1;font-size:30px;font-weight:bold;margin:0 0 5px 0;">{today_str}</p>
@@ -1259,13 +1261,21 @@ if app_mode == "プレイヤー分析":
                         # イベントがない場合の表示にもTOMORROWの情報を追加
                         tm_events = get_tomorrow_event_from_sps(sh) if 'get_tomorrow_event_from_sps' in globals() else []
                         
+                        st.markdown("""
+                        <style>
+                        @keyframes neon { 0%,100% { text-shadow: 0 0 10px #FF107A, 0 0 20px #FF107A; } 50% { text-shadow: 0 0 5px #FF107A, 0 0 10px #FF107A; } }
+                        /* 明日のイベント用のグレーネオンクラスを追加 */
+                        .ev-main-tmr-no-today { font-size: 45px !important; font-weight: 900; color: gray; animation: neon 2s infinite; margin: 15px 0 5px 0; line-height: 1.2; text-align: center; }
+                        </style>
+                        """, unsafe_allow_html=True)
+
                         st.markdown(f"### {today_str}\n今日はイベントの予定はありません。通常営業でお待ちしております！")
                         st.markdown("<br>", unsafe_allow_html=True)
                         st.markdown(f"<p style='color:gray;font-size:30px;font-weight:bold;'>{tmr_str}</p>", unsafe_allow_html=True)
                         if tm_events:
                             for t_name in tm_events:
-                                # 今日のイベント名と同じフォント設定を適用
-                                st.markdown(f"<p style='color:gray;font-size:45px;font-weight:900;margin:15px 0 5px 0;line-height:1.2;text-align:center;'>{t_name}</p>", unsafe_allow_html=True)
+                                # ev-main と全く同じ装飾で色だけグレーのクラスを適用
+                                st.markdown(f'<p class="ev-main-tmr-no-today">{t_name}</p>', unsafe_allow_html=True)
                         else:
                             st.markdown("<span style='font-size: 14px; color: gray;'>明日のイベントはありません。</span>", unsafe_allow_html=True)
             # ▲ 追加ここまで ▲
