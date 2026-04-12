@@ -3986,39 +3986,40 @@ st.markdown("<h3 style='text-align: center;'>☟　☟　☟</h3>", unsafe_allow
 st.markdown("<div class='gold-btn-marker' style='display: none;'></div>", unsafe_allow_html=True)
 
 # --- モード別のボタン表示制御 ---
-if st.session_state.get("kiosk_mode"):
-    if not st.session_state.waiting_for_scan:
-        fetch_button = st.button("スキャン・解析を開始する", use_container_width=True)
-    else:
-        fetch_button = False
-        st.button("解析をキャンセルする", on_click=lambda: st.session_state.update(waiting_for_scan=False), use_container_width=True)
-else:
-    fetch_button = st.button("スコアシート取込（1枚）", use_container_width=True)
-
-with st.expander("残ピン判定の微調整（調整後に再実行）"):
-    st.markdown("<span style='font-size: 12px; color: silver;'>自動計算された残ピン判定の閾値に、この数値をプラスマイナスして一時的に調整します。<br>（ピンが反応しにくい場合はマイナスへ、過剰に反応する場合はプラスへ変更して「スキャン・解析を開始する」を実行してください）</span>", unsafe_allow_html=True)
+if st.session_state.get("kiosk_mode") and st.session_state.get("waiting_for_scan"):
+    st.markdown("""
+    <div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); border: 2px solid #bf953f; border-radius: 12px; padding: 30px; text-align: center; box-shadow: 0 0 25px rgba(191, 149, 63, 0.6); margin-bottom: 20px;'>
+        <div style='color: #fcf6ba; font-size: 30px; font-weight: 900; margin-bottom: 10px; letter-spacing: 2px;'>🔄 スキャナーでスコアシートをスキャンしてください</div>
+        <div style='color: silver; font-size: 16px; font-weight: bold;'>（新しく追加された画像を自動で検知して解析を開始します）</div>
+    </div>
+    """, unsafe_allow_html=True)
     
-    if "pin_thresh_offset" not in st.session_state:
-        st.session_state.pin_thresh_offset = 0.0
-
-    def reset_thresh():
-        st.session_state.pin_thresh_offset = 0.0
-
-    col_sl, col_btn = st.columns([4, 1])
-    with col_sl:
-        st.slider("閾値の調整値（％）", min_value=-20.0, max_value=20.0, value=0.0, step=0.05, key="pin_thresh_offset")
-    with col_btn:
-        st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
-        st.button("初期値に戻す", on_click=reset_thresh, use_container_width=True)
+    with st.expander("残ピン判定の微調整"):
+        st.markdown("<span style='font-size: 12px; color: silver;'>自動計算された残ピン判定の閾値に、この数値をプラスマイナスして一時的に調整します。<br>（ピンが反応しにくい場合はマイナスへ、過剰に反応する場合はプラスへ変更して再取込してください）</span>", unsafe_allow_html=True)
         
-    st.markdown("<hr style='border-top: 1px dashed #444; margin: 10px 0;'>", unsafe_allow_html=True)
-    st.radio(
-        "残ピン閾値の判定方式（調整後に再実行）", 
-        ["4箇所基準", "全体分布基準"], 
-        horizontal=True,
-        key="thresh_method_standby",
-        on_change=lambda: st.session_state.update({"thresh_method_setting": st.session_state.thresh_method_standby})
-    )
+        if "pin_thresh_offset" not in st.session_state:
+            st.session_state.pin_thresh_offset = 0.0
+
+        def reset_thresh():
+            st.session_state.pin_thresh_offset = 0.0
+
+        col_sl, col_btn = st.columns([4, 1])
+        with col_sl:
+            st.slider("閾値の調整値（％）", min_value=-20.0, max_value=20.0, value=0.0, step=0.05, key="pin_thresh_offset")
+        with col_btn:
+            st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+            st.button("初期値に戻す", on_click=reset_thresh, use_container_width=True)
+            
+        st.markdown("<hr style='border-top: 1px dashed #444; margin: 10px 0;'>", unsafe_allow_html=True)
+        st.radio(
+            "残ピン閾値の判定方式", 
+            ["4箇所基準", "全体分布基準"], 
+            horizontal=True,
+            key="thresh_method_standby",
+            on_change=lambda: st.session_state.update({"thresh_method_setting": st.session_state.thresh_method_standby})
+        )
+    
+    with st.spinner("画像の追加を監視中... (最大2分)"):
 # --- ボタン押下時の処理 ---
 if fetch_button:
     try:
