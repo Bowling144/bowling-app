@@ -1021,11 +1021,24 @@ if app_mode == "オイル情報入力":
                             prompt = '''画像から「Volume Oil Total (mL)」と「Oil Pattern Distance (Feet)」の数値を読み取ってください。
 以下のJSON形式で出力してください。数値のみを抽出すること。
 {"distance": 42, "volume": 22.1}'''
-                            response = ai_client.models.generate_content(
-                                model="gemini-2.5-pro",
-                                contents=[cropped_img, prompt],
-                                config=types.GenerateContentConfig(temperature=0.0, response_mime_type="application/json")
-                            )
+                            
+                            # ▼ 混雑エラー対策：最大3回のリトライ処理を追加
+                            max_retries = 3
+                            for attempt in range(max_retries):
+                                try:
+                                    response = ai_client.models.generate_content(
+                                        model="gemini-2.5-pro",
+                                        contents=[cropped_img, prompt],
+                                        config=types.GenerateContentConfig(temperature=0.0, response_mime_type="application/json")
+                                    )
+                                    break  # 成功したらループを抜ける
+                                except Exception as api_e:
+                                    if "503" in str(api_e) and attempt < max_retries - 1:
+                                        time.sleep(2)  # 2秒待機して再試行
+                                        continue
+                                    else:
+                                        raise api_e  # 規定回数失敗、または他のエラーは投げる
+
                             raw_text = response.text.strip()
                             if raw_text.startswith("```"):
                                 lines = raw_text.split('\n')
@@ -1047,11 +1060,11 @@ if app_mode == "オイル情報入力":
                 else:
                     st.session_state.waiting_for_oil_scan = False
                     st.error("タイムアウトしました。")
-                    st.stop()
+                    st.rerun()
             except Exception as e:
                 st.session_state.waiting_for_oil_scan = False
-                st.error(f"エラー内容（これを教えてください）: {e}")
-                st.stop()
+                st.error(f"解析エラー: {e}")
+                st.rerun()
 
     # ▼▼▼ AI読み取り結果の確認とキュー追加UI ▼▼▼
     if st.session_state.oil_scan_data:
