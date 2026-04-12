@@ -833,7 +833,7 @@ if st.session_state.get("kiosk_mode"):
                 players = [row[1] for row in data[1:] if len(row) >= 5 and row[1]]
                 
                 selected_user = st.selectbox("プレイヤーを選択してください", ["選択してください"] + players)
-                kiosk_pw = render_tenkey("パスワードを入力してください", "tk_kiosk_pass", "", format_type="none", is_pw=True)
+                kiosk_pw = render_tenkey("パスワードを入力してください（右のテンキーで入力）", "tk_kiosk_pass", "", format_type="none", is_pw=True)
                 
                 st.markdown("<br>", unsafe_allow_html=True)
                 if st.button("✅ 認証して登録画面へ進む", use_container_width=True):
