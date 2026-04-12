@@ -1216,7 +1216,8 @@ if app_mode == "プレイヤー分析":
                         if tm_events:
                             tm_html = f'<p style="color:gray;font-size:30px;font-weight:bold;margin:25px 0 5px 0;">{tmr_str}</p>'
                             for t_name in tm_events:
-                                tm_html += f'<p style="color:gray;font-size:22px;margin:0 0 5px 0;line-height:1.4;">{t_name}</p>'
+                                # 今日のイベント名 (ev-main: 45px/900) と同じフォント設定を適用
+                                tm_html += f'<p style="color:gray;font-size:45px;font-weight:900;margin:15px 0 5px 0;line-height:1.2;text-align:center;">{t_name}</p>'
 
                         html_content = f'''<div class="ev-box">
 <p style="color:#FFB6C1;font-size:30px;font-weight:bold;margin:0 0 5px 0;">{today_str}</p>
@@ -1260,10 +1261,11 @@ if app_mode == "プレイヤー分析":
                         
                         st.markdown(f"### {today_str}\n今日はイベントの予定はありません。通常営業でお待ちしております！")
                         st.markdown("<br>", unsafe_allow_html=True)
-                        st.markdown(f"<h3 style='color: gray;'>{tmr_str}</h3>", unsafe_allow_html=True)
+                        st.markdown(f"<p style='color:gray;font-size:30px;font-weight:bold;'>{tmr_str}</p>", unsafe_allow_html=True)
                         if tm_events:
                             for t_name in tm_events:
-                                st.markdown(f"<span style='font-size: 14px; color: gray;'>{t_name}</span>", unsafe_allow_html=True)
+                                # 今日のイベント名と同じフォント設定を適用
+                                st.markdown(f"<p style='color:gray;font-size:45px;font-weight:900;margin:15px 0 5px 0;line-height:1.2;text-align:center;'>{t_name}</p>", unsafe_allow_html=True)
                         else:
                             st.markdown("<span style='font-size: 14px; color: gray;'>明日のイベントはありません。</span>", unsafe_allow_html=True)
             # ▲ 追加ここまで ▲
