@@ -5538,6 +5538,13 @@ if st.session_state.analyzed_results:
         for row in oil_data:
             if len(row) <= vol_col:
                 continue
+                
+            # ▼ 追加：その時間のそのレーンに本当にデータが入っているか（空欄でないか）をチェック
+            l_val_check = str(row[len_col]).strip()
+            v_val_check = str(row[vol_col]).strip()
+            if not l_val_check and not v_val_check:
+                continue  # 空欄の場合は、さらに過去の入力データを参照するためにスキップ
+                
             # 日付を比較する前に正規化
             r_date = normalize_date(str(row[0]).strip())
             r_time = str(row[1]).strip()
@@ -5550,7 +5557,7 @@ if st.session_state.analyzed_results:
                         best_mins = r_mins
                         
         if best_match:
-            return str(best_match[len_col]).strip(), str(best_match[vol_col]).strip(), "成功"
+            return str(best_match[len_col]).strip(), str(best_match[vol_col]).strip(), f"成功 ({str(best_match[1]).strip()}のデータを適用)"
         return "", "", f"該当する日付({target_date_norm})・時間のデータが見つかりません"
 
     game_checkboxes = []
