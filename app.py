@@ -229,6 +229,20 @@ st.markdown("""
         transform: translateY(-2px);
     }
 
+    /* ▼ 個別条件用の境界線カラー（淡い色） ▼ */
+    .stApp div[data-testid="stElementContainer"]:has(.cond1-marker) + div[data-testid="stElementContainer"] div[data-baseweb="select"] > div,
+    .stApp div[data-testid="stElementContainer"]:has(.cond1-marker) + div[data-testid="stElementContainer"] div[data-baseweb="input"] {
+        border: 2px solid #b2ebf2 !important; /* 淡いブルー */
+    }
+    .stApp div[data-testid="stElementContainer"]:has(.cond2-marker) + div[data-testid="stElementContainer"] div[data-baseweb="select"] > div,
+    .stApp div[data-testid="stElementContainer"]:has(.cond2-marker) + div[data-testid="stElementContainer"] div[data-baseweb="input"] {
+        border: 2px solid #c8e6c9 !important; /* 淡いグリーン */
+    }
+    .stApp div[data-testid="stElementContainer"]:has(.cond3-marker) + div[data-testid="stElementContainer"] div[data-baseweb="select"] > div,
+    .stApp div[data-testid="stElementContainer"]:has(.cond3-marker) + div[data-testid="stElementContainer"] div[data-baseweb="input"] {
+        border: 2px solid #ffe0b2 !important; /* 淡いオレンジ */
+    }
+
     /* 実行中の「Running...」やコードの表示を隠す */
     [data-testid="stStatusWidget"] {
         visibility: hidden !important;
@@ -429,7 +443,7 @@ def get_past_suggestions(_sh, col_index):
         return suggestions
     except: return []
 
-def render_suggestion_input(label, key, suggestions, default_val=""):
+def render_suggestion_input(label, key, suggestions, default_val="", marker=None):
     """履歴選択または新規入力が可能な入力UI"""
     options = ["(新規入力)"] + suggestions
     
@@ -438,10 +452,16 @@ def render_suggestion_input(label, key, suggestions, default_val=""):
     
     # 初期値が履歴にある場合はそれを選択状態にする
     idx = options.index(default_val) if default_val in suggestions else 0
+    
+    # マーカーが指定されている場合は、CSS適用のために直前に配置
+    if marker:
+        st.markdown(f'<div class="{marker}" style="display:none;"></div>', unsafe_allow_html=True)
         
     selected = st.selectbox(f"{label} (過去の履歴から選択)", options, index=idx, key=sel_key)
     
     if selected == "(新規入力)":
+        if marker:
+            st.markdown(f'<div class="{marker}" style="display:none;"></div>', unsafe_allow_html=True)
         return st.text_input(f"{label} (新規)", value=default_val if default_val not in suggestions else "", key=txt_key)
     else:
         return selected
@@ -5699,10 +5719,16 @@ if st.session_state.analyzed_results:
         else:
             c_b1, c_b2 = st.columns(2)
             with c_b1: common_ball = render_suggestion_input("使用ボール", f"c_ball_{img_idx}", sugs_ball)
-            with c_b2: common_c1 = render_suggestion_input("個別条件１", f"c_c1_{img_idx}", sugs_c1)
+            with c_b2: 
+                st.markdown("<br>", unsafe_allow_html=True)
+                common_c1 = render_suggestion_input("個別条件１", f"c_c1_{img_idx}", sugs_c1, marker="cond1-marker")
             c_b3, c_b4 = st.columns(2)
-            with c_b3: common_c2 = render_suggestion_input("個別条件２", f"c_c2_{img_idx}", sugs_c2)
-            with c_b4: common_c3 = render_suggestion_input("個別条件３", f"c_c3_{img_idx}", sugs_c3)
+            with c_b3: 
+                st.markdown("<br>", unsafe_allow_html=True)
+                common_c2 = render_suggestion_input("個別条件２", f"c_c2_{img_idx}", sugs_c2, marker="cond2-marker")
+            with c_b4: 
+                st.markdown("<br>", unsafe_allow_html=True)
+                common_c3 = render_suggestion_input("個別条件３", f"c_c3_{img_idx}", sugs_c3, marker="cond3-marker")
             
         with st.expander(f"画像 {img_idx+1} のゲームごとの個別設定"):
             for item in items:
@@ -5729,10 +5755,16 @@ if st.session_state.analyzed_results:
                 else:
                     ib_1, ib_2 = st.columns(2)
                     with ib_1: i_ball = render_suggestion_input(f"{g_name} 使用ボール", f"i_ball_{img_idx}_{l_idx}", sugs_ball, default_val=common_ball)
-                    with ib_2: i_c1_val = render_suggestion_input(f"{g_name} 個別条件１", f"i_c1_{img_idx}_{l_idx}", sugs_c1, default_val=common_c1)
+                    with ib_2: 
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        i_c1_val = render_suggestion_input(f"{g_name} 個別条件１", f"i_c1_{img_idx}_{l_idx}", sugs_c1, default_val=common_c1, marker="cond1-marker")
                     ib_3, ib_4 = st.columns(2)
-                    with ib_3: i_c2_val = render_suggestion_input(f"{g_name} 個別条件２", f"i_c2_{img_idx}_{l_idx}", sugs_c2, default_val=common_c2)
-                    with ib_4: i_c3_val = render_suggestion_input(f"{g_name} 個別条件３", f"i_c3_{img_idx}_{l_idx}", sugs_c3, default_val=common_c3)
+                    with ib_3: 
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        i_c2_val = render_suggestion_input(f"{g_name} 個別条件２", f"i_c2_{img_idx}_{l_idx}", sugs_c2, default_val=common_c2, marker="cond2-marker")
+                    with ib_4: 
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        i_c3_val = render_suggestion_input(f"{g_name} 個別条件３", f"i_c3_{img_idx}_{l_idx}", sugs_c3, default_val=common_c3, marker="cond3-marker")
                 
                 final_len = i_len if i_len.strip() else common_len
                 final_vol = i_vol if i_vol.strip() else common_vol
