@@ -5488,7 +5488,19 @@ if st.session_state.analyzed_results:
     def get_oil_info(target_date, target_time, target_lane):
         oil_data = st.session_state.get("oil_data", [])
         if not oil_data or not target_date or not target_time or not target_lane:
-            return "", ""
+            return "", "", "検索条件が不足しています"
+            
+        # ▼ 追加：日付の「ゼロ埋め（04など）」を自動で統一する処理
+        def normalize_date(d_str):
+            parts = str(d_str).split('/')
+            if len(parts) == 3:
+                y = parts[0][-2:] if len(parts[0]) >= 2 else parts[0].zfill(2)
+                m = parts[1].zfill(2)
+                d = parts[2].zfill(2)
+                return f"{y}/{m}/{d}"
+            return str(d_str).strip()
+            
+        target_date_norm = normalize_date(target_date)
         
         lane_str = str(target_lane).replace(" ", "")
         if "-" in lane_str:
@@ -5496,15 +5508,15 @@ if st.session_state.analyzed_results:
             try:
                 lane_num = min(int(parts[0]), int(parts[1]))
             except:
-                return "", ""
+                return "", "", "レーン番号の形式エラー"
         else:
             try:
                 lane_num = int(lane_str)
             except:
-                return "", ""
+                return "", "", "レーン番号が数値ではありません"
                 
         if not (1 <= lane_num <= 18):
-            return "", ""
+            return "", "", "レーン番号が範囲外(1-18)です"
             
         len_col = lane_num * 2
         vol_col = lane_num * 2 + 1
@@ -5518,7 +5530,7 @@ if st.session_state.analyzed_results:
                 
         tgt_mins = to_mins(target_time)
         if tgt_mins == -1:
-            return "", ""
+            return "", "", "時間の形式エラー"
 
         best_match = None
         best_mins = -1
@@ -5526,10 +5538,11 @@ if st.session_state.analyzed_results:
         for row in oil_data:
             if len(row) <= vol_col:
                 continue
-            r_date = str(row[0]).strip()
+            # 日付を比較する前に正規化
+            r_date = normalize_date(str(row[0]).strip())
             r_time = str(row[1]).strip()
             
-            if r_date == target_date:
+            if r_date == target_date_norm:
                 r_mins = to_mins(r_time)
                 if r_mins != -1 and tgt_mins >= r_mins:
                     if best_match is None or r_mins > best_mins:
@@ -5537,8 +5550,8 @@ if st.session_state.analyzed_results:
                         best_mins = r_mins
                         
         if best_match:
-            return str(best_match[len_col]).strip(), str(best_match[vol_col]).strip()
-        return "", ""
+            return str(best_match[len_col]).strip(), str(best_match[vol_col]).strip(), "成功"
+        return "", "", f"該当する日付({target_date_norm})・時間のデータが見つかりません"
 
     game_checkboxes = []
 
@@ -5941,7 +5954,11 @@ if st.session_state.analyzed_results:
             
         t_date = items[0]["export_row"][0]
         t_time = items[0]["export_row"][1]
-        default_len, default_vol = get_oil_info(t_date, t_time, common_lane)
+        default_len, default_vol, debug_msg = get_oil_info(t_date, t_time, common_lane)
+        
+        # ▼ 原因を突き止めるためのデバッグ表示
+        oil_data_count = len(st.session_state.get("oil_data", []))
+        st.info(f"【検索状況】日付: {t_date} | 時刻: {t_time} | レーン: '{common_lane}' | 保持データ数: {oil_data_count}件\n結果: {debug_msg}")
 
         with c_len:
             if st.session_state.get("kiosk_mode"):
