@@ -3987,9 +3987,9 @@ if st.session_state.get("kiosk_mode") and st.session_state.get("waiting_for_scan
 fetch_button = False
 if not (st.session_state.get("kiosk_mode") and st.session_state.get("waiting_for_scan")):
     st.markdown("<div class='gold-btn-marker' style='display: none;'></div>", unsafe_allow_html=True)
-    fetch_button = st.button("スキャン・解析を開始する", use_container_width=True)
+    fetch_button = st.button("解析を開始する", use_container_width=True)
 
-with st.expander("残ピン判定の微調整"):
+with st.expander("残ピン判定方式と閾値の微調整"):
     st.markdown("<span style='font-size: 12px; color: silver;'>自動計算された残ピン判定の閾値に、この数値をプラスマイナスして一時的に調整します。<br>（ピンが反応しにくい場合はマイナスへ、過剰に反応する場合はプラスへ変更して再取込してください）</span>", unsafe_allow_html=True)
     
     if "pin_thresh_offset" not in st.session_state:
