@@ -416,6 +416,35 @@ def get_tomorrow_event_from_sps(_sh):
                 events.append(row[1])
         return events
     except: return []
+
+@st.cache_data(ttl=300)
+def get_past_suggestions(sh, col_index):
+    """指定した列（1始まり）から重複を除いた過去の入力履歴を取得する"""
+    try:
+        ws = sh.worksheet("マスター")
+        vals = ws.col_values(col_index)
+        if len(vals) <= 1: return []
+        # 重複削除、空文字削除
+        suggestions = sorted(list(set([v for v in vals[1:] if v and v.strip()])))
+        return suggestions
+    except: return []
+
+def render_suggestion_input(label, key, suggestions, default_val=""):
+    """履歴選択または新規入力が可能な入力UI"""
+    options = ["(新規入力)"] + suggestions
+    
+    sel_key = f"sel_{key}"
+    txt_key = f"txt_{key}"
+    
+    # 初期値が履歴にある場合はそれを選択状態にする
+    idx = options.index(default_val) if default_val in suggestions else 0
+        
+    selected = st.selectbox(f"{label} (過去の履歴から選択)", options, index=idx, key=sel_key)
+    
+    if selected == "(新規入力)":
+        return st.text_input(f"{label} (新規)", value=default_val if default_val not in suggestions else "", key=txt_key)
+    else:
+        return selected
 # ▲▲▲ 追加ここまで ▲▲▲
 
 # --- セッション初期化 ---
@@ -5622,6 +5651,13 @@ if st.session_state.analyzed_results:
 
     LANE_OPTIONS = [""] + [str(i) for i in range(1, 19)] + [f"{i}-{i+1}" for i in range(1, 19, 2)] + [f"{i+1}-{i}" for i in range(1, 19, 2)]
 
+    # ▼ 使用ボール(J列=10)、個別条件1〜3(BD列=56, BE=57, BF=58)の履歴を取得
+    sh_admin = get_gspread_client()
+    sugs_ball = get_past_suggestions(sh_admin, 10) if sh_admin else []
+    sugs_c1 = get_past_suggestions(sh_admin, 56) if sh_admin else []
+    sugs_c2 = get_past_suggestions(sh_admin, 57) if sh_admin else []
+    sugs_c3 = get_past_suggestions(sh_admin, 58) if sh_admin else []
+
     games_by_img = {}
     for item in game_checkboxes:
         idx = item["img_idx"]
@@ -5657,8 +5693,16 @@ if st.session_state.analyzed_results:
         if st.session_state.get("kiosk_mode"):
             ball_options = ["", "ソリッド", "パール", "ハイブリッド", "ウレタン", "ハウスボール", "ポリエステル (スペア用)"]
             common_ball = st.selectbox("使用ボール", options=ball_options, index=0, key=f"c_ball_{img_idx}")
+            common_c1 = ""
+            common_c2 = ""
+            common_c3 = ""
         else:
-            common_ball = st.text_input("使用ボール", key=f"c_ball_{img_idx}", placeholder="例: ツアーダイナミクス")
+            c_b1, c_b2 = st.columns(2)
+            with c_b1: common_ball = render_suggestion_input("使用ボール", f"c_ball_{img_idx}", sugs_ball)
+            with c_b2: common_c1 = render_suggestion_input("個別条件１", f"c_c1_{img_idx}", sugs_c1)
+            c_b3, c_b4 = st.columns(2)
+            with c_b3: common_c2 = render_suggestion_input("個別条件２", f"c_c2_{img_idx}", sugs_c2)
+            with c_b4: common_c3 = render_suggestion_input("個別条件３", f"c_c3_{img_idx}", sugs_c3)
             
         with st.expander(f"画像 {img_idx+1} のゲームごとの個別設定"):
             for item in items:
@@ -5681,14 +5725,23 @@ if st.session_state.analyzed_results:
                 if st.session_state.get("kiosk_mode"):
                     ball_options = ["", "ソリッド", "パール", "ハイブリッド", "ウレタン", "ポリエステル (スペア用)"]
                     i_ball = st.selectbox(f"{g_name} 使用ボール (空白は共通を適用)", options=ball_options, index=0, key=f"i_ball_{img_idx}_{l_idx}")
+                    i_c1_val, i_c2_val, i_c3_val = "", "", ""
                 else:
-                    i_ball = st.text_input(f"{g_name} 使用ボール", key=f"i_ball_{img_idx}_{l_idx}", placeholder="共通を適用")
+                    ib_1, ib_2 = st.columns(2)
+                    with ib_1: i_ball = render_suggestion_input(f"{g_name} 使用ボール", f"i_ball_{img_idx}_{l_idx}", sugs_ball, default_val=common_ball)
+                    with ib_2: i_c1_val = render_suggestion_input(f"{g_name} 個別条件１", f"i_c1_{img_idx}_{l_idx}", sugs_c1, default_val=common_c1)
+                    ib_3, ib_4 = st.columns(2)
+                    with ib_3: i_c2_val = render_suggestion_input(f"{g_name} 個別条件２", f"i_c2_{img_idx}_{l_idx}", sugs_c2, default_val=common_c2)
+                    with ib_4: i_c3_val = render_suggestion_input(f"{g_name} 個別条件３", f"i_c3_{img_idx}_{l_idx}", sugs_c3, default_val=common_c3)
                 
                 final_len = i_len if i_len.strip() else common_len
                 final_vol = i_vol if i_vol.strip() else common_vol
                 final_ball = i_ball if i_ball.strip() else common_ball
+                final_c1 = i_c1_val if not st.session_state.get("kiosk_mode") else common_c1
+                final_c2 = i_c2_val if not st.session_state.get("kiosk_mode") else common_c2
+                final_c3 = i_c3_val if not st.session_state.get("kiosk_mode") else common_c3
                 
-                input_data[(img_idx, l_idx)] = (common_lane, final_len, final_vol, final_ball)
+                input_data[(img_idx, l_idx)] = (common_lane, final_len, final_vol, final_ball, final_c1, final_c2, final_c3)
 
     
     st.markdown("<br>", unsafe_allow_html=True)
@@ -5919,7 +5972,7 @@ if st.session_state.analyzed_results:
                     new_end = row[2]
                     new_game = row[4] 
             
-                    selected_lane, oil_len, oil_vol, ball_used = input_data.get((item["img_idx"], item["local_idx"]), ("", "", "", ""))
+                    selected_lane, oil_len, oil_vol, ball_used, c1_val, c2_val, c3_val = input_data.get((item["img_idx"], item["local_idx"]), ("", "", "", "", "", "", ""))
 
                     formatted_row = [
                         user_email,      
@@ -5951,6 +6004,11 @@ if st.session_state.analyzed_results:
                     
                     is_710_flag = row[51] if len(row) > 51 else False
                     formatted_row.append("TRUE" if is_710_flag else "FALSE")
+
+                    # ▼ BD列(56), BE列(57), BF列(58) への個別条件データの追加
+                    formatted_row.append(c1_val) # 56番目 (BD)
+                    formatted_row.append(c2_val) # 57番目 (BE)
+                    formatted_row.append(c3_val) # 58番目 (BF)
                     
                     match_found = False
                     for i, ex_row in enumerate(existing_data):
