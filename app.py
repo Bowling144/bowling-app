@@ -4012,14 +4012,18 @@ if st.session_state.get("kiosk_mode") and st.session_state.get("waiting_for_scan
             
         st.markdown("<hr style='border-top: 1px dashed #444; margin: 10px 0;'>", unsafe_allow_html=True)
         st.radio(
-            "残ピン閾値の判定方式", 
-            ["4箇所基準", "全体分布基準"], 
-            horizontal=True,
-            key="thresh_method_standby",
-            on_change=lambda: st.session_state.update({"thresh_method_setting": st.session_state.thresh_method_standby})
-        )
+                    "残ピン閾値の判定方式", 
+                    ["4箇所基準", "全体分布基準"], 
+                    horizontal=True,
+                    key="thresh_method_standby",
+                    on_change=lambda: st.session_state.update({"thresh_method_setting": st.session_state.thresh_method_standby})
+                )
     
-    with st.spinner("画像の追加を監視中... (最大2分)"):
+# 通常モード用の解析ボタン定義（誤消去の復元）
+fetch_button = False
+if not (st.session_state.get("kiosk_mode") and st.session_state.get("waiting_for_scan")):
+    fetch_button = st.button("スキャン・解析を開始する", use_container_width=True)
+
 # --- ボタン押下時の処理 ---
 if fetch_button:
     try:
