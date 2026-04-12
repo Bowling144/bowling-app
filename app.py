@@ -851,9 +851,8 @@ if st.session_state.get("kiosk_mode"):
                         "残ピン閾値の判定方式", 
                         ["4箇所基準", "全体分布基準"], 
                         key="thresh_method_kiosk",
-                        on_change=lambda: st.session_state.update({"thresh_method_setting": st.session_state.thresh_method_kiosk})
-                    )
-
+                        kiosk_pw = render_tenkey("パスワードを入力してください", "tk_kiosk_pass", "", format_type="none", is_pw=True)
+                
                 st.markdown("<br>", unsafe_allow_html=True)
                 if st.button("✅ 認証して登録画面へ進む", use_container_width=True):
                     if selected_user == "選択してください":
@@ -869,9 +868,10 @@ if st.session_state.get("kiosk_mode"):
                         if auth_success:
                             st.session_state.kiosk_user = selected_user
                             st.session_state.kiosk_step = "register"
-                            # 認証成功と同時にパスワード入力欄のセッションをクリアする
-                            if "tk_kiosk_pass" in st.session_state:
-                                st.session_state["tk_kiosk_pass"] = ""
+                            # 認証成功時にテンキーのパスワード履歴を完全に削除してリセットする
+                            for k in ["tk_kiosk_pass", "disp_tk_kiosk_pass", "tk_kiosk_pass_tracker"]:
+                                if k in st.session_state:
+                                    del st.session_state[k]
                             st.rerun()
                         else:
                             st.error("パスワードが正しくありません。")
@@ -3995,8 +3995,8 @@ if st.session_state.get("kiosk_mode"):
 else:
     fetch_button = st.button("スコアシート取込（1枚）", use_container_width=True)
 
-with st.expander("残ピン判定の微調整"):
-    st.markdown("<span style='font-size: 12px; color: silver;'>自動計算された残ピン判定の閾値に、この数値をプラスマイナスして一時的に調整します。<br>（ピンが反応しにくい場合はマイナスへ、過剰に反応する場合はプラスへ変更して再取込してください）</span>", unsafe_allow_html=True)
+with st.expander("残ピン判定の微調整（調整後に再実行）"):
+    st.markdown("<span style='font-size: 12px; color: silver;'>自動計算された残ピン判定の閾値に、この数値をプラスマイナスして一時的に調整します。<br>（ピンが反応しにくい場合はマイナスへ、過剰に反応する場合はプラスへ変更して「スキャン・解析を開始する」を実行してください）</span>", unsafe_allow_html=True)
     
     if "pin_thresh_offset" not in st.session_state:
         st.session_state.pin_thresh_offset = 0.0
@@ -4010,6 +4010,15 @@ with st.expander("残ピン判定の微調整"):
     with col_btn:
         st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
         st.button("初期値に戻す", on_click=reset_thresh, use_container_width=True)
+        
+    st.markdown("<hr style='border-top: 1px dashed #444; margin: 10px 0;'>", unsafe_allow_html=True)
+    st.radio(
+        "残ピン閾値の判定方式（調整後に再実行）", 
+        ["4箇所基準", "全体分布基準"], 
+        horizontal=True,
+        key="thresh_method_standby",
+        on_change=lambda: st.session_state.update({"thresh_method_setting": st.session_state.thresh_method_standby})
+    )
 # --- ボタン押下時の処理 ---
 if fetch_button:
     try:
