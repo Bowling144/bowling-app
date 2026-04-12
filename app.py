@@ -835,15 +835,6 @@ if st.session_state.get("kiosk_mode"):
                 selected_user = st.selectbox("プレイヤーを選択してください", ["選択してください"] + players)
                 kiosk_pw = render_tenkey("パスワードを入力してください", "tk_kiosk_pass", "", format_type="none", is_pw=True)
                 
-                # ▼ キオスクモード用の解析設定（判定方式切替）を追加
-                st.markdown("<br>", unsafe_allow_html=True)
-                with st.expander("⚙️ 解析設定 (残ピン判定方式)"):
-                    st.radio(
-                        "残ピン閾値の判定方式", 
-                        ["4箇所基準", "全体分布基準"], 
-                        key="thresh_method_kiosk"
-                    )
-                
                 st.markdown("<br>", unsafe_allow_html=True)
                 if st.button("✅ 認証して登録画面へ進む", use_container_width=True):
                     if selected_user == "選択してください":
