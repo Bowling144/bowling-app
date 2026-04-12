@@ -1196,15 +1196,10 @@ if app_mode == "プレイヤー分析":
                         st.markdown("""
                         <style>
                         @keyframes neon { 0%,100% { text-shadow: 0 0 10px #FF107A, 0 0 20px #FF107A; } 50% { text-shadow: 0 0 5px #FF107A, 0 0 10px #FF107A; } }
-                        @keyframes neon-gray { 0%,100% { text-shadow: 0 0 10px #888888, 0 0 20px #888888; } 50% { text-shadow: 0 0 5px #888888, 0 0 10px #888888; } }
                         @keyframes bounce { 0%,20%,50%,80%,100% { transform: translateY(0); } 40% { transform: translateY(-10px); } 60% { transform: translateY(-5px); } }
                         .ev-box { background: linear-gradient(145deg, #1a1a1c, #2a1020); border: 2px solid #FF107A; border-radius: 15px; padding: 25px 20px 5px 20px; text-align: center; box-shadow: 0 0 20px rgba(255,16,122,0.4); margin-bottom: 10px; }
                         .ev-main { font-size: 45px !important; font-weight: 900; color: white; animation: neon 2s infinite; margin: 15px 0 5px 0; line-height: 1.2; }
                         .ev-desc { font-size: 22px !important; color: #FFB6C1; margin: 0 0 15px 0; line-height: 1.4; text-align: center; }
-                        /* 明日のイベント用にグレー発光のアニメーション(neon-gray)を適用 */
-                        .ev-tmr { color: gray !important; animation: neon-gray 2s infinite; text-align: center; }
-                        .ev-main-tmr { font-size: 45px !important; font-weight: 900; margin: 15px 0 5px 0; line-height: 1.2; }
-                        .ev-head-tmr { font-size: 30px !important; font-weight: bold; margin: 45px 0 5px 0; }
                         </style>
                         """, unsafe_allow_html=True)
 
@@ -1219,10 +1214,10 @@ if app_mode == "プレイヤー分析":
                         tm_events = get_tomorrow_event_from_sps(sh) if 'get_tomorrow_event_from_sps' in globals() else []
                         tm_html = ""
                         if tm_events:
-                            # ヘッダーに ev-tmr と ev-head-tmr を適用し、一行分のスペース(margin-top: 45px)を確保
-                            tm_html = f'<p class="ev-tmr ev-head-tmr">{tmr_str}</p>'
+                            # ヘッダーとイベント名にTODAYと全く同じ装飾(色・大きさ)を適用し、1行のスペース(<br>)を追加
+                            tm_html = f'<br><p style="color:#FFB6C1;font-size:30px;font-weight:bold;margin:0 0 5px 0;">{tmr_str}</p>'
                             for t_name in tm_events:
-                                tm_html += f'<p class="ev-tmr ev-main-tmr">{t_name}</p>'
+                                tm_html += f'<p class="ev-main">{t_name}</p>'
 
                         html_content = f'''<div class="ev-box">
 <p style="color:#FFB6C1;font-size:30px;font-weight:bold;margin:0 0 5px 0;">{today_str}</p>
