@@ -1547,6 +1547,11 @@ if app_mode == "プレイヤー分析":
                             now_j = datetime.now(timezone(timedelta(hours=+9), 'JST'))
                             today_yymmdd = now_j.strftime("%y/%m/%d")
                             
+                            # ▼ 追加: オイルデータがセッションにない場合はSPSから取得する
+                            if "oil_data" not in st.session_state:
+                                oil_sheet_data = sh.worksheet("オイル入力").get_all_values()
+                                st.session_state.oil_data = oil_sheet_data[2:] if len(oil_sheet_data) > 2 else []
+                            
                             # 本日のオイル登録データを抽出
                             today_oil_rows = [row for row in st.session_state.get("oil_data", []) if str(row[0]).strip() == today_yymmdd]
                             
