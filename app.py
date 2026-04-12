@@ -850,8 +850,8 @@ if st.session_state.get("kiosk_mode"):
                     st.radio(
                         "残ピン閾値の判定方式", 
                         ["4箇所基準", "全体分布基準"], 
-                        key="thresh_method_kiosk",
-                        kiosk_pw = render_tenkey("パスワードを入力してください", "tk_kiosk_pass", "", format_type="none", is_pw=True)
+                        key="thresh_method_kiosk"
+                    )
                 
                 st.markdown("<br>", unsafe_allow_html=True)
                 if st.button("✅ 認証して登録画面へ進む", use_container_width=True):
