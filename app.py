@@ -274,16 +274,19 @@ def get_gspread_client():
 # =========================================================
 # ▼ 追加：お知らせ・イベント機能用共通関数 ▼
 # =========================================================
-def get_announcement_data(sh):
+@st.cache_data(ttl=600)
+def get_announcement_data(_sh):
     try:
         # シート名を "お知らせ" に修正
-        return sh.worksheet("お知らせ").acell("A1").value or "現在、はありません。"
+        return _sh.worksheet("お知らせ").acell("A1").value or "現在、はありません。"
     except: return "現在、はありません。"
 
 def update_announcement_data(sh, text):
     try:
         # シート名を "お知らせ" に修正
         sh.worksheet("お知らせ").update(range_name="A1", values=[[text]])
+        # 更新直後にこの関数のキャッシュのみをピンポイントで破棄
+        get_announcement_data.clear()
         return True
     except: return False
 
@@ -297,6 +300,9 @@ def sync_calendar_to_sps(sh, file_id):
     from google import genai
     from google.oauth2 import service_account
     from googleapiclient.discovery import build
+    
+    # 同期開始時に本日のイベントキャッシュを破棄
+    get_today_event_from_sps.clear()
     
     try:
         creds_json_str = st.secrets["google_credentials"]
@@ -379,13 +385,14 @@ def sync_calendar_to_sps(sh, file_id):
         return "更新完了！"
     except Exception as e: return f"エラー: {str(e)}"
 
-def get_today_event_from_sps(sh):
+@st.cache_data(ttl=600)
+def get_today_event_from_sps(_sh):
     """SPSのイベントカレンダーから今日の日付のイベントと説明を取得"""
     import datetime
     now = datetime.datetime.now()
     t1, t2 = f"{now.month}/{now.day}", f"{now.month:02d}/{now.day:02d}"
     try:
-        records = sh.worksheet("イベントカレンダー").get_all_values()
+        records = _sh.worksheet("イベントカレンダー").get_all_values()
         events = []
         for row in records:
             if len(row) >= 2 and (row[0] == t1 or row[0] == t2):
