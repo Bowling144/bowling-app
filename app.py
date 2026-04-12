@@ -1543,6 +1543,7 @@ if app_mode == "プレイヤー分析":
                     with st.expander("🎳 本日のレーンコンディション"):
                         try:
                             # 本日の日付を YY/MM/DD で取得
+                            from datetime import datetime, timedelta, timezone
                             now_j = datetime.now(timezone(timedelta(hours=+9), 'JST'))
                             today_yymmdd = now_j.strftime("%y/%m/%d")
                             
