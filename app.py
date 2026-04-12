@@ -229,18 +229,18 @@ st.markdown("""
         transform: translateY(-2px);
     }
 
-    /* ▼ 個別条件用の境界線カラー（淡い色） ▼ */
+    /* ▼ 個別条件用の境界線カラー（淡いパステルカラー） ▼ */
     .stApp div[data-testid="stElementContainer"]:has(.cond1-marker) + div[data-testid="stElementContainer"] div[data-baseweb="select"] > div,
     .stApp div[data-testid="stElementContainer"]:has(.cond1-marker) + div[data-testid="stElementContainer"] div[data-baseweb="input"] {
-        border: 2px solid #b2ebf2 !important; /* 淡いブルー */
+        border: 2px solid #81D4FA !important; /* スカイブルー */
     }
     .stApp div[data-testid="stElementContainer"]:has(.cond2-marker) + div[data-testid="stElementContainer"] div[data-baseweb="select"] > div,
     .stApp div[data-testid="stElementContainer"]:has(.cond2-marker) + div[data-testid="stElementContainer"] div[data-baseweb="input"] {
-        border: 2px solid #c8e6c9 !important; /* 淡いグリーン */
+        border: 2px solid #A5D6A7 !important; /* パステルグリーン */
     }
     .stApp div[data-testid="stElementContainer"]:has(.cond3-marker) + div[data-testid="stElementContainer"] div[data-baseweb="select"] > div,
     .stApp div[data-testid="stElementContainer"]:has(.cond3-marker) + div[data-testid="stElementContainer"] div[data-baseweb="input"] {
-        border: 2px solid #ffe0b2 !important; /* 淡いオレンジ */
+        border: 2px solid #FFCC80 !important; /* パステルオレンジ */
     }
 
     /* 実行中の「Running...」やコードの表示を隠す */
@@ -455,13 +455,13 @@ def render_suggestion_input(label, key, suggestions, default_val="", marker=None
     
     # マーカーが指定されている場合は、CSS適用のために直前に配置
     if marker:
-        st.markdown(f'<div class="{marker}" style="display:none;"></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="{marker}" style="position: absolute; width: 0; height: 0; pointer-events: none;"></div>', unsafe_allow_html=True)
         
     selected = st.selectbox(f"{label} (過去の履歴から選択)", options, index=idx, key=sel_key)
     
     if selected == "(新規入力)":
         if marker:
-            st.markdown(f'<div class="{marker}" style="display:none;"></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="{marker}" style="position: absolute; width: 0; height: 0; pointer-events: none;"></div>', unsafe_allow_html=True)
         return st.text_input(f"{label} (新規)", value=default_val if default_val not in suggestions else "", key=txt_key)
     else:
         return selected
@@ -690,7 +690,8 @@ with st.sidebar:
             st.radio(
                 "残ピン閾値の判定方式", 
                 ["4箇所基準", "全体分布基準"], 
-                key="thresh_method_setting"
+                key="thresh_method_sidebar",
+                on_change=lambda: st.session_state.update({"thresh_method_setting": st.session_state.thresh_method_sidebar})
             )
 
         st.markdown("---")
@@ -849,7 +850,8 @@ if st.session_state.get("kiosk_mode"):
                     st.radio(
                         "残ピン閾値の判定方式", 
                         ["4箇所基準", "全体分布基準"], 
-                        key="thresh_method_setting"
+                        key="thresh_method_kiosk",
+                        on_change=lambda: st.session_state.update({"thresh_method_setting": st.session_state.thresh_method_kiosk})
                     )
 
                 st.markdown("<br>", unsafe_allow_html=True)
@@ -4624,9 +4626,9 @@ if st.session_state.analyzed_results is None:
             val = safe_calc_mid(g1,f1,p1, g2,f2,p2, (0, 165, 255))
             if val is not None: pcts_orange.append(val)
 
-        thresh_method = st.session_state.get("thresh_method_setting", "新方式 (指定箇所基準)")
+        thresh_method = st.session_state.get("thresh_method_setting", "4箇所基準")
         
-        if thresh_method == "新方式 (指定箇所基準)":
+        if thresh_method == "4箇所基準":
             # 新方式のベース加算値 (+2.0) にスライダーの微調整値 (offset) を適用
             dyn_thresh_green = (sum(pcts_green) / len(pcts_green)) + 2.0 + offset if pcts_green else dyn_thresh_empty_base
             dyn_thresh_orange = (sum(pcts_orange) / len(pcts_orange)) + 2.0 + offset if pcts_orange else dyn_thresh_empty_base
