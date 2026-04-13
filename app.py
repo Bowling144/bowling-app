@@ -405,15 +405,23 @@ def get_today_event_from_sps(_sh):
     import datetime
     # 日本時間（UTC+9）を明示的に取得
     now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=+9)))
-    t1, t2 = f"{now.month}/{now.day}", f"{now.month:02d}/{now.day:02d}"
+    # スプレッドシートの年表記（YYYY/MM/DD 等）にも対応できるよう、複数パターンの今日の日付文字列を作成
+    t1 = f"{now.month}/{now.day}"
+    t2 = f"{now.month:02d}/{now.day:02d}"
+    t3 = f"{now.year}/{now.month}/{now.day}"
+    t4 = f"{now.year}/{now.month:02d}/{now.day:02d}"
+    
     try:
         records = _sh.worksheet("イベントカレンダー").get_all_values()
         events = []
         for row in records:
-            if len(row) >= 2 and (row[0] == t1 or row[0] == t2):
-                e_name = row[1]
-                e_desc = row[2] if len(row) > 2 else ""
-                events.append({"name": e_name, "desc": e_desc})
+            if len(row) >= 2:
+                # 取得した日付文字列の前後空白を削除
+                row_date = str(row[0]).strip()
+                if row_date in [t1, t2, t3, t4]:
+                    e_name = row[1]
+                    e_desc = row[2] if len(row) > 2 else ""
+                    events.append({"name": e_name, "desc": e_desc})
         return events if events else []
     except: return []
 
@@ -421,14 +429,23 @@ def get_today_event_from_sps(_sh):
 def get_tomorrow_event_from_sps(_sh):
     """SPSのイベントカレンダーから明日の日付のイベント名のみを取得"""
     import datetime
-    tm = datetime.datetime.now() + datetime.timedelta(days=1)
-    t1, t2 = f"{tm.month}/{tm.day}", f"{tm.month:02d}/{tm.day:02d}"
+    # 日本時間（UTC+9）を明示的に取得した上で、1日加算する
+    now_jst = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=+9)))
+    tm = now_jst + datetime.timedelta(days=1)
+    
+    t1 = f"{tm.month}/{tm.day}"
+    t2 = f"{tm.month:02d}/{tm.day:02d}"
+    t3 = f"{tm.year}/{tm.month}/{tm.day}"
+    t4 = f"{tm.year}/{tm.month:02d}/{tm.day:02d}"
+    
     try:
         records = _sh.worksheet("イベントカレンダー").get_all_values()
         events = []
         for row in records:
-            if len(row) >= 2 and (row[0] == t1 or row[0] == t2):
-                events.append(row[1])
+            if len(row) >= 2:
+                row_date = str(row[0]).strip()
+                if row_date in [t1, t2, t3, t4]:
+                    events.append(row[1])
         return events
     except: return []
 
@@ -1331,7 +1348,8 @@ if app_mode == "プレイヤー分析":
                     # 日付表示の準備
                     import datetime
                     wdays = ["月", "火", "水", "木", "金", "土", "日"]
-                    now_dt = datetime.datetime.now()
+                    # 画面表示用にも確実に日本時間（JST）を取得する
+                    now_dt = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=+9)))
                     tmr_dt = now_dt + datetime.timedelta(days=1)
                     
                     today_str = f"🎳 {now_dt.month}/{now_dt.day}({wdays[now_dt.weekday()]}) TODAY's EVENT 🎳"
