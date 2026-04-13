@@ -403,7 +403,8 @@ def sync_calendar_to_sps(sh, file_id):
 def get_today_event_from_sps(_sh):
     """SPSのイベントカレンダーから今日の日付のイベントと説明を取得"""
     import datetime
-    now = datetime.datetime.now()
+    # 日本時間（UTC+9）を明示的に取得
+    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=+9)))
     t1, t2 = f"{now.month}/{now.day}", f"{now.month:02d}/{now.day:02d}"
     try:
         records = _sh.worksheet("イベントカレンダー").get_all_values()
