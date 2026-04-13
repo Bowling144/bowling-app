@@ -1000,23 +1000,14 @@ if app_mode == "オイル情報入力":
                                 gemini_api_key = st.secrets.get("gemini_api_key", "")
                                 ai_client = genai.Client(api_key=gemini_api_key)
                                 prompt = '画像から「Volume Oil Total (mL)」と「Oil Pattern Distance (Feet)」の数値を読み取ってください。JSON形式 {"distance": 42, "volume": 22.1} で出力してください。'
-                                # 3段階リトライの実行
-                                for attempt_idx, attempt_model in enumerate(fallback_models):
+                                max_retries = 3
+                                for attempt in range(max_retries):
                                     try:
-                                        response = ai_client.models.generate_content(
-                                            model=attempt_model,
-                                            contents=[cropped_img, prompt],
-                                            config=types.GenerateContentConfig(temperature=0.0, response_mime_type="application/json")
-                                        )
-                                        break  # 成功したらループを抜ける
+                                        response = ai_client.models.generate_content(model="gemini-2.5-pro", contents=[cropped_img, prompt], config=types.GenerateContentConfig(temperature=0.0, response_mime_type="application/json"))
+                                        break
                                     except Exception as api_e:
-                                        error_str = str(api_e).lower()
-                                        # 503/429混雑エラーの場合、最終試行でなければ2秒待機してリトライ
-                                        if any(err in error_str for err in ["429", "503", "unavailable", "high demand", "overloaded"]):
-                                            if attempt_idx < len(fallback_models) - 1:
-                                                time.sleep(2)
-                                                continue
-                                        raise api_e # 規定回数失敗、または致命的なエラーは投げる
+                                        if "503" in str(api_e) and attempt < max_retries - 1: time.sleep(2); continue
+                                        else: raise api_e
                                 raw_text = response.text.strip()
                                 if raw_text.startswith("```"):
                                     lines = raw_text.split('\n')
@@ -3682,8 +3673,10 @@ if app_mode == "プレイヤー分析":
     st.stop()
 
 
-# ⚠️ AIモデル設定：2.5Pro×2回 ➔ 1.5Pro×1回の3段階リトライ用リスト
-fallback_models = ["gemini-2.5-pro", "gemini-2.5-pro", "gemini-1.5-pro"]
+# ⚠️ AIモデル設定：Flash版を除外し、Proモデルに限定（存在しないモデル名によるエラーを防止）
+fallback_models = [
+    'gemini-2.5-pro',
+]
 
 # =========================================================
 # 【新機能】データ比較
@@ -5030,7 +5023,7 @@ if st.session_state.analyzed_results is None:
 
 
 # ---------------------------------------------------------
-        # 📍 【ブロック 9】 AIによるテキスト読み取り（スコア）
+        # 📍 【ブロック 9】 AIによるテキスト読み取り（スコア → 日時）
         # ---------------------------------------------------------
         status_text.info(f"画像 {img_idx+1}: AIがスコアを読み取り中...")
         time.sleep(5) 
@@ -5039,39 +5032,40 @@ if st.session_state.analyzed_results is None:
         success_score = False
         last_error = ""
         used_model = "FAILED"
+        max_retries = 7  
 
-        # 2.5Proを2回、1.5Proを1回の3段階リトライ
-        for attempt_idx, attempt_model in enumerate(fallback_models):
-            try:
-                response = client.models.generate_content(
-                    model=attempt_model,
-                    contents=[prompt_score, img_pil_scores],
-                    config=types.GenerateContentConfig(
-                        temperature=0.0,
-                        response_mime_type="application/json"
+        for attempt_model in fallback_models:
+            for attempt in range(max_retries):
+                try:
+                    response = client.models.generate_content(
+                        model=attempt_model,
+                        contents=[prompt_score, img_pil_scores],
+                        config=types.GenerateContentConfig(
+                            temperature=0.0,
+                            response_mime_type="application/json"
+                        )
                     )
-                )
-                raw_text = response.text.strip()
-                if raw_text.startswith("```"):
-                    lines = raw_text.split('\n')
-                    raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
-                ai_score_data = json.loads(raw_text)
-                success_score = True
-                used_model = attempt_model.upper()
+                    raw_text = response.text.strip()
+                    if raw_text.startswith("```"):
+                        lines = raw_text.split('\n')
+                        raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
+                    ai_score_data = json.loads(raw_text)
+                    success_score = True
+                    used_model = attempt_model.upper()
+                    break
+                except Exception as e:
+                    last_error = str(e)
+                    error_msg = last_error.lower()
+                    if any(err in error_msg for err in ["429", "too many requests", "quota", "503", "unavailable", "high demand", "overloaded"]):
+                        if attempt < max_retries - 1:
+                            wait_sec = (2 ** (attempt + 1)) + random.uniform(0, 1)
+                            status_text.warning(f"サーバー高負荷/制限。{wait_sec:.1f}秒待機して再試行します... ({attempt+1}/{max_retries})")
+                            time.sleep(wait_sec)
+                            status_text.info(f"画像 {img_idx+1}: AIがスコアを読み取り中... (再試行 {attempt+1})")
+                            continue
+                    break
+            if success_score:
                 break
-            except Exception as e:
-                last_error = str(e)
-                error_msg = last_error.lower()
-                # 混雑エラー等の場合、最終試行でなければ2秒待機してリトライ
-                if any(err in error_msg for err in ["429", "503", "unavailable", "high demand", "overloaded"]):
-                    if attempt_idx < len(fallback_models) - 1:
-                        status_text.warning(f"サーバー混雑につき再試行中... ({attempt_idx+1}/3)")
-                        time.sleep(2)
-                        continue
-                break
-
-        if not success_score:
-            st.warning(f"{file_name}: AIのスコア読み取りに失敗しました。理由: {last_error}")
 
         if not success_score:
             st.warning(f"{file_name}: AIのスコア読み取りに失敗しました。理由: {last_error}")
@@ -5082,31 +5076,36 @@ if st.session_state.analyzed_results is None:
         ai_meta_data = {"date": "日付不明", "start_time": "時刻不明", "end_time": "時刻不明", "start_game_num": 1, "lane": "", "player_name": ""}
         success_meta = False
         
-        # メタデータ抽出も同様に3段階リトライを適用
-        for attempt_idx, attempt_model in enumerate(fallback_models):
-            try:
-                response = client.models.generate_content(
-                    model=attempt_model,
-                    contents=[prompt_metadata, img_pil_full],
-                    config=types.GenerateContentConfig(
-                        temperature=0.0,
-                        response_mime_type="application/json"
+        for attempt_model in fallback_models:
+            for attempt in range(max_retries):
+                try:
+                    response = client.models.generate_content(
+                        model=attempt_model,
+                        contents=[prompt_metadata, img_pil_full],
+                        config=types.GenerateContentConfig(
+                            temperature=0.0,
+                            response_mime_type="application/json"
+                        )
                     )
-                )
-                raw_text = response.text.strip()
-                if raw_text.startswith("```"):
-                    lines = raw_text.split('\n')
-                    raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
-                ai_meta_data = json.loads(raw_text)
-                success_meta = True
-                break
-            except Exception as e:
-                error_msg = str(e).lower()
-                if any(err in error_msg for err in ["429", "503", "unavailable", "high demand", "overloaded"]):
-                    if attempt_idx < len(fallback_models) - 1:
-                        status_text.warning(f"サーバー混雑につき再試行中... ({attempt_idx+1}/3)")
-                        time.sleep(2)
-                        continue
+                    raw_text = response.text.strip()
+                    if raw_text.startswith("```"):
+                        lines = raw_text.split('\n')
+                        raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
+                    ai_meta_data = json.loads(raw_text)
+                    success_meta = True
+                    break
+
+                except Exception as e:
+                    error_msg = str(e).lower()
+                    if any(err in error_msg for err in ["429", "too many requests", "quota", "503", "unavailable", "high demand", "overloaded"]):
+                        if attempt < max_retries - 1:
+                            wait_sec = (2 ** (attempt + 1)) + random.uniform(0, 1)
+                            status_text.warning(f"API制限/高負荷(日時取得)。{wait_sec:.1f}秒待機して再試行します... ({attempt+1}/{max_retries})")
+                            time.sleep(wait_sec)
+                            status_text.info(f"画像 {img_idx+1}: AIが日付・時刻・ゲーム数を取得中... (再試行 {attempt+1})")
+                            continue
+                    break
+            if success_meta:
                 break
                    
 
