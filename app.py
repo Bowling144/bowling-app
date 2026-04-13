@@ -609,7 +609,7 @@ with st.sidebar:
         st.subheader("🛠 管理ツール")
         
         # 1. 編集
-        with st.expander("・イベント編集"):
+        with st.expander("お知らせ情報編集"):
             sh_admin = get_gspread_client()
             ann_current = get_announcement_data(sh_admin) if sh_admin else ""
             new_ann = st.text_area("編集", value=ann_current, height=100)
