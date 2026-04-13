@@ -4808,6 +4808,8 @@ if st.session_state.analyzed_results is None:
                 pct = (cv2.countNonZero(crop_y) / pixels_y * 100) if pixels_y > 0 else 0
                 
                 cv2.polylines(output_img, [mid_pts], isClosed=True, color=color, thickness=3)
+                # ▼ 追加：枠のすぐ上（はみ出さないよう調整）に読み取った黒率を描画
+                cv2.putText(output_img, f"{pct:.1f}%", (rx, max(10, ry - 5)), cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1, cv2.LINE_AA)
                 return pct
             return None
 
