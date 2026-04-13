@@ -4200,13 +4200,12 @@ with st.expander("残ピン判定方式と閾値の微調整"):
         
     st.markdown("<hr style='border-top: 1px dashed #444; margin: 10px 0;'>", unsafe_allow_html=True)
     st.radio(
-                st.radio(
-                "残ピン閾値の取得方式", 
-                ["全体分布基準", "4箇所基準"], 
-                horizontal=True,
-                key="thresh_method_standby",
-                on_change=lambda: st.session_state.update({"thresh_method_setting": st.session_state.thresh_method_standby})
-            )
+        "残ピン閾値の取得方式", 
+        ["全体分布基準", "4箇所基準"], 
+        horizontal=True,
+        key="thresh_method_standby",
+        on_change=lambda: st.session_state.update({"thresh_method_setting": st.session_state.thresh_method_standby})
+    )
 
 # --- ボタン押下時の処理 ---
 if fetch_button:
