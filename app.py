@@ -1000,14 +1000,27 @@ if app_mode == "オイル情報入力":
                                 gemini_api_key = st.secrets.get("gemini_api_key", "")
                                 ai_client = genai.Client(api_key=gemini_api_key)
                                 prompt = '画像から「Volume Oil Total (mL)」と「Oil Pattern Distance (Feet)」の数値を読み取ってください。JSON形式 {"distance": 42, "volume": 22.1} で出力してください。'
-                                max_retries = 3
-                                for attempt in range(max_retries):
-                                    try:
-                                        response = ai_client.models.generate_content(model="gemini-2.5-pro", contents=[cropped_img, prompt], config=types.GenerateContentConfig(temperature=0.0, response_mime_type="application/json"))
-                                        break
-                                    except Exception as api_e:
-                                        if "503" in str(api_e) and attempt < max_retries - 1: time.sleep(2); continue
-                                        else: raise api_e
+                                # ▼ 混雑エラー対策：2.5Pro×2回 ➔ 1.5Pro×1回の3段階リトライ
+                                success_scan = False
+                                for attempt_idx, attempt_model in enumerate(fallback_models):
+                                    local_retries = 2 if attempt_model == "gemini-2.5-pro" else 1
+                                    for attempt in range(local_retries):
+                                        try:
+                                            response = ai_client.models.generate_content(
+                                                model=attempt_model,
+                                                contents=[cropped_img, prompt],
+                                                config=types.GenerateContentConfig(temperature=0.0, response_mime_type="application/json")
+                                            )
+                                            success_scan = True
+                                            break
+                                        except Exception as api_e:
+                                            err_msg = str(api_e).lower()
+                                            if any(x in err_msg for x in ["503", "429", "404", "high demand", "unavailable"]):
+                                                if attempt < local_retries - 1 or attempt_idx < len(fallback_models) - 1:
+                                                    time.sleep(2)
+                                                    continue
+                                            raise api_e
+                                    if success_scan: break
                                 raw_text = response.text.strip()
                                 if raw_text.startswith("```"):
                                     lines = raw_text.split('\n')
@@ -3673,10 +3686,9 @@ if app_mode == "プレイヤー分析":
     st.stop()
 
 
-# ⚠️ AIモデル設定：Flash版を除外し、Proモデルに限定（存在しないモデル名によるエラーを防止）
-fallback_models = [
-    'gemini-2.5-pro',
-]
+# ⚠️ AIモデル設定：2.5Proを2回試し、ダメなら1.5Proに切り替える設定
+# 404エラー回避のため、1.5Proは正式IDの「gemini-1.5-pro-002」を使用します
+fallback_models = ["gemini-2.5-pro", "gemini-1.5-pro-002"]
 
 # =========================================================
 # 【新機能】データ比較
@@ -5035,7 +5047,9 @@ if st.session_state.analyzed_results is None:
         max_retries = 7  
 
         for attempt_model in fallback_models:
-            for attempt in range(max_retries):
+            # 2.5Proは2回、それ以外(1.5Pro)は残り回数分(5回)試行して計7回を維持
+            local_max = 2 if attempt_model == "gemini-2.5-pro" else (max_retries - 2)
+            for attempt in range(local_max):
                 try:
                     response = client.models.generate_content(
                         model=attempt_model,
@@ -5056,12 +5070,13 @@ if st.session_state.analyzed_results is None:
                 except Exception as e:
                     last_error = str(e)
                     error_msg = last_error.lower()
-                    if any(err in error_msg for err in ["429", "too many requests", "quota", "503", "unavailable", "high demand", "overloaded"]):
-                        if attempt < max_retries - 1:
+                    # 404エラーを判定に追加し、指数バックオフ計算式はそのまま維持
+                    if any(err in error_msg for err in ["404", "429", "too many requests", "quota", "503", "unavailable", "high demand", "overloaded"]):
+                        if attempt < local_max - 1 or (attempt_model == "gemini-2.5-pro" and "gemini-1.5-pro-002" in fallback_models):
                             wait_sec = (2 ** (attempt + 1)) + random.uniform(0, 1)
-                            status_text.warning(f"サーバー高負荷/制限。{wait_sec:.1f}秒待機して再試行します... ({attempt+1}/{max_retries})")
+                            status_text.warning(f"AI一時エラー({attempt_model})。{wait_sec:.1f}秒待機して再試行します... ({attempt+1}/{local_max})")
                             time.sleep(wait_sec)
-                            status_text.info(f"画像 {img_idx+1}: AIがスコアを読み取り中... (再試行 {attempt+1})")
+                            status_text.info(f"画像 {img_idx+1}: AI解析中... (再試行 {attempt+1})")
                             continue
                     break
             if success_score:
@@ -5077,7 +5092,8 @@ if st.session_state.analyzed_results is None:
         success_meta = False
         
         for attempt_model in fallback_models:
-            for attempt in range(max_retries):
+            local_max = 2 if attempt_model == "gemini-2.5-pro" else (max_retries - 2)
+            for attempt in range(local_max):
                 try:
                     response = client.models.generate_content(
                         model=attempt_model,
@@ -5097,12 +5113,12 @@ if st.session_state.analyzed_results is None:
 
                 except Exception as e:
                     error_msg = str(e).lower()
-                    if any(err in error_msg for err in ["429", "too many requests", "quota", "503", "unavailable", "high demand", "overloaded"]):
-                        if attempt < max_retries - 1:
+                    if any(err in error_msg for err in ["404", "429", "too many requests", "quota", "503", "unavailable", "high demand", "overloaded"]):
+                        if attempt < local_max - 1 or (attempt_model == "gemini-2.5-pro" and "gemini-1.5-pro-002" in fallback_models):
                             wait_sec = (2 ** (attempt + 1)) + random.uniform(0, 1)
-                            status_text.warning(f"API制限/高負荷(日時取得)。{wait_sec:.1f}秒待機して再試行します... ({attempt+1}/{max_retries})")
+                            status_text.warning(f"API一時エラー(メタデータ)。{wait_sec:.1f}秒待機して再試行します... ({attempt+1}/{local_max})")
                             time.sleep(wait_sec)
-                            status_text.info(f"画像 {img_idx+1}: AIが日付・時刻・ゲーム数を取得中... (再試行 {attempt+1})")
+                            status_text.info(f"画像 {img_idx+1}: AI解析中... (再試行 {attempt+1})")
                             continue
                     break
             if success_meta:
