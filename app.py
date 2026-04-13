@@ -4826,9 +4826,9 @@ if st.session_state.analyzed_results is None:
         thresh_method = st.session_state.get("thresh_method_setting", "4箇所基準")
         
         if thresh_method == "4箇所基準":
-            # 新方式のベース加算値 (+10.0) にスライダーの微調整値 (offset) を適用
-            dyn_thresh_green = (sum(pcts_green) / len(pcts_green)) + 10.0 + offset if pcts_green else dyn_thresh_empty_base
-            dyn_thresh_orange = (sum(pcts_orange) / len(pcts_orange)) + 10.0 + offset if pcts_orange else dyn_thresh_empty_base
+            # 新方式のベース加算値 (+13.0) にスライダーの微調整値 (offset) を適用
+            dyn_thresh_green = (sum(pcts_green) / len(pcts_green)) + 13.0 + offset if pcts_green else dyn_thresh_empty_base
+            dyn_thresh_orange = (sum(pcts_orange) / len(pcts_orange)) + 13.0 + offset if pcts_orange else dyn_thresh_empty_base
         else:
             dyn_thresh_green = dyn_thresh_empty_base
             dyn_thresh_orange = dyn_thresh_empty_base
