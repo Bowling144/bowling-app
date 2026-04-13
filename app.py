@@ -4514,6 +4514,8 @@ if st.session_state.analyzed_results is None:
         parsed_games = []
         games_data = []
         all_global_pin_pcts = []
+        all_global_green_pcts = []
+        all_global_orange_pcts = []
         all_global_light_purple_pcts = []
         score_crops = []
 
@@ -4751,6 +4753,18 @@ if st.session_state.analyzed_results is None:
                     pin_pct = (cv2.countNonZero(crop_y) / pixels_y * 100) if pixels_y > 0 else 0
                     game_info['pin_data'][(f, row_idx, col_offset)] = {'pct': pin_pct, 'pts': pts_y}
                     all_global_pin_pcts.append(pin_pct)
+                    
+                    if row_idx == 0: pin_num = 7 + int(col_offset)
+                    elif row_idx == 1: pin_num = 4 + int(col_offset - 0.5)
+                    elif row_idx == 2: pin_num = 2 + int(col_offset - 1.0)
+                    elif row_idx == 3: pin_num = 1
+                    else: pin_num = 1
+
+                    is_green = is_green_group(group_idx, f, pin_num)
+                    if is_green:
+                        all_global_green_pcts.append(pin_pct)
+                    else:
+                        all_global_orange_pcts.append(pin_pct)
 
             games_data.append(game_info)
 
@@ -4826,9 +4840,9 @@ if st.session_state.analyzed_results is None:
         thresh_method = st.session_state.get("thresh_method_setting", "4箇所基準")
         
         if thresh_method == "4箇所基準":
-            # 新方式のベース加算値 (+13.0) にスライダーの微調整値 (offset) を適用
-            dyn_thresh_green = (sum(pcts_green) / len(pcts_green)) + 13.0 + offset if pcts_green else dyn_thresh_empty_base
-            dyn_thresh_orange = (sum(pcts_orange) / len(pcts_orange)) + 13.0 + offset if pcts_orange else dyn_thresh_empty_base
+            # 新方式のベース加算値 (+20.0) にスライダーの微調整値 (offset) を適用
+            dyn_thresh_green = (sum(pcts_green) / len(pcts_green)) + 20.0 + offset if pcts_green else dyn_thresh_empty_base
+            dyn_thresh_orange = (sum(pcts_orange) / len(pcts_orange)) + 20.0 + offset if pcts_orange else dyn_thresh_empty_base
         else:
             dyn_thresh_green = dyn_thresh_empty_base
             dyn_thresh_orange = dyn_thresh_empty_base
@@ -4859,20 +4873,24 @@ if st.session_state.analyzed_results is None:
         plt.style.use('dark_background')
         fig, ax1 = plt.subplots(figsize=(4.5, 2.25))
         ax2 = ax1.twinx()
-        ax1.hist(all_global_pin_pcts, bins=50, range=(0,100), color='yellow', alpha=0.6, label='Pins Dist')
-        ax2.hist(all_global_light_purple_pcts, bins=50, range=(0,100), color='mediumpurple', alpha=0.6, label=f'1st Throw (Thresh: {dyn_thresh_pink:.1f}%)')
         
-        if thresh_method == "新方式 (指定箇所基準)":
-            ax1.axvline(dyn_thresh_green, color='green', linestyle='dashed', linewidth=2, label=f'Green Thresh ({dyn_thresh_green:.1f}%)')
-            ax1.axvline(dyn_thresh_orange, color='orange', linestyle='dashed', linewidth=2, label=f'Orange Thresh ({dyn_thresh_orange:.1f}%)')
+        ax1.hist(all_global_green_pcts, bins=50, range=(0,100), color='#00FF00', alpha=0.5, label='Green Pins')
+        ax1.hist(all_global_orange_pcts, bins=50, range=(0,100), color='#FFA500', alpha=0.5, label='Orange Pins')
+        ax2.hist(all_global_light_purple_pcts, bins=50, range=(0,100), color='#9370DB', alpha=0.5, label='Purple 1st')
+        
+        if thresh_method == "4箇所基準":
+            ax1.axvline(dyn_thresh_green, color='#00FF00', linestyle='dashed', linewidth=2, label=f'Green Thresh: {dyn_thresh_green:.1f}%')
+            ax1.axvline(dyn_thresh_orange, color='#FFA500', linestyle='dashed', linewidth=2, label=f'Orange Thresh: {dyn_thresh_orange:.1f}%')
         else:
-            ax1.axvline(dyn_thresh_empty_base, color='yellow', linestyle='dashed', linewidth=2, label=f'Pins Thresh ({dyn_thresh_empty_base:.1f}%)')
+            ax1.axvline(dyn_thresh_green, color='#00FF00', linestyle='dashed', linewidth=2, label=f'Green Thresh: {dyn_thresh_green:.1f}%')
+            ax1.axvline(dyn_thresh_orange, color='#FFA500', linestyle='dotted', linewidth=2, label=f'Orange Thresh: {dyn_thresh_orange:.1f}%')
             
-        ax1.axvline(dyn_thresh_pink, color='magenta', linestyle='dashed', linewidth=2)
+        ax2.axvline(dyn_thresh_pink, color='#9370DB', linestyle='dashed', linewidth=2, label=f'Purple Thresh: {dyn_thresh_pink:.1f}%')
+        
         lines_1, labels_1 = ax1.get_legend_handles_labels()
         lines_2, labels_2 = ax2.get_legend_handles_labels()
-        ax1.legend(lines_1 + lines_2, labels_1 + labels_2, loc='upper right', fontsize='small')
-        ax1.set_title("Pixel Distribution & Auto Thresholds", fontsize='small')
+        ax1.legend(lines_1 + lines_2, labels_1 + labels_2, loc='upper right', fontsize='xx-small')
+        ax1.set_title(f"Pixel Distribution & Thresholds ({thresh_method})", fontsize='x-small')
         fig.tight_layout()
 
         buf = io.BytesIO()
