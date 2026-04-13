@@ -4200,8 +4200,9 @@ with st.expander("残ピン判定方式と閾値の微調整"):
         
     st.markdown("<hr style='border-top: 1px dashed #444; margin: 10px 0;'>", unsafe_allow_html=True)
     st.radio(
+                st.radio(
                 "残ピン閾値の取得方式", 
-                ["4箇所基準", "全体分布基準"], 
+                ["全体分布基準", "4箇所基準"], 
                 horizontal=True,
                 key="thresh_method_standby",
                 on_change=lambda: st.session_state.update({"thresh_method_setting": st.session_state.thresh_method_standby})
@@ -4855,7 +4856,7 @@ if st.session_state.analyzed_results is None:
             val = safe_calc_mid(g1,f1,p1, g2,f2,p2, (0, 165, 255))
             if val is not None: pcts_orange.append(val)
 
-        thresh_method = st.session_state.get("thresh_method_setting", "4箇所基準")
+        thresh_method = st.session_state.get("thresh_method_setting", "全体分布基準")
         
         if thresh_method == "4箇所基準":
             # 新方式のベース加算値 (+15.0) にスライダーの微調整値 (offset) を適用
