@@ -877,14 +877,13 @@ if app_mode == "オイル情報入力":
     if sh:
         try:
             oil_sheet = sh.worksheet("オイル入力")
-            sheet_url = f"https://docs.google.com/spreadsheets/d/{sh.id}/edit#gid={oil_sheet.id}"
+            sheet_url = f"[https://docs.google.com/spreadsheets/d/](https://docs.google.com/spreadsheets/d/){sh.id}/edit#gid={oil_sheet.id}"
             st.link_button("オイル入力済みデータを修正する (SPSを展開)", sheet_url)
         except Exception as e:
             st.error("SPSに「オイル入力」シートが見つかりません。")
             
-    # ③ 日時のデフォルト値生成（UTCに9時間を加えて日本時間にする）
+    # ③ 日時のデフォルト値生成
     from datetime import datetime, timedelta, timezone
-    # タイムゾーンをJST（UTC+9）に設定
     JST = timezone(timedelta(hours=+9), 'JST')
     now = datetime.now(JST)
     if "oil_input_date" not in st.session_state:
@@ -901,17 +900,13 @@ if app_mode == "オイル情報入力":
         if f"oil_in_vol_{i}" not in st.session_state:
             st.session_state[f"oil_in_vol_{i}"] = ""
 
-    # ▼▼▼ AI読み取り用のセッション初期化 ▼▼▼
-    if "oil_queue" not in st.session_state:
-        st.session_state.oil_queue = []
-    if "waiting_for_oil_scan" not in st.session_state:
-        st.session_state.waiting_for_oil_scan = False
-    if "last_oil_file_id" not in st.session_state:
-        st.session_state.last_oil_file_id = None
-    if "oil_scan_data" not in st.session_state:
-        st.session_state.oil_scan_data = None
+    # AI読み取り用のセッション初期化
+    if "oil_queue" not in st.session_state: st.session_state.oil_queue = []
+    if "waiting_for_oil_scan" not in st.session_state: st.session_state.waiting_for_oil_scan = False
+    if "last_oil_file_id" not in st.session_state: st.session_state.last_oil_file_id = None
+    if "oil_scan_data" not in st.session_state: st.session_state.oil_scan_data = None
 
-    # ④ 各種ボタンのコールバック関数
+    # 各種コールバック関数
     def copy_latest_oil():
         oil_data = st.session_state.get("oil_data", [])
         if not oil_data and sh: 
@@ -919,50 +914,45 @@ if app_mode == "オイル情報入力":
                 oil_data_raw = sh.worksheet("オイル入力").get_all_values()
                 oil_data = oil_data_raw[2:] if len(oil_data_raw) > 2 else []
                 st.session_state.oil_data = oil_data
-            except:
-                pass
+            except: pass
         if oil_data:
             latest = oil_data[-1]
             for i in range(1, 19):
-                l_idx = i * 2
-                v_idx = i * 2 + 1
+                l_idx, v_idx = i * 2, i * 2 + 1
                 st.session_state[f"oil_in_len_{i}"] = latest[l_idx] if len(latest) > l_idx else ""
                 st.session_state[f"oil_in_vol_{i}"] = latest[v_idx] if len(latest) > v_idx else ""
 
     def clear_all():
         for i in range(1, 19):
-            st.session_state[f"oil_in_len_{i}"] = ""
-            st.session_state[f"oil_in_vol_{i}"] = ""
+            st.session_state[f"oil_in_len_{i}"], st.session_state[f"oil_in_vol_{i}"] = "", ""
 
     def clear_lane(lane):
-        st.session_state[f"oil_in_len_{lane}"] = ""
-        st.session_state[f"oil_in_vol_{lane}"] = ""
+        st.session_state[f"oil_in_len_{lane}"], st.session_state[f"oil_in_vol_{lane}"] = "", ""
 
     def fill_same_as_above(target_lane):
         source_lane = None
         for i in range(target_lane - 1, 0, -1):
             if st.session_state[f"oil_in_len_{i}"] != "" or st.session_state[f"oil_in_vol_{i}"] != "":
-                source_lane = i
-                break
+                source_lane = i; break
         if source_lane:
-            src_len = st.session_state[f"oil_in_len_{source_lane}"]
-            src_vol = st.session_state[f"oil_in_vol_{source_lane}"]
+            src_len, src_vol = st.session_state[f"oil_in_len_{source_lane}"], st.session_state[f"oil_in_vol_{source_lane}"]
             for i in range(source_lane + 1, target_lane + 1):
-                st.session_state[f"oil_in_len_{i}"] = src_len
-                st.session_state[f"oil_in_vol_{i}"] = src_vol
+                st.session_state[f"oil_in_len_{i}"], st.session_state[f"oil_in_vol_{i}"] = src_len, src_vol
 
-    # 上部コントロールパネル（前回コピー ＆ AI読み取り ＆ オールクリア）
-    c_btn1, c_btn2, c_btn3 = st.columns(3)
-    with c_btn1:
-        st.button("前回データをコピー (最新)", on_click=copy_latest_oil, use_container_width=True)
-    with c_btn2:
-        if st.button("画像からオイルデータを読み取る", use_container_width=True):
-            # Drive API初期化して最新ファイルID取得
+    # ★ タブ分け構成の導入 ★
+    tab_ai, tab_manual = st.tabs(["🎯 AI自動スキャン", "✍️ 手入力登録"])
+
+    # ---------------------------------------------------------
+    # TAB 1: AI自動スキャン
+    # ---------------------------------------------------------
+    with tab_ai:
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("📸 画像からオイルデータを読み取る", use_container_width=True, type="primary"):
             try:
                 creds_json_str = st.secrets["google_credentials"]
                 creds_info = json.loads(creds_json_str, strict=False)
                 if "private_key" in creds_info: creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
-                drive_service = build('drive', 'v3', credentials=service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/drive']))
+                drive_service = build('drive', 'v3', credentials=service_account.Credentials.from_service_account_info(creds_info, scopes=['[https://www.googleapis.com/auth/drive](https://www.googleapis.com/auth/drive)']))
                 f_res = drive_service.files().list(q="name = 'Bowling_App' and mimeType = 'application/vnd.google-apps.folder' and trashed = false", fields="files(id)").execute()
                 folder_id = f_res.get('files', [{}])[0].get('id')
                 res = drive_service.files().list(q=f"'{folder_id}' in parents and mimeType='image/jpeg' and trashed=false", orderBy="createdTime desc", pageSize=1, fields="files(id)").execute()
@@ -970,322 +960,207 @@ if app_mode == "オイル情報入力":
                 st.session_state.last_oil_file_id = items[0]['id'] if items else "none"
                 st.session_state.waiting_for_oil_scan = True
                 st.rerun()
-            except Exception as e:
-                st.error(f"準備エラー: {e}")
-    with c_btn3:
-        st.button("オールクリア", on_click=clear_all, type="secondary", use_container_width=True)
-    
-    st.markdown("---")
+            except Exception as e: st.error(f"準備エラー: {e}")
 
-    # ▼▼▼ AIスキャン待機・実行ロジック ▼▼▼
-    if st.session_state.waiting_for_oil_scan:
-        st.markdown("""
-        <div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); border: 2px solid #bf953f; border-radius: 12px; padding: 30px; text-align: center; box-shadow: 0 0 25px rgba(191, 149, 63, 0.6); margin-bottom: 20px;'>
-            <div style='color: #fcf6ba; font-size: 30px; font-weight: 900; margin-bottom: 10px; letter-spacing: 2px;'>🔄 オイル情報画像をスキャンしてください</div>
-            <div style='color: silver; font-size: 16px; font-weight: bold;'>（新しく追加された画像を自動で検知して解析を開始します）</div>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("キャンセル"):
-            st.session_state.waiting_for_oil_scan = False
-            st.rerun()
-
-        with st.spinner("画像の追加を監視中... (最大2分)"):
-            try:
-                creds_json_str = st.secrets["google_credentials"]
-                creds_info = json.loads(creds_json_str, strict=False)
-                if "private_key" in creds_info: creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
-                drive_service = build('drive', 'v3', credentials=service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/drive']))
-                f_res = drive_service.files().list(q="name = 'Bowling_App' and mimeType = 'application/vnd.google-apps.folder' and trashed = false", fields="files(id)").execute()
-                folder_id = f_res.get('files', [{}])[0].get('id')
-                
-                for _ in range(40):
-                    res = drive_service.files().list(q=f"'{folder_id}' in parents and mimeType='image/jpeg' and trashed=false", orderBy="createdTime desc", pageSize=1, fields="files(id, name)").execute()
-                    items = res.get('files', [])
-                    if items:
-                        current_id = items[0]['id']
-                        if current_id != st.session_state.last_oil_file_id:
-                            # 新規画像発見
-                            fh = io.BytesIO()
-                            downloader = MediaIoBaseDownload(fh, drive_service.files().get_media(fileId=current_id))
-                            done = False
-                            while not done: _, done = downloader.next_chunk()
-                            
-                            # クロップ処理 (上部20%)
-                            img_pil = Image.open(fh)
-                            width, height = img_pil.size
-                            cropped_img = img_pil.crop((0, 0, width, int(height * 0.2)))
-                            
-                            # AI解析
-                            gemini_api_key = st.secrets.get("gemini_api_key", "")
-                            ai_client = genai.Client(api_key=gemini_api_key)
-                            prompt = '''画像から「Volume Oil Total (mL)」と「Oil Pattern Distance (Feet)」の数値を読み取ってください。
-以下のJSON形式で出力してください。数値のみを抽出すること。
-{"distance": 42, "volume": 22.1}'''
-                            
-                            # ▼ 混雑エラー対策：最大3回のリトライ処理を追加
-                            max_retries = 3
-                            for attempt in range(max_retries):
-                                try:
-                                    response = ai_client.models.generate_content(
-                                        model="gemini-2.5-pro",
-                                        contents=[cropped_img, prompt],
-                                        config=types.GenerateContentConfig(temperature=0.0, response_mime_type="application/json")
-                                    )
-                                    break  # 成功したらループを抜ける
-                                except Exception as api_e:
-                                    if "503" in str(api_e) and attempt < max_retries - 1:
-                                        time.sleep(2)  # 2秒待機して再試行
-                                        continue
-                                    else:
-                                        raise api_e  # 規定回数失敗、または他のエラーは投げる
-
-                            raw_text = response.text.strip()
-                            if raw_text.startswith("```"):
-                                lines = raw_text.split('\n')
-                                raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
-                            result_json = json.loads(raw_text)
-                            
-                            st.session_state.oil_scan_data = {
-                                "file_id": current_id,
-                                "file_name": items[0]['name'],
-                                "distance": result_json.get("distance", ""),
-                                "volume": result_json.get("volume", ""),
-                                "image": cropped_img
-                            }
-                            st.session_state.waiting_for_oil_scan = False
-                            st.session_state.last_oil_file_id = None
-                            st.rerun()
-                            break
-                    time.sleep(3)
-                else:
-                    st.session_state.waiting_for_oil_scan = False
-                    st.error("タイムアウトしました。")
-                    st.rerun()
-            except Exception as e:
+        # AIスキャン待機ロジック
+        if st.session_state.waiting_for_oil_scan:
+            st.markdown("""
+            <div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); border: 2px solid #bf953f; border-radius: 12px; padding: 30px; text-align: center; box-shadow: 0 0 25px rgba(191, 149, 63, 0.6); margin-top: 20px; margin-bottom: 20px;'>
+                <div style='color: #fcf6ba; font-size: 24px; font-weight: 900; margin-bottom: 10px;'>🔄 オイル情報画像をスキャンしてください</div>
+                <div style='color: silver; font-size: 14px;'>（新しく追加された画像を自動検知して解析を開始します）</div>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button("スキャンを中止する"):
                 st.session_state.waiting_for_oil_scan = False
-                st.error(f"解析エラー: {e}")
                 st.rerun()
 
-    # ▼▼▼ AI読み取り結果の確認とキュー追加UI ▼▼▼
-    if st.session_state.oil_scan_data:
-        st.markdown("<div style='background: #1c1c1e; padding: 20px; border-radius: 8px; border: 1px solid #bf953f; margin-bottom: 20px;'>", unsafe_allow_html=True)
-        st.markdown("#### 🎯 AI読み取り結果")
-        col_img, col_info = st.columns([1, 2])
-        with col_img:
-            st.image(st.session_state.oil_scan_data["image"], use_container_width=True)
-        with col_info:
-            ai_dist = st.text_input("オイル長さ (ft)", value=str(st.session_state.oil_scan_data["distance"]))
-            ai_vol = st.text_input("オイル量 (ml)", value=str(st.session_state.oil_scan_data["volume"]))
-            ai_lanes = st.multiselect("適用するレーン", [str(i) for i in range(1, 19)])
-            
-            c_d, c_h, c_m = st.columns(3)
-            with c_d: ai_date = st.text_input("日付 (YY/MM/DD)", value=st.session_state.oil_input_date, key="ai_date")
-            with c_h: ai_hour = st.selectbox("時", [f"{i:02d}" for i in range(24)], index=int(st.session_state.oil_input_hour), key="ai_hour")
-            with c_m: ai_min = st.selectbox("分", [f"{i:02d}" for i in range(60)], index=int(st.session_state.oil_input_minute), key="ai_min")
+            with st.spinner("画像の追加を監視中..."):
+                try:
+                    creds_json_str = st.secrets["google_credentials"]
+                    creds_info = json.loads(creds_json_str, strict=False)
+                    if "private_key" in creds_info: creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
+                    drive_service = build('drive', 'v3', credentials=service_account.Credentials.from_service_account_info(creds_info, scopes=['[https://www.googleapis.com/auth/drive](https://www.googleapis.com/auth/drive)']))
+                    f_res = drive_service.files().list(q="name = 'Bowling_App' and mimeType = 'application/vnd.google-apps.folder' and trashed = false", fields="files(id)").execute()
+                    folder_id = f_res.get('files', [{}])[0].get('id')
+                    
+                    for _ in range(40):
+                        res = drive_service.files().list(q=f"'{folder_id}' in parents and mimeType='image/jpeg' and trashed=false", orderBy="createdTime desc", pageSize=1, fields="files(id, name)").execute()
+                        items = res.get('files', [])
+                        if items:
+                            current_id = items[0]['id']
+                            if current_id != st.session_state.last_oil_file_id:
+                                fh = io.BytesIO()
+                                downloader = MediaIoBaseDownload(fh, drive_service.files().get_media(fileId=current_id))
+                                done = False
+                                while not done: _, done = downloader.next_chunk()
+                                img_pil = Image.open(fh)
+                                width, height = img_pil.size
+                                cropped_img = img_pil.crop((0, 0, width, int(height * 0.2)))
+                                gemini_api_key = st.secrets.get("gemini_api_key", "")
+                                ai_client = genai.Client(api_key=gemini_api_key)
+                                prompt = '画像から「Volume Oil Total (mL)」と「Oil Pattern Distance (Feet)」の数値を読み取ってください。JSON形式 {"distance": 42, "volume": 22.1} で出力してください。'
+                                max_retries = 3
+                                for attempt in range(max_retries):
+                                    try:
+                                        response = ai_client.models.generate_content(model="gemini-2.5-pro", contents=[cropped_img, prompt], config=types.GenerateContentConfig(temperature=0.0, response_mime_type="application/json"))
+                                        break
+                                    except Exception as api_e:
+                                        if "503" in str(api_e) and attempt < max_retries - 1: time.sleep(2); continue
+                                        else: raise api_e
+                                raw_text = response.text.strip()
+                                if raw_text.startswith("```"):
+                                    lines = raw_text.split('\n')
+                                    raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
+                                result_json = json.loads(raw_text)
+                                st.session_state.oil_scan_data = {
+                                    "file_id": current_id, "file_name": items[0]['name'], "distance": result_json.get("distance", ""),
+                                    "volume": result_json.get("volume", ""), "image": cropped_img
+                                }
+                                st.session_state.waiting_for_oil_scan, st.session_state.last_oil_file_id = False, None
+                                st.rerun(); break
+                        time.sleep(3)
+                    else: st.session_state.waiting_for_oil_scan = False; st.error("タイムアウトしました。"); st.rerun()
+                except Exception as e: st.session_state.waiting_for_oil_scan = False; st.error(f"解析エラー: {e}"); st.rerun()
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        btn_q1, btn_q2, btn_q3 = st.columns(3)
-        
-        def process_oil_queue(continue_scan=False):
-            # キューに追加
-            if ai_lanes:
-                st.session_state.oil_queue.append({
-                    "date": ai_date,
-                    "time": f"{ai_hour}:{ai_min}",
-                    "distance": ai_dist,
-                    "volume": ai_vol,
-                    "lanes": ai_lanes,
-                    "file_name": st.session_state.oil_scan_data["file_name"]
-                })
+        # 解析結果の確認
+        if st.session_state.oil_scan_data:
+            st.markdown("<div style='background: #1c1c1e; padding: 20px; border-radius: 8px; border: 1px solid #bf953f; margin-top: 20px; margin-bottom: 20px;'>", unsafe_allow_html=True)
+            st.markdown("#### 🎯 AI読み取り結果の確認")
+            col_img, col_info = st.columns([1, 2])
+            with col_img: st.image(st.session_state.oil_scan_data["image"], use_container_width=True)
+            with col_info:
+                ai_dist = st.text_input("オイル長さ (ft)", value=str(st.session_state.oil_scan_data["distance"]))
+                ai_vol = st.text_input("オイル量 (ml)", value=str(st.session_state.oil_scan_data["volume"]))
+                ai_lanes = st.multiselect("適用するレーン", [str(i) for i in range(1, 19)])
+                c_d, c_h, c_m = st.columns(3)
+                with c_d: ai_date = st.text_input("日付 (YY/MM/DD)", value=st.session_state.oil_input_date, key="ai_date")
+                with c_h: ai_hour = st.selectbox("時", [f"{i:02d}" for i in range(24)], index=int(st.session_state.oil_input_hour), key="ai_hour")
+                with c_m: ai_min = st.selectbox("分", [f"{i:02d}" for i in range(60)], index=int(st.session_state.oil_input_minute), key="ai_min")
             
-            # Drive移動処理
-            try:
-                creds_json_str = st.secrets["google_credentials"]
-                creds_info = json.loads(creds_json_str, strict=False)
-                if "private_key" in creds_info: creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
-                drive_service = build('drive', 'v3', credentials=service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/drive']))
-                file_id = st.session_state.oil_scan_data["file_id"]
-                dest_folder_id = "1bGH88kJ-wA0QsV8S2rVGHoWlO65wIHsG"
-                file_obj = drive_service.files().get(fileId=file_id, fields='parents').execute()
-                previous_parents = ",".join(file_obj.get('parents', []))
-                drive_service.files().update(fileId=file_id, addParents=dest_folder_id, removeParents=previous_parents, fields='id, parents').execute()
-            except Exception as e:
-                st.error(f"画像移動エラー: {e}")
-
-            st.session_state.oil_scan_data = None
-            if continue_scan:
-                st.session_state.waiting_for_oil_scan = True
-            
-        with btn_q1:
-            if st.button("リストに追加して次をスキャン", type="primary", use_container_width=True):
-                process_oil_queue(continue_scan=True)
-                st.rerun()
-        with btn_q2:
-            if st.button("リストに追加して終了", use_container_width=True):
-                process_oil_queue(continue_scan=False)
-                st.rerun()
-        with btn_q3:
-            if st.button("キャンセルして破棄", type="secondary", use_container_width=True):
+            st.markdown("<br>", unsafe_allow_html=True)
+            btn_q1, btn_q2, btn_q3 = st.columns(3)
+            def process_oil_queue(continue_scan=False):
+                if ai_lanes:
+                    st.session_state.oil_queue.append({"date": ai_date, "time": f"{ai_hour}:{ai_min}", "distance": ai_dist, "volume": ai_vol, "lanes": ai_lanes, "file_name": st.session_state.oil_scan_data["file_name"]})
+                try:
+                    creds_json_str = st.secrets["google_credentials"]; creds_info = json.loads(creds_json_str, strict=False)
+                    if "private_key" in creds_info: creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
+                    drive_service = build('drive', 'v3', credentials=service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/drive']))
+                    file_id, dest_folder_id = st.session_state.oil_scan_data["file_id"], "1bGH88kJ-wA0QsV8S2rVGHoWlO65wIHsG"
+                    file_obj = drive_service.files().get(fileId=file_id, fields='parents').execute()
+                    previous_parents = ",".join(file_obj.get('parents', []))
+                    drive_service.files().update(fileId=file_id, addParents=dest_folder_id, removeParents=previous_parents, fields='id, parents').execute()
+                except Exception as e: st.error(f"画像移動エラー: {e}")
                 st.session_state.oil_scan_data = None
-                st.rerun()
+                if continue_scan: st.session_state.waiting_for_oil_scan = True
+            with btn_q1: 
+                if st.button("リストに追加して次をスキャン", type="primary", use_container_width=True): process_oil_queue(continue_scan=True); st.rerun()
+            with btn_q2:
+                if st.button("リストに追加して終了", use_container_width=True): process_oil_queue(continue_scan=False); st.rerun()
+            with btn_q3:
+                if st.button("キャンセルして破棄", type="secondary", use_container_width=True): st.session_state.oil_scan_data = None; st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        # キューと一括登録
+        if st.session_state.oil_queue:
+            st.markdown("---")
+            st.markdown("#### 📋 登録待機リスト (キュー)")
+            for idx, q_item in enumerate(st.session_state.oil_queue):
+                st.markdown(f"- **{q_item['date']} {q_item['time']}** | レーン: {','.join(q_item['lanes'])} | {q_item['distance']}ft / {q_item['volume']}ml | 📄 {q_item['file_name']}")
+            if st.button("🚀 リストのデータをSPSに一括登録する", type="primary", use_container_width=True):
+                with st.spinner("SPSに登録中..."):
+                    try:
+                        if sh:
+                            oil_sheet, rows_to_add = sh.worksheet("オイル入力"), []
+                            for q_item in st.session_state.oil_queue:
+                                row_dict = {i: "" for i in range(1, 19)}
+                                for lane in q_item["lanes"]: row_dict[int(lane)] = (q_item["distance"], q_item["volume"])
+                                row = [q_item["date"], q_item["time"]]
+                                for i in range(1, 19):
+                                    if row_dict[i]: row.extend([row_dict[i][0], row_dict[i][1]])
+                                    else: row.extend(["", ""])
+                                row.append(q_item["file_name"])
+                                rows_to_add.append(row)
+                            for r in rows_to_add:
+                                oil_sheet.append_row(r)
+                                if "oil_data" in st.session_state: st.session_state.oil_data.append(r)
+                            st.session_state.oil_queue = []
+                            st.success("一括登録が完了しました！"); time.sleep(1); st.rerun()
+                    except Exception as e: st.error(f"登録失敗: {e}")
+
+    # ---------------------------------------------------------
+    # TAB 2: 手入力登録
+    # ---------------------------------------------------------
+    with tab_manual:
+        st.markdown("<br>", unsafe_allow_html=True)
+        c_mbtn1, c_mbtn2 = st.columns(2)
+        with c_mbtn1: st.button("前回データをコピー (最新)", on_click=copy_latest_oil, use_container_width=True)
+        with c_mbtn2: st.button("オールクリア", on_click=clear_all, type="secondary", use_container_width=True)
+        
+        st.markdown("<div style='color: silver; font-weight: bold; margin-top: 15px; margin-bottom: 5px;'>日時設定</div>", unsafe_allow_html=True)
+        c_date, c_hour, c_min, c_dummy = st.columns([2, 1, 1, 2])
+        with c_date: st.text_input("日付 (YY/MM/DD)", key="oil_input_date")
+        with c_hour: st.selectbox("時", [f"{i:02d}" for i in range(24)], key="oil_input_hour")
+        with c_min: st.selectbox("分", [f"{i:02d}" for i in range(60)], key="oil_input_minute")
+        
+        st.markdown("---")
+        render_section_title("各レーンのオイル設定 (手動)")
+        
+        st.markdown("""
+        <style>
+        div[data-testid="column"] { padding: 0 4px !important; }
+        div[data-testid="column"] input { text-align: center; font-size: 14px !important; padding: 4px !important; }
+        div[data-testid="column"] button { padding: 2px 0px !important; font-size: 11px !important; min-height: 26px !important; margin-top: 2px !important; }
+        .lane-title { text-align:center; font-weight:900; font-size:16px; color:#c9a44e; margin-bottom:4px; border-bottom: 1px solid #c9a44e; }
+        .input-label { text-align:center; font-size:11px; color:silver; margin-bottom:2px; }
+        </style>
+        """, unsafe_allow_html=True)
+
+        def render_lane_block(start_lane, end_lane):
+            cols = st.columns(9)
+            for i in range(start_lane, end_lane + 1):
+                idx = i - start_lane
+                with cols[idx]:
+                    st.markdown(f"<div class='lane-title'>{i}L</div>", unsafe_allow_html=True)
+                    st.markdown("<div class='input-label'>長さ(ft)</div>", unsafe_allow_html=True)
+                    st.text_input(f"{i}L長さ", key=f"oil_in_len_{i}", label_visibility="collapsed", placeholder="ft", max_chars=2)
+                    st.markdown("<div class='input-label'>量(ml)</div>", unsafe_allow_html=True)
+                    st.text_input(f"{i}L量", key=f"oil_in_vol_{i}", label_visibility="collapsed", placeholder="ml", max_chars=4)
+                    if i > 1: st.button("←同じ", key=f"btn_same_{i}", on_click=fill_same_as_above, args=(i,), use_container_width=True)
+                    else: st.markdown("<div style='height: 30px;'></div>", unsafe_allow_html=True)
+                    st.button("クリア", key=f"btn_clear_{i}", on_click=clear_lane, args=(i,), type="secondary", use_container_width=True)
+
+        st.markdown("<div style='background: #1c1c1e; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #333;'>", unsafe_allow_html=True)
+        render_lane_block(1, 9)
+        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("<div style='background: #1c1c1e; padding: 15px; border-radius: 8px; border: 1px solid #333;'>", unsafe_allow_html=True)
+        render_lane_block(10, 18)
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # ▼▼▼ キューの表示とSPS一括登録 ▼▼▼
-    if st.session_state.oil_queue:
-        st.markdown("#### 📋 登録待機リスト (キュー)")
-        for idx, q_item in enumerate(st.session_state.oil_queue):
-            st.markdown(f"- **{q_item['date']} {q_item['time']}** | レーン: {','.join(q_item['lanes'])} | {q_item['distance']}ft / {q_item['volume']}ml | 📄 {q_item['file_name']}")
-        
-        if st.button("🚀 リストのデータをSPSに一括登録する", type="primary", use_container_width=True):
-            with st.spinner("SPSに登録中..."):
-                try:
-                    if sh:
-                        oil_sheet = sh.worksheet("オイル入力")
-                        rows_to_add = []
-                        for q_item in st.session_state.oil_queue:
-                            row_dict = {i: "" for i in range(1, 19)}
-                            for lane in q_item["lanes"]:
-                                lane_idx = int(lane)
-                                row_dict[lane_idx] = (q_item["distance"], q_item["volume"])
-                            
-                            row = [q_item["date"], q_item["time"]]
-                            for i in range(1, 19):
-                                if row_dict[i]:
-                                    row.extend([row_dict[i][0], row_dict[i][1]])
-                                else:
-                                    row.extend(["", ""])
-                            
-                            # ▼ 追加：AM列（39列目）にファイル名を記録
-                            row.append(q_item["file_name"])
-                            rows_to_add.append(row)
-                        
-                        for r in rows_to_add:
-                            oil_sheet.append_row(r)
-                            if "oil_data" in st.session_state:
-                                st.session_state.oil_data.append(r)
-                        
-                        st.session_state.oil_queue = []
-                        st.success("一括登録が完了しました！")
-                        time.sleep(2)
-                        st.rerun()
-                    else:
-                        st.error("データベースに接続できません。")
-                except Exception as e:
-                    st.error(f"登録失敗: {e}")
-        st.markdown("---")
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("手動入力のオイル情報を登録する", type="primary", use_container_width=True):
+            error_msg = ""
+            row_to_add = [st.session_state.oil_input_date, f"{st.session_state.oil_input_hour}:{st.session_state.oil_input_minute}"]
+            for i in range(1, 19):
+                l_val, v_val = str(st.session_state[f"oil_in_len_{i}"]).strip(), str(st.session_state[f"oil_in_vol_{i}"]).strip()
+                if l_val:
+                    try: l_int = int(float(l_val)); l_val = str(l_int) if 0 <= l_int <= 99 else None
+                    except: error_msg = f"{i}レーンの長さエラー"; break
+                if v_val:
+                    try: v_val = f"{float(v_val):.1f}"
+                    except: error_msg = f"{i}レーンの量エラー"; break
+                row_to_add.extend([l_val, v_val])
+            row_to_add.append("手動入力")
+            if error_msg: st.error(error_msg)
+            else:
+                with st.spinner("SPSに登録中..."):
+                    try:
+                        if sh:
+                            sh.worksheet("オイル入力").append_row(row_to_add)
+                            if "oil_data" in st.session_state: st.session_state.oil_data.append(row_to_add)
+                            st.success("手動入力の登録完了！"); time.sleep(1); st.rerun()
+                    except Exception as e: st.error(f"登録失敗: {e}")
 
-    # ③ 日時をセレクトボックスで選択（0-24時、00-59分）
-    st.markdown("<div style='color: silver; font-weight: bold; margin-bottom: 5px;'>日時設定</div>", unsafe_allow_html=True)
-    c_date, c_hour, c_min, c_dummy = st.columns([2, 1, 1, 2])
-    with c_date:
-        st.text_input("日付 (YY/MM/DD)", key="oil_input_date")
-    with c_hour:
-        hours = [f"{i:02d}" for i in range(24)]
-        st.selectbox("時", hours, key="oil_input_hour")
-    with c_min:
-        minutes = [f"{i:02d}" for i in range(60)]
-        st.selectbox("分", minutes, key="oil_input_minute")
-        
-    render_section_title("各レーンのオイル設定 (手動)")
-    
-    # ⑤ 画面を横並び9列でスタイリッシュに見せるための専用CSS
-    st.markdown("""
-    <style>
-    div[data-testid="column"] { padding: 0 4px !important; }
-    div[data-testid="column"] input { text-align: center; font-size: 14px !important; padding: 4px !important; }
-    div[data-testid="column"] button { padding: 2px 0px !important; font-size: 11px !important; min-height: 26px !important; margin-top: 2px !important; }
-    .lane-title { text-align:center; font-weight:900; font-size:16px; color:#c9a44e; margin-bottom:4px; border-bottom: 1px solid #c9a44e; }
-    .input-label { text-align:center; font-size:11px; color:silver; margin-bottom:2px; }
-    </style>
-    """, unsafe_allow_html=True)
-
-    # ⑤ 1〜9レーン、10〜18レーンを横並びにするレイアウト関数
-    def render_lane_block(start_lane, end_lane):
-        cols = st.columns(9)
-        for i in range(start_lane, end_lane + 1):
-            idx = i - start_lane
-            with cols[idx]:
-                st.markdown(f"<div class='lane-title'>{i}L</div>", unsafe_allow_html=True)
-                st.markdown("<div class='input-label'>長さ(ft)</div>", unsafe_allow_html=True)
-                # ② 単位表記と入力文字数制限（整数2桁）
-                st.text_input(f"{i}L長さ", key=f"oil_in_len_{i}", label_visibility="collapsed", placeholder="ft", max_chars=2)
-                
-                st.markdown("<div class='input-label'>量(ml)</div>", unsafe_allow_html=True)
-                # ② 単位表記と入力文字数制限（小数込4桁：例 25.5）
-                st.text_input(f"{i}L量", key=f"oil_in_vol_{i}", label_visibility="collapsed", placeholder="ml", max_chars=4)
-                
-                if i > 1:
-                    st.button("←同じ", key=f"btn_same_{i}", on_click=fill_same_as_above, args=(i,), use_container_width=True)
-                else:
-                    st.markdown("<div style='height: 30px;'></div>", unsafe_allow_html=True) # 1Lのズレ防止用
-                    
-                # ④ 個別のクリアボタン
-                st.button("クリア", key=f"btn_clear_{i}", on_click=clear_lane, args=(i,), type="secondary", use_container_width=True)
-
-    # 1〜9レーンの描画
-    st.markdown("<div style='background: #1c1c1e; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #333;'>", unsafe_allow_html=True)
-    render_lane_block(1, 9)
-    st.markdown("</div>", unsafe_allow_html=True)
-    
-    # 10〜18レーンの描画
-    st.markdown("<div style='background: #1c1c1e; padding: 15px; border-radius: 8px; border: 1px solid #333;'>", unsafe_allow_html=True)
-    render_lane_block(10, 18)
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    st.markdown("---")
-    
-    # 登録処理
-    if st.button("手動入力のオイル情報を登録する", type="primary", use_container_width=True):
-        error_msg = ""
-        oil_time = f"{st.session_state.oil_input_hour}:{st.session_state.oil_input_minute}"
-        row_to_add = [st.session_state.oil_input_date, oil_time]
-        
-        # ② 入力値の取得とバリデーション（長さは整数2桁、量は小数第1位）
-        for i in range(1, 19):
-            l_val = str(st.session_state[f"oil_in_len_{i}"]).strip()
-            v_val = str(st.session_state[f"oil_in_vol_{i}"]).strip()
-            
-            if l_val:
-                try:
-                    l_int = int(float(l_val))
-                    if not (0 <= l_int <= 99): raise ValueError
-                    l_val = str(l_int)
-                except:
-                    error_msg = f"{i}レーンの「長さ」は2桁までの整数で入力してください。"
-                    break
-            if v_val:
-                try:
-                    v_float = float(v_val)
-                    v_val = f"{v_float:.1f}"
-                except:
-                    error_msg = f"{i}レーンの「量」は数値で入力してください。"
-                    break
-                    
-            row_to_add.extend([l_val, v_val])
-            
-        # ▼ 追加：AM列（39列目）に手動入力であることを記録
-        row_to_add.append("手動入力")
-            
-        if error_msg:
-            st.error(error_msg)
-        else:
-            with st.spinner("SPSに登録中..."):
-                try:
-                    if sh:
-                        oil_sheet = sh.worksheet("オイル入力")
-                        oil_sheet.append_row(row_to_add)
-                        
-                        # アプリ内キャッシュも更新
-                        if "oil_data" in st.session_state:
-                            st.session_state.oil_data.append(row_to_add)
-                            
-                        st.success("手動入力のオイル情報の登録が完了しました！")
-                    else:
-                        st.error("データベースに接続できませんでした。")
-                except Exception as e:
-                    st.error(f"登録に失敗しました: {e}")
-                    
-    # ⚠️ オイル入力モードの時は、これより下のコードを読み込まずにストップする
     st.stop()
 
 
