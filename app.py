@@ -1417,57 +1417,70 @@ if app_mode == "プレイヤー分析":
                     
                     with st.expander("🎳 本日のレーンコンディション"):
                         try:
-                            # 本日の日付を YY/MM/DD で取得
+                            # タイムゾーン設定
                             from datetime import datetime, timedelta, timezone
-                            now_j = datetime.now(timezone(timedelta(hours=+9), 'JST'))
-                            today_yymmdd = now_j.strftime("%y/%m/%d")
                             
-                            # ▼ 追加: オイルデータがセッションにない場合はSPSから取得する
+                            # オイルデータがセッションにない場合はSPSから取得
                             if "oil_data" not in st.session_state:
                                 oil_sheet_data = sh.worksheet("オイル入力").get_all_values()
                                 st.session_state.oil_data = oil_sheet_data[2:] if len(oil_sheet_data) > 2 else []
                             
-                            # 本日のオイル登録データを抽出
-                            today_oil_rows = [row for row in st.session_state.get("oil_data", []) if str(row[0]).strip() == today_yymmdd]
+                            oil_data = st.session_state.oil_data
                             
-                            if not today_oil_rows:
-                                st.info("本日のオイル情報はまだ登録されていません。")
+                            if not oil_data:
+                                st.info("オイル情報が登録されていません。")
                             else:
-                                # AM列（インデックス38）の画像ファイル名を取得
-                                target_files = []
-                                manual_flag = False
-                                for r in today_oil_rows:
-                                    if len(r) > 38:
-                                        fname = str(r[38]).strip()
-                                        if fname and fname != "手動入力" and fname not in target_files:
-                                            target_files.append(fname)
-                                        elif fname == "手動入力":
-                                            manual_flag = True
+                                # 各レーン(1-18)の「最新の登録内容」を特定する
+                                # lane_latest_map = { "ファイル名": [レーン番号, ...], "手動入力": [レーン番号, ...] }
+                                lane_latest_map = {}
                                 
-                                if target_files:
-                                    oil_folder_id = "1bGH88kJ-wA0QsV8S2rVGHoWlO65wIHsG"
-                                    st.markdown(f"<span style='color: silver; font-size: 12px;'>本日の登録画像 ({len(target_files)}件)</span>", unsafe_allow_html=True)
-                                    for fname in target_files:
-                                        p_query = f"'{oil_folder_id}' in parents and name = '{fname}' and trashed = false"
-                                        files = drive_service.files().list(q=p_query, fields="files(id, name)", pageSize=1).execute().get('files', [])
-                                        if files:
-                                            file_id = files[0]['id']
-                                            st.markdown(f"**📄 {fname}**")
-                                            fh = io.BytesIO()
-                                            downloader = MediaIoBaseDownload(fh, drive_service.files().get_media(fileId=file_id))
-                                            done = False
-                                            while not done: _, done = downloader.next_chunk()
-                                            st.image(Image.open(fh), use_container_width=True)
-                                        else:
-                                            st.warning(f"画像「{fname}」がDrive上に見つかりません。")
-                                            
-                                    if manual_flag:
-                                        st.markdown("<span style='color: silver; font-size: 12px;'>※一部のレーンは手動で入力されています（画像無し）</span>", unsafe_allow_html=True)
+                                for lane_num in range(1, 19):
+                                    len_idx = lane_num * 2
+                                    # 下から上へ（最新から過去へ）検索
+                                    found_info = "情報無し"
+                                    for row in reversed(oil_data):
+                                        if len(row) > len_idx:
+                                            # 長さまたは量に何らかの入力がある行を探す
+                                            if str(row[len_idx]).strip() or str(row[len_idx+1]).strip():
+                                                found_info = str(row[38]).strip() if len(row) > 38 else "手動入力"
+                                                if not found_info: found_info = "手動入力"
+                                                break
+                                    
+                                    if found_info != "情報無し":
+                                        if found_info not in lane_latest_map:
+                                            lane_latest_map[found_info] = []
+                                        lane_latest_map[found_info].append(lane_num)
+
+                                if not lane_latest_map:
+                                    st.info("有効な最新オイル情報が見つかりません。")
                                 else:
-                                    if manual_flag:
-                                        st.info("本日のオイル情報は手動で入力されています（画像無し）")
-                                    else:
-                                        st.info("本日のオイル画像は登録されていません。")
+                                    oil_folder_id = "1bGH88kJ-wA0QsV8S2rVGHoWlO65wIHsG"
+                                    
+                                    # 特定した画像（または手動入力）ごとにグループ表示
+                                    for info_key, lanes in lane_latest_map.items():
+                                        lane_label = ", ".join([f"{l}L" for l in lanes])
+                                        
+                                        if info_key == "手動入力":
+                                            st.markdown(f"#### ✍️ {lane_label}")
+                                            st.info("このレーンは手動で入力されています（画像無し）")
+                                        else:
+                                            st.markdown(f"#### 💧 {lane_label}")
+                                            # Driveから画像を取得
+                                            p_query = f"'{oil_folder_id}' in parents and name = '{info_key}' and trashed = false"
+                                            files = drive_service.files().list(q=p_query, fields="files(id, name)", pageSize=1).execute().get('files', [])
+                                            
+                                            if files:
+                                                file_id = files[0]['id']
+                                                fh = io.BytesIO()
+                                                downloader = MediaIoBaseDownload(fh, drive_service.files().get_media(fileId=file_id))
+                                                done = False
+                                                while not done: _, done = downloader.next_chunk()
+                                                st.image(Image.open(fh), use_container_width=True, caption=f"最新画像: {info_key}")
+                                            else:
+                                                st.warning(f"画像「{info_key}」がDrive上に見つかりません。")
+                                        
+                                        st.markdown("<hr style='border-top: 1px dashed #444; margin: 10px 0;'>", unsafe_allow_html=True)
+                                        
                         except Exception as e:
                             st.error(f"情報の読み込みに失敗しました: {e}")
             # ▲ 追加ここまで ▲
