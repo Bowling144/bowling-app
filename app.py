@@ -616,7 +616,8 @@ with st.sidebar:
                 else:
                     st.markdown("友達はまだ登録されていません。")
     
-    if st.session_state.user_role in ["開発者", "管理者"]:
+    # ▼ 「開発者」のみに権限を限定し、「管理者」や「ユーザ」からは管理ツールを完全に隠す
+    if st.session_state.user_role in ["開発者"]:
         if st.button("🖥️ ユーザセルフ登録を起動", type="primary", use_container_width=True):
             st.session_state.kiosk_mode = True
             st.session_state.kiosk_step = "auth"
