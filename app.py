@@ -255,6 +255,13 @@ st.markdown("""
     /* 新しいStreamlitバージョン用（必要に応じて） */
     [data-testid="stHeader"] {display: none;}
     [data-testid="stToolbar"] {visibility: hidden;}
+
+    /* ▼▼▼ ブラウザのパスワード保存回避用のマスククラス ▼▼▼ */
+    .password-mask input {
+        -webkit-text-security: disc !important; /* Safari, Chrome用 */
+        text-security: disc !important;
+        font-family: text-security-disc !important; /* Firefox等一部ブラウザ用フォントハック */
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -518,10 +525,20 @@ if st.session_state.last_run_date != current_date:
 # --- ログイン画面 ---
 if not st.session_state.logged_in:
     render_section_title("ログイン")
+    
+    # ブラウザの自動補完を騙すためのダミー（非表示）フォーム
+    st.markdown('<div style="display:none;"><input type="text" name="dummy_username"><input type="password" name="dummy_password"></div>', unsafe_allow_html=True)
+
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         login_id = st.text_input("ユーザーID  \n(またはメールアドレス)")
-        login_pw = st.text_input("パスワード", type="password")
+        
+        # type="password" を外し、CSSで文字を黒丸にする
+        st.markdown('<div class="password-mask" style="position:absolute; width:0; height:0;"></div>', unsafe_allow_html=True)
+        login_pw = st.text_input("パスワード", type="default", key="login_pw_input", label_visibility="visible")
+        # 前のコンテナ（要素）にクラスを適用するJavaScriptハック
+        st.markdown('<script>window.parent.document.querySelectorAll("[data-testid=\'stTextInput\']").forEach(el => { if(el.innerText.includes("パスワード")) el.classList.add("password-mask"); })</script>', unsafe_allow_html=True)
+
         if st.button("ログイン", use_container_width=True):
             sh = get_gspread_client()
             if sh:
@@ -768,15 +785,20 @@ def render_tenkey(label, state_key, default_val, format_type="none", is_pw=False
     elif format_type == "time":
         if len(raw_val) > 2: display_val = f"{raw_val[:2]}:{raw_val[2:4]}"
         
-    display_text = "*" * len(display_val) if is_pw else display_val
+    # CSSで隠蔽するため、プログラム側でのアスタリスク変換は行わず、生の値を渡す
+    display_text = display_val
 
     # 値を画面に反映させるため、テキストボックスの内部状態を直接上書きする
     st.session_state[f"disp_{state_key}"] = display_text
 
     col1, col2 = st.columns([4, 1])
     with col1:
-        # value引数を外し、内部状態(st.session_state)に表示を任せる
-        st.text_input(label, disabled=True, key=f"disp_{state_key}")
+        if is_pw:
+            st.markdown('<div class="password-mask" style="position:absolute; width:0; height:0;"></div>', unsafe_allow_html=True)
+            st.text_input(label, disabled=True, key=f"disp_{state_key}")
+            st.markdown(f'<script>window.parent.document.querySelectorAll("[data-testid=\'stTextInput\']").forEach(el => {{ if(el.innerText.includes("{label}")) el.classList.add("password-mask"); }})</script>', unsafe_allow_html=True)
+        else:
+            st.text_input(label, disabled=True, key=f"disp_{state_key}")
     with col2:
         with st.popover("⌨"):
             st.markdown("<div style='text-align:center; font-size:12px; color:gray; margin-bottom:5px;'>テンキー</div>", unsafe_allow_html=True)
