@@ -256,11 +256,13 @@ st.markdown("""
     [data-testid="stHeader"] {display: none;}
     [data-testid="stToolbar"] {visibility: hidden;}
 
-    /* ▼▼▼ ブラウザのパスワード保存回避用のマスククラス ▼▼▼ */
-    .password-mask input {
-        -webkit-text-security: disc !important; /* Safari, Chrome用 */
+    /* ▼▼▼ ブラウザのパスワード保存回避用の強力な伏せ字スタイル ▼▼▼ */
+    /* 入力中および入力後も強制的に黒丸(●)で表示します */
+    .stTextInput input[type="text"].mask-enabled {
+        -webkit-text-security: disc !important;
         text-security: disc !important;
-        font-family: text-security-disc !important; /* Firefox等一部ブラウザ用フォントハック */
+    }
+    </style>
     }
     </style>
 """, unsafe_allow_html=True)
@@ -527,17 +529,30 @@ if not st.session_state.logged_in:
     render_section_title("ログイン")
     
     # ブラウザの自動補完を騙すためのダミー（非表示）フォーム
-    st.markdown('<div style="display:none;"><input type="text" name="dummy_username"><input type="password" name="dummy_password"></div>', unsafe_allow_html=True)
+    st.markdown('<div style="display:none;"><input type="text" name="dummy_user"><input type="password" name="dummy_pass"></div>', unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         login_id = st.text_input("ユーザーID  \n(またはメールアドレス)")
         
-        # type="password" を外し、CSSで文字を黒丸にする
-        st.markdown('<div class="password-mask" style="position:absolute; width:0; height:0;"></div>', unsafe_allow_html=True)
-        login_pw = st.text_input("パスワード", type="default", key="login_pw_input", label_visibility="visible")
-        # 前のコンテナ（要素）にクラスを適用するJavaScriptハック
-        st.markdown('<script>window.parent.document.querySelectorAll("[data-testid=\'stTextInput\']").forEach(el => { if(el.innerText.includes("パスワード")) el.classList.add("password-mask"); })</script>', unsafe_allow_html=True)
+        # 内部的にはテキスト形式(type="default")で受け取り、ブラウザに「パスワード」と悟らせない
+        login_pw = st.text_input("パスワード", type="default", key="login_pw_input")
+        
+        # JavaScriptを使用して、特定の入力欄にのみ伏せ字クラスを強制適用する
+        st.markdown("""
+            <script>
+            var inputs = window.parent.document.querySelectorAll('input[type="text"]');
+            inputs.forEach(function(input) {
+                // ラベルに「パスワード」が含まれる入力欄を探す
+                var container = input.closest('[data-testid="stTextInput"]');
+                if (container && container.innerText.includes("パスワード")) {
+                    input.classList.add("mask-enabled");
+                    // 自動補完機能を完全に無効化する
+                    input.setAttribute("autocomplete", "new-password");
+                }
+            });
+            </script>
+            """, unsafe_allow_html=True)
 
         if st.button("ログイン", use_container_width=True):
             sh = get_gspread_client()
@@ -794,9 +809,19 @@ def render_tenkey(label, state_key, default_val, format_type="none", is_pw=False
     col1, col2 = st.columns([4, 1])
     with col1:
         if is_pw:
-            st.markdown('<div class="password-mask" style="position:absolute; width:0; height:0;"></div>', unsafe_allow_html=True)
+            # テンキー入力時も同様にJavaScriptで伏せ字クラスを付与
             st.text_input(label, disabled=True, key=f"disp_{state_key}")
-            st.markdown(f'<script>window.parent.document.querySelectorAll("[data-testid=\'stTextInput\']").forEach(el => {{ if(el.innerText.includes("{label}")) el.classList.add("password-mask"); }})</script>', unsafe_allow_html=True)
+            st.markdown(f"""
+                <script>
+                var inputs = window.parent.document.querySelectorAll('input');
+                inputs.forEach(function(input) {{
+                    var container = input.closest('[data-testid="stTextInput"]');
+                    if (container && container.innerText.includes("{label}")) {{
+                        input.classList.add("mask-enabled");
+                    }}
+                }});
+                </script>
+                """, unsafe_allow_html=True)
         else:
             st.text_input(label, disabled=True, key=f"disp_{state_key}")
     with col2:
