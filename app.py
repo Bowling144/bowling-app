@@ -229,7 +229,7 @@ st.markdown("""
         transform: translateY(-2px);
     }
 
-    /* ▼ 個別条件用の境界線カラー（淡いパステルカラー） ▼ */
+    /* 個別条件用の境界線カラー（淡いパステルカラー） */
     .stApp div[data-testid="stElementContainer"]:has(.cond1-marker) + div[data-testid="stElementContainer"] div[data-baseweb="select"] > div,
     .stApp div[data-testid="stElementContainer"]:has(.cond1-marker) + div[data-testid="stElementContainer"] div[data-baseweb="input"] {
         border: 2px solid #81D4FA !important; /* スカイブルー */
@@ -247,6 +247,14 @@ st.markdown("""
     [data-testid="stStatusWidget"] {
         visibility: hidden !important;
     }
+    
+    /* ▼▼▼ 画面右上のメニューとフッターを完全に隠す ▼▼▼ */
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
+    footer {visibility: hidden;}
+    /* 新しいStreamlitバージョン用（必要に応じて） */
+    [data-testid="stHeader"] {display: none;}
+    [data-testid="stToolbar"] {visibility: hidden;}
     </style>
 """, unsafe_allow_html=True)
 
