@@ -17,6 +17,15 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
+# ▼ AI送信用の画像圧縮関数（503エラー対策）
+def compress_image_for_ai(pil_img, max_size=1024):
+    """画像の長辺を指定サイズに縮小し、RGB形式に変換して軽量化する"""
+    img = pil_img.copy()
+    img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+    if img.mode in ('RGBA', 'P'):
+        img = img.convert('RGB')
+    return img
+
 # --- ページ設定 ---
 st.set_page_config(page_title="ボウリング解析", page_icon="🎳", layout="wide")
 
@@ -5090,24 +5099,27 @@ if st.session_state.analyzed_results is None:
         img_pil_full = Image.fromarray(cv2.cvtColor(img_color_rotated, cv2.COLOR_BGR2RGB))
 
 
-# ---------------------------------------------------------
+        # ---------------------------------------------------------
         # 📍 【ブロック 9】 AIによるテキスト読み取り（スコア → 日時）
         # ---------------------------------------------------------
         status_text.info(f"画像 {img_idx+1}: AIがスコアを読み取り中...")
         time.sleep(5) 
 
+        # ▼ 503エラー対策：送信前に画像を軽量化する
+        compressed_score_img = compress_image_for_ai(img_pil_scores)
+
         ai_score_data = {"lane": "", "games": []}
         success_score = False
         last_error = ""
         used_model = "FAILED"
-        # 合計最大7回のリトライロジックを復元（2.5Pro単独）
-        max_retries = 7
+        max_retries = 7  
+
         for attempt_model in fallback_models:
             for attempt in range(max_retries):
                 try:
                     response = client.models.generate_content(
                         model=attempt_model,
-                        contents=[prompt_score, img_pil_scores],
+                        contents=[prompt_score, compressed_score_img],
                         config=types.GenerateContentConfig(
                             temperature=0.0,
                             response_mime_type="application/json"
@@ -5142,16 +5154,18 @@ if st.session_state.analyzed_results is None:
         status_text.info(f"画像 {img_idx+1}: AIが日付・時刻・ゲーム数を取得中...")
         time.sleep(5) 
 
+        # ▼ 503エラー対策：全体のメタデータ読み取り画像も極限まで軽量化する
+        compressed_full_img = compress_image_for_ai(img_pil_full, max_size=1200)
+
         ai_meta_data = {"date": "日付不明", "start_time": "時刻不明", "end_time": "時刻不明", "start_game_num": 1, "lane": "", "player_name": ""}
         success_meta = False
         
-        # メタデータ抽出も合計最大7回のリトライロジックを復元（2.5Pro単独）
         for attempt_model in fallback_models:
             for attempt in range(max_retries):
                 try:
                     response = client.models.generate_content(
                         model=attempt_model,
-                        contents=[prompt_metadata, img_pil_full],
+                        contents=[prompt_metadata, compressed_full_img],
                         config=types.GenerateContentConfig(
                             temperature=0.0,
                             response_mime_type="application/json"
