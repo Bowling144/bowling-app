@@ -255,13 +255,6 @@ st.markdown("""
     /* 新しいStreamlitバージョン用（必要に応じて） */
     [data-testid="stHeader"] {display: none;}
     [data-testid="stToolbar"] {visibility: hidden;}
-
-    /* ▼▼▼ ブラウザのパスワード保存回避用の強力な伏せ字スタイル ▼▼▼ */
-    /* 入力中および入力後も強制的に黒丸(●)で表示します */
-    .stTextInput input[type="text"].mask-enabled {
-        -webkit-text-security: disc !important;
-        text-security: disc !important;
-    }
     </style>
     }
     </style>
@@ -528,31 +521,15 @@ if st.session_state.last_run_date != current_date:
 if not st.session_state.logged_in:
     render_section_title("ログイン")
     
-    # ブラウザの自動補完を騙すためのダミー（非表示）フォーム
+    # ブラウザの自動補完を騙すためのダミー（非表示）フォーム（オトリとして残す）
     st.markdown('<div style="display:none;"><input type="text" name="dummy_user"><input type="password" name="dummy_pass"></div>', unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         login_id = st.text_input("ユーザーID  \n(またはメールアドレス)")
         
-        # 内部的にはテキスト形式(type="default")で受け取り、ブラウザに「パスワード」と悟らせない
-        login_pw = st.text_input("パスワード", type="default", key="login_pw_input")
-        
-        # JavaScriptを使用して、特定の入力欄にのみ伏せ字クラスを強制適用する
-        st.markdown("""
-            <script>
-            var inputs = window.parent.document.querySelectorAll('input[type="text"]');
-            inputs.forEach(function(input) {
-                // ラベルに「パスワード」が含まれる入力欄を探す
-                var container = input.closest('[data-testid="stTextInput"]');
-                if (container && container.innerText.includes("パスワード")) {
-                    input.classList.add("mask-enabled");
-                    // 自動補完機能を完全に無効化する
-                    input.setAttribute("autocomplete", "new-password");
-                }
-            });
-            </script>
-            """, unsafe_allow_html=True)
+        # 安全第一で確実に伏せ字にする標準機能を復活
+        login_pw = st.text_input("パスワード", type="password", key="login_pw_input")
 
         if st.button("ログイン", use_container_width=True):
             sh = get_gspread_client()
@@ -800,30 +777,15 @@ def render_tenkey(label, state_key, default_val, format_type="none", is_pw=False
     elif format_type == "time":
         if len(raw_val) > 2: display_val = f"{raw_val[:2]}:{raw_val[2:4]}"
         
-    # CSSで隠蔽するため、プログラム側でのアスタリスク変換は行わず、生の値を渡す
-    display_text = display_val
+    # パスワードの場合は、プログラム側で文字数分の「*」に変換する（絶対にブラウザに記憶されず、見えもしない最強の対策）
+    display_text = "*" * len(display_val) if is_pw else display_val
 
     # 値を画面に反映させるため、テキストボックスの内部状態を直接上書きする
     st.session_state[f"disp_{state_key}"] = display_text
 
     col1, col2 = st.columns([4, 1])
     with col1:
-        if is_pw:
-            # テンキー入力時も同様にJavaScriptで伏せ字クラスを付与
-            st.text_input(label, disabled=True, key=f"disp_{state_key}")
-            st.markdown(f"""
-                <script>
-                var inputs = window.parent.document.querySelectorAll('input');
-                inputs.forEach(function(input) {{
-                    var container = input.closest('[data-testid="stTextInput"]');
-                    if (container && container.innerText.includes("{label}")) {{
-                        input.classList.add("mask-enabled");
-                    }}
-                }});
-                </script>
-                """, unsafe_allow_html=True)
-        else:
-            st.text_input(label, disabled=True, key=f"disp_{state_key}")
+        st.text_input(label, disabled=True, key=f"disp_{state_key}")
     with col2:
         with st.popover("⌨"):
             st.markdown("<div style='text-align:center; font-size:12px; color:gray; margin-bottom:5px;'>テンキー</div>", unsafe_allow_html=True)
