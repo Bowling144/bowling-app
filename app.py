@@ -4439,19 +4439,21 @@ def get_pin_pos(pin_num):
     return mapping[pin_num]
 
 def is_green_group(g_idx, f_idx, pin):
-    if g_idx == 2:
+    if g_idx == 1:
+        if f_idx == 5 and pin in [1]: return True
+    elif g_idx == 2:
         if f_idx == 2 and pin in [7,8,9,10]: return True
         if f_idx == 3 and pin in [2,3,4,5,6,7,8,9,10]: return True
         if f_idx == 4 and pin in [1,3,4,7,8,9,10]: return True
         if f_idx == 5 and pin in [1,2,3,4,5,6,7,8,9,10]: return True
-        if f_idx == 6 and pin in [1,2,3,6,7,8,9,10]: return True
+        if f_idx == 6 and pin in [1,2,3,4,6,7,8,9,10]: return True
         if f_idx == 7 and pin in [2,3,4,5,6,7,8,9,10]: return True
         if f_idx == 8 and pin in [7,8,9,10]: return True
     elif g_idx == 3:
         if f_idx == 3 and pin in [1,2,3,4,5,6,8,9,10]: return True
-        if f_idx == 4 and pin in [1,2,3,4,5,6,7,8,9]: return True
+        if f_idx == 4 and pin in [1,2,3,4,5,6,7,8,9,10]: return True
         if f_idx == 5 and pin in [1,2,3,4,5,6,7,8,9,10]: return True
-        if f_idx == 6 and pin in [1,2,3,4,5,6,9,10]: return True
+        if f_idx == 6 and pin in [1,2,3,4,5,6,7,8,9,10]: return True
         if f_idx == 7 and pin in [1,2,3,4,5,6,7,8,9,10]: return True
     elif g_idx == 4:
         if f_idx == 4 and pin in [8,9,10]: return True
