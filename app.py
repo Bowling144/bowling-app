@@ -3730,8 +3730,8 @@ if app_mode == "プレイヤー分析":
     st.stop()
 
 
-# ⚠️ AIモデル設定：1.5Proの404エラーを回避するため、確実な2.5Proのみに限定
-fallback_models = ["gemini-2.5-pro"]
+# ⚠️ AIモデル設定：混雑回避のため、2.5Proと1.5Proを交互にアタックする設定
+fallback_models = ["gemini-2.5-pro", "gemini-1.5-pro"]
 
 # =========================================================
 # 【新機能】データ比較
@@ -5114,38 +5114,37 @@ if st.session_state.analyzed_results is None:
         used_model = "FAILED"
         max_retries = 7  
 
-        for attempt_model in fallback_models:
-            for attempt in range(max_retries):
-                try:
-                    response = client.models.generate_content(
-                        model=attempt_model,
-                        contents=[prompt_score, compressed_score_img],
-                        config=types.GenerateContentConfig(
-                            temperature=0.0,
-                            response_mime_type="application/json"
-                        )
+        for attempt in range(max_retries):
+            # ▼ 試行回数に応じてモデルを切り替える
+            current_model = fallback_models[attempt % len(fallback_models)]
+            try:
+                response = client.models.generate_content(
+                    model=current_model,
+                    contents=[prompt_score, compressed_score_img],
+                    config=types.GenerateContentConfig(
+                        temperature=0.0,
+                        response_mime_type="application/json"
                     )
-                    raw_text = response.text.strip()
-                    if raw_text.startswith("```"):
-                        lines = raw_text.split('\n')
-                        raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
-                    ai_score_data = json.loads(raw_text)
-                    success_score = True
-                    used_model = attempt_model.upper()
-                    break
-                except Exception as e:
-                    last_error = str(e)
-                    error_msg = last_error.lower()
-                    # 指数バックオフ計算式を使用してリトライ
-                    if any(err in error_msg for err in ["429", "too many requests", "quota", "503", "unavailable", "high demand", "overloaded"]):
-                        if attempt < max_retries - 1:
-                            wait_sec = (2 ** (attempt + 1)) + random.uniform(0, 1)
-                            status_text.warning(f"AI一時エラー({attempt_model})。{wait_sec:.1f}秒待機して再試行します... ({attempt+1}/{max_retries})")
-                            time.sleep(wait_sec)
-                            status_text.info(f"画像 {img_idx+1}: AI解析中... (再試行 {attempt+1})")
-                            continue
-                    break
-            if success_score:
+                )
+                raw_text = response.text.strip()
+                if raw_text.startswith("```"):
+                    lines = raw_text.split('\n')
+                    raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
+                ai_score_data = json.loads(raw_text)
+                success_score = True
+                used_model = current_model.upper()
+                break
+            except Exception as e:
+                last_error = str(e)
+                error_msg = last_error.lower()
+                if any(err in error_msg for err in ["429", "too many requests", "quota", "503", "unavailable", "high demand", "overloaded"]):
+                    if attempt < max_retries - 1:
+                        # 長い待機をやめ、2秒前後ですぐに別モデルへ切り替える
+                        wait_sec = 2.0 + random.uniform(0, 1)
+                        status_text.warning(f"混雑エラー({current_model})。モデルを切り替えて再試行します... ({wait_sec:.1f}秒待機)")
+                        time.sleep(wait_sec)
+                        status_text.info(f"画像 {img_idx+1}: AI解析中... (再試行 {attempt+1})")
+                        continue
                 break
 
         if not success_score:
@@ -5160,35 +5159,33 @@ if st.session_state.analyzed_results is None:
         ai_meta_data = {"date": "日付不明", "start_time": "時刻不明", "end_time": "時刻不明", "start_game_num": 1, "lane": "", "player_name": ""}
         success_meta = False
         
-        for attempt_model in fallback_models:
-            for attempt in range(max_retries):
-                try:
-                    response = client.models.generate_content(
-                        model=attempt_model,
-                        contents=[prompt_metadata, compressed_full_img],
-                        config=types.GenerateContentConfig(
-                            temperature=0.0,
-                            response_mime_type="application/json"
-                        )
+        for attempt in range(max_retries):
+            current_model = fallback_models[attempt % len(fallback_models)]
+            try:
+                response = client.models.generate_content(
+                    model=current_model,
+                    contents=[prompt_metadata, compressed_full_img],
+                    config=types.GenerateContentConfig(
+                        temperature=0.0,
+                        response_mime_type="application/json"
                     )
-                    raw_text = response.text.strip()
-                    if raw_text.startswith("```"):
-                        lines = raw_text.split('\n')
-                        raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
-                    ai_meta_data = json.loads(raw_text)
-                    success_meta = True
-                    break
-                except Exception as e:
-                    error_msg = str(e).lower()
-                    if any(err in error_msg for err in ["429", "too many requests", "quota", "503", "unavailable", "high demand", "overloaded"]):
-                        if attempt < max_retries - 1:
-                            wait_sec = (2 ** (attempt + 1)) + random.uniform(0, 1)
-                            status_text.warning(f"API一時エラー(メタデータ)。{wait_sec:.1f}秒待機して再試行します... ({attempt+1}/{max_retries})")
-                            time.sleep(wait_sec)
-                            status_text.info(f"画像 {img_idx+1}: AI解析中... (再試行 {attempt+1})")
-                            continue
-                    break
-            if success_meta:
+                )
+                raw_text = response.text.strip()
+                if raw_text.startswith("```"):
+                    lines = raw_text.split('\n')
+                    raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
+                ai_meta_data = json.loads(raw_text)
+                success_meta = True
+                break
+            except Exception as e:
+                error_msg = str(e).lower()
+                if any(err in error_msg for err in ["429", "too many requests", "quota", "503", "unavailable", "high demand", "overloaded"]):
+                    if attempt < max_retries - 1:
+                        wait_sec = 2.0 + random.uniform(0, 1)
+                        status_text.warning(f"API一時エラー({current_model})。モデルを切り替えて再試行します... ({wait_sec:.1f}秒待機)")
+                        time.sleep(wait_sec)
+                        status_text.info(f"画像 {img_idx+1}: AI解析中... (再試行 {attempt+1})")
+                        continue
                 break
                    
 
