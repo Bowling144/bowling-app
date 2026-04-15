@@ -3730,8 +3730,8 @@ if app_mode == "プレイヤー分析":
     st.stop()
 
 
-# ⚠️ AIモデル設定：混雑回避のため、2.5Proと1.5Proを交互にアタックする設定
-fallback_models = ["gemini-2.5-pro", "gemini-1.5-pro"]
+# ⚠️ AIモデル設定：混雑回避のため、2.5Proと1.5Pro(最新版)を交互にアタックする設定
+fallback_models = ["gemini-2.5-pro", "gemini-1.5-pro-latest"]
 
 # =========================================================
 # 【新機能】データ比較
