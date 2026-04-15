@@ -265,8 +265,6 @@ st.markdown("""
     [data-testid="stHeader"] {display: none;}
     [data-testid="stToolbar"] {visibility: hidden;}
     </style>
-    }
-    </style>
 """, unsafe_allow_html=True)
 
 st.markdown("""
