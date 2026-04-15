@@ -5160,6 +5160,7 @@ if st.session_state.analyzed_results is None:
         success_meta = False
         
         for attempt in range(max_retries):
+            # ▼ スコア読取と同じく、試行回数に応じてモデルを切り替える
             current_model = fallback_models[attempt % len(fallback_models)]
             try:
                 response = client.models.generate_content(
@@ -5181,6 +5182,7 @@ if st.session_state.analyzed_results is None:
                 error_msg = str(e).lower()
                 if any(err in error_msg for err in ["429", "too many requests", "quota", "503", "unavailable", "high demand", "overloaded"]):
                     if attempt < max_retries - 1:
+                        # 長い待機をやめ、2秒前後ですぐに別モデルへ切り替える
                         wait_sec = 2.0 + random.uniform(0, 1)
                         status_text.warning(f"API一時エラー({current_model})。モデルを切り替えて再試行します... ({wait_sec:.1f}秒待機)")
                         time.sleep(wait_sec)
