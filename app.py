@@ -1441,10 +1441,21 @@ if app_mode == "プレイヤー分析":
                                     if files:
                                         file_id = files[0]['id']
                                         
-                                        # Google Driveの公式プレビューを直接埋め込む（Chromeのブロックを回避）
-                                        preview_url = f"https://drive.google.com/file/d/{file_id}/preview"
-                                        iframe_html = f'<iframe src="{preview_url}" width="100%" height="800" style="border:none;" allow="autoplay"></iframe>'
-                                        st.markdown(iframe_html, unsafe_allow_html=True)
+                                        # ▼ ポップアウト等の余計なUIを消し去るため、実データを読み込んでネイティブ表示する
+                                        import base64
+                                        import io
+                                        from googleapiclient.http import MediaIoBaseDownload
+                                        
+                                        fh = io.BytesIO()
+                                        downloader = MediaIoBaseDownload(fh, drive_service.files().get_media(fileId=file_id))
+                                        done = False
+                                        while not done:
+                                            _, done = downloader.next_chunk()
+                                            
+                                        base64_pdf = base64.b64encode(fh.getvalue()).decode('utf-8')
+                                        # toolbar=0 を指定することで、ブラウザ標準のヘッダーやポップアウトボタンを完全に非表示にする
+                                        pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}#toolbar=0&navpanes=0&scrollbar=0&view=FitH" width="100%" height="800" style="border:none;"></iframe>'
+                                        st.markdown(pdf_display, unsafe_allow_html=True)
                                     else:
                                         st.info("今月のスケジュールPDFが見つかりません。")
                                 else:
