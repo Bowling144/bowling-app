@@ -5136,15 +5136,13 @@ if st.session_state.analyzed_results is None:
                 break
             except Exception as e:
                 last_error = str(e)
-                error_msg = last_error.lower()
-                if any(err in error_msg for err in ["429", "too many requests", "quota", "503", "unavailable", "high demand", "overloaded"]):
-                    if attempt < max_retries - 1:
-                        # 長い待機をやめ、2秒前後ですぐに別モデルへ切り替える
-                        wait_sec = 2.0 + random.uniform(0, 1)
-                        status_text.warning(f"混雑エラー({current_model})。モデルを切り替えて再試行します... ({wait_sec:.1f}秒待機)")
-                        time.sleep(wait_sec)
-                        status_text.info(f"画像 {img_idx+1}: AI解析中... (再試行 {attempt+1})")
-                        continue
+                if attempt < max_retries - 1:
+                    # 503エラーだけでなく、JSONパースエラー等のいかなる失敗でも諦めず別モデルに切り替えて再試行する
+                    wait_sec = 2.0 + random.uniform(0, 1)
+                    status_text.warning(f"読取エラー({current_model})。モデルを切り替えて再試行します... ({wait_sec:.1f}秒待機)")
+                    time.sleep(wait_sec)
+                    status_text.info(f"画像 {img_idx+1}: AI解析中... (再試行 {attempt+1})")
+                    continue
                 break
 
         if not success_score:
@@ -5153,14 +5151,13 @@ if st.session_state.analyzed_results is None:
         status_text.info(f"画像 {img_idx+1}: AIが日付・時刻・ゲーム数を取得中...")
         time.sleep(5) 
 
-        # ▼ 503エラー対策：全体のメタデータ読み取り画像も極限まで軽量化する
-        compressed_full_img = compress_image_for_ai(img_pil_full, max_size=1200)
+        # ▼ 時刻の小さな文字が潰れないよう、圧縮サイズを2048へ拡大して解像度を保つ
+        compressed_full_img = compress_image_for_ai(img_pil_full, max_size=2048)
 
         ai_meta_data = {"date": "日付不明", "start_time": "時刻不明", "end_time": "時刻不明", "start_game_num": 1, "lane": "", "player_name": ""}
         success_meta = False
         
         for attempt in range(max_retries):
-            # ▼ スコア読取と同じく、試行回数に応じてモデルを切り替える
             current_model = fallback_models[attempt % len(fallback_models)]
             try:
                 response = client.models.generate_content(
@@ -5179,15 +5176,13 @@ if st.session_state.analyzed_results is None:
                 success_meta = True
                 break
             except Exception as e:
-                error_msg = str(e).lower()
-                if any(err in error_msg for err in ["429", "too many requests", "quota", "503", "unavailable", "high demand", "overloaded"]):
-                    if attempt < max_retries - 1:
-                        # 長い待機をやめ、2秒前後ですぐに別モデルへ切り替える
-                        wait_sec = 2.0 + random.uniform(0, 1)
-                        status_text.warning(f"API一時エラー({current_model})。モデルを切り替えて再試行します... ({wait_sec:.1f}秒待機)")
-                        time.sleep(wait_sec)
-                        status_text.info(f"画像 {img_idx+1}: AI解析中... (再試行 {attempt+1})")
-                        continue
+                if attempt < max_retries - 1:
+                    # 503エラーだけでなく、JSONパースエラー等のいかなる失敗でも諦めず別モデルに切り替えて再試行する
+                    wait_sec = 2.0 + random.uniform(0, 1)
+                    status_text.warning(f"読取エラー({current_model})。モデルを切り替えて再試行します... ({wait_sec:.1f}秒待機)")
+                    time.sleep(wait_sec)
+                    status_text.info(f"画像 {img_idx+1}: AI解析中... (再試行 {attempt+1})")
+                    continue
                 break
                    
 
