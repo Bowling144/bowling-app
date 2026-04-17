@@ -553,6 +553,8 @@ if not st.session_state.logged_in:
                         st.session_state.user_public = row[2]
                         st.session_state.user_role = row[3]
                         st.session_state.user_row_index = idx + 1 # スプレッドシートの行番号(1始まり)
+                        # ▼ 追加：ログイン時は必ずキオスクモードをオフにする
+                        st.session_state.kiosk_mode = False 
                         login_success = True
                         break
                 if login_success:
@@ -826,13 +828,19 @@ if st.session_state.get("kiosk_mode"):
     import streamlit.components.v1 as components
     components.html("<script>setInterval(function(){window.parent.postMessage('ping', '*');}, 60000);</script>", height=0, width=0)
 
-    # サイドバーと標準ヘッダーを完全に隠すことで他の操作を封じる
-    st.markdown("""
-        <style>
-        [data-testid="stSidebar"] {display: none !important;}
-        header {display: none !important;}
+    # 管理者・開発者以外の場合のみ、操作を制限するためにヘッダーを隠す
+    if st.session_state.get("user_role") in ["開発者", "管理者"]:
+        # 管理者の場合はサイドバーだけ隠し、ヘッダー（展開ボタン）は残す
+        kiosk_css = "[data-testid='stSidebar'] {display: none !important;}"
+    else:
+        # 一般ユーザが使うキオスク端末ではヘッダーも隠して封じ込める
+        kiosk_css = "[data-testid='stSidebar'] {display: none !important;} header {display: none !important;}"
+
+    st.markdown(f"<style>{kiosk_css}</style>", unsafe_allow_html=True)
         .kiosk-exit-btn {
-            position: fixed; bottom: 10px; right: 10px; z-index: 9999; opacity: 0.1;
+            position: fixed; bottom: 20px; right: 20px; z-index: 9999; 
+            opacity: 0.6; /* スマホで見えるように透明度を上げる */
+            background: rgba(0,0,0,0.5); border-radius: 50%; padding: 5px;
         }
         .kiosk-exit-btn:hover { opacity: 1.0; }
         .kiosk-header {
