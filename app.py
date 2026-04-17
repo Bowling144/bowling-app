@@ -553,7 +553,6 @@ if not st.session_state.logged_in:
                         st.session_state.user_public = row[2]
                         st.session_state.user_role = row[3]
                         st.session_state.user_row_index = idx + 1 # スプレッドシートの行番号(1始まり)
-                        # ▼ 追加：ログイン時は必ずキオスクモードをオフにする
                         st.session_state.kiosk_mode = False 
                         login_success = True
                         break
@@ -837,6 +836,10 @@ if st.session_state.get("kiosk_mode"):
         kiosk_css = "[data-testid='stSidebar'] {display: none !important;} header {display: none !important;}"
 
     st.markdown(f"<style>{kiosk_css}</style>", unsafe_allow_html=True)
+
+    # その他のキオスク画面用CSS
+    st.markdown("""
+        <style>
         .kiosk-exit-btn {
             position: fixed; bottom: 20px; right: 20px; z-index: 9999; 
             opacity: 0.6; /* スマホで見えるように透明度を上げる */
