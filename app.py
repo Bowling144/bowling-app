@@ -291,21 +291,21 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ▼ 一般ユーザー（開発者・管理者以外）の場合のみ、サイドバーを開くヘッダーボタンを完全に消去する
-if st.session_state.get("user_role") not in ["開発者", "管理者"]:
-    st.markdown("""
-        <style>
-        header {visibility: hidden !important;}
-        [data-testid="stHeader"] {display: none !important;}
-        </style>
-    """, unsafe_allow_html=True)
-# ▼ 一般ユーザー（開発者・管理者以外）の場合のみ、サイドバーを開くヘッダーボタンを完全に消去する
-if st.session_state.get("user_role") not in ["開発者", "管理者"]:
-    st.markdown("""
-        <style>
-        header {visibility: hidden !important;}
-        [data-testid="stHeader"] {display: none !important;}
-        </style>
-    """, unsafe_allow_html=True)
+# ※Streamlitの仕様でログイン前の非表示CSSがブラウザに残るバグを防ぐため、管理者には「強制表示」のCSSを上書きする
+role = str(st.session_state.get("user_role")).strip()
+if role not in ["開発者", "管理者"]:
+    header_css = """
+    header {visibility: hidden !important;}
+    [data-testid="stHeader"] {display: none !important;}
+    """
+else:
+    header_css = """
+    header {visibility: visible !important;}
+    [data-testid="stHeader"] {display: block !important;}
+    [data-testid="collapsedControl"] {display: flex !important; visibility: visible !important;}
+    """
+
+st.markdown(f"<style>{header_css}</style>", unsafe_allow_html=True)
 
 st.markdown("""
 <div style='text-align: center; font-size: 36px; white-space: nowrap; margin-bottom: 16px; font-weight: bold; font-family: "Arial Black", Impact, sans-serif;'>
