@@ -1081,7 +1081,7 @@ if app_mode == "オイル情報入力":
                                         try:
                                             response = ai_client.models.generate_content(
                                                 model=attempt_model,
-                                                contents=[cropped_img, prompt],
+                                                contents=[types.Part.from_image(cropped_img), prompt],
                                                 config=types.GenerateContentConfig(temperature=0.0, response_mime_type="application/json")
                                             )
                                             success_scan = True
