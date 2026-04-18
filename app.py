@@ -372,7 +372,7 @@ def sync_calendar_to_sps(sh, file_id):
         drive_service = build('drive', 'v3', credentials=drive_creds)
         
         # Vertex AI専用のクライアント初期化
-        ai_client = genai.Client(vertexai=True, project="Bowling-Vertex-AI", location="asia-northeast1")
+        ai_client = genai.Client(vertexai=True, project="bowling-vertex-ai", location="asia-northeast1")
 
         if not file_id:
             return "ファイルIDが指定されていません。"
@@ -1088,7 +1088,7 @@ if app_mode == "オイル情報入力":
                                 width, height = img_pil.size
                                 cropped_img = img_pil.crop((0, 0, width, int(height * 0.2)))
                                 # Vertex AI専用のクライアント初期化
-                                ai_client = genai.Client(vertexai=True, project="Bowling-Vertex-AI", location="asia-northeast1")
+                                ai_client = genai.Client(vertexai=True, project="bowling-vertex-ai", location="asia-northeast1")
                                 prompt = '画像から「Volume Oil Total (mL)」と「Oil Pattern Distance (Feet)」の数値を読み取ってください。JSON形式 {"distance": 42, "volume": 22.1} で出力してください。'
                                 # ▼ 混雑エラー対策：2.5Pro単独で最大3回リトライ
                                 success_scan = False
@@ -4400,7 +4400,7 @@ if not st.session_state.raw_images_data:
     st.stop()
 
 # Vertex AI専用のクライアント初期化
-client = genai.Client(vertexai=True, project="Bowling-Vertex-AI", location="asia-northeast1")
+client = genai.Client(vertexai=True, project="bowling-vertex-ai", location="asia-northeast1")
 status_text = st.empty()
 
 # =========================================================
