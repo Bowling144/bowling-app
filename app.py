@@ -564,9 +564,6 @@ if "logged_in" not in st.session_state:
     st.session_state.user_name = ""
     st.session_state.user_role = ""
     st.session_state.user_public = ""
-    # ▼ 追加：初期アクセス時にキオスクモードが勝手に発動するのを確実に防ぐ
-    st.session_state.kiosk_mode = False
-    st.session_state.kiosk_step = "auth"
 
 # --- 日付変更（午前0時跨ぎ）の自動更新チェック ---
 import datetime
@@ -877,31 +874,23 @@ def render_tenkey(label, state_key, default_val, format_type="none", is_pw=False
             
     return display_val
 
-# ▼ 通常時の権限に応じたサイドバー開閉ボタン（ヘッダー全体）の制御
-# ※キオスクモードがオフの場合のみ、この権限チェックが作動します
-if not st.session_state.get("kiosk_mode"):
-    role = str(st.session_state.get("user_role")).strip()
+# =========================================================
+# 【新機能】ユーザセルフ登録 (専用画面モード) の制御
+# =========================================================
+if st.session_state.get("kiosk_mode"):
+    # 勝手にセッションが切れないようにバックグラウンドで1分ごとに通信を発生
+    import streamlit.components.v1 as components
+    components.html("<script>setInterval(function(){window.parent.postMessage('ping', '*');}, 60000);</script>", height=0, width=0)
 
-    if role in ["開発者", "管理者"]:
-        # 開発者・管理者: スマホでもサイドバーを開けるよう、ヘッダーを確実に表示させる
-        st.markdown("""
-            <style>
-            header[data-testid="stHeader"] {
-                display: flex !important;
-                visibility: visible !important;
-                background-color: transparent !important;
-            }
-            </style>
-        """, unsafe_allow_html=True)
+    # 管理者・開発者以外の場合のみ、操作を制限するためにヘッダーを隠す
+    if st.session_state.get("user_role") in ["開発者", "管理者"]:
+        # 管理者の場合はサイドバーだけ隠し、ヘッダー（展開ボタン）は残す
+        kiosk_css = "[data-testid='stSidebar'] {display: none !important;}"
     else:
-        # 一般ユーザー（未ログイン含む）: サイドバーへのアクセスを完全に遮断する
-        st.markdown("""
-            <style>
-            header[data-testid="stHeader"] {
-                display: none !important;
-            }
-            </style>
-        """, unsafe_allow_html=True)
+        # 一般ユーザが使うキオスク端末ではヘッダーも隠して封じ込める
+        kiosk_css = "[data-testid='stSidebar'] {display: none !important;} header {display: none !important;}"
+
+    st.markdown(f"<style>{kiosk_css}</style>", unsafe_allow_html=True)
 
     # その他のキオスク画面用CSS
     st.markdown("""
@@ -980,9 +969,9 @@ if not st.session_state.get("kiosk_mode"):
         st.stop()
         
     # 認証後は既存のモード変数（app_mode）を上書きして合流
-    elif st.session_state.get("kiosk_step") == "register":
+    elif st.session_state.kiosk_step == "register":
         app_mode = "スコア登録"
-    elif st.session_state.get("kiosk_step") == "stats":
+    elif st.session_state.kiosk_step == "stats":
         app_mode = "プレイヤー分析"
 
 # =========================================================
@@ -6859,10 +6848,6 @@ if st.session_state.analyzed_results:
 
             except Exception as e:
                 st.error(f"SPSへの登録中にエラーが発生しました: {e}")
-
-
-
-
 
 
 
