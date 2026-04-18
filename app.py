@@ -278,34 +278,37 @@ st.markdown("""
     }
 
     /* 実行中の「Running...」やコードの表示を隠す */
-    [data-testid="stStatusWidget"] {
-        visibility: hidden !important;
-    }
-    
-    /* ▼▼▼ 画面右上のメニューとフッターを隠す ▼▼▼ */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    /* 新しいStreamlitバージョン用（必要に応じて） */
-    [data-testid="stToolbar"] {visibility: hidden;}
+    [data-testid="stStatusWidget"] { visibility: hidden !important; }
+    /* ▼▼▼ 画面右上のメニュー(⋮)とフッターは全員一律で隠す ▼▼▼ */
+    #MainMenu { display: none !important; }
+    footer { visibility: hidden !important; }
+    [data-testid="stToolbar"] { display: none !important; }
     </style>
 """, unsafe_allow_html=True)
 
-# ▼ 一般ユーザー（開発者・管理者以外）の場合のみ、サイドバーを開くヘッダーボタンを完全に消去する
-# ※Streamlitの仕様でログイン前の非表示CSSがブラウザに残るバグを防ぐため、管理者には「強制表示」のCSSを上書きする
+# ▼ 権限に応じたサイドバー開閉ボタン（ヘッダー全体）の制御
 role = str(st.session_state.get("user_role")).strip()
-if role not in ["開発者", "管理者"]:
-    header_css = """
-    header {visibility: hidden !important;}
-    [data-testid="stHeader"] {display: none !important;}
-    """
-else:
-    header_css = """
-    header {visibility: visible !important;}
-    [data-testid="stHeader"] {display: block !important;}
-    [data-testid="collapsedControl"] {display: flex !important; visibility: visible !important;}
-    """
 
-st.markdown(f"<style>{header_css}</style>", unsafe_allow_html=True)
+if role in ["開発者", "管理者"]:
+    # 管理者・開発者: ヘッダーのレイアウトをStreamlitの標準(flex)に強制リセットして確実に表示させる
+    st.markdown("""
+        <style>
+        header[data-testid="stHeader"] {
+            display: flex !important;
+            visibility: visible !important;
+            background-color: transparent !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+else:
+    # 一般ユーザー（未ログイン含む）: ヘッダーごと完全に消去してサイドバーへのアクセスを遮断する
+    st.markdown("""
+        <style>
+        header[data-testid="stHeader"] {
+            display: none !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
 st.markdown("""
 <div style='text-align: center; font-size: 36px; white-space: nowrap; margin-bottom: 16px; font-weight: bold; font-family: "Arial Black", Impact, sans-serif;'>
