@@ -1134,7 +1134,7 @@ if app_mode == "オイル情報入力":
                     creds_json_str = st.secrets["google_credentials"]; creds_info = json.loads(creds_json_str, strict=False)
                     if "private_key" in creds_info: creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
                     drive_service = build('drive', 'v3', credentials=service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/drive']))
-                    file_id, dest_folder_id = st.session_state.oil_scan_data["file_id"], "新しい「1bGH...」にあたるフォルダIDをここに入力してください"
+                    file_id, dest_folder_id = st.session_state.oil_scan_data["file_id"], "1xFpe9e86Q8bQ7dOBaYD0gqCIvO_zChv-"
                     file_obj = drive_service.files().get(fileId=file_id, fields='parents').execute()
                     previous_parents = ",".join(file_obj.get('parents', []))
                     drive_service.files().update(fileId=file_id, addParents=dest_folder_id, removeParents=previous_parents, fields='id, parents').execute()
@@ -1541,11 +1541,12 @@ if app_mode == "プレイヤー分析":
                                         lane_latest_map[found_info].append(lane_num)
 
                                 if not lane_latest_map:
-                        st.info("有効な最新オイル情報が見つかりません。")
-                    else:
-                        oil_folder_id = "新しい「1bGH...」にあたるフォルダIDをここに入力してください"
-                        
-                        # 特定した画像（または手動入力）ごとにグループ表示
+                                    st.info("有効な最新オイル情報が見つかりません。")
+                                else:
+                                    # 注意：以下のIDはご自身の「レーンコンディション用フォルダのID」に書き換えてください
+                                    oil_folder_id = "1hwYc98yf7M7DR8zBYfel3cD4doBwaLsH"
+                                    
+                                    # 特定した画像（または手動入力）ごとにグループ表示
                                     for info_key, lanes in lane_latest_map.items():
                                         lane_label = ", ".join([f"{l}L" for l in lanes])
                                         
