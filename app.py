@@ -874,23 +874,31 @@ def render_tenkey(label, state_key, default_val, format_type="none", is_pw=False
             
     return display_val
 
-# =========================================================
-# 【新機能】ユーザセルフ登録 (専用画面モード) の制御
-# =========================================================
-if st.session_state.get("kiosk_mode"):
-    # 勝手にセッションが切れないようにバックグラウンドで1分ごとに通信を発生
-    import streamlit.components.v1 as components
-    components.html("<script>setInterval(function(){window.parent.postMessage('ping', '*');}, 60000);</script>", height=0, width=0)
+# ▼ 通常時の権限に応じたサイドバー開閉ボタン（ヘッダー全体）の制御
+# ※キオスクモードがオフの場合のみ、この権限チェックが作動します
+if not st.session_state.get("kiosk_mode"):
+    role = str(st.session_state.get("user_role")).strip()
 
-    # 管理者・開発者以外の場合のみ、操作を制限するためにヘッダーを隠す
-    if st.session_state.get("user_role") in ["開発者", "管理者"]:
-        # 管理者の場合はサイドバーだけ隠し、ヘッダー（展開ボタン）は残す
-        kiosk_css = "[data-testid='stSidebar'] {display: none !important;}"
+    if role in ["開発者", "管理者"]:
+        # 開発者・管理者: スマホでもサイドバーを開けるよう、ヘッダーを確実に表示させる
+        st.markdown("""
+            <style>
+            header[data-testid="stHeader"] {
+                display: flex !important;
+                visibility: visible !important;
+                background-color: transparent !important;
+            }
+            </style>
+        """, unsafe_allow_html=True)
     else:
-        # 一般ユーザが使うキオスク端末ではヘッダーも隠して封じ込める
-        kiosk_css = "[data-testid='stSidebar'] {display: none !important;} header {display: none !important;}"
-
-    st.markdown(f"<style>{kiosk_css}</style>", unsafe_allow_html=True)
+        # 一般ユーザー（未ログイン含む）: サイドバーへのアクセスを完全に遮断する
+        st.markdown("""
+            <style>
+            header[data-testid="stHeader"] {
+                display: none !important;
+            }
+            </style>
+        """, unsafe_allow_html=True)
 
     # その他のキオスク画面用CSS
     st.markdown("""
