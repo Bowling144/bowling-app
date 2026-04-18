@@ -282,15 +282,21 @@ st.markdown("""
         visibility: hidden !important;
     }
     
-    /* ▼▼▼ 画面右上のメニューとフッターを完全に隠す ▼▼▼ */
+    /* ▼▼▼ 画面右上のメニューとフッターを隠す ▼▼▼ */
     #MainMenu {visibility: hidden;}
-    header {visibility: hidden;}
     footer {visibility: hidden;}
-    /* 新しいStreamlitバージョン用（必要に応じて） */
-    [data-testid="stHeader"] {display: none;}
     [data-testid="stToolbar"] {visibility: hidden;}
     </style>
 """, unsafe_allow_html=True)
+
+# ▼ 一般ユーザー（開発者・管理者以外）の場合のみ、サイドバーを開くヘッダーボタンを完全に消去する
+if st.session_state.get("user_role") not in ["開発者", "管理者"]:
+    st.markdown("""
+        <style>
+        header {visibility: hidden !important;}
+        [data-testid="stHeader"] {display: none !important;}
+        </style>
+    """, unsafe_allow_html=True)
 
 st.markdown("""
 <div style='text-align: center; font-size: 36px; white-space: nowrap; margin-bottom: 16px; font-weight: bold; font-family: "Arial Black", Impact, sans-serif;'>
