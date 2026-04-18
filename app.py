@@ -5188,11 +5188,17 @@ if st.session_state.analyzed_results is None:
             # ▼ 試行回数に応じてモデルを切り替える
             current_model = fallback_models[attempt % len(fallback_models)]
             try:
+                # 画像をバイト列に変換
+                import io
+                img_byte_arr = io.BytesIO()
+                compressed_score_img.save(img_byte_arr, format='JPEG')
+                img_bytes = img_byte_arr.getvalue()
+
                 response = client.models.generate_content(
                     model=current_model,
                     contents=[
                         prompt_score, 
-                        types.Part.from_image(compressed_score_img)
+                        types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg")
                     ],
                     config=types.GenerateContentConfig(
                         temperature=0.0,
@@ -5232,11 +5238,17 @@ if st.session_state.analyzed_results is None:
         for attempt in range(max_retries):
             current_model = fallback_models[attempt % len(fallback_models)]
             try:
+                # 画像をバイト列に変換
+                import io
+                img_byte_arr = io.BytesIO()
+                compressed_full_img.save(img_byte_arr, format='JPEG')
+                img_bytes = img_byte_arr.getvalue()
+
                 response = client.models.generate_content(
                     model=current_model,
                     contents=[
                         prompt_metadata, 
-                        types.Part.from_image(compressed_full_img)
+                        types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg")
                     ],
                     config=types.GenerateContentConfig(
                         temperature=0.0,
