@@ -23,19 +23,17 @@ def compress_image_for_ai(pil_img, max_size=1024):
     from PIL import ImageOps
     img = pil_img.copy()
     
-    # 1. EXIF情報に基づいて画像の向きを物理的に補正（スマホ撮影の向き対策）
+    # EXIF情報に基づいて画像の向きを物理的に補正
     try:
         img = ImageOps.exif_transpose(img)
     except:
         pass
 
-    # 2. スコアシートが「縦向き」にスキャンされている場合、横向きに回転させる
-    # ボウリングのスコアシートは基本的に横長のため、縦長なら90度回すことでOCR精度を上げる
+    # スコアシートが縦向き（横にスキャン）の場合、横向きに回転させる
     w, h = img.size
     if h > w:
         img = img.rotate(90, expand=True)
 
-    # 3. 圧縮処理
     img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
     if img.mode in ('RGBA', 'P'):
         img = img.convert('RGB')
@@ -4575,6 +4573,11 @@ if st.session_state.analyzed_results is None:
         if img is None:
             st.warning(f"{file_name} の画像変換に失敗しました。スキップします。")
             continue
+
+        # ▼ 画像の向きを横長に正規化（縦長なら90度回転）
+        h_orig, w_orig = img.shape[:2]
+        if h_orig > w_orig:
+            img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
 
         all_games_export_data = []
         blue_lines = []
