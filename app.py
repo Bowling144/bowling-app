@@ -5188,7 +5188,6 @@ if st.session_state.analyzed_results is None:
             # ▼ 試行回数に応じてモデルを切り替える
             current_model = fallback_models[attempt % len(fallback_models)]
             try:
-                try:
                 response = client.models.generate_content(
                     model=current_model,
                     contents=[
