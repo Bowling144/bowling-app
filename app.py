@@ -4570,9 +4570,15 @@ if st.session_state.analyzed_results is None:
             st.warning(f"{file_name} の画像変換に失敗しました。スキップします。")
             continue
 
-        # ▼ 画像の向きを横長に正規化（縦長なら90度回転）
-        h_orig, w_orig = img.shape[:2]
-        if h_orig > w_orig:
+        # ▼ 画像内の「線」の向きを解析し、縦線が多い場合（横向きスキャン）のみ90度回転して正規化する
+        gray_rot = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        thresh_rot = cv2.adaptiveThreshold(gray_rot, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 5)
+        h_k = cv2.getStructuringElement(cv2.MORPH_RECT, (100, 1))
+        v_k = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 100))
+        h_sum = cv2.countNonZero(cv2.morphologyEx(thresh_rot, cv2.MORPH_OPEN, h_k))
+        v_sum = cv2.countNonZero(cv2.morphologyEx(thresh_rot, cv2.MORPH_OPEN, v_k))
+        
+        if v_sum > h_sum * 1.2:
             img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
 
         all_games_export_data = []
