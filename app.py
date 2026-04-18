@@ -1114,9 +1114,14 @@ if app_mode == "オイル情報入力":
                                 for attempt_model in fallback_models:
                                     for attempt in range(max_retries):
                                         try:
+                                            # Pillow画像をJPEGのバイト列に変換
+                                            oil_bytes_io = io.BytesIO()
+                                            cropped_img.save(oil_bytes_io, format='JPEG')
+                                            oil_bytes = oil_bytes_io.getvalue()
+                                            
                                             response = ai_client.models.generate_content(
                                                 model=attempt_model,
-                                                contents=[types.Part.from_image(cropped_img), prompt],
+                                                contents=[types.Part.from_bytes(data=oil_bytes, mime_type="image/jpeg"), prompt],
                                                 config=types.GenerateContentConfig(temperature=0.0, response_mime_type="application/json")
                                             )
                                             success_scan = True
@@ -5223,17 +5228,16 @@ if st.session_state.analyzed_results is None:
             # ▼ 試行回数に応じてモデルを切り替える
             current_model = fallback_models[attempt % len(fallback_models)]
             try:
-                # 画像をバイト列に変換
-                import io
-                img_byte_arr = io.BytesIO()
-                compressed_score_img.save(img_byte_arr, format='JPEG')
-                img_bytes = img_byte_arr.getvalue()
-
+                # Pillow画像をJPEGのバイト列に変換
+                score_bytes_io = io.BytesIO()
+                compressed_score_img.save(score_bytes_io, format='JPEG')
+                score_bytes = score_bytes_io.getvalue()
+                
                 response = client.models.generate_content(
                     model=current_model,
                     contents=[
                         prompt_score, 
-                        types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg")
+                        types.Part.from_bytes(data=score_bytes, mime_type="image/jpeg")
                     ],
                     config=types.GenerateContentConfig(
                         temperature=0.0,
@@ -5273,17 +5277,16 @@ if st.session_state.analyzed_results is None:
         for attempt in range(max_retries):
             current_model = fallback_models[attempt % len(fallback_models)]
             try:
-                # 画像をバイト列に変換
-                import io
-                img_byte_arr = io.BytesIO()
-                compressed_full_img.save(img_byte_arr, format='JPEG')
-                img_bytes = img_byte_arr.getvalue()
-
+                # Pillow画像をJPEGのバイト列に変換
+                meta_bytes_io = io.BytesIO()
+                compressed_full_img.save(meta_bytes_io, format='JPEG')
+                meta_bytes = meta_bytes_io.getvalue()
+                
                 response = client.models.generate_content(
                     model=current_model,
                     contents=[
                         prompt_metadata, 
-                        types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg")
+                        types.Part.from_bytes(data=meta_bytes, mime_type="image/jpeg")
                     ],
                     config=types.GenerateContentConfig(
                         temperature=0.0,
