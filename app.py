@@ -364,13 +364,44 @@ def sync_calendar_to_sps(sh, file_id):
         drive_creds = service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/drive'])
         drive_service = build('drive', 'v3', credentials=drive_creds)
         
+        def sync_calendar_to_sps(sh, file_id):
+    """Google Driveの指定されたPDFを読み込み、1ヶ月分のイベントをSPSに保存する"""
+    import json
+    import time
+    import random
+    import re
+    import io
+    from google.genai import types
+    from google import genai
+    from google.oauth2 import service_account
+    from googleapiclient.discovery import build
+    from googleapiclient.http import MediaIoBaseDownload
+    
+    # 同期開始時に本日のイベントキャッシュを破棄
+    get_today_event_from_sps.clear()
+    
+    try:
+        creds_json_str = st.secrets["google_credentials"]
+        creds_info = json.loads(creds_json_str, strict=False)
+        if "private_key" in creds_info:
+            creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
+        
+        drive_creds = service_account.Credentials.from_service_account_info(creds_info, scopes=['[https://www.googleapis.com/auth/drive](https://www.googleapis.com/auth/drive)'])
+        drive_service = build('drive', 'v3', credentials=drive_creds)
+        
         # Vertex AI専用のクライアント初期化
         ai_client = genai.Client(vertexai=True, project="Bowling-Vertex-AI", location="asia-northeast1")
 
         if not file_id:
             return "ファイルIDが指定されていません。"
         
-        content = drive_service.files().get_media(fileId=file_id).execute()
+        # ▼ PDFデータをio.BytesIO()を使って正しくメモリにダウンロードする
+        request = drive_service.files().get_media(fileId=file_id)
+        fh = io.BytesIO()
+        downloader = MediaIoBaseDownload(fh, request)
+        done = False
+        while not done:
+            status, done = downloader.next_chunk()
         
         # ▼ 1枚目のイベントも確実に拾うように強化したプロンプト
         prompt = """あなたはカレンダーから予定を漏れなく抽出するプロフェッショナルです。
@@ -396,9 +427,13 @@ def sync_calendar_to_sps(sh, file_id):
         for attempt_model in ["gemini-2.5-pro", "gemini-1.5-pro"]:
             for attempt in range(max_retries):
                 try:
+                    # ▼ ダウンロードしたBytesIOオブジェクト(fh)からバイト列を取得し、明示的に位置引数で渡す
+                    pdf_bytes = fh.getvalue()
+                    pdf_part = types.Part.from_bytes(pdf_bytes, "application/pdf")
+                    
                     response = ai_client.models.generate_content(
                         model=attempt_model,
-                        contents=[types.Part.from_bytes(data=content, mime_type="application/pdf"), prompt]
+                        contents=[prompt, pdf_part]
                     )
                     if not response or not response.text:
                         raise ValueError("AIからの応答が空でした。")
