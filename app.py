@@ -1025,9 +1025,12 @@ if app_mode == "オイル情報入力":
             try:
                 creds_json_str = st.secrets["google_credentials"]
                 creds_info = json.loads(creds_json_str, strict=False)
-                    if "private_key" in creds_info: creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
-                    drive_service = build('drive', 'v3', credentials=service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/drive']))
-                    f_res = drive_service.files().list(q="name = 'Bowling_App' and mimeType = 'application/vnd.google-apps.folder' and trashed = false", fields="files(id)").execute()                items = res.get('files', [])
+                if "private_key" in creds_info: creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
+                drive_service = build('drive', 'v3', credentials=service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/drive']))
+                f_res = drive_service.files().list(q="name = 'Bowling_App' and mimeType = 'application/vnd.google-apps.folder' and trashed = false", fields="files(id)").execute()
+                folder_id = f_res.get('files', [{}])[0].get('id')
+                res = drive_service.files().list(q=f"'{folder_id}' in parents and mimeType='image/jpeg' and trashed=false", orderBy="createdTime desc", pageSize=1, fields="files(id)").execute()
+                items = res.get('files', [])
                 st.session_state.last_oil_file_id = items[0]['id'] if items else "none"
                 st.session_state.waiting_for_oil_scan = True
                 st.rerun()
