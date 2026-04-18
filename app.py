@@ -5235,14 +5235,9 @@ if st.session_state.analyzed_results is None:
                 used_model = current_model.upper()
                 break
             except Exception as e:
-                if attempt < max_retries - 1:
-                    # サーバー混雑による連続エラー全滅を防ぐため、試行ごとに待機時間を倍増させる（指数バックオフ）
-                    wait_sec = (2 ** (attempt + 1)) + random.uniform(0, 1)
-                    status_text.warning(f"読取エラー({current_model})。混雑回避のため {wait_sec:.1f}秒待機して再試行します... ({attempt+1}/{max_retries})")
-                    time.sleep(wait_sec)
-                    status_text.info(f"画像 {img_idx+1}: AI解析中... (再試行 {attempt+1})")
-                    continue
-                break
+                # 推測でのリトライをやめ、エラーの本当の原因を画面に表示させて強制停止します
+                st.error(f"【AI解析エラーの正体】\nモデル: {current_model}\nエラー詳細: {str(e)}")
+                st.stop()
 
         if not success_score:
             st.warning(f"{file_name}: AIのスコア読み取りに失敗しました。理由: {last_error}")
