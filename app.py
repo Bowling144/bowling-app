@@ -558,12 +558,16 @@ def render_suggestion_input(label, key, suggestions, default_val="", marker=None
 # ▲▲▲ 追加ここまで ▲▲▲
 
 # --- セッション初期化 ---
+# --- セッション初期化 ---
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.user_email = ""
     st.session_state.user_name = ""
     st.session_state.user_role = ""
     st.session_state.user_public = ""
+    # ▼ 追加：初期アクセス時にキオスクモードが勝手に発動するのを確実に防ぐ
+    st.session_state.kiosk_mode = False
+    st.session_state.kiosk_step = "auth"
 
 # --- 日付変更（午前0時跨ぎ）の自動更新チェック ---
 import datetime
