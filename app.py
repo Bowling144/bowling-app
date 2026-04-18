@@ -977,9 +977,9 @@ if not st.session_state.get("kiosk_mode"):
         st.stop()
         
     # 認証後は既存のモード変数（app_mode）を上書きして合流
-    elif st.session_state.kiosk_step == "register":
+    elif st.session_state.get("kiosk_step") == "register":
         app_mode = "スコア登録"
-    elif st.session_state.kiosk_step == "stats":
+    elif st.session_state.get("kiosk_step") == "stats":
         app_mode = "プレイヤー分析"
 
 # =========================================================
