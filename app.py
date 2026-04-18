@@ -5188,9 +5188,13 @@ if st.session_state.analyzed_results is None:
             # ▼ 試行回数に応じてモデルを切り替える
             current_model = fallback_models[attempt % len(fallback_models)]
             try:
+                try:
                 response = client.models.generate_content(
                     model=current_model,
-                    contents=[prompt_score, compressed_score_img],
+                    contents=[
+                        prompt_score, 
+                        types.Part.from_image(compressed_score_img)
+                    ],
                     config=types.GenerateContentConfig(
                         temperature=0.0,
                         response_mime_type="application/json"
@@ -5231,7 +5235,10 @@ if st.session_state.analyzed_results is None:
             try:
                 response = client.models.generate_content(
                     model=current_model,
-                    contents=[prompt_metadata, compressed_full_img],
+                    contents=[
+                        prompt_metadata, 
+                        types.Part.from_image(compressed_full_img)
+                    ],
                     config=types.GenerateContentConfig(
                         temperature=0.0,
                         response_mime_type="application/json"
