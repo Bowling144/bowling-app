@@ -558,7 +558,6 @@ def render_suggestion_input(label, key, suggestions, default_val="", marker=None
 # ▲▲▲ 追加ここまで ▲▲▲
 
 # --- セッション初期化 ---
-# --- セッション初期化 ---
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.user_email = ""
