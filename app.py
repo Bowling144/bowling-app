@@ -282,9 +282,10 @@ st.markdown("""
         visibility: hidden !important;
     }
     
-    /* ▼▼▼ 画面右上のメニューとフッターを隠す ▼▼▼ */
+    /* ▼▼▼ 画面右上のメニューとフッターを完全に隠す ▼▼▼ */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
+    /* 新しいStreamlitバージョン用（必要に応じて） */
     [data-testid="stToolbar"] {visibility: hidden;}
     </style>
 """, unsafe_allow_html=True)
