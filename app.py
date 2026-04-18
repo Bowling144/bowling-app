@@ -364,7 +364,7 @@ def sync_calendar_to_sps(sh, file_id):
         drive_creds = service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/drive'])
         drive_service = build('drive', 'v3', credentials=drive_creds)
         
-        def sync_calendar_to_sps(sh, file_id):
+def sync_calendar_to_sps(sh, file_id):
     """Google Driveの指定されたPDFを読み込み、1ヶ月分のイベントをSPSに保存する"""
     import json
     import time
