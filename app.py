@@ -16,6 +16,17 @@ from googleapiclient.http import MediaIoBaseDownload
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import os
+
+# ▼ Vertex AI用の認証ファイル生成（Streamlit Secretsから読み込み）
+if "google_credentials" in st.secrets:
+    creds_str = st.secrets["google_credentials"]
+    # テンポラリファイルに書き出して環境変数にセットする（クラウド環境用安全対策）
+    key_path = "/tmp/vertex_key.json"
+    if not os.path.exists(key_path):
+        with open(key_path, "w", encoding="utf-8") as f:
+            f.write(creds_str)
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = key_path
 
 # ▼ AI送信用の画像圧縮関数
 def compress_image_for_ai(pil_img, max_size=1024):
@@ -353,8 +364,8 @@ def sync_calendar_to_sps(sh, file_id):
         drive_creds = service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/drive'])
         drive_service = build('drive', 'v3', credentials=drive_creds)
         
-        gemini_api_key = st.secrets.get("gemini_api_key", "")
-        ai_client = genai.Client(api_key=gemini_api_key)
+        # Vertex AI専用のクライアント初期化
+        ai_client = genai.Client(vertexai=True, project="Bowling-Vertex-AI", location="asia-northeast1")
 
         if not file_id:
             return "ファイルIDが指定されていません。"
@@ -1059,8 +1070,8 @@ if app_mode == "オイル情報入力":
                                 img_pil = Image.open(fh)
                                 width, height = img_pil.size
                                 cropped_img = img_pil.crop((0, 0, width, int(height * 0.2)))
-                                gemini_api_key = st.secrets.get("gemini_api_key", "")
-                                ai_client = genai.Client(api_key=gemini_api_key)
+                                # Vertex AI専用のクライアント初期化
+                                ai_client = genai.Client(vertexai=True, project="Bowling-Vertex-AI", location="asia-northeast1")
                                 prompt = '画像から「Volume Oil Total (mL)」と「Oil Pattern Distance (Feet)」の数値を読み取ってください。JSON形式 {"distance": 42, "volume": 22.1} で出力してください。'
                                 # ▼ 混雑エラー対策：2.5Pro単独で最大3回リトライ
                                 success_scan = False
@@ -1123,7 +1134,7 @@ if app_mode == "オイル情報入力":
                     creds_json_str = st.secrets["google_credentials"]; creds_info = json.loads(creds_json_str, strict=False)
                     if "private_key" in creds_info: creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
                     drive_service = build('drive', 'v3', credentials=service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/drive']))
-                    file_id, dest_folder_id = st.session_state.oil_scan_data["file_id"], "1bGH88kJ-wA0QsV8S2rVGHoWlO65wIHsG"
+                    file_id, dest_folder_id = st.session_state.oil_scan_data["file_id"], "新しい「1bGH...」にあたるフォルダIDをここに入力してください"
                     file_obj = drive_service.files().get(fileId=file_id, fields='parents').execute()
                     previous_parents = ",".join(file_obj.get('parents', []))
                     drive_service.files().update(fileId=file_id, addParents=dest_folder_id, removeParents=previous_parents, fields='id, parents').execute()
@@ -1530,11 +1541,11 @@ if app_mode == "プレイヤー分析":
                                         lane_latest_map[found_info].append(lane_num)
 
                                 if not lane_latest_map:
-                                    st.info("有効な最新オイル情報が見つかりません。")
-                                else:
-                                    oil_folder_id = "1bGH88kJ-wA0QsV8S2rVGHoWlO65wIHsG"
-                                    
-                                    # 特定した画像（または手動入力）ごとにグループ表示
+                        st.info("有効な最新オイル情報が見つかりません。")
+                    else:
+                        oil_folder_id = "新しい「1bGH...」にあたるフォルダIDをここに入力してください"
+                        
+                        # 特定した画像（または手動入力）ごとにグループ表示
                                     for info_key, lanes in lane_latest_map.items():
                                         lane_label = ", ".join([f"{l}L" for l in lanes])
                                         
@@ -3750,8 +3761,10 @@ if app_mode == "プレイヤー分析":
     st.stop()
 
 
-# ⚠️ AIモデル設定：混雑回避のため、2.5Proと1.5Pro(最新版)を交互にアタックする設定
-fallback_models = ["gemini-2.5-pro", "gemini-1.5-pro-latest"]
+# ⚠️ Vertex AI専用モデル設定：専用回線のため混雑がなくなり、最高精度のモデルを安定して使えます
+fallback_models = ["gemini-2.5-pro", "gemini-1.5-pro-002"]
+
+# =========================================================
 
 # =========================================================
 # 【新機能】データ比較
@@ -4363,12 +4376,8 @@ if not st.session_state.raw_images_data:
         st.info("　")
     st.stop()
 
-gemini_api_key = st.secrets.get("gemini_api_key", "")
-if not gemini_api_key:
-    st.error("StreamlitのSecretsに 'gemini_api_key' が設定されていません。")
-    st.stop()
-
-client = genai.Client(api_key=gemini_api_key)
+# Vertex AI専用のクライアント初期化
+client = genai.Client(vertexai=True, project="Bowling-Vertex-AI", location="asia-northeast1")
 status_text = st.empty()
 
 # =========================================================
@@ -6139,7 +6148,7 @@ if st.session_state.analyzed_results:
                 creds_move = service_account.Credentials.from_service_account_info(creds_info, scopes=scopes)
                 drive_service_move = build('drive', 'v3', credentials=creds_move)
                 
-                SOURCE_FOLDER_ID = "1PjzUPZNZYl2vKBnJjG0YVSh3NRyxlbEX"
+                SOURCE_FOLDER_ID = "1xFpe9e86Q8bQ7dOBaYD0gqCIvO_zChv-"
                 PROCESSED_FOLDER_NAME = "取込済み画像"
 
                 query = f"'{SOURCE_FOLDER_ID}' in parents and name = '{PROCESSED_FOLDER_NAME}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
@@ -6258,7 +6267,7 @@ if st.session_state.analyzed_results:
                 sheet_id = sheets[0]['id']
                 sh = gc.open_by_key(sheet_id)
 
-                BACKUP_FOLDER_ID = "1ONqsfeWmt6mT248fD7OuMhUdiqdQuoLa"
+                BACKUP_FOLDER_ID = "1NDs0_On4D7jJiGTvhoqfp4bIg44tt7x0"
 
                 if BACKUP_FOLDER_ID != "ここにバックアップフォルダのIDを入力":
                     try:
