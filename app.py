@@ -23,9 +23,14 @@ if "google_credentials" in st.secrets:
     creds_str = st.secrets["google_credentials"]
     # テンポラリファイルに書き出して環境変数にセットする（クラウド環境用安全対策）
     key_path = "/tmp/vertex_key.json"
-    if not os.path.exists(key_path):
-        with open(key_path, "w", encoding="utf-8") as f:
-            f.write(creds_str)
+    
+    # ▼ 修正：秘密鍵の改行コード(\n)を正しく変換してからJSONファイルとして保存し直す（強制上書き）
+    creds_info = json.loads(creds_str, strict=False)
+    if "private_key" in creds_info:
+        creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
+    with open(key_path, "w", encoding="utf-8") as f:
+        json.dump(creds_info, f)
+        
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = key_path
 
 # ▼ AI送信用の画像圧縮関数
