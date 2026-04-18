@@ -17,10 +17,25 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-# ▼ AI送信用の画像圧縮関数（503エラー対策）
+# ▼ AI送信用の画像圧縮・回転正規化関数（横向きスキャン対策）
 def compress_image_for_ai(pil_img, max_size=1024):
-    """画像の長辺を指定サイズに縮小し、RGB形式に変換して軽量化する"""
+    """画像の向きを正規化し、長辺を指定サイズに縮小・軽量化する"""
+    from PIL import ImageOps
     img = pil_img.copy()
+    
+    # 1. EXIF情報に基づいて画像の向きを物理的に補正（スマホ撮影の向き対策）
+    try:
+        img = ImageOps.exif_transpose(img)
+    except:
+        pass
+
+    # 2. スコアシートが「縦向き」にスキャンされている場合、横向きに回転させる
+    # ボウリングのスコアシートは基本的に横長のため、縦長なら90度回すことでOCR精度を上げる
+    w, h = img.size
+    if h > w:
+        img = img.rotate(90, expand=True)
+
+    # 3. 圧縮処理
     img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
     if img.mode in ('RGBA', 'P'):
         img = img.convert('RGB')
