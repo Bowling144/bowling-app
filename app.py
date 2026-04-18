@@ -4570,16 +4570,45 @@ if st.session_state.analyzed_results is None:
             st.warning(f"{file_name} の画像変換に失敗しました。スキップします。")
             continue
 
-        # ▼ 画像内の「線」の向きを解析し、縦線が多い場合（横向きスキャン）のみ90度回転して正規化する
+        # ▼ 画像の向きを完全自動判別（0, 90, 180, 270度）して補正するロジック
+        h_orig, w_orig = img.shape[:2]
+        line_length = int(min(h_orig, w_orig) * 0.2)
+        
         gray_rot = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         thresh_rot = cv2.adaptiveThreshold(gray_rot, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 5)
-        h_k = cv2.getStructuringElement(cv2.MORPH_RECT, (100, 1))
-        v_k = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 100))
-        h_sum = cv2.countNonZero(cv2.morphologyEx(thresh_rot, cv2.MORPH_OPEN, h_k))
-        v_sum = cv2.countNonZero(cv2.morphologyEx(thresh_rot, cv2.MORPH_OPEN, v_k))
         
+        h_k = cv2.getStructuringElement(cv2.MORPH_RECT, (line_length, 1))
+        v_k = cv2.getStructuringElement(cv2.MORPH_RECT, (1, line_length))
+        
+        h_lines = cv2.morphologyEx(thresh_rot, cv2.MORPH_OPEN, h_k)
+        v_lines = cv2.morphologyEx(thresh_rot, cv2.MORPH_OPEN, v_k)
+        
+        h_sum = cv2.countNonZero(h_lines)
+        v_sum = cv2.countNonZero(v_lines)
+        
+        # 1. 縦線が多い場合（90度 or 270度のスキャン）は、時計回りに90度回転して「横長」にする
         if v_sum > h_sum * 1.2:
             img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+            # 回転後、画像サイズと横線の位置を再計算
+            h_orig, w_orig = img.shape[:2]
+            gray_rot = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            thresh_rot = cv2.adaptiveThreshold(gray_rot, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 5)
+            h_k = cv2.getStructuringElement(cv2.MORPH_RECT, (int(min(h_orig, w_orig) * 0.2), 1))
+            h_lines = cv2.morphologyEx(thresh_rot, cv2.MORPH_OPEN, h_k)
+
+        # 2. 上下逆さま（180度）の判定
+        pts = cv2.findNonZero(h_lines)
+        if pts is not None:
+            y_coords = pts[:, 0, 1]
+            min_y = int(np.min(y_coords))
+            max_y = int(np.max(y_coords))
+            
+            top_margin = min_y
+            bottom_margin = h_orig - max_y
+            
+            # 枠線より「下の余白」が「上の余白」よりも明らかに広い場合は、上下逆さまと判定して180度回転
+            if bottom_margin > top_margin * 1.5:
+                img = cv2.rotate(img, cv2.ROTATE_180)
 
         all_games_export_data = []
         blue_lines = []
