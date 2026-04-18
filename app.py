@@ -347,29 +347,6 @@ def sync_calendar_to_sps(sh, file_id):
     import time
     import random
     import re
-    from google.genai import types
-    from google import genai
-    from google.oauth2 import service_account
-    from googleapiclient.discovery import build
-    
-    # 同期開始時に本日のイベントキャッシュを破棄
-    get_today_event_from_sps.clear()
-    
-    try:
-        creds_json_str = st.secrets["google_credentials"]
-        creds_info = json.loads(creds_json_str, strict=False)
-        if "private_key" in creds_info:
-            creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
-        
-        drive_creds = service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/drive'])
-        drive_service = build('drive', 'v3', credentials=drive_creds)
-        
-def sync_calendar_to_sps(sh, file_id):
-    """Google Driveの指定されたPDFを読み込み、1ヶ月分のイベントをSPSに保存する"""
-    import json
-    import time
-    import random
-    import re
     import io
     from google.genai import types
     from google import genai
