@@ -940,9 +940,30 @@ if st.session_state.get("kiosk_mode"):
         .kiosk-exit-btn {
             position: fixed; bottom: 20px; right: 20px; z-index: 9999; 
             opacity: 0.6; /* スマホで見えるように透明度を上げる */
-            background: rgba(0,0,0,0.5); border-radius: 50%; padding: 5px;
         }
         .kiosk-exit-btn:hover { opacity: 1.0; }
+        
+        /* ✖ボタンのサイズを小さくし、枠をグレーに設定 */
+        .kiosk-exit-btn div[data-testid="stPopover"] > button {
+            background: rgba(0,0,0,0.5) !important;
+            border: 1px solid gray !important;
+            border-radius: 50% !important; 
+            width: 32px !important;
+            height: 32px !important;
+            min-height: 32px !important;
+            padding: 0 !important;
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+        }
+        .kiosk-exit-btn div[data-testid="stPopover"] > button p,
+        .kiosk-exit-btn div[data-testid="stPopover"] > button span {
+            font-size: 11px !important;
+            line-height: 1 !important;
+            margin: 0 !important;
+            color: silver !important;
+        }
+
         .kiosk-header {
             font-family: 'Arial Black', Impact, sans-serif;
             color: #d4af37 !important;
