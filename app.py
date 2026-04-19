@@ -292,6 +292,11 @@ st.markdown("""
     [data-testid="stSidebar"] { display: none !important; }
     [data-testid="collapsedControl"] { display: none !important; }
     header[data-testid="stHeader"] { display: none !important; }
+    
+    /* ファイルアップローダーの「limit 200MB」の文字を完全に隠す */
+    div[data-testid="stFileUploader"] small {
+        display: none !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
