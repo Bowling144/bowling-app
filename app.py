@@ -972,14 +972,8 @@ if st.session_state.get("kiosk_mode"):
         }
         </style>
     """, unsafe_allow_html=True)
-    
-    # 開発者向けの隠し終了ボタン（右下）
-    st.markdown("<div class='kiosk-exit-btn'>", unsafe_allow_html=True)
-    with st.popover("✖"):
-        st.markdown("<div style='color: silver; font-weight: bold; margin-bottom: 10px;'>キオスクモード終了</div>", unsafe_allow_html=True)
-        exit_pw = st.text_input("管理者/開発者パスワードを入力", type="password", key="kiosk_exit_pw")
-        if st.button("終了して戻る", use_container_width=True, key="kiosk_exit_btn"):
-            sh = get_gspread_client()
+
+    if st.session_state.get("kiosk_step") == "auth":            sh = get_gspread_client()
             if sh:
                 ws = sh.worksheet("プレイヤー設定")
                 # ログイン時に保存している行番号から、現在ログイン中の大元ユーザーのパスワードを取得
@@ -1107,25 +1101,28 @@ if st.session_state.get("kiosk_mode"):
 
             .split-info-text { font-size: 18px; color: #aaa; line-height: 1.4; margin-top: 15px; padding: 10px; border-top: 1px solid #444; }
 
-            /* ✖ボタンのカスタマイズ（ランキング下へ配置するためのラッパー指定） */
-            .exit-btn-wrapper {
-                margin-top: 15px;
-                padding-left: 10px;
-            }
-            .exit-btn-wrapper div[data-testid="stButton"] button {
-                background: rgba(0,0,0,0.3) !important;
+            /* ✖ボタン（パスワード解除用）の小型化・グレー枠 */
+            .exit-btn-wrapper { margin-top: 15px; }
+            .exit-btn-wrapper div[data-testid="stPopover"] > button {
+                background: rgba(0,0,0,0.5) !important;
                 border: 1px solid gray !important;
                 border-radius: 50% !important; 
                 width: 32px !important;
                 height: 32px !important;
                 min-height: 32px !important;
                 padding: 0 !important;
+                display: flex !important;
+                justify-content: center !important;
+                align-items: center !important;
+                margin-top: 0 !important;
             }
-            .exit-btn-wrapper div[data-testid="stButton"] button p {
+            .exit-btn-wrapper div[data-testid="stPopover"] > button p,
+            .exit-btn-wrapper div[data-testid="stPopover"] > button span,
+            .exit-btn-wrapper div[data-testid="stPopover"] > button div {
                 font-size: 11px !important;
-                color: gray !important;
                 line-height: 1 !important;
                 margin: 0 !important;
+                color: silver !important;
             }
             </style>
             """, unsafe_allow_html=True)
@@ -1154,7 +1151,8 @@ if st.session_state.get("kiosk_mode"):
                 # ▼ ✖ボタンをここに移動
                 st.markdown("<div class='exit-btn-wrapper'>", unsafe_allow_html=True)
                 if st.button("✖", key="kiosk_exit_btn"):
-                    pass # ※ここに元のキオスク終了処理（st.session_stateの変更やst.rerun()など）を入れてください
+                    st.session_state.app_mode = "main"
+                    st.rerun()
                 st.markdown("</div>", unsafe_allow_html=True)
 
             with d_col2:
