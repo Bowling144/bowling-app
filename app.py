@@ -1137,24 +1137,36 @@ if st.session_state.get("kiosk_mode"):
                 html = "<div class='kiosk-dashboard'><div class='kiosk-title'>🏆 TOP 5</div>"
                 if top5_scores:
                     for i, s in enumerate(top5_scores):
+                        # ④ 名前の前の番号（ID_）を削除
                         display_name = s['player'].split('_')[-1] if '_' in s['player'] else s['player']
                         glow_class = f"glow-{i+1}"
+                        # ③ 1位〜5位を表示
                         html += f"<div class='score-row'><span class='score-rank {glow_class}'>#{i+1}</span><span class='score-name {glow_class}'>{display_name}</span><span class='score-val {glow_class}'>{s['score']}</span></div>"
                 else:
                     html += "<div style='text-align:center; color:silver; padding: 50px; font-size: 30px;'>No Data</div>"
                 html += "</div>"
                 st.markdown(html, unsafe_allow_html=True)
-                
-                # ⑤ スプリット説明をランキング枠の下に配置
-                st.markdown("<div class='split-info-text'>【対象スプリット】<br>リリー(5-7-10), クリスマスツリー(2/3-7-10), スネークアイ(7-10), マイティマイト(4/6-7-10), ビッグフォー(4-6-7-10), グリークチャーチ(4-6-7-8-10), ワシントン(4-6-7-9-10)</div>", unsafe_allow_html=True)
 
-                # ▼ ✖ボタンをここに移動
+                # ▼ ✖ボタンをランキング枠の下に配置（パスワード解除機能付きのポップオーバー）
                 st.markdown("<div class='exit-btn-wrapper'>", unsafe_allow_html=True)
-                if st.button("✖", key="kiosk_exit_btn"):
-                    st.session_state.app_mode = "main"
-                    st.rerun()
+                with st.popover("✖"):
+                    st.markdown("<div style='color: silver; font-weight: bold; margin-bottom: 10px;'>キオスクモード終了</div>", unsafe_allow_html=True)
+                    exit_pw = st.text_input("管理者/開発者パスワードを入力", type="password", key="kiosk_exit_pw")
+                    if st.button("終了して戻る", use_container_width=True, key="kiosk_exit_btn"):
+                        sh = get_gspread_client()
+                        if sh:
+                            ws = sh.worksheet("プレイヤー設定")
+                            # ログイン時に保存している行番号から、現在ログイン中の大元ユーザーのパスワードを取得
+                            row_data = ws.row_values(st.session_state.user_row_index)
+                            if len(row_data) >= 5 and row_data[4] == exit_pw:
+                                st.session_state.kiosk_mode = False
+                                st.rerun()
+                            else:
+                                st.error("パスワードが正しくありません。")
+                        else:
+                            st.error("データベースに接続できません。")
                 st.markdown("</div>", unsafe_allow_html=True)
-
+                
             with d_col2:
                 html = "<div class='kiosk-dashboard'><div class='kiosk-title'>🔥 SPLITS</div>"
                 if today_splits:
