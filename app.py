@@ -660,23 +660,29 @@ if st.session_state.logged_in and not st.session_state.get("kiosk_mode"):
                     return
                 with st.spinner("フォルダ内のPDFを取得中..."):
                     try:
+                        # try: より半角スペース4つ分、確実に右にずらしています
                         import json
                         from google.oauth2 import service_account
                         from googleapiclient.discovery import build
+                        
                         creds_json_str = st.secrets["google_credentials"]
                         creds_info = json.loads(creds_json_str, strict=False)
                         if "private_key" in creds_info:
                             creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
+                            
                         drive_creds = service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/drive'])
                         drive_service = build('drive', 'v3', credentials=drive_creds)
+                        
                         f_query = "name = 'イベントスケジュール' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
                         folders = drive_service.files().list(q=f_query, fields="files(id, name)").execute().get('files', [])
+                        
                         pdf_dict = {}
                         if folders:
                             folder_id = folders[0]['id']
                             p_query = f"'{folder_id}' in parents and mimeType = 'application/pdf' and trashed = false"
                             pdf_files = drive_service.files().list(q=p_query, orderBy="createdTime desc", fields="files(id, name)").execute().get('files', [])
                             pdf_dict = {f['name']: f['id'] for f in pdf_files}
+                            
                     except Exception as e:
                         st.error(f"ファイル一覧の取得に失敗しました: {e}")
                         return
