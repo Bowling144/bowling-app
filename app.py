@@ -1061,8 +1061,14 @@ if st.session_state.get("kiosk_mode"):
                 margin-bottom: 10px !important;
             }
             
-            /* 入力ボックスの中の文字サイズ統一 */
+            /* セレクトボックス下の余白を追加し、次の要素との被りを防止 */
+            div[data-testid="stSelectbox"] {
+                margin-bottom: 40px !important;
+            }
+            
+            /* 入力ボックスの中の文字サイズ統一と、セレクトボックス枠の高さ2倍化（80px） */
             div[data-baseweb="select"] { font-size: 35px !important; }
+            div[data-baseweb="select"] > div { height: 80px !important; min-height: 80px !important; }
             div[data-testid="stTextInput"] input { font-size: 35px !important; height: 60px !important; }
 
             /* 「認証して進む」ボタンの統一 */
