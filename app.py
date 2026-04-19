@@ -1329,9 +1329,19 @@ if app_mode == "プレイヤー分析":
                 
             sh = gc.open_by_key(sheets[0]['id'])
 
-            # 🌟【変更】プレイヤーリスト取得と公開・友達設定によるフィルタリング
+            # 🌟【変更】プレイヤーリスト取得と公開・友達設定によるフィルタリング（相互フォロー限定）
             settings_data = sh.worksheet("プレイヤー設定").get_all_values()
             
+            # --- 1. まず自分の友達リストを完全に取得しておく ---
+            my_email = st.session_state.get("user_email", "")
+            my_role = st.session_state.get("user_role", "")
+            my_friends_list = []
+            for row in settings_data[1:]:
+                if len(row) >= 6 and row[0] == my_email:
+                    my_friends_list = [f.strip() for f in row[5].split(",")] if row[5] else []
+                    break
+            
+            # --- 2. プレイヤーリストの構築 ---
             players = []
             for row in settings_data[1:]:
                 if len(row) >= 4 and row[1]:
@@ -1342,15 +1352,16 @@ if app_mode == "プレイヤー分析":
                     p_friends_list = [f.strip() for f in p_friends.split(",")] if p_friends else []
                     
                     # 管理者・開発者は全員表示。ユーザは条件付き。
-                    if st.session_state.user_role in ["開発者", "管理者"]:
+                    if my_role in ["開発者", "管理者"]:
                         players.append(p_name)
                     else:
-                        if p_name == st.session_state.user_name: # 自分自身
+                        if p_email == my_email: # 自分自身
                             players.append(p_name)
                         elif p_public == "公開": # 全体公開
                             players.append(p_name)
-                        elif p_public == "友達限定公開": # 相手のF列（友達リスト）に自分がいるか判定
-                            if st.session_state.user_email in p_friends_list:
+                        elif p_public == "友達限定公開": 
+                            # ★お互いに友達登録している場合のみ表示
+                            if (my_email in p_friends_list) and (p_email in my_friends_list):
                                 players.append(p_name)
 
             # 先にマスターデータを取得し、全員の現在のレーティングを計算する
