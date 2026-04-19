@@ -713,21 +713,26 @@ if st.session_state.logged_in and not st.session_state.get("kiosk_mode"):
                 
     # ▼ 全員共通の設定展開（アカウント・友達設定等）
     with st.expander("⚙️ アカウント・友達設定"):
-        new_pw = st.text_input("新しいパスワード", type="password")
+        # UI側で最大文字数を6文字に制限し、プレースホルダーで案内
+        new_pw = st.text_input("新しいパスワード (数字6桁)", type="password", max_chars=6)
         
         pub_options = ["公開", "友達限定公開", "非公開"]
         current_pub = st.session_state.user_public if st.session_state.user_public in pub_options else "公開"
         new_pub = st.radio("データ公開設定", pub_options, index=pub_options.index(current_pub))
         
         if st.button("設定を更新"):
-            sh = get_gspread_client()
-            if sh:
-                ws = sh.worksheet("プレイヤー設定")
-                if new_pw:
-                    ws.update_cell(st.session_state.user_row_index, 5, new_pw)
-                ws.update_cell(st.session_state.user_row_index, 3, new_pub)
-                st.session_state.user_public = new_pub
-                st.success("設定を更新しました！")
+            # 入力がある場合、それが「数字のみ(isdigit)」かつ「6文字」であるかを厳密にチェック
+            if new_pw and (not new_pw.isdigit() or len(new_pw) != 6):
+                st.error("エラー: パスワードは「数字6桁」で入力してください。")
+            else:
+                sh = get_gspread_client()
+                if sh:
+                    ws = sh.worksheet("プレイヤー設定")
+                    if new_pw:
+                        ws.update_cell(st.session_state.user_row_index, 5, new_pw)
+                    ws.update_cell(st.session_state.user_row_index, 3, new_pub)
+                    st.session_state.user_public = new_pub
+                    st.success("設定を更新しました！")
         
         st.markdown("---")
         st.markdown("**友達追加**")
