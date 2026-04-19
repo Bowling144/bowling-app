@@ -909,7 +909,7 @@ if st.session_state.get("kiosk_mode"):
             if sh:
                 ws = sh.worksheet("プレイヤー設定")
                 data = ws.get_all_values()
-                players = [row[1] for row in data[1:] if len(row) >= 5 and row[1]]
+                players = [row[1] for row in data[1:] if len(row) >= 5 and row[1] and str(row[3]).strip() not in ["開発者", "管理者"]]
                 
                 selected_user = st.selectbox("プレイヤーを選択してください", ["選択してください"] + players)
                 kiosk_pw = render_tenkey("パスワードを入力してください（右のテンキーで入力）", "tk_kiosk_pass", "", format_type="none", is_pw=True)
