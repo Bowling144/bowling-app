@@ -1141,16 +1141,16 @@ if app_mode == "オイル情報入力":
                                 current_id = items[0]['id']
                                 if current_id != st.session_state.last_oil_file_id:
                                     fh = io.BytesIO()
-                                downloader = MediaIoBaseDownload(fh, drive_service.files().get_media(fileId=current_id))
-                                done = False
-                                while not done: _, done = downloader.next_chunk()
-                                # ▼ 自動取得した画像も安全のために自動圧縮・補正を通す
-                                raw_img = Image.open(fh)
-                                img_pil = compress_image_for_ai(raw_img, max_size=1500)
-                                width, height = img_pil.size
-                                cropped_img = img_pil.crop((0, 0, width, int(height * 0.2)))
-                                # Vertex AI専用のクライアント初期化
-                                ai_client = genai.Client(vertexai=True, project="bowling-vertex-ai", location="asia-northeast1")
+                                    downloader = MediaIoBaseDownload(fh, drive_service.files().get_media(fileId=current_id))
+                                    done = False
+                                    while not done: _, done = downloader.next_chunk()
+                                    # ▼ 自動取得した画像も安全のために自動圧縮・補正を通す
+                                    raw_img = Image.open(fh)
+                                    img_pil = compress_image_for_ai(raw_img, max_size=1500)
+                                    width, height = img_pil.size
+                                    cropped_img = img_pil.crop((0, 0, width, int(height * 0.2)))
+                                    # Vertex AI専用のクライアント初期化
+                                    ai_client = genai.Client(vertexai=True, project="bowling-vertex-ai", location="asia-northeast1")
                                     prompt = '画像から「Volume Oil Total (mL)」と「Oil Pattern Distance (Feet)」の数値を読み取ってください。JSON形式 {"distance": 42, "volume": 22.1} で出力してください。'
                                     # ▼ 混雑エラー対策：2.5Pro単独で最大3回リトライ
                                     success_scan = False
