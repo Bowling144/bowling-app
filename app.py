@@ -782,7 +782,7 @@ if st.session_state.logged_in and not st.session_state.get("kiosk_mode"):
                     
     # ▼ 修正：注意事項は設定パネルの下（実際の分析データが始まる直前）に配置する
     if st.session_state.user_role not in ["開発者", "管理者"]:
-        st.info("パスワード変更、データの公開/非公開、友達追加は↑こちら↑")
+        st.info("ＰＷ変更、公開/非公開、友達追加は↑こちら↑")
 
     st.markdown("---")
 else:
