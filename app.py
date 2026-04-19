@@ -974,7 +974,6 @@ if st.session_state.get("kiosk_mode"):
     st.markdown("</div>", unsafe_allow_html=True)
 
     if st.session_state.get("kiosk_step") == "auth":
-        st.markdown("<div class='kiosk-header'>CHECK-IN</div>", unsafe_allow_html=True)
         
         sh = get_gspread_client()
         if sh:
@@ -984,7 +983,7 @@ if st.session_state.get("kiosk_mode"):
             st.markdown("""
             <style>
             .kiosk-dashboard { background: linear-gradient(145deg, #1c1c1e, #2a2a2e); border: 2px solid #bf953f; border-radius: 15px; padding: 20px; margin-bottom: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); height: 100%; }
-            .kiosk-title { color: #fcf6ba; text-align: center; font-size: 18px; font-weight: 900; margin-bottom: 15px; letter-spacing: 1px; border-bottom: 1px solid #bf953f; padding-bottom: 10px; }
+            .kiosk-title { color: #fcf6ba; text-align: center; font-size: 26px; font-weight: 900; margin-bottom: 15px; letter-spacing: 2px; border-bottom: 2px solid #bf953f; padding-bottom: 10px; text-shadow: 0 0 10px rgba(191, 149, 63, 0.8); }
             .score-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 8px 0; }
             .score-rank { font-size: 18px; font-weight: bold; width: 45px; }
             .score-name { font-size: 16px; color: white; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 10px; }
@@ -1018,6 +1017,8 @@ if st.session_state.get("kiosk_mode"):
                 html += "</div>"
                 st.markdown(html, unsafe_allow_html=True)
             # ▲ 新機能ここまで ▲
+
+        st.markdown("<div class='kiosk-header'>CHECK-IN</div>", unsafe_allow_html=True)
 
         col_c1, col_c2, col_c3 = st.columns([1, 2, 1])
         with col_c2:
