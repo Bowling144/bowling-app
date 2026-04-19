@@ -1054,12 +1054,71 @@ if app_mode == "オイル情報入力":
                 <div style='color: silver; font-size: 14px;'>（新しく追加された画像を自動検知して解析を開始します）</div>
             </div>
             """, unsafe_allow_html=True)
+            
+            # ▼ 新規追加：手動アップロード用のUI
+            uploaded_oil_file = st.file_uploader("📁 または、ファイルを選択して直接解析する", type=["jpg", "jpeg", "png"])
+
             if st.button("スキャンを中止する"):
                 st.session_state.waiting_for_oil_scan = False
                 st.rerun()
 
-            with st.spinner("画像の追加を監視中..."):
-                try:
+            # ▼ 手動でファイルが選択された場合、即座にこちらをAI解析する
+            if uploaded_oil_file is not None:
+                with st.spinner("アップロードされた画像を解析中..."):
+                    try:
+                        img_pil = Image.open(uploaded_oil_file)
+                        width, height = img_pil.size
+                        cropped_img = img_pil.crop((0, 0, width, int(height * 0.2)))
+                        ai_client = genai.Client(vertexai=True, project="bowling-vertex-ai", location="asia-northeast1")
+                        prompt = '画像から「Volume Oil Total (mL)」と「Oil Pattern Distance (Feet)」の数値を読み取ってください。JSON形式 {"distance": 42, "volume": 22.1} で出力してください。'
+                        
+                        success_scan = False
+                        max_retries = 3
+                        for attempt_model in fallback_models:
+                            for attempt in range(max_retries):
+                                try:
+                                    oil_bytes_io = io.BytesIO()
+                                    cropped_img.save(oil_bytes_io, format='JPEG')
+                                    oil_bytes = oil_bytes_io.getvalue()
+                                    response = ai_client.models.generate_content(
+                                        model=attempt_model,
+                                        contents=[types.Part.from_bytes(data=oil_bytes, mime_type="image/jpeg"), prompt],
+                                        config=types.GenerateContentConfig(temperature=0.0, response_mime_type="application/json")
+                                    )
+                                    success_scan = True
+                                    break
+                                except Exception as api_e:
+                                    err_msg = str(api_e).lower()
+                                    if any(x in err_msg for x in ["503", "429", "high demand", "unavailable"]):
+                                        if attempt < max_retries - 1:
+                                            time.sleep(2)
+                                            continue
+                                    raise api_e
+                            if success_scan: break
+                            
+                        raw_text = response.text.strip()
+                        if raw_text.startswith("```"):
+                            lines = raw_text.split('\n')
+                            raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
+                        result_json = json.loads(raw_text)
+                        
+                        st.session_state.oil_scan_data = {
+                            "file_id": "manual_upload", 
+                            "file_name": uploaded_oil_file.name, 
+                            "distance": result_json.get("distance", ""),
+                            "volume": result_json.get("volume", ""), 
+                            "image": cropped_img
+                        }
+                        st.session_state.waiting_for_oil_scan = False
+                        st.session_state.last_oil_file_id = None
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"解析エラー: {e}")
+                        
+            # ▼ 手動アップロードがない場合は従来通りの自動監視ループへ進む
+            else:
+                with st.spinner("画像の追加を監視中..."):
+                    try:
                     creds_json_str = st.secrets["google_credentials"]
                     creds_info = json.loads(creds_json_str, strict=False)
                     if "private_key" in creds_info: creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
