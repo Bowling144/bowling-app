@@ -286,29 +286,14 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# ▼ 権限に応じたサイドバー開閉ボタン（ヘッダー全体）の制御
-role = str(st.session_state.get("user_role")).strip()
-
-if role in ["開発者", "管理者"]:
-    # 管理者・開発者: ヘッダーのレイアウトをStreamlitの標準(flex)に強制リセットして確実に表示させる
-    st.markdown("""
-        <style>
-        header[data-testid="stHeader"] {
-            display: flex !important;
-            visibility: visible !important;
-            background-color: transparent !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-else:
-    # 一般ユーザー（未ログイン含む）: ヘッダーごと完全に消去してサイドバーへのアクセスを遮断する
-    st.markdown("""
-        <style>
-        header[data-testid="stHeader"] {
-            display: none !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
+# ▼ サイドバー（<<）とヘッダーを完全に消去し、メイン画面での操作に一本化する
+st.markdown("""
+    <style>
+    [data-testid="stSidebar"] { display: none !important; }
+    [data-testid="collapsedControl"] { display: none !important; }
+    header[data-testid="stHeader"] { display: none !important; }
+    </style>
+""", unsafe_allow_html=True)
 
 st.markdown("""
 <div style='text-align: center; font-size: 36px; white-space: nowrap; margin-bottom: 16px; font-weight: bold; font-family: "Arial Black", Impact, sans-serif;'>
@@ -619,15 +604,118 @@ if not st.session_state.logged_in:
                 st.error("データベースに接続できません。")
     st.stop() # ログイン完了まで下の処理を行わない
 
-# --- サイドバー：設定エリア ---
-with st.sidebar:
-    st.markdown(f"<div style='color: #bf953f; font-weight: bold; font-size: 18px; margin-bottom: 5px;'>{st.session_state.user_name} さん</div>", unsafe_allow_html=True)
-    st.caption(f"権限: {st.session_state.user_role}")
+# --- メインメニューエリア（サイドバー完全廃止） ---
+if st.session_state.logged_in and not st.session_state.get("kiosk_mode"):
+    st.markdown(f"<div style='color: #bf953f; font-weight: bold; font-size: 18px; margin-bottom: 5px;'>👤 {st.session_state.user_name} さん ({st.session_state.user_role})</div>", unsafe_allow_html=True)
     
-    with st.expander("アカウント・友達設定"):
+    # ▼ 「開発者」「管理者」用メニュー展開
+    if st.session_state.user_role in ["開発者", "管理者"]:
+        col_m1, col_m2, col_m3 = st.columns(3)
+        with col_m1:
+            if "current_app_mode" not in st.session_state:
+                st.session_state.current_app_mode = "スコア登録"
+            options = ["スコア登録", "オイル情報入力", "プレイヤー分析", "データ比較"]
+            try:
+                default_idx = options.index(st.session_state.current_app_mode)
+            except ValueError:
+                default_idx = 0
+            app_mode = st.selectbox(
+                "📂 モード選択", 
+                options, 
+                index=default_idx, 
+                key="main_app_mode_select",
+                on_change=lambda: st.session_state.update({"current_app_mode": st.session_state.main_app_mode_select})
+            )
+        with col_m2:
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("🖥️ ユーザセルフ登録を起動", type="primary", use_container_width=True):
+                st.session_state.kiosk_mode = True
+                st.session_state.kiosk_step = "auth"
+                st.rerun()
+        with col_m3:
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("🚪 ログアウト", use_container_width=True):
+                st.session_state.clear()
+                st.rerun()
+
+        with st.expander("🛠 管理ツール"):
+            st.markdown("**お知らせ情報編集**")
+            sh_admin = get_gspread_client()
+            ann_current = get_announcement_data(sh_admin) if sh_admin else ""
+            new_ann = st.text_area("編集", value=ann_current, height=100)
+            if st.button("お知らせを保存"):
+                if sh_admin and update_announcement_data(sh_admin, new_ann): 
+                    st.cache_data.clear()
+                    st.session_state.current_app_mode = st.session_state.get("main_app_mode_select", "スコア登録")
+                    st.success("保存完了")
+                    time.sleep(1)
+                    st.rerun()
+
+            st.markdown("---")
+            @st.dialog("📅 カレンダーPDF解析")
+            def open_calendar_sync_dialog():
+                sh_admin = get_gspread_client()
+                if not sh_admin:
+                    st.error("データベースに接続できません。")
+                    return
+                with st.spinner("フォルダ内のPDFを取得中..."):
+                    try:
+                        import json
+                        from google.oauth2 import service_account
+                        from googleapiclient.discovery import build
+                        creds_json_str = st.secrets["google_credentials"]
+                        creds_info = json.loads(creds_json_str, strict=False)
+                        if "private_key" in creds_info:
+                            creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
+                        drive_creds = service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/drive'])
+                        drive_service = build('drive', 'v3', credentials=drive_creds)
+                        f_query = "name = 'イベントスケジュール' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+                        folders = drive_service.files().list(q=f_query, fields="files(id, name)").execute().get('files', [])
+                        pdf_dict = {}
+                        if folders:
+                            folder_id = folders[0]['id']
+                            p_query = f"'{folder_id}' in parents and mimeType = 'application/pdf' and trashed = false"
+                            pdf_files = drive_service.files().list(q=p_query, orderBy="createdTime desc", fields="files(id, name)").execute().get('files', [])
+                            pdf_dict = {f['name']: f['id'] for f in pdf_files}
+                    except Exception as e:
+                        st.error(f"ファイル一覧の取得に失敗しました: {e}")
+                        return
+                if not pdf_dict:
+                    st.warning("「イベントスケジュール」フォルダ内にPDFが見つかりませんでした。")
+                    return
+                st.markdown("解析するファイルを選択してください。")
+                selected_name = st.selectbox("対象ファイル", list(pdf_dict.keys()), label_visibility="collapsed")
+                selected_id = pdf_dict[selected_name]
+                st.markdown("<br>", unsafe_allow_html=True)
+                if st.button("🚀 AI解析を実行して保存", type="primary", use_container_width=True):
+                    with st.spinner(f"{selected_name} を解析中..."):
+                        res = sync_calendar_to_sps(sh_admin, selected_id) 
+                        if "完了" in res:
+                            st.cache_data.clear()
+                            st.session_state.current_app_mode = st.session_state.get("main_app_mode_select", "スコア登録")
+                            st.success(res)
+                            time.sleep(2)
+                            st.rerun()
+                        else:
+                            st.error(res)
+            if st.button("イベントスケジュールの同期", use_container_width=True):
+                open_calendar_sync_dialog()
+                
+    # ▼ 「一般ユーザー」用メニュー展開（分析固定＋ログアウトボタン）
+    else:
+        app_mode = "プレイヤー分析"
+        col_u1, col_u2 = st.columns([2, 1])
+        with col_u1:
+            st.info("※非公開のプレイヤーのデータは表示されません")
+        with col_u2:
+            if st.button("🚪 ログアウト", use_container_width=True):
+                st.session_state.clear()
+                st.rerun()
+                
+    # ▼ 全員共通の設定展開（アカウント・友達設定等）
+    with st.expander("⚙️ アカウント・友達設定"):
         new_pw = st.text_input("新しいパスワード", type="password")
         
-        # 公開設定（3パターン）
         pub_options = ["公開", "友達限定公開", "非公開"]
         current_pub = st.session_state.user_public if st.session_state.user_public in pub_options else "公開"
         new_pub = st.radio("データ公開設定", pub_options, index=pub_options.index(current_pub))
@@ -637,8 +725,8 @@ with st.sidebar:
             if sh:
                 ws = sh.worksheet("プレイヤー設定")
                 if new_pw:
-                    ws.update_cell(st.session_state.user_row_index, 5, new_pw) # E列(5)
-                ws.update_cell(st.session_state.user_row_index, 3, new_pub) # C列(3)
+                    ws.update_cell(st.session_state.user_row_index, 5, new_pw)
+                ws.update_cell(st.session_state.user_row_index, 3, new_pub)
                 st.session_state.user_public = new_pub
                 st.success("設定を更新しました！")
         
@@ -654,7 +742,6 @@ with st.sidebar:
                     ws = sh.worksheet("プレイヤー設定")
                     data = ws.get_all_values()
                     
-                    # 友達のメアドが存在するか確認
                     friend_name = None
                     for row in data:
                         if row[0] == friend_email:
@@ -662,7 +749,6 @@ with st.sidebar:
                             break
                     
                     if friend_name:
-                        # 自分の現在の友達リスト(F列)を取得して追加
                         my_row = data[st.session_state.user_row_index - 1]
                         current_friends = my_row[5] if len(my_row) > 5 else ""
                         friends_list = [f.strip() for f in current_friends.split(",")] if current_friends else []
@@ -670,14 +756,13 @@ with st.sidebar:
                         if friend_email not in friends_list:
                             friends_list.append(friend_email)
                             new_friends_str = ",".join(friends_list)
-                            ws.update_cell(st.session_state.user_row_index, 6, new_friends_str) # F列(6)
+                            ws.update_cell(st.session_state.user_row_index, 6, new_friends_str)
                             st.success(f"{friend_name} さんを友達に追加しました！")
                         else:
                             st.info("すでに友達に追加されています。")
                     else:
                         st.error("入力されたIDのユーザーが見つかりません。")
 
-        # 登録済み友達一覧の表示
         st.markdown("**登録済みの友達一覧**")
         if st.button("一覧を更新・表示"):
             sh = get_gspread_client()
@@ -695,129 +780,10 @@ with st.sidebar:
                         st.markdown(f"- {fn}")
                 else:
                     st.markdown("友達はまだ登録されていません。")
-    
-    # ▼ 「開発者」と「管理者」に権限を付与し、「ユーザ」からは管理ツールを完全に隠す
-    if st.session_state.user_role in ["開発者", "管理者"]:
-        if st.button("🖥️ ユーザセルフ登録を起動", type="primary", use_container_width=True):
-            st.session_state.kiosk_mode = True
-            st.session_state.kiosk_step = "auth"
-            st.rerun()
-
-        st.markdown("---")
-        st.subheader("🛠 管理ツール")
-        
-        # 1. 編集
-        with st.expander("お知らせ情報編集"):
-            sh_admin = get_gspread_client()
-            ann_current = get_announcement_data(sh_admin) if sh_admin else ""
-            new_ann = st.text_area("編集", value=ann_current, height=100)
-            if st.button("を保存"):
-                if sh_admin and update_announcement_data(sh_admin, new_ann): 
-                    # 変更を即座に反映させるためにキャッシュをクリア
-                    st.cache_data.clear()
-                    # 現在のモードを確実に保存
-                    st.session_state.current_app_mode = st.session_state.get("sidebar_app_mode_radio", "スコア登録")
-                    st.success("保存完了")
-                    time.sleep(1)
-                    st.rerun()
-
-        # 2. カレンダーPDF解析（スマート版ダイアログ）
-        @st.dialog("📅 カレンダーPDF解析")
-        def open_calendar_sync_dialog():
-            sh_admin = get_gspread_client()
-            if not sh_admin:
-                st.error("データベースに接続できません。")
-                return
-                
-            with st.spinner("フォルダ内のPDFを取得中..."):
-                try:
-                    import json
-                    from google.oauth2 import service_account
-                    from googleapiclient.discovery import build
-                    
-                    creds_json_str = st.secrets["google_credentials"]
-                    creds_info = json.loads(creds_json_str, strict=False)
-                    if "private_key" in creds_info:
-                        creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
-                    # URLのMarkdown記法を修正
-                    drive_creds = service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/drive'])
-                    drive_service = build('drive', 'v3', credentials=drive_creds)
-                    
-                    # fieldsにnameを追加して明示的に取得
-                    f_query = "name = 'イベントスケジュール' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-                    folders = drive_service.files().list(q=f_query, fields="files(id, name)").execute().get('files', [])
-                    
-                    pdf_dict = {}
-                    if folders:
-                        folder_id = folders[0]['id']
-                        p_query = f"'{folder_id}' in parents and mimeType = 'application/pdf' and trashed = false"
-                        pdf_files = drive_service.files().list(q=p_query, orderBy="createdTime desc", fields="files(id, name)").execute().get('files', [])
-                        pdf_dict = {f['name']: f['id'] for f in pdf_files}
-                except Exception as e:
-                    st.error(f"ファイル一覧の取得に失敗しました: {e}")
-                    return
-
-            if not pdf_dict:
-                st.warning("「イベントスケジュール」フォルダ内にPDFが見つかりませんでした。")
-                return
-                
-            st.markdown("解析するファイルを選択してください。")
-            selected_name = st.selectbox("対象ファイル", list(pdf_dict.keys()), label_visibility="collapsed")
-            selected_id = pdf_dict[selected_name]
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("🚀 AI解析を実行して保存", type="primary", use_container_width=True):
-                with st.spinner(f"{selected_name} を解析中..."):
-                    res = sync_calendar_to_sps(sh_admin, selected_id) 
-                    if "完了" in res:
-                        # 変更を即座に反映させるためにキャッシュをクリア
-                        st.cache_data.clear()
-                        # 現在のモードを確実に保存
-                        st.session_state.current_app_mode = st.session_state.get("sidebar_app_mode_radio", "スコア登録")
-                        st.success(res)
-                        time.sleep(2)
-                        st.rerun()
-                    else:
-                        st.error(res)
-
-        # ダイアログを呼び出すボタン（サイドバーに常駐）
-        if st.button("イベントスケジュールの同期", use_container_width=True):
-            open_calendar_sync_dialog()
-
-        st.markdown("---")
-        
-        # 退避していたモードがあればそれを初期値に、なければ「スコア登録」
-        if "current_app_mode" not in st.session_state:
-            st.session_state.current_app_mode = "スコア登録"
-            
-        options = ["スコア登録", "オイル情報入力", "プレイヤー分析", "データ比較"]
-        try:
-            default_idx = options.index(st.session_state.current_app_mode)
-        except ValueError:
-            default_idx = 0
-        
-        # ユーザーが操作した瞬間に session_state.current_app_mode を更新する
-        app_mode = st.radio(
-            "モード選択", 
-            options, 
-            index=default_idx, 
-            key="sidebar_app_mode_radio",
-            on_change=lambda: st.session_state.update({"current_app_mode": st.session_state.sidebar_app_mode_radio})
-        )
-    else:
-        # 一般ユーザーの場合
-        if "current_app_mode" not in st.session_state:
-            st.session_state.current_app_mode = "プレイヤー分析"
-            
-        options = ["プレイヤー分析"]
-        app_mode = st.radio(
-            "モード選択", 
-            options, 
-            index=0, 
-            key="sidebar_app_mode_radio",
-            on_change=lambda: st.session_state.update({"current_app_mode": st.session_state.sidebar_app_mode_radio})
-        )
-        st.info("※非公開のプレイヤーのデータは表示されません")
+    st.markdown("---")
+else:
+    # 未ログイン時 または キオスクモード時のフォールバック処理
+    app_mode = st.session_state.get("current_app_mode", "プレイヤー分析")
 
 # ＃★★★★テンキー入力用共通関数群★★★★
 def tk_add(k, c): st.session_state[k] += c
