@@ -975,49 +975,90 @@ if st.session_state.get("kiosk_mode"):
 
     if st.session_state.get("kiosk_step") == "auth":
         
-        sh = get_gspread_client()
-        if sh:
-            # ▼ 新機能：本日のTOP5とスプリットメイクのダッシュボード表示 ▼
-            top5_scores, today_splits = get_today_kiosk_data(sh)
-            
-            st.markdown("""
+        # ▼ フルスクリーン固定表示用のCSS設定（UI非表示 + 余白削除）
+        st.markdown("""
             <style>
-            .kiosk-dashboard { background: linear-gradient(145deg, #1c1c1e, #2a2a2e); border: 2px solid #bf953f; border-radius: 15px; padding: 20px; margin-bottom: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); height: 100%; }
-            .kiosk-title { color: #fcf6ba; text-align: center; font-size: 26px; font-weight: 900; margin-bottom: 15px; letter-spacing: 2px; border-bottom: 2px solid #bf953f; padding-bottom: 10px; text-shadow: 0 0 10px rgba(191, 149, 63, 0.8); }
-            .score-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 8px 0; }
-            .score-rank { font-size: 18px; font-weight: bold; width: 45px; }
-            .score-name { font-size: 16px; color: white; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 10px; }
-            .score-val { font-size: 24px; font-weight: 900; color: #ff6600; }
-            .split-row { display: flex; flex-direction: column; background: rgba(255, 102, 0, 0.1); border-left: 4px solid #ff6600; padding: 8px 10px; margin-bottom: 8px; border-radius: 4px; }
-            .split-name { font-size: 14px; color: #ff9999; font-weight: bold; margin-bottom: 2px; }
-            .split-player { font-size: 16px; color: white; font-weight: bold; text-align: right; }
+            /* Streamlit標準のヘッダー、フッター、メニューを非表示 */
+            #MainMenu {visibility: hidden;}
+            header {visibility: hidden;}
+            footer {visibility: hidden;}
+            div[data-testid="stToolbar"] {display: none;}
+            
+            /* 画面全体の余白を削ってフルスクリーン化 */
+            .main .block-container {
+                padding-top: 1rem;
+                padding-bottom: 0rem;
+                padding-left: 2rem;
+                padding-right: 2rem;
+                max-width: 100%;
+            }
+            
+            /* 背景を黒で固定し、スクロールバーを抑止（必要に応じて） */
+            body {
+                background-color: #0e1117;
+                overflow: hidden;
+            }
+
+            /* ダッシュボードの装飾設定（前回分を含む） */
+            .kiosk-dashboard { 
+                background: linear-gradient(145deg, #1c1c1e, #2a2a2e); 
+                border: 2px solid #bf953f; 
+                border-radius: 15px; 
+                padding: 20px; 
+                margin-bottom: 30px; 
+                box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
+                height: 100%; 
+            }
+            .kiosk-title { 
+                color: #fcf6ba; 
+                text-align: center; 
+                font-size: 32px; /* さらに大きく */
+                font-weight: 900; 
+                margin-bottom: 15px; 
+                letter-spacing: 2px; 
+                border-bottom: 2px solid #bf953f; 
+                padding-bottom: 10px; 
+                text-shadow: 0 0 15px rgba(191, 149, 63, 0.9); 
+            }
+            .score-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 10px 0; }
+            .score-rank { font-size: 22px; font-weight: bold; width: 50px; }
+            .score-name { font-size: 20px; color: white; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 10px; }
+            .score-val { font-size: 28px; font-weight: 900; color: #ff6600; }
+            .split-row { display: flex; flex-direction: column; background: rgba(255, 102, 0, 0.1); border-left: 6px solid #ff6600; padding: 10px 15px; margin-bottom: 10px; border-radius: 4px; }
+            .split-name { font-size: 18px; color: #ff9999; font-weight: bold; margin-bottom: 4px; }
+            .split-player { font-size: 20px; color: white; font-weight: bold; text-align: right; }
             </style>
             """, unsafe_allow_html=True)
+
+        sh = get_gspread_client()
+        if sh:
+            # ▼ 本日のTOP5とスプリットメイクのダッシュボード表示 ▼
+            top5_scores, today_splits = get_today_kiosk_data(sh)
             
             d_col1, d_col2 = st.columns([1, 1])
             with d_col1:
-                html = "<div class='kiosk-dashboard'><div class='kiosk-title'>🏆 TODAY'S TOP 5 SCORES</div>"
+                html = "<div class='kiosk-dashboard'><div class='kiosk-title'>🏆 TODAY'S TOP 5</div>"
                 if top5_scores:
                     rank_colors = ["#FFD700", "#C0C0C0", "#CD7F32", "#bf953f", "#bf953f"]
                     for i, s in enumerate(top5_scores):
                         col = rank_colors[i] if i < 3 else "silver"
                         html += f"<div class='score-row'><span class='score-rank' style='color:{col};'>#{i+1}</span><span class='score-name'>{s['player']}</span><span class='score-val'>{s['score']}</span></div>"
                 else:
-                    html += "<div style='text-align:center; color:silver; padding: 30px; font-size: 14px;'>本日のスコア登録は<br>まだありません</div>"
+                    html += "<div style='text-align:center; color:silver; padding: 30px; font-size: 18px;'>No Data Today</div>"
                 html += "</div>"
                 st.markdown(html, unsafe_allow_html=True)
                 
             with d_col2:
-                html = "<div class='kiosk-dashboard'><div class='kiosk-title'>🔥 TODAY'S SPLIT MAKES</div>"
+                html = "<div class='kiosk-dashboard'><div class='kiosk-title'>🔥 TODAY'S SPLITS</div>"
                 if today_splits:
-                    for sp in reversed(today_splits): # 新しい順に上から表示
+                    for sp in reversed(today_splits):
                         html += f"<div class='split-row'><span class='split-name'>{sp['split_name']}</span><span class='split-player'>{sp['player']}</span></div>"
                 else:
-                    html += "<div style='text-align:center; color:silver; padding: 30px; font-size: 14px;'>本日の難関スプリットメイクは<br>まだありません</div>"
+                    html += "<div style='text-align:center; color:silver; padding: 30px; font-size: 18px;'>No Splits Today</div>"
                 html += "</div>"
                 st.markdown(html, unsafe_allow_html=True)
-            # ▲ 新機能ここまで ▲
 
+        # チェックインタイトル（ランキングの下に配置）
         st.markdown("<div class='kiosk-header'>CHECK-IN</div>", unsafe_allow_html=True)
 
         col_c1, col_c2, col_c3 = st.columns([1, 2, 1])
