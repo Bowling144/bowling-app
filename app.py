@@ -701,13 +701,12 @@ if st.session_state.logged_in and not st.session_state.get("kiosk_mode"):
             if st.button("イベントスケジュールの同期", use_container_width=True):
                 open_calendar_sync_dialog()
                 
-    # ▼ 「一般ユーザー」用メニュー展開（分析固定＋ログアウトボタン）
+    # ▼ 「一般ユーザー」用メニュー展開（分析固定＋ログアウトボタン右寄せ）
     else:
         app_mode = "プレイヤー分析"
-        col_u1, col_u2 = st.columns([2, 1])
-        with col_u1:
-            st.info("※非公開のプレイヤーのデータは表示されません")
-        with col_u2:
+        col_u1, col_u2, col_u3 = st.columns([2, 1, 1])
+        with col_u3:
+            st.markdown("<br>", unsafe_allow_html=True) # 余白調整
             if st.button("🚪 ログアウト", use_container_width=True):
                 st.session_state.clear()
                 st.rerun()
@@ -780,6 +779,11 @@ if st.session_state.logged_in and not st.session_state.get("kiosk_mode"):
                         st.markdown(f"- {fn}")
                 else:
                     st.markdown("友達はまだ登録されていません。")
+                    
+    # ▼ 修正：注意事項は設定パネルの下（実際の分析データが始まる直前）に配置する
+    if st.session_state.user_role not in ["開発者", "管理者"]:
+        st.info("※非公開のプレイヤーのデータは表示されません")
+
     st.markdown("---")
 else:
     # 未ログイン時 または キオスクモード時のフォールバック処理
