@@ -578,8 +578,7 @@ def get_today_kiosk_data(_sh):
                 if pins:
                     norm_pins = ",".join(sorted(pins, key=int))
                     if norm_pins in target_splits:
-                        today_splits.append({"player": p_name, "split_name": target_splits[norm_pins]})
-
+                        today_splits.append({"player": p_name, "split_name": target_splits[norm_pins], "pins": norm_pins.replace(",", "-")})
         for row in master_data[1:]:
             if len(row) < 53: continue
             p_name = str(row[1]).strip()
