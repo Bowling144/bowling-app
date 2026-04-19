@@ -942,8 +942,8 @@ if st.session_state.get("kiosk_mode"):
             opacity: 0.6; /* スマホで見えるように透明度を上げる */
         }
         .kiosk-exit-btn:hover { opacity: 1.0; }
-        
-        /* ✖ボタンのサイズを小さくし、枠をグレーに設定 */
+
+        /* ✖ボタンをフォント11、枠をグレーに設定 */
         .kiosk-exit-btn div[data-testid="stPopover"] > button {
             background: rgba(0,0,0,0.5) !important;
             border: 1px solid gray !important;
@@ -1056,9 +1056,9 @@ if st.session_state.get("kiosk_mode"):
             .score-val { font-size: 84px; font-weight: 900; color: #ff6600; }
             
             .split-row { display: flex; flex-direction: column; background: rgba(255, 102, 0, 0.1); border-left: 10px solid #ff6600; padding: 8px 15px; margin-bottom: 8px; border-radius: 6px; }
-            .split-name { font-size: 54px; color: #ff9999; font-weight: bold; margin-bottom: 8px; }
+            .split-name { font-size: 45px; color: #ff9999; font-weight: bold; margin-bottom: 8px; }
             .split-player { font-size: 60px; color: white; font-weight: bold; text-align: right; }
-
+            
             /* ⑥ レーティング風グロー効果 */
             .glow-1 { text-shadow: 0 0 20px #ff4b4b, 0 0 40px #ff4b4b; color: #ff4b4b !important; }
             .glow-2 { text-shadow: 0 0 20px #ff8c00, 0 0 40px #ff8c00; color: #ff8c00 !important; }
@@ -1147,8 +1147,8 @@ if st.session_state.get("kiosk_mode"):
                     for sp in reversed(today_splits[:5]):
                         # ④ 名前の前の番号を削除
                         display_name = sp['player'].split('_')[-1] if '_' in sp['player'] else sp['player']
-                        # ⑥ 名前（残ピン番号）の形式に変更
-                        html += f"<div class='split-row'><span class='split-name glow-split'>{sp['split_name']}</span><span class='split-player glow-split'>{display_name} ({sp['pins']})</span></div>"
+                        # ⑥ 名前のみを表示（残ピン番号を削除）
+                        html += f"<div class='split-row'><span class='split-name glow-split'>{sp['split_name']}</span><span class='split-player glow-split'>{display_name}</span></div>"
                 else:
                     html += "<div style='text-align:center; color:silver; padding: 50px; font-size: 30px;'>No Splits</div>"
                 html += "</div>"
