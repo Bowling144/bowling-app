@@ -782,7 +782,7 @@ if st.session_state.logged_in and not st.session_state.get("kiosk_mode"):
                     
     # ▼ 修正：注意事項は設定パネルの下（実際の分析データが始まる直前）に配置する
     if st.session_state.user_role not in ["開発者", "管理者"]:
-        st.info("※非公開のプレイヤーのデータは表示されません")
+        st.info("パスワード変更、データの公開/非公開、友達追加は↑こちら↑")
 
     st.markdown("---")
 else:
@@ -1394,7 +1394,7 @@ if app_mode == "プレイヤー分析":
 
             # ▼ 追加：プレイヤー未選択時（初期画面）の表示処理 ▼
                 if not selected_player:
-                    st.info("上部のドロップダウンからプレイヤーを選択してください")
+                    st.info("↑プレイヤーを選択してください。非公開のプレイヤーは表示されません")
                     st.markdown("<br>", unsafe_allow_html=True)
                     
                     # ① の表示
