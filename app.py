@@ -573,7 +573,7 @@ if not st.session_state.logged_in:
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        login_id = st.text_input("ユーザーID  \n(またはメールアドレス)")
+        login_id = st.text_input("ユーザーID")
         
         # 安全第一で確実に伏せ字にする標準機能を復活
         login_pw = st.text_input("パスワード", type="password", key="login_pw_input")
@@ -736,7 +736,7 @@ if st.session_state.logged_in and not st.session_state.get("kiosk_mode"):
         
         st.markdown("---")
         st.markdown("**友達追加**")
-        friend_email = st.text_input("友達のユーザーID (メールアドレス)")
+        friend_email = st.text_input("友達のユーザID")
         if st.button("友達を追加する"):
             if friend_email == st.session_state.user_email:
                 st.warning("自分自身は追加できません。")
@@ -1410,7 +1410,7 @@ if app_mode == "プレイヤー分析":
 
             # ▼ 追加：プレイヤー未選択時（初期画面）の表示処理 ▼
                 if not selected_player:
-                    st.info("↑プレイヤーを選択してください。非公開のプレイヤーは表示されません")
+                    st.info("↑表示するプレイヤーを選択。「非公開」設定のプレイヤーや友達限定公開設定で相互に友達に追加されていないプレイヤーは表示されません")
                     st.markdown("<br>", unsafe_allow_html=True)
                     
                     # ① の表示
@@ -6373,7 +6373,7 @@ if st.session_state.analyzed_results:
                         if len(row) >= 2 and row[1]: 
                             player_email_map[row[1]] = row[0]
                 except gspread.exceptions.WorksheetNotFound:
-                    st.warning("「プレイヤー設定」シートが見つかりません。メールアドレスは空白で登録されます。")
+                    st.warning("「プレイヤー設定」シートが見つかりません。ユーザIDは空白で登録されます。")
                 except Exception as e:
                     st.warning(f"プレイヤー設定の読み込みに失敗しました: {e}")
 
@@ -6738,7 +6738,7 @@ if st.session_state.analyzed_results:
 
                     stats["seq"].append(game_seq)
 
-                award_rows = [["メールアドレス", "プレイヤー名", "カテゴリ", "項目", "母数", "成功数_合計スコア", "確率_アベレージ_回数"]]
+                award_rows = [["ID", "プレイヤー名", "カテゴリ", "項目", "母数", "成功数_合計スコア", "確率_アベレージ_回数"]]
                 
                 def calc_rate(s, c): return round((s / c) * 100, 1) if c > 0 else 0
                 def calc_ave(s, g): return round(s / g, 1) if g > 0 else 0
