@@ -1128,7 +1128,10 @@ if app_mode == "オイル情報入力":
                         if "scan_attempt" in st.session_state: del st.session_state["scan_attempt"]
                         st.rerun()
                     except Exception as e:
-                        st.error(f"解析エラー: {e}")
+                        st.session_state.waiting_for_oil_scan = False
+                        if "scan_attempt" in st.session_state: del st.session_state["scan_attempt"]
+                        st.error(f"手動解析エラー: {e}")
+                        # エラー内容を確認できるように rerun() は実行しません
                         
             # ▼ 手動アップロードがない場合は自動監視（状態ベースで再実行）へ進む
             else:
@@ -1211,13 +1214,13 @@ if app_mode == "オイル情報入力":
                             else:
                                 st.session_state.waiting_for_oil_scan = False
                                 if "scan_attempt" in st.session_state: del st.session_state["scan_attempt"]
-                                st.error("タイムアウトしました。")
-                                st.rerun()
+                                st.error("タイムアウトしました。新しい画像が見つかりませんでした。")
+                                # エラー内容を確認できるように rerun() は実行しません
                     except Exception as e: 
                         st.session_state.waiting_for_oil_scan = False
                         if "scan_attempt" in st.session_state: del st.session_state["scan_attempt"]
-                        st.error(f"解析エラー: {e}")
-                        st.rerun()
+                        st.error(f"🚨 解析エラーが発生しました: {e}")
+                        # エラー内容を確認できるように rerun() は実行しません
 
         # 解析結果の確認
         if st.session_state.oil_scan_data:
