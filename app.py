@@ -975,7 +975,7 @@ if st.session_state.get("kiosk_mode"):
 
     if st.session_state.get("kiosk_step") == "auth":
         
-        # ▼ フルスクリーン固定表示用のCSS設定（UI非表示 + 余白削除）
+        # ▼ フルスクリーン固定表示用のCSS設定（UI非表示 + 余白削除 + 文字サイズ変更）
         st.markdown("""
             <style>
             /* Streamlit標準のヘッダー、フッター、メニューを非表示 */
@@ -999,34 +999,70 @@ if st.session_state.get("kiosk_mode"):
                 overflow: hidden;
             }
 
-            /* ダッシュボードの装飾設定（前回分を含む） */
+            /* ダッシュボードの装飾設定 */
             .kiosk-dashboard { 
                 background: linear-gradient(145deg, #1c1c1e, #2a2a2e); 
                 border: 2px solid #bf953f; 
                 border-radius: 15px; 
                 padding: 20px; 
-                margin-bottom: 30px; 
+                margin-bottom: 10px; 
                 box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
-                height: 100%; 
+                height: 580px; 
             }
+            /* タイトル文字サイズ：2倍（32px -> 64px） */
             .kiosk-title { 
                 color: #fcf6ba; 
                 text-align: center; 
-                font-size: 32px; /* さらに大きく */
+                font-size: 64px; 
                 font-weight: 900; 
-                margin-bottom: 15px; 
+                margin-bottom: 20px; 
                 letter-spacing: 2px; 
-                border-bottom: 2px solid #bf953f; 
-                padding-bottom: 10px; 
-                text-shadow: 0 0 15px rgba(191, 149, 63, 0.9); 
+                border-bottom: 3px solid #bf953f; 
+                padding-bottom: 15px; 
+                text-shadow: 0 0 20px rgba(191, 149, 63, 0.9); 
             }
-            .score-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 10px 0; }
-            .score-rank { font-size: 22px; font-weight: bold; width: 50px; }
-            .score-name { font-size: 20px; color: white; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 10px; }
-            .score-val { font-size: 28px; font-weight: 900; color: #ff6600; }
-            .split-row { display: flex; flex-direction: column; background: rgba(255, 102, 0, 0.1); border-left: 6px solid #ff6600; padding: 10px 15px; margin-bottom: 10px; border-radius: 4px; }
-            .split-name { font-size: 18px; color: #ff9999; font-weight: bold; margin-bottom: 4px; }
-            .split-player { font-size: 20px; color: white; font-weight: bold; text-align: right; }
+            /* チェックインヘッダー：2倍 */
+            .kiosk-header-column {
+                color: #fcf6ba;
+                text-align: center;
+                font-size: 64px;
+                font-weight: 900;
+                margin-bottom: 20px;
+                padding-bottom: 15px;
+                border-bottom: 3px solid #bf953f;
+                text-shadow: 0 0 20px rgba(191, 149, 63, 0.9);
+            }
+
+            /* ランキング・スプリット内容：3倍（20~28px -> 60~84px） */
+            .score-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 15px 0; }
+            .score-rank { font-size: 66px; font-weight: bold; width: 80px; }
+            .score-name { font-size: 60px; color: white; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 15px; }
+            .score-val { font-size: 84px; font-weight: 900; color: #ff6600; }
+            
+            .split-row { display: flex; flex-direction: column; background: rgba(255, 102, 0, 0.1); border-left: 10px solid #ff6600; padding: 15px 20px; margin-bottom: 15px; border-radius: 6px; }
+            .split-name { font-size: 54px; color: #ff9999; font-weight: bold; margin-bottom: 8px; }
+            .split-player { font-size: 60px; color: white; font-weight: bold; text-align: right; }
+
+            /* レーティング風グロー効果（1位:赤 〜 5位:水色） */
+            .glow-1 { text-shadow: 0 0 15px #ff4b4b, 0 0 30px #ff4b4b; color: #ff4b4b !important; }
+            .glow-2 { text-shadow: 0 0 15px #ff8c00, 0 0 30px #ff8c00; color: #ff8c00 !important; }
+            .glow-3 { text-shadow: 0 0 15px #ffd700, 0 0 30px #ffd700; color: #ffd700 !important; }
+            .glow-4 { text-shadow: 0 0 15px #adff2f, 0 0 30px #adff2f; color: #adff2f !important; }
+            .glow-5 { text-shadow: 0 0 15px #00ffff, 0 0 30px #00ffff; color: #00ffff !important; }
+            .glow-split { text-shadow: 0 0 15px #ff6600, 0 0 25px #ff6600; }
+
+            /* チェックイン要素：2.5倍 */
+            .checkin-container label { font-size: 35px !important; color: silver; }
+            .checkin-container div[data-baseweb="select"] { font-size: 45px !important; }
+            .checkin-container div[data-baseweb="input"] input { font-size: 45px !important; height: 60px !important; }
+            .checkin-container button { height: 100px !important; font-size: 45px !important; margin-top: 20px !important; }
+
+            /* テンキーマーク：4倍 (render_tenkeyのpopoverボタンを巨大化) */
+            .checkin-container div[data-testid="stPopover"] > button { font-size: 80px !important; height: 120px !important; width: 120px !important; }
+            .checkin-container div[data-testid="stPopover"] > button p { font-size: 80px !important; line-height: 1 !important; }
+
+            /* スプリット説明：小文字 */
+            .split-info-text { font-size: 16px; color: #888; line-height: 1.4; margin-top: 5px; padding: 0 10px; }
             </style>
             """, unsafe_allow_html=True)
 
@@ -1035,35 +1071,34 @@ if st.session_state.get("kiosk_mode"):
             # ▼ 本日のTOP5とスプリットメイクのダッシュボード表示 ▼
             top5_scores, today_splits = get_today_kiosk_data(sh)
             
-            d_col1, d_col2 = st.columns([1, 1])
+            # ① 3カラム横並び構成（均等）
+            d_col1, d_col2, d_col3 = st.columns([1, 1, 1])
+            
             with d_col1:
-                html = "<div class='kiosk-dashboard'><div class='kiosk-title'>🏆 TODAY'S TOP 5</div>"
+                html = "<div class='kiosk-dashboard'><div class='kiosk-title'>🏆 TOP 5</div>"
                 if top5_scores:
-                    rank_colors = ["#FFD700", "#C0C0C0", "#CD7F32", "#bf953f", "#bf953f"]
                     for i, s in enumerate(top5_scores):
-                        col = rank_colors[i] if i < 3 else "silver"
-                        html += f"<div class='score-row'><span class='score-rank' style='color:{col};'>#{i+1}</span><span class='score-name'>{s['player']}</span><span class='score-val'>{s['score']}</span></div>"
+                        glow_class = f"glow-{i+1}"
+                        html += f"<div class='score-row'><span class='score-rank {glow_class}'>#{i+1}</span><span class='score-name {glow_class}'>{s['player']}</span><span class='score-val {glow_class}'>{s['score']}</span></div>"
                 else:
-                    html += "<div style='text-align:center; color:silver; padding: 30px; font-size: 18px;'>No Data Today</div>"
+                    html += "<div style='text-align:center; color:silver; padding: 50px; font-size: 30px;'>No Data</div>"
                 html += "</div>"
                 st.markdown(html, unsafe_allow_html=True)
+                # ⑤ スプリット説明（ランキング枠の下）
+                st.markdown("<div class='split-info-text'>【対象スプリット】<br>リリー(5-7-10), クリスマスツリー(2/3-7-10), スネークアイ(7-10), マイティマイト(4/6-7-10), ビッグフォー(4-6-7-10), グリークチャーチ(4-6-7-8-10), ワシントン(4-6-7-9-10)</div>", unsafe_allow_html=True)
                 
             with d_col2:
-                html = "<div class='kiosk-dashboard'><div class='kiosk-title'>🔥 TODAY'S SPLITS</div>"
+                html = "<div class='kiosk-dashboard'><div class='kiosk-title'>🔥 SPLITS</div>"
                 if today_splits:
-                    for sp in reversed(today_splits):
-                        html += f"<div class='split-row'><span class='split-name'>{sp['split_name']}</span><span class='split-player'>{sp['player']}</span></div>"
+                    for sp in reversed(today_splits[:5]): # 直近5件
+                        html += f"<div class='split-row'><span class='split-name glow-split'>{sp['split_name']}</span><span class='split-player glow-split'>{sp['player']}</span></div>"
                 else:
-                    html += "<div style='text-align:center; color:silver; padding: 30px; font-size: 18px;'>No Splits Today</div>"
+                    html += "<div style='text-align:center; color:silver; padding: 50px; font-size: 30px;'>No Splits</div>"
                 html += "</div>"
                 st.markdown(html, unsafe_allow_html=True)
 
-        # チェックインタイトル（ランキングの下に配置）
-        st.markdown("<div class='kiosk-header'>CHECK-IN</div>", unsafe_allow_html=True)
-
-        col_c1, col_c2, col_c3 = st.columns([1, 2, 1])
-        with col_c2:
-            if sh:
+            with d_col3:
+                st.markdown("<div class='kiosk-dashboard'><div class='kiosk-header-column'>CHECK-IN</div><div class='checkin-container'>", unsafe_allow_html=True)
                 ws = sh.worksheet("プレイヤー設定")
                 data = ws.get_all_values()
                 players = [row[1] for row in data[1:] if len(row) >= 5 and row[1] and str(row[3]).strip() not in ["開発者", "管理者"]]
@@ -1093,6 +1128,7 @@ if st.session_state.get("kiosk_mode"):
                             st.rerun()
                         else:
                             st.error("パスワードが正しくありません。")
+                st.markdown("</div></div>", unsafe_allow_html=True)
         st.stop()
         
     # 認証後は既存のモード変数（app_mode）を上書きして合流
