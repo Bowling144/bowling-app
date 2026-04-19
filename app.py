@@ -975,6 +975,7 @@ if st.session_state.get("kiosk_mode"):
     st.markdown("</div>", unsafe_allow_html=True)
 
     if st.session_state.get("kiosk_step") == "auth":
+        st.mif st.session_state.get("kiosk_step") == "auth":
         st.markdown("<div class='kiosk-header'>CHECK-IN</div>", unsafe_allow_html=True)
         
         sh = get_gspread_client()
