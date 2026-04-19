@@ -292,11 +292,6 @@ st.markdown("""
     [data-testid="stSidebar"] { display: none !important; }
     [data-testid="collapsedControl"] { display: none !important; }
     header[data-testid="stHeader"] { display: none !important; }
-    
-    /* ファイルアップローダーの「limit 200MB」の文字を完全に隠す */
-    div[data-testid="stFileUploader"] small {
-        display: none !important;
-    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -665,29 +660,23 @@ if st.session_state.logged_in and not st.session_state.get("kiosk_mode"):
                     return
                 with st.spinner("フォルダ内のPDFを取得中..."):
                     try:
-                        # try: より半角スペース4つ分、確実に右にずらしています
                         import json
                         from google.oauth2 import service_account
                         from googleapiclient.discovery import build
-                        
                         creds_json_str = st.secrets["google_credentials"]
                         creds_info = json.loads(creds_json_str, strict=False)
                         if "private_key" in creds_info:
                             creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
-                            
                         drive_creds = service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/drive'])
                         drive_service = build('drive', 'v3', credentials=drive_creds)
-                        
                         f_query = "name = 'イベントスケジュール' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
                         folders = drive_service.files().list(q=f_query, fields="files(id, name)").execute().get('files', [])
-                        
                         pdf_dict = {}
                         if folders:
                             folder_id = folders[0]['id']
                             p_query = f"'{folder_id}' in parents and mimeType = 'application/pdf' and trashed = false"
                             pdf_files = drive_service.files().list(q=p_query, orderBy="createdTime desc", fields="files(id, name)").execute().get('files', [])
                             pdf_dict = {f['name']: f['id'] for f in pdf_files}
-                            
                     except Exception as e:
                         st.error(f"ファイル一覧の取得に失敗しました: {e}")
                         return
@@ -1065,162 +1054,76 @@ if app_mode == "オイル情報入力":
                 <div style='color: silver; font-size: 14px;'>（新しく追加された画像を自動検知して解析を開始します）</div>
             </div>
             """, unsafe_allow_html=True)
-            
-            # ▼ 新規追加：手動アップロード用のUI
-            uploaded_oil_file = st.file_uploader("📁 または、ファイルを選択して直接解析する", type=["jpg", "jpeg", "png"])
-
             if st.button("スキャンを中止する"):
                 st.session_state.waiting_for_oil_scan = False
-                if "scan_attempt" in st.session_state: del st.session_state["scan_attempt"]
                 st.rerun()
 
-            # ▼ 手動でファイルが選択された場合、即座にこちらをAI解析する
-            if uploaded_oil_file is not None:
-                with st.spinner("アップロードされた画像を解析中..."):
-                    try:
-                        # ▼ AI送信前に画像を自動圧縮＆EXIF補正してメモリクラッシュを防ぐ
-                        raw_img = Image.open(uploaded_oil_file)
-                        img_pil = compress_image_for_ai(raw_img, max_size=1500)
-                        width, height = img_pil.size
-                        cropped_img = img_pil.crop((0, 0, width, int(height * 0.2)))
-                        ai_client = genai.Client(vertexai=True, project="bowling-vertex-ai", location="asia-northeast1")
-                        prompt = '画像から「Volume Oil Total (mL)」と「Oil Pattern Distance (Feet)」の数値を読み取ってください。JSON形式 {"distance": 42, "volume": 22.1} で出力してください。'
-                        
-                        success_scan = False
-                        max_retries = 3
-                        for attempt_model in fallback_models:
-                            for attempt in range(max_retries):
-                                try:
-                                    oil_bytes_io = io.BytesIO()
-                                    cropped_img.save(oil_bytes_io, format='JPEG')
-                                    oil_bytes = oil_bytes_io.getvalue()
-                                    response = ai_client.models.generate_content(
-                                        model=attempt_model,
-                                        contents=[types.Part.from_bytes(data=oil_bytes, mime_type="image/jpeg"), prompt],
-                                        config=types.GenerateContentConfig(temperature=0.0, response_mime_type="application/json")
-                                    )
-                                    success_scan = True
-                                    break
-                                except Exception as api_e:
-                                    err_msg = str(api_e).lower()
-                                    if any(x in err_msg for x in ["503", "429", "high demand", "unavailable"]):
-                                        if attempt < max_retries - 1:
-                                            time.sleep(2)
-                                            continue
-                                    raise api_e
-                            if success_scan: break
-                            
-                        raw_text = response.text.strip()
-                        if raw_text.startswith("```"):
-                            lines = raw_text.split('\n')
-                            raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
-                        result_json = json.loads(raw_text)
-                        
-                        st.session_state.oil_scan_data = {
-                            "file_id": "manual_upload", 
-                            "file_name": uploaded_oil_file.name, 
-                            "distance": result_json.get("distance", ""),
-                            "volume": result_json.get("volume", ""), 
-                            "image": cropped_img
-                        }
-                        st.session_state.waiting_for_oil_scan = False
-                        st.session_state.last_oil_file_id = None
-                        if "scan_attempt" in st.session_state: del st.session_state["scan_attempt"]
-                        st.rerun()
-                    except Exception as e:
-                        st.session_state.waiting_for_oil_scan = False
-                        if "scan_attempt" in st.session_state: del st.session_state["scan_attempt"]
-                        st.error(f"手動解析エラー: {e}")
-                        # エラー内容を確認できるように rerun() は実行しません
-                        
-            # ▼ 手動アップロードがない場合は自動監視（状態ベースで再実行）へ進む
-            else:
-                if "scan_attempt" not in st.session_state:
-                    st.session_state.scan_attempt = 1
-
-                with st.spinner(f"画像の追加を監視中... (試行 {st.session_state.scan_attempt}/40)"):
-                    try:
-                        creds_json_str = st.secrets["google_credentials"]
-                        creds_info = json.loads(creds_json_str, strict=False)
-                        if "private_key" in creds_info: creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
-                        drive_service = build('drive', 'v3', credentials=service_account.Credentials.from_service_account_info(creds_info, scopes=['[https://www.googleapis.com/auth/drive](https://www.googleapis.com/auth/drive)']))
-                        f_res = drive_service.files().list(q="name = 'Bowling_App' and mimeType = 'application/vnd.google-apps.folder' and trashed = false", fields="files(id)").execute()
-                        folder_id = f_res.get('files', [{}])[0].get('id')
-                        
-                        # ループさせず、1回だけAPIを叩く
+            with st.spinner("画像の追加を監視中..."):
+                try:
+                    creds_json_str = st.secrets["google_credentials"]
+                    creds_info = json.loads(creds_json_str, strict=False)
+                    if "private_key" in creds_info: creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
+                    drive_service = build('drive', 'v3', credentials=service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/drive']))
+                    f_res = drive_service.files().list(q="name = 'Bowling_App' and mimeType = 'application/vnd.google-apps.folder' and trashed = false", fields="files(id)").execute()
+                    folder_id = f_res.get('files', [{}])[0].get('id')
+                    
+                    for _ in range(40):
                         res = drive_service.files().list(q=f"'{folder_id}' in parents and mimeType='image/jpeg' and trashed=false", orderBy="createdTime desc", pageSize=1, fields="files(id, name)").execute()
                         items = res.get('files', [])
-                        
-                        if items and items[0]['id'] != st.session_state.last_oil_file_id:
+                        if items:
                             current_id = items[0]['id']
-                            fh = io.BytesIO()
-                            downloader = MediaIoBaseDownload(fh, drive_service.files().get_media(fileId=current_id))
-                            done = False
-                            while not done: _, done = downloader.next_chunk()
-                            # ▼ 自動取得した画像も安全のために自動圧縮・補正を通す
-                            raw_img = Image.open(fh)
-                            img_pil = compress_image_for_ai(raw_img, max_size=1500)
-                            width, height = img_pil.size
-                            cropped_img = img_pil.crop((0, 0, width, int(height * 0.2)))
-                            # Vertex AI専用のクライアント初期化
-                            ai_client = genai.Client(vertexai=True, project="bowling-vertex-ai", location="asia-northeast1")
-                            prompt = '画像から「Volume Oil Total (mL)」と「Oil Pattern Distance (Feet)」の数値を読み取ってください。JSON形式 {"distance": 42, "volume": 22.1} で出力してください。'
-                            # ▼ 混雑エラー対策：2.5Pro単独で最大3回リトライ
-                            success_scan = False
-                            max_retries = 3
-                            for attempt_model in fallback_models:
-                                for attempt in range(max_retries):
-                                    try:
-                                        # Pillow画像をJPEGのバイト列に変換
-                                        oil_bytes_io = io.BytesIO()
-                                        cropped_img.save(oil_bytes_io, format='JPEG')
-                                        oil_bytes = oil_bytes_io.getvalue()
-                                        
-                                        response = ai_client.models.generate_content(
-                                            model=attempt_model,
-                                            contents=[types.Part.from_bytes(data=oil_bytes, mime_type="image/jpeg"), prompt],
-                                            config=types.GenerateContentConfig(temperature=0.0, response_mime_type="application/json")
-                                        )
-                                        success_scan = True
-                                        break # 成功
-                                    except Exception as api_e:
-                                        err_msg = str(api_e).lower()
-                                        # 503, 429等の一時的エラー時にリトライ
-                                        if any(x in err_msg for x in ["503", "429", "high demand", "unavailable"]):
-                                            if attempt < max_retries - 1:
-                                                time.sleep(2)
-                                                continue
-                                        raise api_e # 規定回数失敗または致命的エラー
-                                if success_scan: break
-                            raw_text = response.text.strip()
-                            if raw_text.startswith("```"):
-                                lines = raw_text.split('\n')
-                                raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
-                            result_json = json.loads(raw_text)
-                            st.session_state.oil_scan_data = {
-                                "file_id": current_id, "file_name": items[0]['name'], "distance": result_json.get("distance", ""),
-                                "volume": result_json.get("volume", ""), "image": cropped_img
-                            }
-                            st.session_state.waiting_for_oil_scan = False
-                            st.session_state.last_oil_file_id = None
-                            if "scan_attempt" in st.session_state: del st.session_state["scan_attempt"]
-                            st.rerun()
-                        else:
-                            # 見つからなかった場合、試行回数を増やして3秒後にrerun
-                            if st.session_state.scan_attempt < 40:
-                                st.session_state.scan_attempt += 1
-                                time.sleep(3)
-                                st.rerun()
-                            else:
-                                st.session_state.waiting_for_oil_scan = False
-                                if "scan_attempt" in st.session_state: del st.session_state["scan_attempt"]
-                                st.error("タイムアウトしました。新しい画像が見つかりませんでした。")
-                                # エラー内容を確認できるように rerun() は実行しません
-                    except Exception as e: 
-                        st.session_state.waiting_for_oil_scan = False
-                        if "scan_attempt" in st.session_state: del st.session_state["scan_attempt"]
-                        st.error(f"🚨 解析エラーが発生しました: {e}")
-                        # エラー内容を確認できるように rerun() は実行しません
+                            if current_id != st.session_state.last_oil_file_id:
+                                fh = io.BytesIO()
+                                downloader = MediaIoBaseDownload(fh, drive_service.files().get_media(fileId=current_id))
+                                done = False
+                                while not done: _, done = downloader.next_chunk()
+                                img_pil = Image.open(fh)
+                                width, height = img_pil.size
+                                cropped_img = img_pil.crop((0, 0, width, int(height * 0.2)))
+                                # Vertex AI専用のクライアント初期化
+                                ai_client = genai.Client(vertexai=True, project="bowling-vertex-ai", location="asia-northeast1")
+                                prompt = '画像から「Volume Oil Total (mL)」と「Oil Pattern Distance (Feet)」の数値を読み取ってください。JSON形式 {"distance": 42, "volume": 22.1} で出力してください。'
+                                # ▼ 混雑エラー対策：2.5Pro単独で最大3回リトライ
+                                success_scan = False
+                                max_retries = 3
+                                for attempt_model in fallback_models:
+                                    for attempt in range(max_retries):
+                                        try:
+                                            # Pillow画像をJPEGのバイト列に変換
+                                            oil_bytes_io = io.BytesIO()
+                                            cropped_img.save(oil_bytes_io, format='JPEG')
+                                            oil_bytes = oil_bytes_io.getvalue()
+                                            
+                                            response = ai_client.models.generate_content(
+                                                model=attempt_model,
+                                                contents=[types.Part.from_bytes(data=oil_bytes, mime_type="image/jpeg"), prompt],
+                                                config=types.GenerateContentConfig(temperature=0.0, response_mime_type="application/json")
+                                            )
+                                            success_scan = True
+                                            break # 成功
+                                        except Exception as api_e:
+                                            err_msg = str(api_e).lower()
+                                            # 503, 429等の一時的エラー時にリトライ
+                                            if any(x in err_msg for x in ["503", "429", "high demand", "unavailable"]):
+                                                if attempt < max_retries - 1:
+                                                    time.sleep(2)
+                                                    continue
+                                            raise api_e # 規定回数失敗または致命的エラー
+                                    if success_scan: break
+                                raw_text = response.text.strip()
+                                if raw_text.startswith("```"):
+                                    lines = raw_text.split('\n')
+                                    raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
+                                result_json = json.loads(raw_text)
+                                st.session_state.oil_scan_data = {
+                                    "file_id": current_id, "file_name": items[0]['name'], "distance": result_json.get("distance", ""),
+                                    "volume": result_json.get("volume", ""), "image": cropped_img
+                                }
+                                st.session_state.waiting_for_oil_scan, st.session_state.last_oil_file_id = False, None
+                                st.rerun(); break
+                        time.sleep(3)
+                    else: st.session_state.waiting_for_oil_scan = False; st.error("タイムアウトしました。"); st.rerun()
+                except Exception as e: st.session_state.waiting_for_oil_scan = False; st.error(f"解析エラー: {e}"); st.rerun()
 
         # 解析結果の確認
         if st.session_state.oil_scan_data:
@@ -4364,7 +4267,7 @@ if not (st.session_state.get("kiosk_mode") and st.session_state.get("waiting_for
     st.markdown("<div class='gold-btn-marker' style='display: none;'></div>", unsafe_allow_html=True)
     fetch_button = st.button("解析を開始する", use_container_width=True)
 
-with st.expander("残ピン判定方式と閾値の調整（解析開始前に設定）"):
+with st.expander("残ピン判定方式と閾値の微調整（解析開始前に調整）"):
     st.markdown("<span style='font-size: 12px; color: silver;'>自動計算された残ピン判定の閾値に、この数値をプラスマイナスして一時的に調整します。<br>（ピンが反応しにくい場合はマイナスへ、過剰に反応する場合はプラスへ変更して再取込してください）</span>", unsafe_allow_html=True)
     
     if "pin_thresh_offset" not in st.session_state:
@@ -6931,6 +6834,7 @@ if st.session_state.analyzed_results:
 
             except Exception as e:
                 st.error(f"SPSへの登録中にエラーが発生しました: {e}")
+
 
 
 
