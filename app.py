@@ -1047,31 +1047,48 @@ if st.session_state.get("kiosk_mode"):
             .glow-5 { text-shadow: 0 0 20px #00ffff, 0 0 40px #00ffff; color: #00ffff !important; }
             .glow-split { text-shadow: 0 0 15px #ff6600, 0 0 25px #ff6600; }
 
-            /* ⑦ チェックイン箇所のフォントサイズ・色・太さの完全統一（35px・グレー・太字なし） */
-            .checkin-desc-normal { font-size: 35px !important; color: silver !important; text-align: center; margin-bottom: 10px; font-weight: normal !important; }
+            /* ----------------------------------------------------
+               ⑦ チェックイン画面の文字サイズ・色・太さを完全統一
+               （無駄なラッパーを廃止し、Streamlitの内部属性を直接指定）
+               ---------------------------------------------------- */
             
-            .checkin-container div[data-baseweb="select"] { font-size: 35px !important; }
-            .checkin-container div[data-baseweb="input"] input { font-size: 35px !important; height: 60px !important; }
+            /* ラベル（「プレイヤーを選択」「パスワード入力」）の統一 */
+            div[data-testid="stSelectbox"] label p,
+            div[data-testid="stTextInput"] label p {
+                font-size: 35px !important;
+                color: silver !important;
+                font-weight: normal !important;
+                margin-bottom: 10px !important;
+            }
+            
+            /* 入力ボックスの中の文字サイズ統一 */
+            div[data-baseweb="select"] { font-size: 35px !important; }
+            div[data-testid="stTextInput"] input { font-size: 35px !important; height: 60px !important; }
 
-            /* パスワード入力のラベルを統一 */
-            .tenkey-wrapper label, .tenkey-wrapper label p { font-size: 35px !important; color: silver !important; font-weight: normal !important; }
+            /* 「認証して進む」ボタンの統一 */
+            div[data-testid="stButton"] button {
+                height: 90px !important;
+                margin-top: 20px !important;
+            }
+            div[data-testid="stButton"] button p {
+                font-size: 35px !important;
+                color: silver !important;
+                font-weight: normal !important;
+            }
 
-            /* 認証ボタン内の文字を統一 */
-            .auth-btn-wrapper button { height: 90px !important; margin-top: 20px !important; }
-            .auth-btn-wrapper button p { font-size: 35px !important; color: silver !important; font-weight: normal !important; }
-
-            /* テンキーマーク（Popover呼び出しボタン）のみを確実に見やすく巨大化 */
-            .tenkey-wrapper div[data-testid="stPopover"] > button { 
-                height: 100px !important; 
+            /* テンキーの呼び出しボタンの巨大化（Popoverを直接指定） */
+            div[data-testid="stPopover"] button { 
+                height: 120px !important; 
                 width: 100% !important;
                 border: 3px solid #ff6600 !important; 
                 background-color: rgba(255, 102, 0, 0.15) !important;
                 margin-top: 10px;
             }
-            .tenkey-wrapper div[data-testid="stPopover"] > button p,
-            .tenkey-wrapper div[data-testid="stPopover"] > button span { 
-                font-size: 70px !important; 
-                line-height: 1 !important; 
+            div[data-testid="stPopover"] button p,
+            div[data-testid="stPopover"] button span,
+            div[data-testid="stPopover"] button div { 
+                font-size: 80px !important; 
+                line-height: 1.2 !important; 
             }
 
             .split-info-text { font-size: 18px; color: #aaa; line-height: 1.4; margin-top: 15px; padding: 10px; border-top: 1px solid #444; }
@@ -1115,24 +1132,17 @@ if st.session_state.get("kiosk_mode"):
 
             with d_col3:
                 # ⑥ チェックインの金色枠を削除し、直接配置
-                st.markdown("<div class='kiosk-header-column'>CHECK-IN</div><div class='checkin-container'>", unsafe_allow_html=True)
+                st.markdown("<div class='kiosk-header-column'>CHECK-IN</div>", unsafe_allow_html=True)
                 ws = sh.worksheet("プレイヤー設定")
                 data = ws.get_all_values()
                 players = [row[1] for row in data[1:] if len(row) >= 5 and row[1] and str(row[3]).strip() not in ["開発者", "管理者"]]
                 
-                # ⑦ 全て「35px・グレー・太字なし」のスタイルに統一
-                st.markdown("<div class='checkin-desc-normal'>プレイヤーを選択</div>", unsafe_allow_html=True)
-                selected_user = st.selectbox("P-SELECT", ["選択してください"] + players, label_visibility="collapsed")
-                
-                # CSSを確実に当てるための専用ラッパーでテンキー部分を囲む
-                st.markdown("<div class='tenkey-wrapper'>", unsafe_allow_html=True)
+                # ⑦ Markdownのラッパーを廃止し、正規のラベルとして扱うことでCSSを確実に統一
+                selected_user = st.selectbox("プレイヤーを選択", ["選択してください"] + players)
                 kiosk_pw = render_tenkey("パスワード入力", "tk_kiosk_pass", "", format_type="none", is_pw=True)
-                st.markdown("</div>", unsafe_allow_html=True)
                 
                 st.markdown("<br>", unsafe_allow_html=True)
                 
-                # 認証ボタンも専用ラッパーで囲み、内部の文字色・サイズを完全に固定
-                st.markdown("<div class='auth-btn-wrapper'>", unsafe_allow_html=True)
                 if st.button("✅ 認証して進む", use_container_width=True):
                     if selected_user == "選択してください":
                         st.error("プレイヤーを選択してください。")
@@ -1152,8 +1162,6 @@ if st.session_state.get("kiosk_mode"):
                             st.rerun()
                         else:
                             st.error("パスワードが正しくありません。")
-                st.markdown("</div>", unsafe_allow_html=True)
-                st.markdown("</div>", unsafe_allow_html=True)
         st.stop()
         
     # 認証後は既存のモード変数（app_mode）を上書きして合流
