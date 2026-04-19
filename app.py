@@ -973,20 +973,6 @@ if st.session_state.get("kiosk_mode"):
         </style>
     """, unsafe_allow_html=True)
 
-    if st.session_state.get("kiosk_step") == "auth":            sh = get_gspread_client()
-            if sh:
-                ws = sh.worksheet("プレイヤー設定")
-                # ログイン時に保存している行番号から、現在ログイン中の大元ユーザーのパスワードを取得
-                row_data = ws.row_values(st.session_state.user_row_index)
-                if len(row_data) >= 5 and row_data[4] == exit_pw:
-                    st.session_state.kiosk_mode = False
-                    st.rerun()
-                else:
-                    st.error("パスワードが正しくありません。")
-            else:
-                st.error("データベースに接続できません。")
-    st.markdown("</div>", unsafe_allow_html=True)
-
     if st.session_state.get("kiosk_step") == "auth":
         
         # ▼ フルスクリーン固定表示用のCSS設定（UI非表示 + 余白削除 + 文字サイズ変更）
