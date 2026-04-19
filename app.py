@@ -1024,7 +1024,7 @@ if st.session_state.get("kiosk_mode"):
                 padding: 20px; 
                 margin-bottom: 10px; 
                 box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
-                height: auto; /* 高さを自動に設定してはみ出し防止 */
+                height: auto; 
                 min-height: 800px;
             }
             .kiosk-title { 
@@ -1049,7 +1049,6 @@ if st.session_state.get("kiosk_mode"):
                 text-shadow: 0 0 20px rgba(191, 149, 63, 0.9);
             }
 
-            /* ① 行間を半分に（paddingを15px -> 7pxへ） */
             .score-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 7px 0; }
             .score-rank { font-size: 66px; font-weight: bold; width: 80px; }
             .score-name { font-size: 60px; color: white; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 15px; }
@@ -1058,8 +1057,7 @@ if st.session_state.get("kiosk_mode"):
             .split-row { display: flex; flex-direction: column; background: rgba(255, 102, 0, 0.1); border-left: 10px solid #ff6600; padding: 8px 15px; margin-bottom: 8px; border-radius: 6px; }
             .split-name { font-size: 45px; color: #ff9999; font-weight: bold; margin-bottom: 8px; }
             .split-player { font-size: 60px; color: white; font-weight: bold; text-align: right; }
-            
-            /* ⑥ レーティング風グロー効果 */
+
             .glow-1 { text-shadow: 0 0 20px #ff4b4b, 0 0 40px #ff4b4b; color: #ff4b4b !important; }
             .glow-2 { text-shadow: 0 0 20px #ff8c00, 0 0 40px #ff8c00; color: #ff8c00 !important; }
             .glow-3 { text-shadow: 0 0 20px #ffd700, 0 0 40px #ffd700; color: #ffd700 !important; }
@@ -1067,12 +1065,6 @@ if st.session_state.get("kiosk_mode"):
             .glow-5 { text-shadow: 0 0 20px #00ffff, 0 0 40px #00ffff; color: #00ffff !important; }
             .glow-split { text-shadow: 0 0 15px #ff6600, 0 0 25px #ff6600; }
 
-            /* ----------------------------------------------------
-               ⑦ チェックイン画面の文字サイズ・色・太さを完全統一
-               （無駄なラッパーを廃止し、Streamlitの内部属性を直接指定）
-               ---------------------------------------------------- */
-            
-            /* ラベル（「プレイヤーを選択」「パスワード入力」）の統一 */
             div[data-testid="stSelectbox"] label p,
             div[data-testid="stTextInput"] label p {
                 font-size: 35px !important;
@@ -1081,17 +1073,14 @@ if st.session_state.get("kiosk_mode"):
                 margin-bottom: 10px !important;
             }
             
-            /* セレクトボックス下の余白を追加し、次の要素との被りを防止 */
             div[data-testid="stSelectbox"] {
                 margin-bottom: 40px !important;
             }
             
-            /* 入力ボックスの中の文字サイズ統一と、セレクトボックス枠の高さ2倍化（80px） */
             div[data-baseweb="select"] { font-size: 35px !important; }
             div[data-baseweb="select"] > div { height: 80px !important; min-height: 80px !important; }
             div[data-testid="stTextInput"] input { font-size: 35px !important; height: 60px !important; }
 
-            /* 「認証して進む」ボタンの統一 */
             div[data-testid="stButton"] button {
                 height: 90px !important;
                 margin-top: 20px !important;
@@ -1102,7 +1091,6 @@ if st.session_state.get("kiosk_mode"):
                 font-weight: normal !important;
             }
 
-            /* テンキーの呼び出しボタンの巨大化（Popoverを直接指定） */
             div[data-testid="stPopover"] button { 
                 height: 120px !important; 
                 width: 100% !important;
@@ -1118,6 +1106,27 @@ if st.session_state.get("kiosk_mode"):
             }
 
             .split-info-text { font-size: 18px; color: #aaa; line-height: 1.4; margin-top: 15px; padding: 10px; border-top: 1px solid #444; }
+
+            /* ✖ボタンのカスタマイズ（ランキング下へ配置するためのラッパー指定） */
+            .exit-btn-wrapper {
+                margin-top: 15px;
+                padding-left: 10px;
+            }
+            .exit-btn-wrapper div[data-testid="stButton"] button {
+                background: rgba(0,0,0,0.3) !important;
+                border: 1px solid gray !important;
+                border-radius: 50% !important; 
+                width: 32px !important;
+                height: 32px !important;
+                min-height: 32px !important;
+                padding: 0 !important;
+            }
+            .exit-btn-wrapper div[data-testid="stButton"] button p {
+                font-size: 11px !important;
+                color: gray !important;
+                line-height: 1 !important;
+                margin: 0 !important;
+            }
             </style>
             """, unsafe_allow_html=True)
 
@@ -1131,39 +1140,40 @@ if st.session_state.get("kiosk_mode"):
                 html = "<div class='kiosk-dashboard'><div class='kiosk-title'>🏆 TOP 5</div>"
                 if top5_scores:
                     for i, s in enumerate(top5_scores):
-                        # ④ 名前の前の番号（ID_）を削除
                         display_name = s['player'].split('_')[-1] if '_' in s['player'] else s['player']
                         glow_class = f"glow-{i+1}"
-                        # ③ 1位〜5位を表示
                         html += f"<div class='score-row'><span class='score-rank {glow_class}'>#{i+1}</span><span class='score-name {glow_class}'>{display_name}</span><span class='score-val {glow_class}'>{s['score']}</span></div>"
                 else:
                     html += "<div style='text-align:center; color:silver; padding: 50px; font-size: 30px;'>No Data</div>"
                 html += "</div>"
                 st.markdown(html, unsafe_allow_html=True)
                 
+                # ⑤ スプリット説明をランキング枠の下に配置
+                st.markdown("<div class='split-info-text'>【対象スプリット】<br>リリー(5-7-10), クリスマスツリー(2/3-7-10), スネークアイ(7-10), マイティマイト(4/6-7-10), ビッグフォー(4-6-7-10), グリークチャーチ(4-6-7-8-10), ワシントン(4-6-7-9-10)</div>", unsafe_allow_html=True)
+
+                # ▼ ✖ボタンをここに移動
+                st.markdown("<div class='exit-btn-wrapper'>", unsafe_allow_html=True)
+                if st.button("✖", key="kiosk_exit_btn"):
+                    pass # ※ここに元のキオスク終了処理（st.session_stateの変更やst.rerun()など）を入れてください
+                st.markdown("</div>", unsafe_allow_html=True)
+
             with d_col2:
                 html = "<div class='kiosk-dashboard'><div class='kiosk-title'>🔥 SPLITS</div>"
                 if today_splits:
                     for sp in reversed(today_splits[:5]):
-                        # ④ 名前の前の番号を削除
                         display_name = sp['player'].split('_')[-1] if '_' in sp['player'] else sp['player']
-                        # ⑥ 名前のみを表示（残ピン番号を削除）
                         html += f"<div class='split-row'><span class='split-name glow-split'>{sp['split_name']}</span><span class='split-player glow-split'>{display_name}</span></div>"
                 else:
                     html += "<div style='text-align:center; color:silver; padding: 50px; font-size: 30px;'>No Splits</div>"
                 html += "</div>"
                 st.markdown(html, unsafe_allow_html=True)
-                # ⑤ スプリット説明をスプリット枠の下に配置
-                st.markdown("<div class='split-info-text'>【対象スプリット】<br>リリー(5-7-10), クリスマスツリー(2/3-7-10), スネークアイ(7-10), マイティマイト(4/6-7-10), ビッグフォー(4-6-7-10), グリークチャーチ(4-6-7-8-10), ワシントン(4-6-7-9-10)</div>", unsafe_allow_html=True)
 
             with d_col3:
-                # ⑥ チェックインの金色枠を削除し、直接配置
                 st.markdown("<div class='kiosk-header-column'>CHECK-IN</div>", unsafe_allow_html=True)
                 ws = sh.worksheet("プレイヤー設定")
                 data = ws.get_all_values()
                 players = [row[1] for row in data[1:] if len(row) >= 5 and row[1] and str(row[3]).strip() not in ["開発者", "管理者"]]
                 
-                # ⑦ Markdownのラッパーを廃止し、正規のラベルとして扱うことでCSSを確実に統一
                 selected_user = st.selectbox("プレイヤーを選択", ["選択してください"] + players)
                 kiosk_pw = render_tenkey("パスワード入力", "tk_kiosk_pass", "", format_type="none", is_pw=True)
                 
