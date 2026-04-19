@@ -3306,9 +3306,7 @@ if app_mode == "プレイヤー分析":
                 # 【14】月別集計（MONTHLY STATS）機能
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_monthly_stats():
-                    def render_monthly_stats():
                     st.markdown("### <span style='color: silver;'>📅 MONTHLY STATS</span>", unsafe_allow_html=True)
-
                     named_splits = {
                         "7-10": ("2P", "スネークアイ"),
                         "2-7": ("2P", "ベビースプリット"),
