@@ -540,6 +540,75 @@ def render_suggestion_input(label, key, suggestions, default_val="", marker=None
         return st.text_input(f"{label} (新規)", value=default_val if default_val not in suggestions else "", key=txt_key)
     else:
         return selected
+
+# ▼ キオスク画面用の「本日のダッシュボード」データ集計関数 ▼
+@st.cache_data(ttl=60) # 60秒キャッシュ（登録ごとに素早く反映しつつ負荷を下げる）
+def get_today_kiosk_data(_sh):
+    import datetime
+    now_jst = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=+9)))
+    
+    y2, y4 = f"{now_jst.year % 100:02d}", f"{now_jst.year:04d}"
+    m, d = f"{now_jst.month:02d}", f"{now_jst.day:02d}"
+    m_np, d_np = f"{now_jst.month}", f"{now_jst.day}"
+    today_patterns = [f"{y2}/{m}/{d}", f"{y4}/{m}/{d}", f"{y2}/{m_np}/{d_np}", f"{y4}/{m_np}/{d_np}"]
+
+    try:
+        settings_data = _sh.worksheet("プレイヤー設定").get_all_values()
+        public_players = {row[1].strip() for row in settings_data[1:] if len(row) >= 3 and row[2] == "公開" and row[1].strip()}
+        master_data = _sh.worksheet("マスター").get_all_values()
+        
+        today_scores, today_splits = [], []
+        
+        target_splits = {
+            "5,7,10": "リリー (5-7-10)🎳",
+            "2,7,10": "クリスマスツリー (2-7-10)🎳",
+            "3,7,10": "クリスマスツリー (3-7-10)",
+            "7,10": "スネークアイ (7-10)🎳",
+            "4,7,9": "マイティマイト (4-7-9)🎳",
+            "4,7,10": "マイティマイト (4-7-10)🎳",
+            "6,7,10": "マイティマイト (6-7-10)🎳",
+            "4,6,7,10": "ビッグフォー (4-6-7-10)🎳",
+            "4,6,7,8,10": "グリークチャーチ (4-6-7-8-10)🎳",
+            "4,6,7,9,10": "ワシントン条約 (4-6-7-9-10)🎳"
+        }
+        
+        def check_split(p_name, pin_str, res2_str):
+            if "/" in str(res2_str).upper():
+                import re
+                pins = [str(p) for p in re.findall(r'\d+', str(pin_str)) if 1 <= int(p) <= 10]
+                if pins:
+                    norm_pins = ",".join(sorted(pins, key=int))
+                    if norm_pins in target_splits:
+                        today_splits.append({"player": p_name, "split_name": target_splits[norm_pins]})
+
+        for row in master_data[1:]:
+            if len(row) < 53: continue
+            p_name = str(row[1]).strip()
+            if p_name not in public_players: continue
+            
+            r_date = str(row[2]).strip()
+            is_today = r_date in today_patterns
+            if not is_today:
+                try:
+                    parts = r_date.split('/')
+                    if len(parts) == 3:
+                        y = 2000 + int(parts[0]) if int(parts[0]) < 100 else int(parts[0])
+                        if y == now_jst.year and int(parts[1]) == now_jst.month and int(parts[2]) == now_jst.day: is_today = True
+                except: pass
+            if not is_today: continue
+            
+            is_710 = (len(row) > 54 and str(row[54]).strip().upper() == "TRUE")
+            if not is_710:
+                try: today_scores.append({"player": p_name, "score": int(row[52])})
+                except: pass
+            
+            for f in range(9): check_split(p_name, str(row[11+f*4]), str(row[12+f*4]))
+            check_split(p_name, str(row[47]) if len(row)>47 else "", str(row[48]) if len(row)>48 else "")
+            if len(row)>50 and "/" in str(row[50]): check_split(p_name, str(row[49]) if len(row)>49 else "", str(row[50]))
+
+        today_scores.sort(key=lambda x: x["score"], reverse=True)
+        return today_scores[:5], today_splits
+    except: return [], []
 # ▲▲▲ 追加ここまで ▲▲▲
 
 # --- セッション初期化 ---
@@ -908,9 +977,51 @@ if st.session_state.get("kiosk_mode"):
     if st.session_state.get("kiosk_step") == "auth":
         st.markdown("<div class='kiosk-header'>CHECK-IN</div>", unsafe_allow_html=True)
         
+        sh = get_gspread_client()
+        if sh:
+            # ▼ 新機能：本日のTOP5とスプリットメイクのダッシュボード表示 ▼
+            top5_scores, today_splits = get_today_kiosk_data(sh)
+            
+            st.markdown("""
+            <style>
+            .kiosk-dashboard { background: linear-gradient(145deg, #1c1c1e, #2a2a2e); border: 2px solid #bf953f; border-radius: 15px; padding: 20px; margin-bottom: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); height: 100%; }
+            .kiosk-title { color: #fcf6ba; text-align: center; font-size: 18px; font-weight: 900; margin-bottom: 15px; letter-spacing: 1px; border-bottom: 1px solid #bf953f; padding-bottom: 10px; }
+            .score-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #444; padding: 8px 0; }
+            .score-rank { font-size: 18px; font-weight: bold; width: 45px; }
+            .score-name { font-size: 16px; color: white; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 10px; }
+            .score-val { font-size: 24px; font-weight: 900; color: #ff6600; }
+            .split-row { display: flex; flex-direction: column; background: rgba(255, 102, 0, 0.1); border-left: 4px solid #ff6600; padding: 8px 10px; margin-bottom: 8px; border-radius: 4px; }
+            .split-name { font-size: 14px; color: #ff9999; font-weight: bold; margin-bottom: 2px; }
+            .split-player { font-size: 16px; color: white; font-weight: bold; text-align: right; }
+            </style>
+            """, unsafe_allow_html=True)
+            
+            d_col1, d_col2 = st.columns([1, 1])
+            with d_col1:
+                html = "<div class='kiosk-dashboard'><div class='kiosk-title'>🏆 TODAY'S TOP 5 SCORES</div>"
+                if top5_scores:
+                    rank_colors = ["#FFD700", "#C0C0C0", "#CD7F32", "#bf953f", "#bf953f"]
+                    for i, s in enumerate(top5_scores):
+                        col = rank_colors[i] if i < 3 else "silver"
+                        html += f"<div class='score-row'><span class='score-rank' style='color:{col};'>#{i+1}</span><span class='score-name'>{s['player']}</span><span class='score-val'>{s['score']}</span></div>"
+                else:
+                    html += "<div style='text-align:center; color:silver; padding: 30px; font-size: 14px;'>本日のスコア登録は<br>まだありません</div>"
+                html += "</div>"
+                st.markdown(html, unsafe_allow_html=True)
+                
+            with d_col2:
+                html = "<div class='kiosk-dashboard'><div class='kiosk-title'>🔥 TODAY'S SPLIT MAKES</div>"
+                if today_splits:
+                    for sp in reversed(today_splits): # 新しい順に上から表示
+                        html += f"<div class='split-row'><span class='split-name'>{sp['split_name']}</span><span class='split-player'>{sp['player']}</span></div>"
+                else:
+                    html += "<div style='text-align:center; color:silver; padding: 30px; font-size: 14px;'>本日の難関スプリットメイクは<br>まだありません</div>"
+                html += "</div>"
+                st.markdown(html, unsafe_allow_html=True)
+            # ▲ 新機能ここまで ▲
+
         col_c1, col_c2, col_c3 = st.columns([1, 2, 1])
         with col_c2:
-            sh = get_gspread_client()
             if sh:
                 ws = sh.worksheet("プレイヤー設定")
                 data = ws.get_all_values()
