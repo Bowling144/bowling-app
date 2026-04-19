@@ -286,30 +286,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# ▼ 権限に応じたサイドバー開閉ボタン（ヘッダー全体）の制御
-role = str(st.session_state.get("user_role")).strip()
-
-if role in ["開発者", "管理者"]:
-    # 管理者・開発者: ヘッダーのレイアウトをStreamlitの標準(flex)に強制リセットして確実に表示させる
-    st.markdown("""
-        <style>
-        header[data-testid="stHeader"] {
-            display: flex !important;
-            visibility: visible !important;
-            background-color: transparent !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-else:
-    # 一般ユーザー（未ログイン含む）: ヘッダーごと完全に消去してサイドバーへのアクセスを遮断する
-    st.markdown("""
-        <style>
-        header[data-testid="stHeader"] {
-            display: none !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
 st.markdown("""
 <div style='text-align: center; font-size: 36px; white-space: nowrap; margin-bottom: 16px; font-weight: bold; font-family: "Arial Black", Impact, sans-serif;'>
     <span style='background: linear-gradient(135deg, #bf953f 0%, #fcf6ba 20%, #555555 35%, #b38728 55%, #ffffff 75%, #aa771c 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(2px 4px 4px rgba(0,0,0,0.8)); padding-right: 5px;'>EAGLE ROLLERS(β版)</span>
@@ -882,16 +858,9 @@ if st.session_state.get("kiosk_mode"):
     import streamlit.components.v1 as components
     components.html("<script>setInterval(function(){window.parent.postMessage('ping', '*');}, 60000);</script>", height=0, width=0)
 
-    # 管理者・開発者以外の場合のみ、操作を制限するためにヘッダーを隠す
-    if st.session_state.get("user_role") in ["開発者", "管理者"]:
-        # 管理者の場合はサイドバーだけ隠し、ヘッダー（展開ボタン）は残す
-        kiosk_css = "[data-testid='stSidebar'] {display: none !important;}"
-    else:
-        # 一般ユーザが使うキオスク端末ではヘッダーも隠して封じ込める
-        kiosk_css = "[data-testid='stSidebar'] {display: none !important;} header {display: none !important;}"
-
+    # キオスクモード中は、権限に関わらず全員のサイドバーとヘッダーを完全に隠して封じ込める
+    kiosk_css = "[data-testid='stSidebar'] {display: none !important;} header {display: none !important;}"
     st.markdown(f"<style>{kiosk_css}</style>", unsafe_allow_html=True)
-
     # その他のキオスク画面用CSS
     st.markdown("""
         <style>
