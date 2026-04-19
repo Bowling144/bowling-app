@@ -289,13 +289,24 @@ st.markdown("""
 # ▼ 権限に応じたサイドバー開閉ボタン（ヘッダー全体）の制御
 role = str(st.session_state.get("user_role")).strip()
 
-# 一般ユーザー（未ログイン含む）の場合のみ、ヘッダーを消去してアクセスを遮断する。
-# 管理者・開発者はStreamlitの「標準機能のまま（何もしない）」にすることで、開閉バグを完全に防ぐ。
-if role not in ["開発者", "管理者"]:
+if role in ["開発者", "管理者"]:
+    # 管理者・開発者: ヘッダーのレイアウトをStreamlitの標準(flex)に強制リセットして確実に表示させる
     st.markdown("""
         <style>
-        header[data-testid="stHeader"] { display: none !important; }
-        [data-testid="collapsedControl"] { display: none !important; }
+        header[data-testid="stHeader"] {
+            display: flex !important;
+            visibility: visible !important;
+            background-color: transparent !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+else:
+    # 一般ユーザー（未ログイン含む）: ヘッダーごと完全に消去してサイドバーへのアクセスを遮断する
+    st.markdown("""
+        <style>
+        header[data-testid="stHeader"] {
+            display: none !important;
+        }
         </style>
     """, unsafe_allow_html=True)
 
@@ -6837,7 +6848,6 @@ if st.session_state.analyzed_results:
 
             except Exception as e:
                 st.error(f"SPSへの登録中にエラーが発生しました: {e}")
-
 
 
 
