@@ -6418,7 +6418,6 @@ if st.session_state.analyzed_results:
                 final_c3 = i_c3_val if (not st.session_state.get("kiosk_mode") and i_c3_val.strip()) else common_c3
                 
                 input_data[(img_idx, l_idx)] = (common_lane, final_len, final_vol, final_ball, final_c1, final_c2, final_c3)
-
     
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("<h3 style='text-align: left;'>☟　☟　☟　☟　☟　☟</h3>", unsafe_allow_html=True)
