@@ -6326,10 +6326,6 @@ if st.session_state.analyzed_results:
         t_date = items[0]["export_row"][0]
         t_time = items[0]["export_row"][1]
         default_len, default_vol, debug_msg = get_oil_info(t_date, t_time, common_lane)
-        
-        # ▼ 原因を突き止めるためのデバッグ表示
-        oil_data_count = len(st.session_state.get("oil_data", []))
-        st.info(f"【検索状況】日付: {t_date} | 時刻: {t_time} | レーン: '{common_lane}' | 保持データ数: {oil_data_count}件\n結果: {debug_msg}")
 
         with c_len:
             if st.session_state.get("kiosk_mode"):
