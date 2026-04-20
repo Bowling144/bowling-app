@@ -6413,9 +6413,9 @@ if st.session_state.analyzed_results:
                 final_len = i_len if i_len.strip() else common_len
                 final_vol = i_vol if i_vol.strip() else common_vol
                 final_ball = i_ball if i_ball.strip() else common_ball
-                final_c1 = i_c1_val if not st.session_state.get("kiosk_mode") else common_c1
-                final_c2 = i_c2_val if not st.session_state.get("kiosk_mode") else common_c2
-                final_c3 = i_c3_val if not st.session_state.get("kiosk_mode") else common_c3
+                final_c1 = i_c1_val if (not st.session_state.get("kiosk_mode") and i_c1_val.strip()) else common_c1
+                final_c2 = i_c2_val if (not st.session_state.get("kiosk_mode") and i_c2_val.strip()) else common_c2
+                final_c3 = i_c3_val if (not st.session_state.get("kiosk_mode") and i_c3_val.strip()) else common_c3
                 
                 input_data[(img_idx, l_idx)] = (common_lane, final_len, final_vol, final_ball, final_c1, final_c2, final_c3)
 
