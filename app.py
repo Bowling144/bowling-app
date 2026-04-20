@@ -4884,19 +4884,7 @@ if st.session_state.analyzed_results is None:
             h_k = cv2.getStructuringElement(cv2.MORPH_RECT, (int(min(h_orig, w_orig) * 0.2), 1))
             h_lines = cv2.morphologyEx(thresh_rot, cv2.MORPH_OPEN, h_k)
 
-        # 2. 上下逆さま（180度）の判定
-        pts = cv2.findNonZero(h_lines)
-        if pts is not None:
-            y_coords = pts[:, 0, 1]
-            min_y = int(np.min(y_coords))
-            max_y = int(np.max(y_coords))
-            
-            top_margin = min_y
-            bottom_margin = h_orig - max_y
-            
-            # 枠線より「下の余白」が「上の余白」よりも明らかに広い場合は、上下逆さまと判定して180度回転
-            if bottom_margin > top_margin * 1.5:
-                img = cv2.rotate(img, cv2.ROTATE_180)
+        # ※ 上下逆さま（180度）の自動判定は誤判定の原因となるため削除し、そのまま解析へ進む
 
         all_games_export_data = []
         blue_lines = []
