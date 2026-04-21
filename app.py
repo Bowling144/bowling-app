@@ -1146,17 +1146,6 @@ if st.session_state.get("kiosk_mode"):
 
                 # ⑤ スプリット説明をスプリット枠の下に配置
                 st.markdown("<div class='split-info-text'>【対象スプリット】<br>リリー(5-7-10), クリスマスツリー(2/3-7-10), スネークアイ(7-10), マイティマイト(4/6-7-10), ビッグフォー(4-6-7-10), グリークチャーチ(4-6-7-8-10), ワシントン(4-6-7-9-10)</div>", unsafe_allow_html=True)
-                
-            with d_col2:
-                html = "<div class='kiosk-dashboard'><div class='kiosk-title'>🔥 SPLITS</div>"
-                if today_splits:
-                    for sp in reversed(today_splits[:5]):
-                        display_name = sp['player'].split('_')[-1] if '_' in sp['player'] else sp['player']
-                        html += f"<div class='split-row'><span class='split-name glow-split'>{sp['split_name']}</span><span class='split-player glow-split'>{display_name}</span></div>"
-                else:
-                    html += "<div style='text-align:center; color:silver; padding: 50px; font-size: 30px;'>No Splits</div>"
-                html += "</div>"
-                st.markdown(html, unsafe_allow_html=True)
 
             with d_col3:
                 st.markdown("<div class='kiosk-header-column'>CHECK-IN</div>", unsafe_allow_html=True)
