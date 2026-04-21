@@ -1132,26 +1132,20 @@ if st.session_state.get("kiosk_mode"):
                     html += "<div style='text-align:center; color:silver; padding: 50px; font-size: 30px;'>No Data</div>"
                 html += "</div>"
                 st.markdown(html, unsafe_allow_html=True)
+                
+            with d_col2:
+                html = "<div class='kiosk-dashboard'><div class='kiosk-title'>🔥 SPLITS</div>"
+                if today_splits:
+                    for sp in reversed(today_splits[:5]):
+                        display_name = sp['player'].split('_')[-1] if '_' in sp['player'] else sp['player']
+                        html += f"<div class='split-row'><span class='split-name glow-split'>{sp['split_name']}</span><span class='split-player glow-split'>{display_name}</span></div>"
+                else:
+                    html += "<div style='text-align:center; color:silver; padding: 50px; font-size: 30px;'>No Splits</div>"
+                html += "</div>"
+                st.markdown(html, unsafe_allow_html=True)
 
-                # ▼ ✖ボタンをランキング枠の下に配置（パスワード解除機能付きのポップオーバー）
-                st.markdown("<div class='exit-btn-wrapper'>", unsafe_allow_html=True)
-                with st.popover("✖"):
-                    st.markdown("<div style='color: silver; font-weight: bold; margin-bottom: 10px;'>キオスクモード終了</div>", unsafe_allow_html=True)
-                    exit_pw = st.text_input("管理者/開発者パスワードを入力", type="password", key="kiosk_exit_pw")
-                    if st.button("終了して戻る", use_container_width=True, key="kiosk_exit_btn"):
-                        sh = get_gspread_client()
-                        if sh:
-                            ws = sh.worksheet("プレイヤー設定")
-                            # ログイン時に保存している行番号から、現在ログイン中の大元ユーザーのパスワードを取得
-                            row_data = ws.row_values(st.session_state.user_row_index)
-                            if len(row_data) >= 5 and row_data[4] == exit_pw:
-                                st.session_state.kiosk_mode = False
-                                st.rerun()
-                            else:
-                                st.error("パスワードが正しくありません。")
-                        else:
-                            st.error("データベースに接続できません。")
-                st.markdown("</div>", unsafe_allow_html=True)
+                # ⑤ スプリット説明をスプリット枠の下に配置
+                st.markdown("<div class='split-info-text'>【対象スプリット】<br>リリー(5-7-10), クリスマスツリー(2/3-7-10), スネークアイ(7-10), マイティマイト(4/6-7-10), ビッグフォー(4-6-7-10), グリークチャーチ(4-6-7-8-10), ワシントン(4-6-7-9-10)</div>", unsafe_allow_html=True)
                 
             with d_col2:
                 html = "<div class='kiosk-dashboard'><div class='kiosk-title'>🔥 SPLITS</div>"
@@ -4589,12 +4583,6 @@ if fetch_button:
 
 # --- 新規画像検知（自動解析）ロジック ---
 if st.session_state.get("kiosk_mode") and st.session_state.get("waiting_for_scan"):
-    st.markdown("""
-    <div style='background: linear-gradient(145deg, #2a2a2e, #1c1c1e); border: 2px solid #bf953f; border-radius: 12px; padding: 30px; text-align: center; box-shadow: 0 0 25px rgba(191, 149, 63, 0.6); margin-bottom: 20px;'>
-        <div style='color: #fcf6ba; font-size: 30px; font-weight: 900; margin-bottom: 10px; letter-spacing: 2px;'>🔄 スキャナーでスコアシートをスキャンしてください</div>
-        <div style='color: silver; font-size: 16px; font-weight: bold;'>（新しく追加された画像を自動で検知して解析を開始します）</div>
-    </div>
-    """, unsafe_allow_html=True)
     
     with st.spinner("画像の追加を監視中... (最大2分)"):
         try:
