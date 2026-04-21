@@ -2136,18 +2136,64 @@ if app_mode == "プレイヤー分析":
                 # 【03】 STATS：SEVEN-TEN カバー率
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_03_seven_ten():
-                    st.markdown("### <span style='color: silver;'>🎳 SEVEN-TEN カバー率</span>", unsafe_allow_html=True)
+                    st.markdown("### <span style='color: silver;'>🎳 SEVEN-TEN カバー率 (200G)</span>", unsafe_allow_html=True)
                     c_7, c_10 = st.columns(2)
                     
+                    recent_200_games = player_games[:200]
+                    pin_7_c = 0
+                    pin_7_s = 0
+                    pin_10_c = 0
+                    pin_10_s = 0
+                    
+                    for g in recent_200_games:
+                        r = g['row']
+                        # 1〜9フレーム
+                        for f in range(9):
+                            pin1 = str(r[11 + f*4]).strip()
+                            res2 = str(r[12 + f*4]).strip().upper()
+                            import re
+                            left_pins = [str(p) for p in re.findall(r'\d+', pin1) if 1 <= int(p) <= 10]
+                            if len(left_pins) == 1:
+                                if "7" in left_pins:
+                                    pin_7_c += 1
+                                    if "/" in res2: pin_7_s += 1
+                                elif "10" in left_pins:
+                                    pin_10_c += 1
+                                    if "/" in res2: pin_10_s += 1
+                                    
+                        # 10フレーム
+                        pin10_1 = str(r[47]).strip() if len(r) > 47 else ""
+                        res10_2 = str(r[48]).strip().upper() if len(r) > 48 else ""
+                        left_pins1 = [str(p) for p in re.findall(r'\d+', pin10_1) if 1 <= int(p) <= 10]
+                        if len(left_pins1) == 1:
+                            if "7" in left_pins1:
+                                pin_7_c += 1
+                                if "/" in res10_2: pin_7_s += 1
+                            elif "10" in left_pins1:
+                                pin_10_c += 1
+                                if "/" in res10_2: pin_10_s += 1
+                                
+                        pin10_2 = str(r[49]).strip() if len(r) > 49 else ""
+                        res10_3 = str(r[50]).strip().upper() if len(r) > 50 else ""
+                        left_pins2 = [str(p) for p in re.findall(r'\d+', pin10_2) if 1 <= int(p) <= 10]
+                        if len(left_pins2) == 1:
+                            if "7" in left_pins2:
+                                pin_7_c += 1
+                                if "/" in res10_3: pin_7_s += 1
+                            elif "10" in left_pins2:
+                                pin_10_c += 1
+                                if "/" in res10_3: pin_10_s += 1
+
+                    rate_7 = round((pin_7_s / pin_7_c) * 100, 1) if pin_7_c > 0 else 0.0
+                    rate_10 = round((pin_10_s / pin_10_c) * 100, 1) if pin_10_c > 0 else 0.0
+                    
                     # 7番ピンカバー率（ドーナツチャート）
-                    rate_7 = float(p_awards.get("④7番ピン", "0"))
                     fig_7 = go.Figure(data=[go.Pie(labels=['Cover', 'Miss'], values=[rate_7, max(0, 100-rate_7)], hole=.7, marker_colors=['#00CC96', '#333333'])])
                     fig_7.update_layout(title_text="7番ピン", title_x=0.5, showlegend=False, margin=dict(t=30, b=10, l=10, r=10), height=200)
                     fig_7.add_annotation(text=f"{rate_7}%", x=0.5, y=0.5, font_size=20, showarrow=False)
                     c_7.plotly_chart(fig_7, use_container_width=True, config={'displayModeBar': False})
                     
                     # 10番ピンカバー率（ドーナツチャート）
-                    rate_10 = float(p_awards.get("⑤10番ピン", "0"))
                     fig_10 = go.Figure(data=[go.Pie(labels=['Cover', 'Miss'], values=[rate_10, max(0, 100-rate_10)], hole=.7, marker_colors=['#AB63FA', '#333333'])])
                     fig_10.update_layout(title_text="10番ピン", title_x=0.5, showlegend=False, margin=dict(t=30, b=10, l=10, r=10), height=200)
                     fig_10.add_annotation(text=f"{rate_10}%", x=0.5, y=0.5, font_size=20, showarrow=False)
@@ -2158,23 +2204,8 @@ if app_mode == "プレイヤー分析":
                 # 【04】 STATS：1投目 残ピン率
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_04_first_pitch_pins():
-                    st.markdown("### <span style='color: silver;'>🎳 1投目 残ピン率</span>", unsafe_allow_html=True)
+                    st.markdown("### <span style='color: silver;'>🎳 1投目 残ピン率 (200G)</span>", unsafe_allow_html=True)
                     
-                    #--- 円グラフをHTML/CSSで直接描画する内部関数（既存用） ---
-                    def draw_pin_pie(pin_num):
-                        rate_str = p_awards.get(f"⑬{pin_num}番ピン残存率", "0")
-                        try:
-                            rate = float(rate_str)
-                        except ValueError:
-                            rate = 0.0
-                        
-                        html = f"""<div style="width: 22%; max-width: 70px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-<div style="position: relative; width: 100%; aspect-ratio: 1 / 1; border-radius: 50%; background: conic-gradient(#EF553B 0% {rate}%, #555555 {rate}% 100%); display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 4px rgba(0,0,0,0.3), 0 2px 5px rgba(0,0,0,0.5); border: 1px solid #222;">
-<span style="color: white; font-size: 12px; font-weight: bold; font-family: Arial, sans-serif; text-shadow: 1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black;">{rate}%</span>
-</div>
-</div>"""
-                        return html
-
                     #--- 円グラフをHTML/CSSで直接描画する内部関数（新規計算用） ---
                     def draw_custom_pin_pie(rate):
                         html = f"""<div style="width: 22%; max-width: 70px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
@@ -2184,15 +2215,11 @@ if app_mode == "プレイヤー分析":
 </div>"""
                         return html
 
-                    # ▼① 今の図（奥・手前の文字を削除）
-                    row4 = f"<div style='display: flex; justify-content: center; gap: 4%; margin-bottom: 12px;'>{draw_pin_pie(7)}{draw_pin_pie(8)}{draw_pin_pie(9)}{draw_pin_pie(10)}</div>"
-                    row3 = f"<div style='display: flex; justify-content: center; gap: 4%; margin-bottom: 12px;'>{draw_pin_pie(4)}{draw_pin_pie(5)}{draw_pin_pie(6)}</div>"
-                    row2 = f"<div style='display: flex; justify-content: center; gap: 4%; margin-bottom: 12px;'>{draw_pin_pie(2)}{draw_pin_pie(3)}</div>"
-                    row1 = f"<div style='display: flex; justify-content: center; margin-bottom: 30px;'>{draw_pin_pie(1)}</div>"
-                    
-                    st.markdown(row4 + row3 + row2 + row1, unsafe_allow_html=True)
+                    recent_200_games = player_games[:200]
                     
                     # ▼ 新機能：ヘッドピン条件別のデータ集計処理
+                    overall_total = 0
+                    overall_pins = {i: 0 for i in range(1, 11)}
                     head_hit_total = 0
                     head_hit_pins = {i: 0 for i in range(1, 11)}
                     head_miss_total = 0
@@ -2200,12 +2227,16 @@ if app_mode == "プレイヤー分析":
 
                     import re
                     def process_pitch(res_val, pin_val):
-                        nonlocal head_hit_total, head_miss_total, head_hit_pins, head_miss_pins
+                        nonlocal overall_total, overall_pins, head_hit_total, head_miss_total, head_hit_pins, head_miss_pins
                         res = str(res_val).strip().upper()
                         left_pins = []
                         if "X" not in res: 
                             left_pins = [int(p) for p in re.findall(r'\d+', str(pin_val)) if 1 <= int(p) <= 10]
                         
+                        overall_total += 1
+                        for p in left_pins:
+                            overall_pins[p] += 1
+
                         # 1番ピンが残っていない（ヘッドピンが倒れた）
                         if 1 not in left_pins:
                             head_hit_total += 1
@@ -2217,8 +2248,8 @@ if app_mode == "プレイヤー分析":
                             for p in left_pins:
                                 head_miss_pins[p] += 1
 
-                    # 全ゲームの投球履歴から、すべての「ラックリセット時の1投目」を抽出して集計
-                    for g in player_games:
+                    # 直近200ゲームの投球履歴から、すべての「ラックリセット時の1投目」を抽出して集計
+                    for g in recent_200_games:
                         r = g['row']
                         # 1〜9フレーム
                         for f in range(9):
@@ -2241,10 +2272,20 @@ if app_mode == "プレイヤー分析":
                                 process_pitch(res10_3, pin10_3)
 
                     # 確率を計算する関数
+                    def get_overall_rate(p):
+                        return (overall_pins[p] / overall_total * 100) if overall_total > 0 else 0.0
                     def get_hit_rate(p):
                         return (head_hit_pins[p] / head_hit_total * 100) if head_hit_total > 0 else 0.0
                     def get_miss_rate(p):
                         return (head_miss_pins[p] / head_miss_total * 100) if head_miss_total > 0 else 0.0
+
+                    # ▼① 今の図（直近200Gの集計結果から表示）
+                    row4 = f"<div style='display: flex; justify-content: center; gap: 4%; margin-bottom: 12px;'>{draw_custom_pin_pie(get_overall_rate(7))}{draw_custom_pin_pie(get_overall_rate(8))}{draw_custom_pin_pie(get_overall_rate(9))}{draw_custom_pin_pie(get_overall_rate(10))}</div>"
+                    row3 = f"<div style='display: flex; justify-content: center; gap: 4%; margin-bottom: 12px;'>{draw_custom_pin_pie(get_overall_rate(4))}{draw_custom_pin_pie(get_overall_rate(5))}{draw_custom_pin_pie(get_overall_rate(6))}</div>"
+                    row2 = f"<div style='display: flex; justify-content: center; gap: 4%; margin-bottom: 12px;'>{draw_custom_pin_pie(get_overall_rate(2))}{draw_custom_pin_pie(get_overall_rate(3))}</div>"
+                    row1 = f"<div style='display: flex; justify-content: center; margin-bottom: 30px;'>{draw_custom_pin_pie(get_overall_rate(1))}</div>"
+                    
+                    st.markdown(row4 + row3 + row2 + row1, unsafe_allow_html=True)
 
                     # ▼② ヘッドピンが倒れた場合の残ピン率
                     st.markdown("<hr style='border-top: 1px dashed #444; margin: 20px 0;'>", unsafe_allow_html=True)
