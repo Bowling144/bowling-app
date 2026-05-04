@@ -416,6 +416,37 @@ def analyze_park_lanes(img, ai_meta_data):
         # 相模原は白抜き丸と黒丸の2値判定となるため、谷間の閾値を直接使用する
         dyn_thresh = dyn_thresh_base + offset
 
+        # ----------------------------------------------------
+        # ▼ 追加：判定グラフ（ヒストグラム）の生成と描画
+        # ----------------------------------------------------
+        plt.style.use('dark_background')
+        # イーグルボウル(4.5, 2.25)より大きめのサイズ(6.0, 3.0)に設定
+        fig, ax1 = plt.subplots(figsize=(6.0, 3.0))
+        
+        # ピクセル密度の分布をプロット
+        ax1.hist(game_pin_pcts, bins=50, range=(0,100), color='#00FFFF', alpha=0.7, label='All Pins')
+        
+        # 算出された閾値のラインを引く
+        ax1.axvline(dyn_thresh, color='#FF2D55', linestyle='dashed', linewidth=2, label=f'Threshold: {dyn_thresh:.1f}%')
+        
+        ax1.legend(loc='upper right', fontsize='small')
+        ax1.set_title("Pixel Distribution & Threshold (Sagamihara)", fontsize='medium')
+        fig.tight_layout()
+
+        # 画像としてメモリ上に保存し、OpenCV形式に変換
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png', dpi=100)
+        buf.seek(0)
+        graph_img = cv2.imdecode(np.frombuffer(buf.getvalue(), dtype=np.uint8), 1)
+        plt.close(fig)
+
+        # 右上にグラフを合成
+        gh, gw, _ = graph_img.shape
+        oh, ow, _ = output_img.shape
+        if oh >= gh and ow >= gw:
+            output_img[0:gh, ow-gw:ow] = graph_img
+        # ----------------------------------------------------
+
         for f in range(12):
             frame_pins = []
             
