@@ -371,7 +371,7 @@ def sync_calendar_to_sps(sh, file_id):
         if "private_key" in creds_info:
             creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
         
-        drive_creds = service_account.Credentials.from_service_account_info(creds_info, scopes=['[https://www.googleapis.com/auth/drive](https://www.googleapis.com/auth/drive)'])
+        drive_creds = service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/drive'])
         drive_service = build('drive', 'v3', credentials=drive_creds)
         
         # Vertex AI専用のクライアント初期化
