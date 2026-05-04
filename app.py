@@ -93,21 +93,21 @@ def analyze_park_lanes(img, ai_meta_data):
     
     contours, _ = cv2.findContours(h_dilate, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
-    h_lines = []
+    h_lines_info = []
     for cnt in contours:
         x, y, w, h = cv2.boundingRect(cnt)
         if w > target_width * 0.4: # 横幅の40%以上の直線を抽出
             y_center = y + h / 2.0
-            h_lines.append({'y': y_center, 'w': w, 'x': x})
+            h_lines_info.append({'y': y_center, 'w': w, 'x': x})
             
-    h_lines.sort(key=lambda item: item['y'])
+    h_lines_info.sort(key=lambda item: item['y'])
 
     # Y座標の近接具合で「ゲームのブロック」をまとめる
     blocks = []
-    if h_lines:
-        current_block = [h_lines[0]]
-        prev_y = h_lines[0]['y']
-        for line in h_lines[1:]:
+    if h_lines_info:
+        current_block = [h_lines_info[0]]
+        prev_y = h_lines_info[0]['y']
+        for line in h_lines_info[1:]:
             if line['y'] - prev_y > 50: # 50px以上離れていれば別のブロックとみなす
                 blocks.append(current_block)
                 current_block = [line]
@@ -123,22 +123,63 @@ def analyze_park_lanes(img, ai_meta_data):
             y_min = min(l['y'] for l in b)
             y_max = max(l['y'] for l in b)
             games_y_coords.append((int(y_min), int(y_max)))
-            # 確認用：緑の枠とテキストを描画
+            # 確認用：ゲーム全体の枠を緑で描画
             cv2.rectangle(output_img, (10, int(y_min)), (target_width-10, int(y_max)), (0, 255, 0), 2)
             cv2.putText(output_img, f"Game {len(games_y_coords)}", (20, int(y_min) + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
-    # 3. スコア画像の作成（AI読み取り用）
+    # 3. 縦線の検出と交点（グリッド）の作成
+    v_kernel_len = int(target_height * 0.05) # 縦線の長さの閾値
+    v_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, v_kernel_len))
+    v_mask = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, v_kernel)
+    v_dilate = cv2.dilate(v_mask, cv2.getStructuringElement(cv2.MORPH_RECT, (1, 20)), iterations=1)
+    
+    v_contours, _ = cv2.findContours(v_dilate, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    v_lines_x = []
+    for cnt in v_contours:
+        x, y, w, h = cv2.boundingRect(cnt)
+        # ある程度長さがある縦線を抽出（ゲーム枠の高さの半分以上）
+        if h > (games_y_coords[0][1] - games_y_coords[0][0]) * 0.5 if games_y_coords else target_height * 0.1:
+            x_center = x + w / 2.0
+            v_lines_x.append(x_center)
+            
+    v_lines_x.sort()
+    
+    # 近接する縦線を統合
+    merged_v_lines = []
+    if v_lines_x:
+        current_x = v_lines_x[0]
+        group = [current_x]
+        for x in v_lines_x[1:]:
+            if x - current_x < 15: # 15px以内なら同じ線
+                group.append(x)
+            else:
+                merged_v_lines.append(sum(group) / len(group))
+                group = [x]
+            current_x = x
+        merged_v_lines.append(sum(group) / len(group))
+
+    # 確認用：検出した縦線を黄色で描画
+    for vx in merged_v_lines:
+        cv2.line(output_img, (int(vx), 0), (int(vx), target_height), (0, 255, 255), 1)
+
+    # 4. スコア画像の作成（AI読み取り用）
     score_crops = []
-    # 相模原のスコアレイアウト：右側の大部分にフレームスコアがある
-    x1 = int(target_width * 0.13)
-    x2 = int(target_width * 0.99)
+    
+    # 縦線が正しく検出されていれば、左から2番目の線(フレーム1の開始)と右から2番目の線(トータルの手前)をX座標の境界として使用する
+    # 縦線の検出が不完全な場合のフォールバックとして固定値も用意
+    if len(merged_lines) > 10:
+        x1 = int(merged_v_lines[1]) if len(merged_v_lines) > 1 else int(target_width * 0.16)
+        x2 = int(merged_v_lines[-2]) if len(merged_v_lines) > 2 else int(target_width * 0.95)
+    else:
+        x1 = int(target_width * 0.16)
+        x2 = int(target_width * 0.95)
     
     for (y1, y2) in games_y_coords:
         # 緑枠の下辺(y2)を基準（スコアとピン図の境界線）とする
-        # スコア数字は、その境界線の少し上（例えば25px〜50px程度上）にあると推測
-        # ※もし数字が欠ける場合は 45 や 50 などの数値を調整します
-        crop_y_bottom = y2 - 3  # 下辺の線そのものを少し避ける
-        crop_y_top = y2 - 40    # 下辺から40px上までをスコア領域とする
+        # 相模原は数字が少し小さいため、高さを30px程度に絞り込み、上下の余計な線を入れないようにします
+        crop_y_bottom = y2 - 4  # 下辺の線そのものを少し避ける
+        crop_y_top = y2 - 32    # 下辺から32px上までをスコア領域とする
         
         # 範囲外にならないよう補正
         crop_y_top = max(0, crop_y_top)
