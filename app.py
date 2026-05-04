@@ -337,56 +337,53 @@ def analyze_park_lanes(img, ai_meta_data):
         mm_to_px = distance_ab_px / 192.0
         
         # 指定の距離（自動スケール換算）
-        pitch1_offset_px = int(20.0 * mm_to_px)    # ① 各フレームの開始位置：基準点Aから右へ20mm
-        frame_width_px = int(14.44 * mm_to_px)     # ① フレーム間距離：14.44mm
-        
         # ① 基準点Aから20mmだったものを5mm右へずらす (20 + 5 = 25mm)
-        pitch1_offset_px = int(25.0 * mm_to_px)    
-        pitch2_offset_px = int(7.2 * mm_to_px)     # 1〜9フレームの2投目の位置（1投目の位置から右へ7.2mm）
-        pitch10_offset_px = int(4.4 * mm_to_px)    # ① 10フレーム目の間隔は狭いので 4.4mm
+        pitch1_offset_px = 25.0 * mm_to_px         # 小数のまま保持し、描画時にint変換して累積ズレを防ぐ
+        pitch2_offset_px = 7.2 * mm_to_px          # 1〜9フレームの2投目の位置（1投目の位置から右へ7.2mm）
+        pitch10_offset_px = 4.4 * mm_to_px         # ① 10フレーム目の間隔は狭いので 4.4mm
         match_x_offset_px = int(168.0 * mm_to_px)  # ④ マッチの文字：基準点Aから168mm
         
         # 縦位置の指定
-        y_offset_score = int(11.0 * mm_to_px)      # 縦①② 1投目と赤文字は下辺から11mm上
+        y_offset_score = int(11.0 * mm_to_px)      # 縦①② 1投目と2投目は下辺から11mm上
         y_offset_match = int(12.0 * mm_to_px)      # 縦③ マッチの文字は下辺から12mm上
         
         text_y_score = int(base_y - y_offset_score)
         text_y_match = int(base_y - y_offset_match)
         
-        # ③ トータルスコアの緑字の位置を、1投目の位置(text_y_score)から3mm下にする
-        tot_y_score = text_y_score + int(3.0 * mm_to_px)
+        # ③ トータルスコアの位置を「元の位置(base_y - 30)」から3mm下へ移動
+        tot_y_score = int(base_y - 30) + int(3.0 * mm_to_px)
         
         font = cv2.FONT_HERSHEY_SIMPLEX
         font_scale = 0.6
         thickness = 2
-        color_green = (0, 150, 0) # イーグルボウルと同じ濃い緑色
+        color_green = (0, 150, 0)  # イーグルボウルと同じ濃い緑色
         color_opencv = (255, 0, 0) # OpenCVの青色
-        color_ai = (0, 0, 220) # AIの赤色
+        color_ai = (0, 0, 220)     # AIの赤色
         
         for f in range(9):
-            # フレームの基準X座標
-            f_start_x = int(base_x + pitch1_offset_px + (f * frame_width_px))
+            # ③ 累積誤差をなくすため、ここで毎回 f 倍してから int に変換
+            f_start_x = int(base_x + pitch1_offset_px + (f * 14.44 * mm_to_px))
             
-            # ①③ トータルスコアの描画（位置を3mm下げ、フォントスケールを 0.5 -> 0.6、太さを 1 -> 2 へ大きく）
+            # トータルスコアの描画（位置を3mm下げ、フォントスケールを0.6、太さを2へ）
             ai_tot_val = str(ai_frame_totals[f])
             if ai_tot_val and ai_tot_val != "0":
                 cv2.putText(output_img, ai_tot_val, (f_start_x, tot_y_score), font, 0.6, color_green, 2, cv2.LINE_AA)
             
-            # ② 1投目の描画 (指定の縦位置 text_y_score を維持)
+            # ② 1投目の描画 (ピン判定がないため現在は row_data を参照)
             t1 = str(row_data[throw_cols_local[f*2]]).replace("R:", "")
             color1 = color_opencv if t1 in ["X", "-", "G"] else color_ai
             if t1.strip(): 
                 cv2.putText(output_img, t1, (f_start_x, text_y_score), font, font_scale, color1, thickness, cv2.LINE_AA)
             
-            # ③ 2投目（逆算された赤文字等）の描画
+            # 2投目（逆算された赤文字等）の描画
             t2 = str(row_data[throw_cols_local[f*2+1]]).replace("R:", "")
-            x2_pos = int(f_start_x + pitch2_offset_px)
+            x2_pos = int(base_x + pitch1_offset_px + (f * 14.44 * mm_to_px) + pitch2_offset_px)
             color2 = color_opencv if t2 in ["/", "-", "G"] else color_ai
             if t2.strip(): 
                 cv2.putText(output_img, t2, (x2_pos, text_y_score), font, font_scale, color2, thickness, cv2.LINE_AA)
             
         # 10フレームの描画
-        f10_start_x = int(base_x + pitch1_offset_px + (9 * frame_width_px))
+        f10_start_x = int(base_x + pitch1_offset_px + (9 * 14.44 * mm_to_px))
         
         ai_tot_val_10 = str(ai_frame_totals[9])
         if ai_tot_val_10 and ai_tot_val_10 != "0":
@@ -399,10 +396,10 @@ def analyze_park_lanes(img, ai_meta_data):
         if t10_1.strip(): 
             cv2.putText(output_img, t10_1, (f10_start_x, text_y_score), font, font_scale, color_opencv if t10_1 in ["X", "-", "G"] else color_ai, thickness, cv2.LINE_AA)
         if t10_2.strip(): 
-            # ① 10フレーム目の2投目は、1投目から 4.4mm の間隔に設定
+            # ① 10フレーム目の2投目は、1投目から 4.4mm の間隔
             cv2.putText(output_img, t10_2, (int(f10_start_x + pitch10_offset_px), text_y_score), font, font_scale, color_opencv if t10_2 in ["X", "/", "-", "G"] else color_ai, thickness, cv2.LINE_AA)
         if t10_3.strip(): 
-            # ① 10フレーム目の3投目は、1投目から 8.8mm（4.4mm × 2）の間隔に設定
+            # ① 10フレーム目の3投目は、1投目から 8.8mm の間隔
             cv2.putText(output_img, t10_3, (int(f10_start_x + pitch10_offset_px * 2), text_y_score), font, font_scale, color_opencv if t10_3 in ["X", "/", "-", "G"] else color_ai, thickness, cv2.LINE_AA)
 
         # トータルスコアの照合と MATCH/DIFF! の描画
