@@ -309,7 +309,7 @@ def analyze_park_lanes(img, ai_meta_data):
         
         text_y_score = int(base_y - y_offset_score)
         text_y_match = int(base_y - y_offset_match)
-        tot_y_score = text_y_score + int(3.0 * mm_to_px) # ③ トータルスコアの位置を3mm下へ
+        tot_y_score = text_y_score + int(10.0 * mm_to_px) # トータルスコアの位置をさらに7mm下へ移動（合計10mm下）
         
         font = cv2.FONT_HERSHEY_SIMPLEX
         font_scale = 0.6
