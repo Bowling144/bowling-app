@@ -334,11 +334,11 @@ def analyze_park_lanes(img, ai_meta_data):
         pin_pitch_y_mm = (pin1_y_offset_mm - pin7_y_offset_mm) / 3.0
 
         frame_width_px = 14.4 * mm_to_px           # 1〜9フレームの横間隔
-        frame9_to_10_pitch_px = 14.1 * mm_to_px    # 9フレームから10フレーム1投目への間隔
+        frame9_to_10_pitch_px = 14.1 * mm_to_px    # 13.9から0.2mm広げて14.1mmに変更
         frame10_pitch_px = 11.5 * mm_to_px         # 10フレーム内の投球間隔
         
-        radius_px = int(0.9 * mm_to_px)            # 判定枠を直径1.8mm（半径0.9mm）の円に変更
-        box_size_px = 1.8 * mm_to_px               # 閾値判定用のクロップ幅（直径1.8mm）
+        radius_px = int(0.75 * mm_to_px)           # 判定枠を直径1.5mm（半径0.75mm）の円に変更
+        box_size_px = 1.5 * mm_to_px               # 閾値判定用のクロップ幅（直径1.5mm）
         yw = int(box_size_px)
         yh = int(box_size_px)
 
@@ -465,7 +465,7 @@ def analyze_park_lanes(img, ai_meta_data):
                 elif row_idx == 3: pin_num = 1
                 else: pin_num = 1
                 
-                # 白黒判定（イーグルボウルと同等のロジック）
+                # 白抜き丸（低ピクセル率）か、黒塗り丸（高ピクセル率）かの2値で判定
                 if pin_pct > dyn_thresh:
                     # 閾値以上なら黒塗り丸（＝残ピン）
                     frame_pins.append(pin_num)
