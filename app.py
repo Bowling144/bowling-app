@@ -4946,8 +4946,7 @@ if st.session_state.analyzed_results is None:
                     )
                 )
                 raw_text = response.text.strip()
-                if raw_text.startswith("
-```"):
+                if raw_text.startswith("```"):
                     lines = raw_text.split('\n')
                     raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
                 ai_meta_data = json.loads(raw_text)
