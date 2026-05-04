@@ -465,15 +465,15 @@ def analyze_park_lanes(img, ai_meta_data):
                 elif row_idx == 3: pin_num = 1
                 else: pin_num = 1
                 
-                # 位置確認のためにオレンジ色の太線(2)で全ての枠を円で描画する
-                cv2.circle(output_img, (cx_local, cy_local), radius_px, (0, 165, 255), 2)
-                
                 # 白抜き丸（低ピクセル率）か、黒塗り丸（高ピクセル率）かの2値で判定
                 if pin_pct > dyn_thresh:
                     # 閾値以上なら黒塗り丸（＝残ピン）
                     frame_pins.append(pin_num)
-                    # 検知を可視化
-                    cv2.line(output_img, (cx_local - radius_px, cy_local - radius_px), (cx_local + radius_px, cy_local + radius_px), (0, 165, 255), 2)
+                    # 検知を可視化するため、赤色で塗りつぶした円を描画する
+                    cv2.circle(output_img, (cx_local, cy_local), radius_px, (0, 0, 255), -1)
+                else:
+                    # 検知されなかったピンは、これまで通りオレンジ色の枠（太さ2）を描画する
+                    cv2.circle(output_img, (cx_local, cy_local), radius_px, (0, 165, 255), 2)
             
             frame_pins.sort()
             all_frame_pins.append(frame_pins)
