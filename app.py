@@ -325,19 +325,21 @@ def analyze_park_lanes(img, ai_meta_data):
         dyn_thresh_green = 20.0 + st.session_state.get("pin_thresh_offset", 0.0) # 暫定の閾値
         
         # 実測値に基づくピン配置設定（1mmあたりのピクセル数 mm_to_px を適用）
-        pin7_x_offset_mm = 28.5
-        pin1_x_offset_mm = 32.1
-        pin_pitch_x_mm = (pin1_x_offset_mm - pin7_x_offset_mm) / 1.5 # 約2.4mm
+        pin7_x_offset_mm = 28.1  # 28.5から0.4mm左へ
+        pin1_x_offset_mm = 31.9  # 32.1から0.2mm左へ
+        pin_pitch_x_mm = (pin1_x_offset_mm - pin7_x_offset_mm) / 1.5
         
         # Y座標は下辺(base_y)を基準とし、下にプラスする形で設定
-        pin7_y_offset_mm = 2.3  # 下辺から下へ2.3mm
-        pin1_y_offset_mm = 10.7 # 下辺から下へ10.7mm
-        pin_pitch_y_mm = (pin1_y_offset_mm - pin7_y_offset_mm) / 3.0 # 約2.8mm
+        pin7_y_offset_mm = 2.4  # 2.3から0.1mm下へ
+        pin1_y_offset_mm = 11.0 # 10.7から0.3mm下へ
+        pin_pitch_y_mm = (pin1_y_offset_mm - pin7_y_offset_mm) / 3.0
 
-        frame_width_px = 14.4 * mm_to_px     # 1〜9フレームの横間隔
-        frame10_pitch_px = 11.5 * mm_to_px   # 10フレーム内の投球間隔
+        frame_width_px = 14.4 * mm_to_px           # 1〜9フレームの横間隔
+        frame9_to_10_pitch_px = 13.6 * mm_to_px    # 9フレームから10フレーム1投目への間隔
+        frame10_pitch_px = 11.5 * mm_to_px         # 10フレーム内の投球間隔
         
-        box_size_px = 2.6 * mm_to_px         # 四角枠の大きさ（2.6mm正方形）
+        radius_px = int(1.4 * mm_to_px)            # 判定枠を半径1.4mmの円に変更
+        box_size_px = 2.8 * mm_to_px               # 閾値判定用のクロップ幅（直径）
         yw = int(box_size_px)
         yh = int(box_size_px)
 
@@ -348,15 +350,15 @@ def analyze_park_lanes(img, ai_meta_data):
             if f < 9:
                 f_offset_px = f * frame_width_px
             elif f == 9:
-                f_offset_px = 9 * frame_width_px
+                f_offset_px = 8 * frame_width_px + frame9_to_10_pitch_px
             elif f == 10:
-                f_offset_px = 9 * frame_width_px + frame10_pitch_px
+                f_offset_px = 8 * frame_width_px + frame9_to_10_pitch_px + frame10_pitch_px
             else:
-                f_offset_px = 9 * frame_width_px + (2 * frame10_pitch_px)
+                f_offset_px = 8 * frame_width_px + frame9_to_10_pitch_px + (2 * frame10_pitch_px)
                 
             gx_local = int(base_x + (pin7_x_offset_mm * mm_to_px) + f_offset_px)
             
-            # 7番ピンのY座標（base_yから下に2.3mm）
+            # 7番ピンのY座標（base_yから下に2.4mm）
             gy_local = int(base_y + (pin7_y_offset_mm * mm_to_px))
             
             for row_idx, col_offset in pin_positions:
@@ -364,11 +366,11 @@ def analyze_park_lanes(img, ai_meta_data):
                 cx_local = int(gx_local + (col_offset * pin_pitch_x_mm * mm_to_px))
                 cy_local = int(gy_local + (row_idx * pin_pitch_y_mm * mm_to_px))
                 
-                # 四角形の左上座標を計算（中心からサイズの半分を引く）
-                yx1_local = int(cx_local - (yw / 2.0))
-                yy1_local = int(cy_local - (yh / 2.0))
+                # クロップ用の左上座標を計算（中心から半径を引く）
+                yx1_local = int(cx_local - radius_px)
+                yy1_local = int(cy_local - radius_px)
                 
-                # 閾値画像からピクセル数を計算
+                # 閾値画像からピクセル数を計算（円に内接する四角領域で計算）
                 if 0 <= yy1_local < thresh_ink.shape[0] and 0 <= yx1_local < thresh_ink.shape[1]:
                     crop_y = thresh_ink[yy1_local:yy1_local+yh, yx1_local:yx1_local+yw]
                     pixels_y = crop_y.shape[0] * crop_y.shape[1]
@@ -389,8 +391,8 @@ def analyze_park_lanes(img, ai_meta_data):
                 if result == "CIRCLE":
                     frame_pins.append(pin_num)
                 
-                # ▼ 判定結果に関わらず、位置確認のためにオレンジ色の太線(2)で全ての枠を描画する
-                cv2.rectangle(output_img, (yx1_local, yy1_local), (yx1_local+yw, yy1_local+yh), (0, 165, 255), 2)
+                # ▼ 判定結果に関わらず、位置確認のためにオレンジ色の太線(2)で全ての枠を円で描画する
+                cv2.circle(output_img, (cx_local, cy_local), radius_px, (0, 165, 255), 2)
             
             frame_pins.sort()
             all_frame_pins.append(frame_pins)
