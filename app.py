@@ -422,8 +422,8 @@ def analyze_park_lanes(img, ai_meta_data):
         # ▼ 追加：判定グラフ（ヒストグラム）の生成と描画
         # ----------------------------------------------------
         plt.style.use('dark_background')
-        # イーグルボウル(4.5, 2.25)より大きめのサイズ(6.0, 3.0)に設定
-        fig, ax1 = plt.subplots(figsize=(6.0, 3.0))
+        # イーグルボウルと全く同じサイズ(4.5, 2.25)に設定
+        fig, ax1 = plt.subplots(figsize=(4.5, 2.25))
         
         # ピクセル密度の分布をプロット（X軸の範囲を10〜60に変更）
         ax1.hist(game_pin_pcts, bins=50, range=(10, 60), color='#00FFFF', alpha=0.7, label='All Pins')
