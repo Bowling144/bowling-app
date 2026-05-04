@@ -1838,11 +1838,26 @@ if app_mode == "プレイヤー分析":
             # ▲ 追加ここまで ▲
 
             if selected_player:
+                # ▼ 追加: 分析対象のボウリング場フィルター
+                # マスターデータから、選択されたプレイヤーがプレイしたボウリング場のリストを抽出
+                player_alleys = set()
+                for row in master_data[1:]:
+                    if len(row) >= 53 and row[1] == selected_player:
+                        alley = row[58].strip() if len(row) > 58 and row[58].strip() else "イーグルボウル"
+                        player_alleys.add(alley)
+                
+                alley_filter_options = ["すべて"] + sorted(list(player_alleys))
+                selected_alley_filter = st.selectbox("🎯 分析対象のボウリング場", alley_filter_options, index=0)
+
                 # 1. マスターシートから選択されたプレイヤーの「直近50ゲーム」と「7-10G」を抽出
                 player_games = []
                 player_710_rows = [] 
                 for row in master_data[1:]:
                     if len(row) >= 53 and row[1] == selected_player:
+                        row_alley = row[58].strip() if len(row) > 58 and row[58].strip() else "イーグルボウル"
+                        if selected_alley_filter != "すべて" and row_alley != selected_alley_filter:
+                            continue
+
                         is_710_game = (len(row) > 54 and str(row[54]).strip().upper() == "TRUE")
                         if is_710_game:
                             player_710_rows.append(row)
@@ -4177,6 +4192,7 @@ if app_mode == "データ比較":
                 cond1 = str(row[55]).strip() if len(row) > 55 else ""
                 cond2 = str(row[56]).strip() if len(row) > 56 else ""
                 cond3 = str(row[57]).strip() if len(row) > 57 else ""
+                bowling_alley = str(row[58]).strip() if len(row) > 58 and str(row[58]).strip() else "イーグルボウル"
                 ball = str(row[9]).strip()
                 lane = str(row[5]).strip()
                 oil_len = str(row[7]).strip()
@@ -4276,7 +4292,7 @@ if app_mode == "データ比較":
                     "up200": 1 if score >= 200 else 0, "up225": 1 if score >= 225 else 0, "up250": 1 if score >= 250 else 0,
                     "first_pitch_pins": first_pitch_pins, "first_pitch_count": first_pitch_count, "no_head": no_head,
                     "db_c": db_c, "db_s": db_s, "tk_c": tk_c, "tk_s": tk_s,
-                    "cond1": cond1, "cond2": cond2, "cond3": cond3,
+                    "cond1": cond1, "cond2": cond2, "cond3": cond3, "bowling_alley": bowling_alley,
                     "ball": ball, "lane": lane, "oil_len": oil_len, "oil_vol": oil_vol
                 }
                 for i in range(1, 11): parsed_row[f"pin{i}_left"] = pin_left[str(i)]
@@ -4337,6 +4353,7 @@ if app_mode == "データ比較":
 
     X_AXIS_OPTIONS = {
         "プレイヤー": "player",
+        "ボウリング場": "bowling_alley",
         "ゲーム順 (時系列)": "game_num",
         "月別推移 (YYYY/MM)": "month_key",
         "個別条件1": "cond1",
@@ -4682,26 +4699,29 @@ status_text = st.empty()
 # =========================================================
 prompt_metadata = """
 画像はボウリングのスコアシートの全体写真です。
-この画像から「日付」「最初のゲーム数」「全体の開始時刻」「全体の終了時刻」「レーン番号」「プレイヤーネーム」および「各ゲームの開始・終了時刻」を探し出し、以下のJSON形式で出力してください。
+この画像から「ボウリング場名」「日付」「最初のゲーム数」「全体の開始時刻」「全体の終了時刻」「レーン番号」「プレイヤーネーム」および「各ゲームの開始・終了時刻」を探し出し、以下のJSON形式で出力してください。
 
 【ルール】
-1. 日付: 中央上部にある黒い文字。「YY/MM/DD」の形式で "date" に出力。
-2. 最初のゲーム数: 一番上のゲームのスコア欄の左端に記載。フレームという文字の下GAMEの下に改行されて数字を記載。GAME1, GAME7, GAME13, GAME19, GAME25のいずれか。「1」などの数値のみを "start_game_num" に出力。
-3. 全体の開始時刻: 1枚のスコアシートの日付の右下に記載。1ゲーム目の開始時刻と終了時刻が左右に並んでいて、その左側の時刻が開始時刻。"HH:MM" 形式で "start_time" に出力。見つからなければ "時刻不明" にする。
-4. 全体の終了時刻: 1枚のスコアシートの一番最後のゲームの9フレーム目のスコア欄の上部に記載。開始時刻と終了時刻が左右に並んでいて、その右側の時刻が終了時刻。"HH:MM" 形式で "end_time" に出力。見つからなければ "時刻不明" にする。
-5. レーン番号: 「ゲーム日付」の右側にある「使用レーン」の右に記載されている数字。1から18までの単独の整数か、「1-2」「3-4」「5-6」「7-8」「9-10」「11-12」「13-14」「15-16」「17-18」または、その逆の「2-1」から「18-17」までの文字列を "lane" に出力。見つからなければ空文字にする。
-6. プレイヤーネーム: 一番上のゲームのスコア欄の左上の「プレーヤ ネーム」の文字の右側に書かれている名前を "player_name" に出力。見つからなければ空文字にする。
-7. 各ゲームの時刻: 画像の上から順に、各ゲームごとの開始時刻と終了時刻を読み取り、配列 "games_time" に出力してください。各ゲームの時刻はスコア欄の周辺（主に9フレーム目の上部など）に記載されています。
+1. ボウリング場名: 画像内のロゴやヘッダー文字からボウリング場名を "bowling_alley" に出力してください。
+   - 例: 「相模原パークレーンズ」のロゴや文字があれば "相模原パークレーンズ" とする。
+   - 例: ボウリング場名の記載がなくても、左上に「[ヨーロピアン] 一般G」、右上に「日付：YYYY年 MM月 DD日」、右端に「HDCP込トータル / スクラッチトータル」というレイアウトと印字がある場合は "永山コパボウル" とする。
+   - 上記の特徴に当てはまらず、判別できない場合はデフォルトで "イーグルボウル" とする。
+2. 日付: 中央上部等にある日付。「YY/MM/DD」の形式で "date" に出力。
+3. 最初のゲーム数: 一番上のゲームのスコア欄付近の数字。「1」などの数値のみを "start_game_num" に出力。
+4. 全体の開始時刻: "HH:MM" 形式で "start_time" に出力。見つからなければ "時刻不明" にする。
+5. 全体の終了時刻: "HH:MM" 形式で "end_time" に出力。見つからなければ "時刻不明" にする。
+6. レーン番号: レーン番号を "lane" に出力。見つからなければ空文字にする。
+7. プレイヤーネーム: プレイヤー名を "player_name" に出力。見つからなければ空文字にする。
+8. 各ゲームの時刻: 各ゲームごとの開始時刻と終了時刻を読み取り、配列 "games_time" に出力してください。
    【重要な自己検証ステップ】
-   読み取った各時刻について、以下の論理チェックを必ず行ってください。
    a. 各ゲームの開始時刻・終了時刻が、全体の「開始時刻」と「終了時刻」の間に入っているか。
-   b. 同一ゲーム内で「開始時刻 ＜ 終了時刻」となっているか（開始と終了がテレコになっていないか）。
+   b. 同一ゲーム内で「開始時刻 ＜ 終了時刻」となっているか。
    c. 「前のゲームの終了時刻 ≦ 次のゲームの開始時刻」となっているか。
-   ※もし上記チェックに1つでも矛盾（NG）がある場合、推測で大幅に時刻を捏造するのではなく、間違っている箇所を特定し、その部分の画像をもう一度よく観察して正確な数字を読み直してください。
-8. Markdownの記号などは一切含めず、純粋なJSON文字列だけを出力してください。
+9. Markdownの記号などは一切含めず、純粋なJSON文字列だけを出力してください。
 
 【出力フォーマット例】
 {
+  "bowling_alley": "イーグルボウル",
   "date": "26/02/07",
   "start_game_num": 1,
   "start_time": "14:12",
@@ -4713,11 +4733,6 @@ prompt_metadata = """
       "game_index": 1,
       "start_time": "14:12",
       "end_time": "14:25"
-    },
-    {
-      "game_index": 2,
-      "start_time": "14:25",
-      "end_time": "14:40"
     }
   ]
 }
@@ -4904,6 +4919,69 @@ if st.session_state.analyzed_results is None:
             h_lines = cv2.morphologyEx(thresh_rot, cv2.MORPH_OPEN, h_k)
 
         # ※ 上下逆さま（180度）の自動判定は誤判定の原因となるため削除し、そのまま解析へ進む
+
+        # ▼ 先にAIでメタデータ（ボウリング場名など）を取得
+        status_text.info(f"画像 {img_idx+1}: AIがボウリング場・日付・時刻などを取得中...")
+        img_pil_full_for_meta = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+        compressed_full_img_for_meta = compress_image_for_ai(img_pil_full_for_meta, max_size=2048)
+        
+        ai_meta_data = {"bowling_alley": "イーグルボウル", "date": "日付不明", "start_time": "時刻不明", "end_time": "時刻不明", "start_game_num": 1, "lane": "", "player_name": ""}
+        max_retries = 7
+        for attempt in range(max_retries):
+            current_model = fallback_models[attempt % len(fallback_models)]
+            try:
+                meta_bytes_io = io.BytesIO()
+                compressed_full_img_for_meta.save(meta_bytes_io, format='JPEG')
+                meta_bytes = meta_bytes_io.getvalue()
+                
+                response = client.models.generate_content(
+                    model=current_model,
+                    contents=[
+                        prompt_metadata, 
+                        types.Part.from_bytes(data=meta_bytes, mime_type="image/jpeg")
+                    ],
+                    config=types.GenerateContentConfig(
+                        temperature=0.0,
+                        response_mime_type="application/json"
+                    )
+                )
+                raw_text = response.text.strip()
+                if raw_text.startswith("
+```"):
+                    lines = raw_text.split('\n')
+                    raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
+                ai_meta_data = json.loads(raw_text)
+                break
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    wait_sec = (2 ** (attempt + 1)) + random.uniform(0, 1)
+                    time.sleep(wait_sec)
+                    continue
+                break
+                
+        detected_alley = ai_meta_data.get("bowling_alley", "イーグルボウル")
+        
+        # ▼ 権限チェック（イーグルボウル以外は開発者のみ）
+        user_role = st.session_state.get("user_role", "")
+        if detected_alley != "イーグルボウル" and user_role != "開発者":
+            st.error(f"【権限エラー】{detected_alley} のスコア登録は開発者権限でのみ許可されています。")
+            continue
+
+        # ▼ ボウリング場に応じた専用プログラムへのルーティング
+        if detected_alley == "相模原パークレーンズ":
+            # ダミー関数呼び出し
+            # parsed_data = analyze_park_lanes(img, ai_meta_data) ... (後日実装)
+            st.warning("相模原パークレーンズの解析ロジックは現在開発中です。スキップします。")
+            continue
+        elif detected_alley == "永山コパボウル":
+            # ダミー関数呼び出し
+            # parsed_data = analyze_copa_bowl(img, ai_meta_data) ... (後日実装)
+            st.warning("永山コパボウルの解析ロジックは現在開発中です。スキップします。")
+            continue
+        elif detected_alley != "イーグルボウル":
+            # デフォルトフォールバック
+            st.warning(f"{detected_alley} の解析ロジックは未実装です。イーグルボウルのロジックで試行します。")
+            detected_alley = "イーグルボウル"
 
         all_games_export_data = []
         blue_lines = []
@@ -5505,52 +5583,6 @@ if st.session_state.analyzed_results is None:
         if not success_score:
             st.warning(f"{file_name}: AIのスコア読み取りに失敗しました。理由: {last_error}")
 
-        status_text.info(f"画像 {img_idx+1}: AIが日付・時刻・ゲーム数を取得中...")
-        time.sleep(5) 
-
-        # ▼ 時刻の小さな文字が潰れないよう、圧縮サイズを2048へ拡大して解像度を保つ
-        compressed_full_img = compress_image_for_ai(img_pil_full, max_size=2048)
-
-        ai_meta_data = {"date": "日付不明", "start_time": "時刻不明", "end_time": "時刻不明", "start_game_num": 1, "lane": "", "player_name": ""}
-        success_meta = False
-        
-        for attempt in range(max_retries):
-            current_model = fallback_models[attempt % len(fallback_models)]
-            try:
-                # Pillow画像をJPEGのバイト列に変換
-                meta_bytes_io = io.BytesIO()
-                compressed_full_img.save(meta_bytes_io, format='JPEG')
-                meta_bytes = meta_bytes_io.getvalue()
-                
-                response = client.models.generate_content(
-                    model=current_model,
-                    contents=[
-                        prompt_metadata, 
-                        types.Part.from_bytes(data=meta_bytes, mime_type="image/jpeg")
-                    ],
-                    config=types.GenerateContentConfig(
-                        temperature=0.0,
-                        response_mime_type="application/json"
-                    )
-                )
-                raw_text = response.text.strip()
-                if raw_text.startswith("```"):
-                    lines = raw_text.split('\n')
-                    raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
-                ai_meta_data = json.loads(raw_text)
-                success_meta = True
-                break
-            except Exception as e:
-                if attempt < max_retries - 1:
-                    # サーバー混雑による連続エラー全滅を防ぐため、試行ごとに待機時間を倍増させる（指数バックオフ）
-                    wait_sec = (2 ** (attempt + 1)) + random.uniform(0, 1)
-                    status_text.warning(f"読取エラー({current_model})。混雑回避のため {wait_sec:.1f}秒待機して再試行します... ({attempt+1}/{max_retries})")
-                    time.sleep(wait_sec)
-                    status_text.info(f"画像 {img_idx+1}: AI解析中... (再試行 {attempt+1})")
-                    continue
-                break
-                   
-
         # ---------------------------------------------------------
         # 📍 【ブロック 10】 解析結果の統合とデータ整形
         # ---------------------------------------------------------
@@ -5809,6 +5841,16 @@ if st.session_state.analyzed_results:
                         oil_data_list = oil_data_raw[2:] if len(oil_data_raw) > 2 else []
                     except Exception as e:
                         st.warning(f"オイル入力シートの読み込みに失敗しました: {e}")
+
+                    try:
+                        alley_sheet = sh.worksheet("ボウリング場")
+                        alley_vals = alley_sheet.col_values(1)
+                        alley_list = [v for v in alley_vals if v and v.strip()]
+                        if not alley_list:
+                            alley_list = ["イーグルボウル"]
+                    except Exception as e:
+                        st.warning(f"ボウリング場シートの読み込みに失敗しました: {e}")
+                        alley_list = ["イーグルボウル"]
                 
                 if fetched_players:
                     st.session_state.dynamic_player_list = fetched_players
@@ -5818,14 +5860,17 @@ if st.session_state.analyzed_results:
                     st.session_state.player_nickname_map = {}
                     
                 st.session_state.oil_data = oil_data_list 
+                st.session_state.alley_list = alley_list
             except Exception as e:
                 st.warning(f"設定の読み込みに失敗しました: {e}")
                 st.session_state.dynamic_player_list = ["999_ゲスト"]
                 st.session_state.player_nickname_map = {}
                 st.session_state.oil_data = [] 
+                st.session_state.alley_list = ["イーグルボウル"]
 
     
     player_list = st.session_state.dynamic_player_list
+    alley_list = st.session_state.get("alley_list", ["イーグルボウル"])
     
     default_player_index = 0
     ai_player_name = ""
@@ -6335,6 +6380,10 @@ if st.session_state.analyzed_results:
     for img_idx, items in games_by_img.items():
         st.markdown(f"**画像 {img_idx+1} の設定**")
         
+        ai_alley = st.session_state.analyzed_results[img_idx].get("meta_data", {}).get("bowling_alley", "イーグルボウル")
+        default_alley_index = alley_list.index(ai_alley) if ai_alley in alley_list else 0
+        common_alley = st.selectbox("ボウリング場", alley_list, index=default_alley_index, key=f"c_alley_{img_idx}")
+
         ai_lane = items[0]["export_row"][3]
         default_lane_index = LANE_OPTIONS.index(ai_lane) if ai_lane in LANE_OPTIONS else 0
         
@@ -6420,7 +6469,7 @@ if st.session_state.analyzed_results:
                 final_c2 = i_c2_val if (not st.session_state.get("kiosk_mode") and i_c2_val.strip()) else common_c2
                 final_c3 = i_c3_val if (not st.session_state.get("kiosk_mode") and i_c3_val.strip()) else common_c3
                 
-                input_data[(img_idx, l_idx)] = (common_lane, final_len, final_vol, final_ball, final_c1, final_c2, final_c3)
+                input_data[(img_idx, l_idx)] = (common_alley, common_lane, final_len, final_vol, final_ball, final_c1, final_c2, final_c3)
     
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("<h3 style='text-align: left;'>☟　☟　☟　☟　☟　☟</h3>", unsafe_allow_html=True)
@@ -6659,7 +6708,7 @@ if st.session_state.analyzed_results:
                     new_end = row[2]
                     new_game = row[4] 
             
-                    selected_lane, oil_len, oil_vol, ball_used, c1_val, c2_val, c3_val = input_data.get((item["img_idx"], item["local_idx"]), ("", "", "", "", "", "", ""))
+                    alley_val, selected_lane, oil_len, oil_vol, ball_used, c1_val, c2_val, c3_val = input_data.get((item["img_idx"], item["local_idx"]), ("イーグルボウル", "", "", "", "", "", "", ""))
 
                     formatted_row = [
                         user_email,      
@@ -6696,6 +6745,8 @@ if st.session_state.analyzed_results:
                     formatted_row.append(c1_val) # 56番目 (BD)
                     formatted_row.append(c2_val) # 57番目 (BE)
                     formatted_row.append(c3_val) # 58番目 (BF)
+                    # ▼ BG列(59) へのボウリング場データの追加
+                    formatted_row.append(alley_val) # 59番目 (BG)
                     
                     match_found = False
                     for i, ex_row in enumerate(existing_data):
