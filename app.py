@@ -334,6 +334,84 @@ def analyze_park_lanes(img, ai_meta_data):
         
         all_games_export_data.append(row_data)
 
+        # --- ▼ 画像への解析結果の描画処理（イーグルボウルと同等） ▼ ---
+        
+        scale_info = game_scales[i]
+        y_base = scale_info['y_base']
+        x_start_base = scale_info['x_start']
+        box_w = scale_info['box_w']
+        
+        # 1投目と2投目のX座標のズレ幅（1フレーム幅の約25%と75%の位置）
+        pitch1_offset = box_w * 0.25
+        pitch2_offset = box_w * 0.75
+        
+        # 文字を描画するY座標（下辺の線から少し上に固定）
+        text_y = int(y_base - 10)
+        
+        # フォント設定
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 0.6
+        thickness = 2
+        
+        # 1〜9フレームの描画
+        for f in range(9):
+            # 1投目
+            t1 = str(row_data[throw_cols_local[f*2]]).replace("R:", "")
+            x1_pos = int(x_start_base + (f * box_w) + pitch1_offset)
+            color1 = COLOR_OPENCV if t1 in ["X", "-", "G"] else COLOR_AI
+            if t1: cv2.putText(output_img, t1, (x1_pos, text_y), font, font_scale, color1, thickness, cv2.LINE_AA)
+            
+            # 2投目
+            t2 = str(row_data[throw_cols_local[f*2+1]]).replace("R:", "")
+            x2_pos = int(x_start_base + (f * box_w) + pitch2_offset)
+            color2 = COLOR_OPENCV if t2 in ["/", "-", "G"] else COLOR_AI
+            if t2: cv2.putText(output_img, t2, (x2_pos, text_y), font, font_scale, color2, thickness, cv2.LINE_AA)
+            
+            # 累計スコア（AI読み取り結果）の描画
+            ai_tot_val = str(ai_frame_totals[f])
+            if ai_tot_val and ai_tot_val != "0":
+                tot_x = int(x_start_base + (f * box_w) + box_w * 0.1)
+                # 今回はピンの図より下に描画するスペースが狭いため、青枠のすぐ上（スコア領域の中央付近）に描画
+                tot_y = int(y_base - 15) 
+                cv2.putText(output_img, ai_tot_val, (tot_x, tot_y), font, 0.5, (0, 220, 0), 1, cv2.LINE_AA)
+                
+        # 10フレームの描画 (10フレーム目は幅が広いためオフセットを調整)
+        frame10_x_start = x_start_base + (9 * box_w)
+        p10_1_offset = box_w * 0.2
+        p10_2_offset = box_w * 0.6
+        p10_3_offset = box_w * 1.0
+        
+        t10_1 = str(row_data[throw_cols_local[18]]).replace("R:", "")
+        t10_2 = str(row_data[throw_cols_local[19]]).replace("R:", "")
+        t10_3 = str(row_data[throw_cols_local[20]]).replace("R:", "")
+        
+        if t10_1: cv2.putText(output_img, t10_1, (int(frame10_x_start + p10_1_offset), text_y), font, font_scale, COLOR_OPENCV if t10_1 in ["X", "-", "G"] else COLOR_AI, thickness, cv2.LINE_AA)
+        if t10_2: cv2.putText(output_img, t10_2, (int(frame10_x_start + p10_2_offset), text_y), font, font_scale, COLOR_OPENCV if t10_2 in ["X", "/", "-", "G"] else COLOR_AI, thickness, cv2.LINE_AA)
+        if t10_3: cv2.putText(output_img, t10_3, (int(frame10_x_start + p10_3_offset), text_y), font, font_scale, COLOR_OPENCV if t10_3 in ["X", "/", "-", "G"] else COLOR_AI, thickness, cv2.LINE_AA)
+        
+        ai_tot_val_10 = str(ai_frame_totals[9])
+        if ai_tot_val_10 and ai_tot_val_10 != "0":
+            tot_x = int(frame10_x_start + box_w * 0.1)
+            tot_y = int(y_base - 15)
+            cv2.putText(output_img, ai_tot_val_10, (tot_x, tot_y), font, 0.5, (0, 220, 0), 1, cv2.LINE_AA)
+
+        # トータルスコア（AI読み取り結果）の照合と描画
+        calc_val = curr_score # ループ内で計算された10フレーム目の最終スコア
+        ai_tot_int = int(ai_total) if str(ai_total).isdigit() else int(ai_frame_totals[-1]) if ai_frame_totals else 0
+        
+        # 10フレーム目の右隣（トータル欄のあたり）に描画
+        result_text_x = int(frame10_x_start + box_w * 1.5)
+        result_text_y = int(y_base - 10)
+        
+        if calc_val == ai_tot_int and ai_tot_int > 0:
+            check_str = f"MATCH ({calc_val})"
+            check_color = (0, 150, 0)
+        else:
+            check_str = f"DIFF! ({calc_val} vs {ai_tot_int})"
+            check_color = COLOR_AI
+            
+        cv2.putText(output_img, check_str, (result_text_x, result_text_y), font, font_scale, check_color, thickness, cv2.LINE_AA)
+
     cv2.putText(output_img, "Sagamihara Park Lanes Mode (Grid Based)", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3, cv2.LINE_AA)
 
     return all_games_export_data, output_img
