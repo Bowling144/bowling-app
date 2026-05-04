@@ -54,6 +54,21 @@ def compress_image_for_ai(pil_img, max_size=1024):
 # --- ページ設定 ---
 st.set_page_config(page_title="ボウリング解析", page_icon="🎳", layout="wide")
 
+# =========================================================
+# ▼ ボウリング場別 専用解析ロジック（ダミー） ▼
+# =========================================================
+def analyze_park_lanes(img, ai_meta_data):
+    """相模原パークレーンズ用の解析ロジック（開発中）"""
+    # TODO: OpenCVを用いた枠線抽出、ピン認識などをここに実装する
+    # 現在は空のリストを返すダミー
+    return [], img
+
+def analyze_copa_bowl(img, ai_meta_data):
+    """永山コパボウル用の解析ロジック（開発中）"""
+    # TODO: OpenCVを用いた枠線抽出、ピン認識などをここに実装する
+    # 現在は空のリストを返すダミー
+    return [], img
+
 # ▼▼▼ プレイヤー分析画面のAWARD画面を参考にした共通ダークテーマ・統一CSS ▼▼▼
 st.markdown("""
     <style>
@@ -4968,14 +4983,14 @@ if st.session_state.analyzed_results is None:
 
         # ▼ ボウリング場に応じた専用プログラムへのルーティング
         if detected_alley == "相模原パークレーンズ":
-            # ダミー関数呼び出し
-            # parsed_data = analyze_park_lanes(img, ai_meta_data) ... (後日実装)
-            st.warning("相模原パークレーンズの解析ロジックは現在開発中です。スキップします。")
+            parsed_games, output_img = analyze_park_lanes(img, ai_meta_data)
+            st.warning("相模原パークレーンズの解析ロジックは現在開発中（ダミー状態）です。")
+            # 開発中はここでスキップさせるか、あるいは空のまま後続処理に流すか制御が必要ですが
+            # 今はエラーにならないようスキップさせます。
             continue
         elif detected_alley == "永山コパボウル":
-            # ダミー関数呼び出し
-            # parsed_data = analyze_copa_bowl(img, ai_meta_data) ... (後日実装)
-            st.warning("永山コパボウルの解析ロジックは現在開発中です。スキップします。")
+            parsed_games, output_img = analyze_copa_bowl(img, ai_meta_data)
+            st.warning("永山コパボウルの解析ロジックは現在開発中（ダミー状態）です。")
             continue
         elif detected_alley != "イーグルボウル":
             # デフォルトフォールバック
