@@ -337,8 +337,8 @@ def analyze_park_lanes(img, ai_meta_data):
         frame9_to_10_pitch_px = 13.9 * mm_to_px    # 9フレームから10フレーム1投目への間隔
         frame10_pitch_px = 11.5 * mm_to_px         # 10フレーム内の投球間隔
         
-        radius_px = int(1.5 * mm_to_px)            # 判定枠を半径1.5mmの円に変更
-        box_size_px = 3.0 * mm_to_px               # 閾値判定用のクロップ幅（直径3.0mm）
+        radius_px = int(0.75 * mm_to_px)           # 判定枠を直径1.5mm（半径0.75mm）の円に変更
+        box_size_px = 1.5 * mm_to_px               # 閾値判定用のクロップ幅（直径1.5mm）
         yw = int(box_size_px)
         yh = int(box_size_px)
 
@@ -458,8 +458,6 @@ def analyze_park_lanes(img, ai_meta_data):
                 pin_pct = data['pct']
                 cx_local = data['cx']
                 cy_local = data['cy']
-                yx1_local = data['yx1']
-                yy1_local = data['yy1']
                 
                 if row_idx == 0: pin_num = 7 + int(col_offset)
                 elif row_idx == 1: pin_num = 4 + int(col_offset - 0.5)
