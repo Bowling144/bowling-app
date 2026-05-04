@@ -325,21 +325,21 @@ def analyze_park_lanes(img, ai_meta_data):
         dyn_thresh_green = 20.0 + st.session_state.get("pin_thresh_offset", 0.0) # 暫定の閾値
         
         # 実測値に基づくピン配置設定（1mmあたりのピクセル数 mm_to_px を適用）
-        pin7_x_offset_mm = 28.1  # 28.5から0.4mm左へ
-        pin1_x_offset_mm = 31.9  # 32.1から0.2mm左へ
+        pin7_x_offset_mm = 28.1
+        pin1_x_offset_mm = 31.9
         pin_pitch_x_mm = (pin1_x_offset_mm - pin7_x_offset_mm) / 1.5
         
         # Y座標は下辺(base_y)を基準とし、下にプラスする形で設定
-        pin7_y_offset_mm = 2.4  # 2.3から0.1mm下へ
-        pin1_y_offset_mm = 11.0 # 10.7から0.3mm下へ
+        pin7_y_offset_mm = 2.6  # 2.4からさらに0.2mm下へ
+        pin1_y_offset_mm = 11.2 # 11.0からさらに0.2mm下へ
         pin_pitch_y_mm = (pin1_y_offset_mm - pin7_y_offset_mm) / 3.0
 
         frame_width_px = 14.4 * mm_to_px           # 1〜9フレームの横間隔
-        frame9_to_10_pitch_px = 13.6 * mm_to_px    # 9フレームから10フレーム1投目への間隔
+        frame9_to_10_pitch_px = 13.9 * mm_to_px    # 9フレームから10フレーム1投目への間隔を13.9mmに変更
         frame10_pitch_px = 11.5 * mm_to_px         # 10フレーム内の投球間隔
         
-        radius_px = int(1.4 * mm_to_px)            # 判定枠を半径1.4mmの円に変更
-        box_size_px = 2.8 * mm_to_px               # 閾値判定用のクロップ幅（直径）
+        radius_px = int(1.35 * mm_to_px)           # 判定枠を直径2.7mm（半径1.35mm）の円に変更
+        box_size_px = 2.7 * mm_to_px               # 閾値判定用のクロップ幅（直径2.7mm）
         yw = int(box_size_px)
         yh = int(box_size_px)
 
@@ -358,7 +358,7 @@ def analyze_park_lanes(img, ai_meta_data):
                 
             gx_local = int(base_x + (pin7_x_offset_mm * mm_to_px) + f_offset_px)
             
-            # 7番ピンのY座標（base_yから下に2.4mm）
+            # 7番ピンのY座標（base_yから下に2.6mm）
             gy_local = int(base_y + (pin7_y_offset_mm * mm_to_px))
             
             for row_idx, col_offset in pin_positions:
