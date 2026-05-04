@@ -324,7 +324,7 @@ def analyze_park_lanes(img, ai_meta_data):
         all_frame_pins = []
         
         # 実測値に基づくピン配置設定（1mmあたりのピクセル数 mm_to_px を適用）
-        pin7_x_offset_mm = 28.1
+        pin7_x_offset_mm = 27.9  # 28.1からさらに0.2mm左へ
         pin1_x_offset_mm = 31.9
         pin_pitch_x_mm = (pin1_x_offset_mm - pin7_x_offset_mm) / 1.5
         
@@ -334,7 +334,7 @@ def analyze_park_lanes(img, ai_meta_data):
         pin_pitch_y_mm = (pin1_y_offset_mm - pin7_y_offset_mm) / 3.0
 
         frame_width_px = 14.4 * mm_to_px           # 1〜9フレームの横間隔
-        frame9_to_10_pitch_px = 13.9 * mm_to_px    # 9フレームから10フレーム1投目への間隔
+        frame9_to_10_pitch_px = 14.1 * mm_to_px    # 13.9から0.2mm広げて14.1mmに変更
         frame10_pitch_px = 11.5 * mm_to_px         # 10フレーム内の投球間隔
         
         radius_px = int(0.75 * mm_to_px)           # 判定枠を直径1.5mm（半径0.75mm）の円に変更
