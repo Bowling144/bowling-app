@@ -165,19 +165,40 @@ def analyze_park_lanes(img, ai_meta_data):
         cv2.line(output_img, (int(left_x), 0), (int(left_x), target_height), (0, 255, 255), 2)
         cv2.line(output_img, (int(right_x), 0), (int(right_x), target_height), (0, 255, 255), 2)
 
-    # 4. スコア画像の作成（AI読み取り用）
+    # 4. スコア画像の作成（AI読み取り用）およびマス目（スケール）の計算
     score_crops = []
+    game_scales = [] # ゲームごとのスケール（1マスの幅など）を保持するリスト
+    
+    # 枠の全体の横幅を計算
+    total_w = right_x - left_x
+    
+    # 相模原のスコアシートの横幅の比率を推測します
+    # 名前(約15%) + フレーム1〜9(約7.2%×9) + フレーム10(約10.8%) + トータル(約9.4%) = 100% と仮定
+    # 1フレームあたりの横幅 (box_w) は、全体の約7.2%と推測します
+    base_box_w = total_w * 0.072 
+    
+    # AIに送るスコア領域は、名前の列を除外し、フレーム1からトータルまでとします
+    x1_score = int(left_x + total_w * 0.15) 
+    x2_score = int(right_x - 5)
+    
     for (y1, y2) in games_y_coords:
-        # 左端と右端の縦線の座標を利用しつつ、少しだけマージンを持たせる
-        x1 = max(0, int(left_x + 5))
-        x2 = min(target_width, int(right_x - 5))
+        # 下辺(y2)を基準に、スコア数字の領域を切り出し
+        crop_y_bottom = y2 - 4  
+        crop_y_top = max(0, y2 - 30) # 高さを30pxに
         
-        crop_y_bottom = y2 - 4
-        crop_y_top = max(0, y2 - 32)
-        
-        crop = img_resized[crop_y_top:crop_y_bottom, x1:x2]
+        crop = img_resized[crop_y_top:crop_y_bottom, x1_score:x2_score]
         score_crops.append(crop)
-        cv2.rectangle(output_img, (x1, crop_y_top), (x2, crop_y_bottom), (255, 0, 0), 2)
+        
+        # 画面表示用：AIに送る領域を青枠で囲む
+        cv2.rectangle(output_img, (x1_score, crop_y_top), (x2_score, crop_y_bottom), (255, 0, 0), 2)
+        
+        # --- スケール情報（マス目の基準）を計算して保存 ---
+        # y2（緑枠の下辺）と x1_score（フレーム1の左端）を基準点とする
+        game_scales.append({
+            'y_base': y2,
+            'x_start': x1_score,
+            'box_w': base_box_w
+        })
         
     if score_crops:
         max_w = max(c.shape[1] for c in score_crops)
