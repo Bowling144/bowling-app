@@ -285,50 +285,7 @@ def analyze_park_lanes(img, ai_meta_data):
         throw_cols_local = [7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47]
         target_indices_local = [8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 46, 48]
         
-        prev_score = 0
-        for f in range(9):
-            curr_score = int(ai_frame_totals[f]) if str(ai_frame_totals[f]).isdigit() else 0
-            diff = curr_score - prev_score
-            
-            if diff >= 10:
-                row_data[throw_cols_local[f*2]] = "X"
-                row_data[throw_cols_local[f*2+1]] = ""
-            else:
-                row_data[throw_cols_local[f*2]] = str(diff) if diff > 0 else "-"
-                row_data[throw_cols_local[f*2+1]] = "-"
-            row_data[target_indices_local[f]] = "" # 残ピンのダミー
-            prev_score = curr_score
-            
-        # 10フレーム
-        curr_score = int(ai_frame_totals[9]) if str(ai_frame_totals[9]).isdigit() else 0
-        diff = curr_score - prev_score
-        if diff >= 30:
-            row_data[throw_cols_local[18]] = "X"
-            row_data[throw_cols_local[19]] = "X"
-            row_data[throw_cols_local[20]] = "X"
-        elif diff >= 20:
-            row_data[throw_cols_local[18]] = "X"
-            row_data[throw_cols_local[19]] = "X"
-            row_data[throw_cols_local[20]] = "-"
-        elif diff >= 10:
-            row_data[throw_cols_local[18]] = "X"
-            row_data[throw_cols_local[19]] = "-"
-            row_data[throw_cols_local[20]] = "-"
-        else:
-            row_data[throw_cols_local[18]] = str(diff) if diff > 0 else "-"
-            row_data[throw_cols_local[19]] = "-"
-            row_data[throw_cols_local[20]] = ""
-            
-        row_data[target_indices_local[9]] = ""
-        row_data[target_indices_local[10]] = ""
-        row_data[target_indices_local[11]] = ""
-        
-        all_games_export_data.append(row_data)
-
-        # --- ▼ 画像への解析結果の描画処理 ▼ ---
-        # 基準点A：左側の縦線(left_x) と 緑枠の下辺(y2) の交点
-        # 基準点B：右側の縦線(right_x) と 緑枠の下辺(y2) の交点
-        
+        # --- ▼ ピンの白黒判定（画像認識）とスコア計算 ▼ ---
         base_x = left_x
         base_y = y2
         
@@ -337,50 +294,187 @@ def analyze_park_lanes(img, ai_meta_data):
         mm_to_px = distance_ab_px / 192.0
         
         # 指定の距離（自動スケール換算）
-        # ① 基準点Aから20mmだったものを5mm右へずらす (20 + 5 = 25mm)
-        pitch1_offset_px = 25.0 * mm_to_px         # 小数のまま保持し、描画時にint変換して累積ズレを防ぐ
+        pitch1_offset_px = 25.0 * mm_to_px         # ① 横位置を5mm右へずらす (20 + 5 = 25mm)
         pitch2_offset_px = 7.2 * mm_to_px          # 1〜9フレームの2投目の位置（1投目の位置から右へ7.2mm）
         pitch10_offset_px = 4.4 * mm_to_px         # ① 10フレーム目の間隔は狭いので 4.4mm
-        match_x_offset_px = int(168.0 * mm_to_px)  # ④ マッチの文字：基準点Aから168mm
+        match_x_offset_px = int(168.0 * mm_to_px)  # マッチの文字：基準点Aから168mm
         
         # 縦位置の指定
-        y_offset_score = int(11.0 * mm_to_px)      # 縦①② 1投目と2投目は下辺から11mm上
-        y_offset_match = int(12.0 * mm_to_px)      # 縦③ マッチの文字は下辺から12mm上
+        y_offset_score = int(11.0 * mm_to_px)      # 1投目と赤文字は下辺から11mm上
+        y_offset_match = int(12.0 * mm_to_px)      # マッチの文字は下辺から12mm上
         
         text_y_score = int(base_y - y_offset_score)
         text_y_match = int(base_y - y_offset_match)
-        
-        # ③ トータルスコアの位置を「元の位置(base_y - 30)」から3mm下へ移動
-        tot_y_score = int(base_y - 30) + int(3.0 * mm_to_px)
+        tot_y_score = text_y_score + int(3.0 * mm_to_px) # ③ トータルスコアの位置を3mm下へ
         
         font = cv2.FONT_HERSHEY_SIMPLEX
         font_scale = 0.6
         thickness = 2
-        color_green = (0, 150, 0)  # イーグルボウルと同じ濃い緑色
-        color_opencv = (255, 0, 0) # OpenCVの青色
-        color_ai = (0, 0, 220)     # AIの赤色
+        color_green = (0, 150, 0)
+        color_opencv = (255, 0, 0)
+        color_ai = (0, 0, 220)
+
+        # ----------------------------------------------------
+        # 【新規追加】イーグルボウルと同等のピン判定ロジック
+        # ----------------------------------------------------
+        all_frame_pins = []
+        dyn_thresh_green = 20.0 + st.session_state.get("pin_thresh_offset", 0.0) # 暫定の閾値
+        
+        # ※ 相模原用の仮のピン図の縦位置とサイズ（今後微調整が必要）
+        gy_local = int(base_y - 25.0 * mm_to_px)
+        frame_width_px = 14.44 * mm_to_px
+        y_box_w = int(frame_width_px / 4.0)
+        y_box_h = int(10.0 * mm_to_px / 4.0)
+
+        for f in range(12):
+            frame_pins = []
+            gx_local = int(base_x + pitch1_offset_px + (f * frame_width_px))
+            
+            for row_idx, col_offset in pin_positions:
+                yx1_local = int(gx_local + col_offset * y_box_w)
+                yy1_local = int(gy_local + row_idx * y_box_h)
+                yw = y_box_w - 2
+                yh = y_box_h - 2
+                
+                # 閾値画像（thresh_inkは青チャンネルの二値化画像）からピクセル数を計算
+                if 0 <= yy1_local < thresh_ink.shape[0] and 0 <= yx1_local < thresh_ink.shape[1]:
+                    crop_y = thresh_ink[yy1_local:yy1_local+yh, yx1_local:yx1_local+yw]
+                    pixels_y = crop_y.shape[0] * crop_y.shape[1]
+                    pin_pct = (cv2.countNonZero(crop_y) / pixels_y * 100) if pixels_y > 0 else 0
+                else:
+                    pin_pct = 0
+                
+                if row_idx == 0: pin_num = 7 + int(col_offset)
+                elif row_idx == 1: pin_num = 4 + int(col_offset - 0.5)
+                elif row_idx == 2: pin_num = 2 + int(col_offset - 1.0)
+                elif row_idx == 3: pin_num = 1
+                else: pin_num = 1
+                
+                # 判定
+                if pin_pct < dyn_thresh_green: result = "EMPTY"
+                else: result = "CIRCLE"
+                
+                if result == "CIRCLE":
+                    frame_pins.append(pin_num)
+                    cv2.rectangle(output_img, (yx1_local, yy1_local), (yx1_local+yw, yy1_local+yh), (0, 255, 0), 1)
+            
+            frame_pins.sort()
+            all_frame_pins.append(frame_pins)
+
+        # ----------------------------------------------------
+        # 1投目・2投目のスコア計算（逆算ではなくピン数から）
+        # ----------------------------------------------------
+        final_throws = [""] * 21
+        throw_colors = [color_opencv] * 21 # 1投目はすべて青文字基準
         
         for f in range(9):
-            # ③ 累積誤差をなくすため、ここで毎回 f 倍してから int に変換
+            v1 = 10 - len(all_frame_pins[f])
+            str1 = 'X' if v1 == 10 else ('-' if v1 == 0 else str(v1))
+            final_throws[f*2] = str1
+            
+            if str1 == 'X':
+                final_throws[f*2+1] = ""
+            else:
+                curr_total = int(ai_frame_totals[f]) if str(ai_frame_totals[f]).isdigit() else 0
+                prev_total = int(ai_frame_totals[f-1]) if f > 0 and str(ai_frame_totals[f-1]).isdigit() else 0
+                diff = curr_total - prev_total
+                
+                if diff >= 10:
+                    final_throws[f*2+1] = "R:/"
+                    throw_colors[f*2+1] = color_ai
+                else:
+                    v2 = diff - v1
+                    if v2 < 0: v2 = 0
+                    if v2 + v1 > 9: v2 = 9 - v1
+                    final_throws[f*2+1] = "R:-" if v2 == 0 else f"R:{v2}"
+                    throw_colors[f*2+1] = color_ai
+
+        # 10フレーム目の計算
+        p9, p10, p11 = all_frame_pins[9], all_frame_pins[10], all_frame_pins[11]
+        v1_10 = 10 - len(p9)
+        str1_10 = 'X' if v1_10 == 10 else ('-' if v1_10 == 0 else str(v1_10))
+        final_throws[18] = str1_10
+        
+        curr_total_10 = int(ai_frame_totals[9]) if str(ai_frame_totals[9]).isdigit() else 0
+        prev_total_10 = int(ai_frame_totals[8]) if str(ai_frame_totals[8]).isdigit() else 0
+        diff_10 = curr_total_10 - prev_total_10
+
+        if str1_10 == 'X':
+            v2_10 = 10 - len(p10)
+            str2_10 = 'X' if v2_10 == 10 else ('-' if v2_10 == 0 else str(v2_10))
+            final_throws[19] = str2_10
+            
+            if str2_10 == 'X':
+                v3_10 = 10 - len(p11)
+                str3_10 = 'X' if v3_10 == 10 else ('-' if v3_10 == 0 else str(v3_10))
+                final_throws[20] = str3_10
+            else:
+                if (diff_10 - 10) >= 10:
+                    final_throws[20] = "R:/"
+                    throw_colors[20] = color_ai
+                else:
+                    v3_10 = diff_10 - 10 - v2_10
+                    if v3_10 < 0: v3_10 = 0
+                    if v3_10 + v2_10 > 9: v3_10 = 9 - v2_10
+                    final_throws[20] = "R:-" if v3_10 == 0 else f"R:{v3_10}"
+                    throw_colors[20] = color_ai
+        else:
+            if diff_10 >= 10:
+                final_throws[19] = "R:/"
+                throw_colors[19] = color_ai
+                v3_10 = diff_10 - 10
+                if v3_10 < 0: v3_10 = 0
+                if v3_10 > 10: v3_10 = 10
+                str3_10 = 'X' if v3_10 == 10 else ('-' if v3_10 == 0 else str(v3_10))
+                final_throws[20] = f"R:{str3_10}" if str3_10 != 'X' else "R:X"
+                throw_colors[20] = color_ai
+            else:
+                v2_10 = diff_10 - v1_10
+                if v2_10 < 0: v2_10 = 0
+                if v2_10 + v1_10 > 9: v2_10 = 9 - v1_10
+                final_throws[19] = "R:-" if v2_10 == 0 else f"R:{v2_10}"
+                throw_colors[19] = color_ai
+                final_throws[20] = ""
+
+        # ----------------------------------------------------
+        # データエクスポート用の row_data を構築
+        # ----------------------------------------------------
+        for t_idx, col_idx in enumerate(throw_cols_local):
+            row_data[col_idx] = final_throws[t_idx]
+            
+        for f in range(9): row_data[target_indices_local[f]] = ",".join(map(str, all_frame_pins[f]))
+        row_data[target_indices_local[9]] = ",".join(map(str, p9))
+
+        if len(p9) == 0:
+            row_data[target_indices_local[10]] = ",".join(map(str, p10))
+            row_data[target_indices_local[11]] = ",".join(map(str, p11))
+        else:
+            row_data[target_indices_local[10]] = ""
+            row_data[target_indices_local[11]] = ",".join(map(str, p10))
+            
+        all_games_export_data.append(row_data)
+
+        # ----------------------------------------------------
+        # ▼ 画像への描画処理 ▼
+        # ----------------------------------------------------
+        for f in range(9):
             f_start_x = int(base_x + pitch1_offset_px + (f * 14.44 * mm_to_px))
             
-            # トータルスコアの描画（位置を3mm下げ、フォントスケールを0.6、太さを2へ）
+            # 累計トータルスコアの描画
             ai_tot_val = str(ai_frame_totals[f])
             if ai_tot_val and ai_tot_val != "0":
                 cv2.putText(output_img, ai_tot_val, (f_start_x, tot_y_score), font, 0.6, color_green, 2, cv2.LINE_AA)
             
-            # ② 1投目の描画 (ピン判定がないため現在は row_data を参照)
-            t1 = str(row_data[throw_cols_local[f*2]]).replace("R:", "")
-            color1 = color_opencv if t1 in ["X", "-", "G"] else color_ai
+            # 1投目の描画 (画像判定の final_throws を参照)
+            t1 = str(final_throws[f*2]).replace("R:", "")
             if t1.strip(): 
-                cv2.putText(output_img, t1, (f_start_x, text_y_score), font, font_scale, color1, thickness, cv2.LINE_AA)
+                cv2.putText(output_img, t1, (f_start_x, text_y_score), font, font_scale, throw_colors[f*2], thickness, cv2.LINE_AA)
             
-            # 2投目（逆算された赤文字等）の描画
-            t2 = str(row_data[throw_cols_local[f*2+1]]).replace("R:", "")
+            # 2投目の描画
+            t2 = str(final_throws[f*2+1]).replace("R:", "")
             x2_pos = int(base_x + pitch1_offset_px + (f * 14.44 * mm_to_px) + pitch2_offset_px)
-            color2 = color_opencv if t2 in ["/", "-", "G"] else color_ai
             if t2.strip(): 
-                cv2.putText(output_img, t2, (x2_pos, text_y_score), font, font_scale, color2, thickness, cv2.LINE_AA)
+                cv2.putText(output_img, t2, (x2_pos, text_y_score), font, font_scale, throw_colors[f*2+1], thickness, cv2.LINE_AA)
             
         # 10フレームの描画
         f10_start_x = int(base_x + pitch1_offset_px + (9 * 14.44 * mm_to_px))
@@ -389,29 +483,32 @@ def analyze_park_lanes(img, ai_meta_data):
         if ai_tot_val_10 and ai_tot_val_10 != "0":
             cv2.putText(output_img, ai_tot_val_10, (f10_start_x, tot_y_score), font, 0.6, color_green, 2, cv2.LINE_AA)
 
-        t10_1 = str(row_data[throw_cols_local[18]]).replace("R:", "")
-        t10_2 = str(row_data[throw_cols_local[19]]).replace("R:", "")
-        t10_3 = str(row_data[throw_cols_local[20]]).replace("R:", "")
+        t10_1 = str(final_throws[18]).replace("R:", "")
+        t10_2 = str(final_throws[19]).replace("R:", "")
+        t10_3 = str(final_throws[20]).replace("R:", "")
         
         if t10_1.strip(): 
-            cv2.putText(output_img, t10_1, (f10_start_x, text_y_score), font, font_scale, color_opencv if t10_1 in ["X", "-", "G"] else color_ai, thickness, cv2.LINE_AA)
+            cv2.putText(output_img, t10_1, (f10_start_x, text_y_score), font, font_scale, throw_colors[18], thickness, cv2.LINE_AA)
         if t10_2.strip(): 
-            # ① 10フレーム目の2投目は、1投目から 4.4mm の間隔
-            cv2.putText(output_img, t10_2, (int(f10_start_x + pitch10_offset_px), text_y_score), font, font_scale, color_opencv if t10_2 in ["X", "/", "-", "G"] else color_ai, thickness, cv2.LINE_AA)
+            cv2.putText(output_img, t10_2, (int(f10_start_x + pitch10_offset_px), text_y_score), font, font_scale, throw_colors[19], thickness, cv2.LINE_AA)
         if t10_3.strip(): 
-            # ① 10フレーム目の3投目は、1投目から 8.8mm の間隔
-            cv2.putText(output_img, t10_3, (int(f10_start_x + pitch10_offset_px * 2), text_y_score), font, font_scale, color_opencv if t10_3 in ["X", "/", "-", "G"] else color_ai, thickness, cv2.LINE_AA)
+            cv2.putText(output_img, t10_3, (int(f10_start_x + pitch10_offset_px * 2), text_y_score), font, font_scale, throw_colors[20], thickness, cv2.LINE_AA)
 
         # トータルスコアの照合と MATCH/DIFF! の描画
-        calc_val = curr_score 
+        clean_throws = [str(t).replace("R:", "") for t in final_throws]
+        try:
+            calc_totals = calculate_bowling_score(clean_throws)
+        except Exception:
+            calc_totals = []
+
         ai_tot_int = int(ai_total) if str(ai_total).isdigit() else int(ai_frame_totals[-1]) if ai_frame_totals else 0
-        
         result_text_x = int(base_x + match_x_offset_px)
         
-        if calc_val == ai_tot_int and ai_tot_int > 0:
-            check_str = f"MATCH ({calc_val})"
-            check_color = color_green # MATCH時の文字色は濃い緑
+        if calc_totals and len(ai_frame_totals) > 0 and calc_totals[-1] == ai_tot_int:
+            check_str = f"MATCH ({calc_totals[-1]})"
+            check_color = color_green
         else:
+            calc_val = calc_totals[-1] if calc_totals else 0
             check_str = f"DIFF! ({calc_val} vs {ai_tot_int})"
             check_color = color_ai
             
