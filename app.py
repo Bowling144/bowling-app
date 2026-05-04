@@ -252,6 +252,7 @@ def analyze_copa_bowl(img, ai_meta_data):
     return [], output_img
 
 # ▼▼▼ プレイヤー分析画面のAWARD画面を参考にした共通ダークテーマ・統一CSS ▼▼▼
+st.markdown("""
     <style>
     /* アプリ全体をAWARD風のダークテーマに */
     .stApp {
