@@ -193,7 +193,7 @@ def analyze_park_lanes(img, ai_meta_data):
         # 下辺(y2)を基準に、スコア数字の領域を切り出し
         crop_y_bottom = y2 - 4  
         # 上辺を1mm上に広げる処理を削除し、元の高さ(40px)に戻す
-        crop_y_top = max(0, y2 - 40)
+        crop_y_top = max(0, y2 - 40) 
         
         # 切り出し
         crop = img_resized[crop_y_top:crop_y_bottom, x1_score:x2_score]
@@ -356,6 +356,7 @@ def analyze_park_lanes(img, ai_meta_data):
         color_opencv = (255, 0, 0) # OpenCVの青色
         color_ai = (0, 0, 220) # AIの赤色
         
+        # ★ダミーデータ（`row_data`）を用いた描画を復元
         for f in range(9):
             # ① フレームの基準X座標（1投目・トータルスコア共通）
             f_start_x = int(base_x + pitch1_offset_px + (f * frame_width_px))
@@ -363,23 +364,20 @@ def analyze_park_lanes(img, ai_meta_data):
             # ① 累計トータルスコアの描画（元の位置を維持：枠の上）
             ai_tot_val = str(ai_frame_totals[f])
             if ai_tot_val and ai_tot_val != "0":
-                # 縦位置は元のイーグルボウルと同じ「下辺から少し下（ピン図の下）」ではなく、
-                # 今回は相模原のレイアウトに合わせて「青枠のすぐ上」に配置する元の計算を使用
-                # ただしプロンプトの指示通り横位置は基準点+20mm、以降14.44mmピッチに合わせる
-                tot_y = int(y_base - 30) # 青枠の上の適当な位置（元に戻す）
+                tot_y = int(base_y - 30) # 修正: y_base の未定義エラー(NameError)を防ぐため base_y を使用
                 cv2.putText(output_img, ai_tot_val, (f_start_x, tot_y), font, 0.5, color_green, 1, cv2.LINE_AA)
             
-            # ③ 1投目の描画 (イーグルボウルの仕様通り、final_throws を直接参照)
-            t1 = str(final_throws[f*2]).replace("R:", "")
+            # ③ 1投目の描画 (ダミーデータ `row_data` を参照)
+            t1 = str(row_data[throw_cols_local[f*2]]).replace("R:", "")
             color1 = color_opencv if t1 in ["X", "-", "G"] else color_ai
-            if t1: 
+            if t1.strip(): 
                 cv2.putText(output_img, t1, (f_start_x, text_y_score), font, font_scale, color1, thickness, cv2.LINE_AA)
             
-            # ④ 2投目（逆算された赤文字等）の描画
-            t2 = str(final_throws[f*2+1]).replace("R:", "")
+            # ④ 2投目の描画
+            t2 = str(row_data[throw_cols_local[f*2+1]]).replace("R:", "")
             x2_pos = int(f_start_x + pitch2_offset_px)
             color2 = color_opencv if t2 in ["/", "-", "G"] else color_ai
-            if t2: 
+            if t2.strip(): 
                 cv2.putText(output_img, t2, (x2_pos, text_y_score), font, font_scale, color2, thickness, cv2.LINE_AA)
             
         # 10フレームの描画
@@ -387,17 +385,17 @@ def analyze_park_lanes(img, ai_meta_data):
         
         ai_tot_val_10 = str(ai_frame_totals[9])
         if ai_tot_val_10 and ai_tot_val_10 != "0":
-            cv2.putText(output_img, ai_tot_val_10, (f10_start_x, int(y_base - 30)), font, 0.5, color_green, 1, cv2.LINE_AA)
+            cv2.putText(output_img, ai_tot_val_10, (f10_start_x, int(base_y - 30)), font, 0.5, color_green, 1, cv2.LINE_AA)
 
-        t10_1 = str(final_throws[18]).replace("R:", "")
-        t10_2 = str(final_throws[19]).replace("R:", "")
-        t10_3 = str(final_throws[20]).replace("R:", "")
+        t10_1 = str(row_data[throw_cols_local[18]]).replace("R:", "")
+        t10_2 = str(row_data[throw_cols_local[19]]).replace("R:", "")
+        t10_3 = str(row_data[throw_cols_local[20]]).replace("R:", "")
         
-        if t10_1: 
+        if t10_1.strip(): 
             cv2.putText(output_img, t10_1, (f10_start_x, text_y_score), font, font_scale, color_opencv if t10_1 in ["X", "-", "G"] else color_ai, thickness, cv2.LINE_AA)
-        if t10_2: 
+        if t10_2.strip(): 
             cv2.putText(output_img, t10_2, (int(f10_start_x + pitch2_offset_px), text_y_score), font, font_scale, color_opencv if t10_2 in ["X", "/", "-", "G"] else color_ai, thickness, cv2.LINE_AA)
-        if t10_3: 
+        if t10_3.strip(): 
             cv2.putText(output_img, t10_3, (int(f10_start_x + pitch2_offset_px * 2), text_y_score), font, font_scale, color_opencv if t10_3 in ["X", "/", "-", "G"] else color_ai, thickness, cv2.LINE_AA)
 
         # トータルスコアの照合と MATCH/DIFF! の描画
@@ -408,25 +406,12 @@ def analyze_park_lanes(img, ai_meta_data):
         
         if calc_val == ai_tot_int and ai_tot_int > 0:
             check_str = f"MATCH ({calc_val})"
-            check_color = color_green # MATCH時の文字色は濃い緑
+            check_color = color_green # ④ MATCH時の文字色は濃い緑
         else:
             check_str = f"DIFF! ({calc_val} vs {ai_tot_int})"
-            check_color = color_ai
+            check_color = COLOR_AI
             
         cv2.putText(output_img, check_str, (result_text_x, text_y_match), font, font_scale, check_color, thickness, cv2.LINE_AA)
-
-    cv2.putText(output_img, "Sagamihara Park Lanes Mode (Line Extract)", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3, cv2.LINE_AA)
-
-    return all_games_export_data, output_img
-
-def analyze_copa_bowl(img, ai_meta_data):
-    """永山コパボウル用の解析ロジック（開発中）"""
-    target_width = 1200
-    scale = target_width / img.shape[1]
-    target_height = int(img.shape[0] * scale)
-    img_resized = cv2.resize(img, (target_width, target_height))
-    output_img = img_resized.copy()
-    cv2.putText(output_img, "Nagayama Copa Bowl Mode (Dummy)", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 0, 0), 3, cv2.LINE_AA)
     
     return [], output_img
 
@@ -690,6 +675,7 @@ def render_section_title(title_text):
 def get_gspread_client():
     import json
     import gspread
+    import time
     from google.oauth2 import service_account
     from googleapiclient.discovery import build
     creds_json_str = st.secrets["google_credentials"]
@@ -701,10 +687,20 @@ def get_gspread_client():
     gc = gspread.authorize(creds)
     drive_service = build('drive', 'v3', credentials=creds)
     query = "name = 'EagleBowl_ROLLERS' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"
-    results = drive_service.files().list(q=query, fields="files(id, name)").execute()
-    if results.get('files', []):
-        return gc.open_by_key(results['files'][0]['id'])
-    return None
+    
+    # API制限回避のための自動リトライ処理を追加
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            results = drive_service.files().list(q=query, fields="files(id, name)").execute()
+            if results.get('files', []):
+                return gc.open_by_key(results['files'][0]['id'])
+            return None
+        except Exception as e:
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt) # 指数バックオフ（1秒, 2秒と待機時間を増やす）
+            else:
+                raise e
 
 # =========================================================
 # ▼ 追加：お知らせ・イベント機能用共通関数 ▼
