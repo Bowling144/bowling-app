@@ -381,13 +381,14 @@ def analyze_park_lanes(img, ai_meta_data):
                     'yx1': yx1_local, 'yy1': yy1_local
                 }
 
-        dyn_thresh_empty_base = 20.0
+        dyn_thresh_base = 20.0
         if game_pin_pcts:
             hist, bin_edges = np.histogram(game_pin_pcts, bins=100, range=(0, 100))
-            peak1_idx = np.argmax(hist[:25])
-            peak2_idx = 25 + np.argmax(hist[25:])
+            # 相模原では、倒れたピン(白抜き丸)と残ったピン(黒丸)の2つのピークが存在する
+            peak1_idx = np.argmax(hist[:30]) # 白抜き丸のピーク (ピクセルが少ない)
+            peak2_idx = 30 + np.argmax(hist[30:]) # 黒丸のピーク (ピクセルが多い)
 
-            if hist[peak2_idx] > 0 and peak2_idx > peak1_idx + 5:
+            if hist[peak2_idx] > 0 and peak2_idx > peak1_idx + 10:
                 between_hist = hist[peak1_idx:peak2_idx+1]
                 zero_indices = np.where(between_hist == 0)[0]
                 if len(zero_indices) > 0:
@@ -400,21 +401,20 @@ def analyze_park_lanes(img, ai_meta_data):
                             if len(current_zeros) > len(longest_zeros): longest_zeros = current_zeros
                             current_zeros = [i]
                     if len(current_zeros) > len(longest_zeros): longest_zeros = current_zeros
-                    valley_idx = longest_zeros[int(len(longest_zeros) * 0.6)]
-                    dyn_thresh_empty_base = peak1_idx + valley_idx
+                    # 谷間の中心を閾値のベースとする
+                    valley_idx = longest_zeros[int(len(longest_zeros) * 0.5)]
+                    dyn_thresh_base = peak1_idx + valley_idx
                 else:
                     valley_idx = np.argmin(between_hist)
-                    dyn_thresh_empty_base = peak1_idx + valley_idx
+                    dyn_thresh_base = peak1_idx + valley_idx
             else:
-                dyn_thresh_empty_base = np.max(game_pin_pcts) + 5.0
+                # 黒丸がない(全てストライク)場合などの安全値
+                dyn_thresh_base = peak1_idx + 15.0
         
         offset = st.session_state.get("pin_thresh_offset", 0.0)
         
-        # 相模原は4箇所基準を使わず、常に全体分布基準方式で解析する
-        dyn_thresh = dyn_thresh_empty_base + 1.0 + offset
-        
-        # イーグルボウルと同様の白黒判定の境界閾値（CIRCLE と DOUBLE の境目）
-        dyn_thresh_circle = dyn_thresh + 12.0
+        # 相模原は白抜き丸と黒丸の2値判定となるため、谷間の閾値を直接使用する
+        dyn_thresh = dyn_thresh_base + offset
 
         for f in range(12):
             frame_pins = []
@@ -431,18 +431,14 @@ def analyze_park_lanes(img, ai_meta_data):
                 elif row_idx == 3: pin_num = 1
                 else: pin_num = 1
                 
-                # 白黒判定（イーグルボウルと同等のロジック）
-                if pin_pct < dyn_thresh: result = "EMPTY"
-                elif pin_pct < dyn_thresh_circle: result = "CIRCLE"
-                else: result = "DOUBLE"
-                
                 # 位置確認のためにオレンジ色の太線(2)で全ての枠を円で描画する
                 cv2.circle(output_img, (cx_local, cy_local), radius_px, (0, 165, 255), 2)
                 
-                # 相模原パークレーンズでは黒丸(DOUBLE)が残ピン
-                if result == "DOUBLE":
+                # 白抜き丸（低ピクセル率）か、黒塗り丸（高ピクセル率）かの2値で判定
+                if pin_pct > dyn_thresh:
+                    # 閾値以上なら黒塗り丸（＝残ピン）
                     frame_pins.append(pin_num)
-                    # イーグルボウルと同様に斜線を描画して検知を可視化
+                    # 検知を可視化
                     cv2.line(output_img, (cx_local - radius_px, cy_local - radius_px), (cx_local + radius_px, cy_local + radius_px), (0, 165, 255), 2)
             
             frame_pins.sort()
