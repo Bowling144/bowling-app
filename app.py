@@ -423,14 +423,15 @@ def analyze_park_lanes(img, ai_meta_data):
         # イーグルボウル(4.5, 2.25)より大きめのサイズ(6.0, 3.0)に設定
         fig, ax1 = plt.subplots(figsize=(6.0, 3.0))
         
-        # ピクセル密度の分布をプロット
-        ax1.hist(game_pin_pcts, bins=50, range=(0,100), color='#00FFFF', alpha=0.7, label='All Pins')
+        # ピクセル密度の分布をプロット（X軸の範囲を10〜60に変更）
+        ax1.hist(game_pin_pcts, bins=50, range=(10, 60), color='#00FFFF', alpha=0.7, label='All Pins')
         
         # 算出された閾値のラインを引く
         ax1.axvline(dyn_thresh, color='#FF2D55', linestyle='dashed', linewidth=2, label=f'Threshold: {dyn_thresh:.1f}%')
         
         ax1.legend(loc='upper right', fontsize='small')
         ax1.set_title("Pixel Distribution & Threshold (Sagamihara)", fontsize='medium')
+        ax1.set_xlim(10, 60) # グラフの表示範囲も明示的に10〜60に固定
         fig.tight_layout()
 
         # 画像としてメモリ上に保存し、OpenCV形式に変換
