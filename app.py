@@ -295,6 +295,7 @@ def analyze_park_lanes(img, ai_meta_data):
         
         prev_score = 0
         for f in range(9):
+            cufor f in range(9):
             curr_score = int(ai_frame_totals[f]) if str(ai_frame_totals[f]).isdigit() else 0
             diff = curr_score - prev_score
             
@@ -370,7 +371,7 @@ def analyze_park_lanes(img, ai_meta_data):
             # 累計スコア（AI読み取り結果）の描画
             ai_tot_val = str(ai_frame_totals[f])
             if ai_tot_val and ai_tot_val != "0":
-                cv2.putText(output_img, ai_tot_val, (f_start_x, text_y_score), font, font_scale, color_green, thickness, cv2.LINE_AA)
+                cv2.putText(output_img, ai_tot_val, (f_start_x, text_y_score), font, 0.5, color_green, 1, cv2.LINE_AA)
             
             # ② 1投目の描画 (位置は累計スコアと同じ横位置、縦位置も同じ)
             t1 = str(row_data[throw_cols_local[f*2]]).replace("R:", "")
@@ -388,7 +389,7 @@ def analyze_park_lanes(img, ai_meta_data):
         
         ai_tot_val_10 = str(ai_frame_totals[9])
         if ai_tot_val_10 and ai_tot_val_10 != "0":
-            cv2.putText(output_img, ai_tot_val_10, (f10_start_x, text_y_score), font, font_scale, color_green, thickness, cv2.LINE_AA)
+            cv2.putText(output_img, ai_tot_val_10, (f10_start_x, text_y_score), font, 0.5, color_green, 1, cv2.LINE_AA)
 
         t10_1 = str(row_data[throw_cols_local[18]]).replace("R:", "")
         t10_2 = str(row_data[throw_cols_local[19]]).replace("R:", "")
@@ -416,8 +417,6 @@ def analyze_park_lanes(img, ai_meta_data):
     cv2.putText(output_img, "Sagamihara Park Lanes Mode (Grid Based)", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3, cv2.LINE_AA)
 
     return all_games_export_data, output_img
-
-def analyze_copa_bowl(img, ai_meta_data):
 
 def analyze_copa_bowl(img, ai_meta_data):
     """永山コパボウル用の解析ロジック（開発中）"""
