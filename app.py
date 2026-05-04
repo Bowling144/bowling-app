@@ -128,6 +128,8 @@ def analyze_park_lanes(img, ai_meta_data):
             cv2.putText(output_img, f"Game {len(games_y_coords)}", (20, int(y_min) + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
     # 3. 縦線の検出と交点（グリッド）の作成
+    # 相模原の縦線（黒線）を抽出するために、二値化画像を元に縦方向のカーネルを適用します。
+    # h_dilateで使用したthresh（文字も黒として抽出されている反転画像）をベースにします。
     v_kernel_len = int(target_height * 0.05) # 縦線の長さの閾値
     v_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, v_kernel_len))
     v_mask = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, v_kernel)
@@ -156,7 +158,6 @@ def analyze_park_lanes(img, ai_meta_data):
             else:
                 merged_v_lines.append(sum(group) / len(group))
                 group = [x]
-            current_x = x
         merged_v_lines.append(sum(group) / len(group))
 
     # 確認用：検出した縦線を黄色で描画
@@ -168,7 +169,7 @@ def analyze_park_lanes(img, ai_meta_data):
     
     # 縦線が正しく検出されていれば、左から2番目の線(フレーム1の開始)と右から2番目の線(トータルの手前)をX座標の境界として使用する
     # 縦線の検出が不完全な場合のフォールバックとして固定値も用意
-    if len(merged_lines) > 10:
+    if len(merged_v_lines) > 10:
         x1 = int(merged_v_lines[1]) if len(merged_v_lines) > 1 else int(target_width * 0.16)
         x2 = int(merged_v_lines[-2]) if len(merged_v_lines) > 2 else int(target_width * 0.95)
     else:
@@ -190,6 +191,19 @@ def analyze_park_lanes(img, ai_meta_data):
         
         # 確認用：AIに送るスコア領域を青枠で囲む
         cv2.rectangle(output_img, (x1, crop_y_top), (x2, crop_y_bottom), (255, 0, 0), 2)
+        
+    if score_crops:
+        max_w = max(c.shape[1] for c in score_crops)
+        padded_crops = []
+        for c in score_crops:
+            pad_w = max_w - c.shape[1]
+            padded = cv2.copyMakeBorder(c, 0, 0, 0, pad_w, cv2.BORDER_CONSTANT, value=(255, 255, 255))
+            padded_crops.append(padded)
+        stacked_scores = cv2.vconcat(padded_crops)
+        img_pil_scores = Image.fromarray(cv2.cvtColor(stacked_scores, cv2.COLOR_BGR2RGB))
+    else:
+        # フォールバック
+        img_pil_scores = Image.fromarray(cv2.cvtColor(img_resized, cv2.COLOR_BGR2RGB))
         
     if score_crops:
         max_w = max(c.shape[1] for c in score_crops)
