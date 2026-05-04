@@ -55,7 +55,7 @@ def compress_image_for_ai(pil_img, max_size=1024):
 st.set_page_config(page_title="ボウリング解析", page_icon="🎳", layout="wide")
 
 # =========================================================
-# ▼ ボウリング場別 専用解析ロジック（ダミー） ▼
+# ▼ ボウリング場別 専用解析ロジック ▼
 # =========================================================
 def analyze_park_lanes(img, ai_meta_data):
     """相模原パークレーンズ用の解析ロジック"""
@@ -83,64 +83,60 @@ def analyze_park_lanes(img, ai_meta_data):
         img_resized = cv2.rotate(img_resized, cv2.ROTATE_90_CLOCKWISE)
         output_img = img_resized.copy()
         
-    # 2. 青い横線の検出 (HSV色空間で抽出)
-    hsv = cv2.cvtColor(img_resized, cv2.COLOR_BGR2HSV)
+    # 2. 横線の検出によるゲーム枠の特定
+    gray = cv2.cvtColor(img_resized, cv2.COLOR_BGR2GRAY)
+    thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 5)
     
-    # 水色〜青色の範囲を指定 (相模原のスコアシートに合わせて調整)
-    lower_blue = np.array([90, 50, 50])
-    upper_blue = np.array([130, 255, 255])
-    mask_blue = cv2.inRange(hsv, lower_blue, upper_blue)
+    h_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (100, 1))
+    h_mask = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, h_kernel)
+    h_dilate = cv2.dilate(h_mask, cv2.getStructuringElement(cv2.MORPH_RECT, (50, 1)), iterations=1)
     
-    # 横長のカーネルで横線だけを強調
-    kernel_h = cv2.getStructuringElement(cv2.MORPH_RECT, (50, 1))
-    mask_blue_h = cv2.morphologyEx(mask_blue, cv2.MORPH_OPEN, kernel_h)
+    contours, _ = cv2.findContours(h_dilate, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
-    # 輪郭抽出
-    contours, _ = cv2.findContours(mask_blue_h, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
-    blue_lines = []
+    h_lines = []
     for cnt in contours:
         x, y, w, h = cv2.boundingRect(cnt)
-        if w > target_width * 0.5: # 横幅の半分以上の長さがある線を「ゲーム区切りの線」とみなす
-            blue_lines.append((y, y + h))
+        if w > target_width * 0.4: # 横幅の40%以上の直線を抽出
+            y_center = y + h / 2.0
+            h_lines.append({'y': y_center, 'w': w, 'x': x})
             
-    # Y座標でソート
-    blue_lines.sort(key=lambda item: item[0])
-    
-    # 近接する線を統合 (太い線が複数に分かれて検出されるのを防ぐ)
-    merged_lines = []
-    if blue_lines:
-        current_y_min, current_y_max = blue_lines[0]
-        for y_min, y_max in blue_lines[1:]:
-            if y_min - current_y_max < 20: # 20px以内なら同じ線とみなす
-                current_y_max = max(current_y_max, y_max)
+    h_lines.sort(key=lambda item: item['y'])
+
+    # Y座標の近接具合で「ゲームのブロック」をまとめる
+    blocks = []
+    if h_lines:
+        current_block = [h_lines[0]]
+        prev_y = h_lines[0]['y']
+        for line in h_lines[1:]:
+            if line['y'] - prev_y > 50: # 50px以上離れていれば別のブロックとみなす
+                blocks.append(current_block)
+                current_block = [line]
             else:
-                merged_lines.append(int((current_y_min + current_y_max) / 2))
-                current_y_min, current_y_max = y_min, y_max
-        merged_lines.append(int((current_y_min + current_y_max) / 2))
-        
+                current_block.append(line)
+            prev_y = line['y']
+        blocks.append(current_block)
+
     games_y_coords = []
-    # 2本の線で挟まれた領域を1ゲームとする
-    for i in range(len(merged_lines) - 1):
-        y1 = merged_lines[i]
-        y2 = merged_lines[i+1]
-        
-        # 行の高さが一定以上（例えば100px以上）ある場合のみゲーム行とする
-        if y2 - y1 > 100:
-            games_y_coords.append((y1, y2))
-            # 確認用：緑の枠を描画
-            cv2.rectangle(output_img, (10, y1), (target_width-10, y2), (0, 255, 0), 2)
-            cv2.putText(output_img, f"Game {len(games_y_coords)}", (20, y1 + 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+    # 各ブロックのうち、線が3本以上密集しており、かつ特定の高さ範囲にあるものを「1つのゲーム枠」と判定
+    for b in blocks:
+        if len(b) >= 3 and 200 < b[0]['y'] < 1400: 
+            y_min = min(l['y'] for l in b)
+            y_max = max(l['y'] for l in b)
+            games_y_coords.append((int(y_min), int(y_max)))
+            # 確認用：緑の枠とテキストを描画
+            cv2.rectangle(output_img, (10, int(y_min)), (target_width-10, int(y_max)), (0, 255, 0), 2)
+            cv2.putText(output_img, f"Game {len(games_y_coords)}", (20, int(y_min) + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
     # 3. スコア画像の作成（AI読み取り用）
     score_crops = []
     for (y1, y2) in games_y_coords:
-        # スコア領域のだいたいのX座標 (相模原のレイアウトに合わせて調整)
+        # 相模原パークレーンズのレイアウト：スコア数字は枠内の上半分の、右側約80%の領域にある
         x1 = int(target_width * 0.15)
-        x2 = int(target_width * 0.95)
-        # 上半分の領域にスコア数字があると仮定して切り出し
+        x2 = int(target_width * 0.98)
+        # 行の高さから上半分くらいをクロップ
         h_game = y2 - y1
-        crop = img_resized[y1:y1 + int(h_game * 0.6), x1:x2]
+        crop_y2 = min(img_resized.shape[0], int(y1 + h_game * 0.6))
+        crop = img_resized[y1:crop_y2, x1:x2]
         score_crops.append(crop)
         
     if score_crops:
@@ -153,11 +149,10 @@ def analyze_park_lanes(img, ai_meta_data):
         stacked_scores = cv2.vconcat(padded_crops)
         img_pil_scores = Image.fromarray(cv2.cvtColor(stacked_scores, cv2.COLOR_BGR2RGB))
     else:
-        # ゲーム行が見つからなかった場合のフォールバック
+        # フォールバック
         img_pil_scores = Image.fromarray(cv2.cvtColor(img_resized, cv2.COLOR_BGR2RGB))
 
-    # 3. AI（Gemini）によるスコア読み取り
-    # イーグルボウルと同じプロンプト・処理を利用します。
+    # 4. AI（Gemini）によるスコア読み取り
     ai_score_data = {"games": []}
     try:
         compressed_score_img = compress_image_for_ai(img_pil_scores)
@@ -166,7 +161,6 @@ def analyze_park_lanes(img, ai_meta_data):
         score_bytes = score_bytes_io.getvalue()
         
         client = genai.Client(vertexai=True, project="bowling-vertex-ai", location="asia-northeast1")
-        # 混雑対策の簡易リトライ
         for attempt_model in ["gemini-2.5-pro", "gemini-1.5-pro-002"]:
             try:
                 response = client.models.generate_content(
@@ -187,7 +181,7 @@ def analyze_park_lanes(img, ai_meta_data):
     except Exception as e:
         print(f"AI解析エラー: {e}")
 
-    # 4. データ統合とall_games_export_dataの作成
+    # 5. データ統合とall_games_export_dataの作成
     global_date = str(ai_meta_data.get("date", "日付不明")).replace("-", "/")
     global_start_time = str(ai_meta_data.get("start_time", "時刻不明"))
     global_end_time = str(ai_meta_data.get("end_time", "時刻不明"))
@@ -242,12 +236,12 @@ def analyze_park_lanes(img, ai_meta_data):
         
         all_games_export_data.append(row_data)
 
-    cv2.putText(output_img, "Sagamihara Park Lanes Mode (Dummy)", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3, cv2.LINE_AA)
+    cv2.putText(output_img, "Sagamihara Park Lanes Mode (Line Extract)", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3, cv2.LINE_AA)
 
     return all_games_export_data, output_img
 
 def analyze_copa_bowl(img, ai_meta_data):
-    """永山コパボウル用の解析ロジック（開発ベース）"""
+    """永山コパボウル用の解析ロジック（開発中）"""
     target_width = 1200
     scale = target_width / img.shape[1]
     target_height = int(img.shape[0] * scale)
@@ -255,12 +249,9 @@ def analyze_copa_bowl(img, ai_meta_data):
     output_img = img_resized.copy()
     cv2.putText(output_img, "Nagayama Copa Bowl Mode (Dummy)", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 0, 0), 3, cv2.LINE_AA)
     
-    # 永山コパボウルも同様に、後日ここに切り出しやOpenCVのロジックを組み込みます。
-    # 現状は空リストを返して処理をスキップさせます。
     return [], output_img
 
 # ▼▼▼ プレイヤー分析画面のAWARD画面を参考にした共通ダークテーマ・統一CSS ▼▼▼
-st.markdown("""
     <style>
     /* アプリ全体をAWARD風のダークテーマに */
     .stApp {
