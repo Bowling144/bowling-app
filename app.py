@@ -334,18 +334,26 @@ def analyze_park_lanes(img, ai_meta_data):
         all_games_export_data.append(row_data)
 
         # --- ▼ 画像への解析結果の描画処理 ▼ ---
-        # 基準点A：左側の縦線(left_x) と 緑枠の下辺(y2)
+        # 基準点A：左側の縦線(left_x) と 緑枠の下辺(y2) の交点
+        # 基準点B：右側の縦線(right_x) と 緑枠の下辺(y2) の交点
+        
         base_x = left_x
         base_y = y2
         
-        # 指定の距離（ピクセル換算）
-        pitch1_offset_px = int(20.0 * px_per_mm)    # ① 基準点Aから右へ20mm
-        frame_width_px = int(14.44 * px_per_mm)     # ① フレーム間距離14.44mm
-        pitch2_offset_px = int(7.2 * px_per_mm)     # ③ 1投目の位置から右へ7.2mm
-        match_x_offset_px = int(168.0 * px_per_mm)  # ④ マッチの文字は基準点Aから168mm
+        # 基準点間の距離（ピクセル）から、動的な縮尺を計算する
+        # 相模原パークレーンズのフレーム1左端〜トータル右端までの実際の幅を約184.5mmと仮定（比率計算用）
+        distance_ab_px = right_x - left_x
+        mm_to_px = distance_ab_px / 184.5
         
-        y_offset_score = int(11 * px_per_mm) + int(2 * px_per_mm) # 縦①② 今よりも11mm上 + さらに2mm上
-        y_offset_match = int(12 * px_per_mm)                      # 縦③ マッチの文字は今よりも12mm上
+        # 指定の距離（自動スケール換算）
+        pitch1_offset_px = int(20.0 * mm_to_px)    # ① 基準点Aから右へ20mm
+        frame_width_px = int(14.44 * mm_to_px)     # ① フレーム間距離14.44mm
+        pitch2_offset_px = int(7.2 * mm_to_px)     # ③ 1投目の位置から右へ7.2mm
+        match_x_offset_px = int(168.0 * mm_to_px)  # ④ マッチの文字は基準点Aから168mm
+        
+        # 縦位置の指定
+        y_offset_score = int(11.0 * mm_to_px)      # 縦①② 1投目と赤文字は下辺から11mm上
+        y_offset_match = int(12.0 * mm_to_px)      # 縦③ マッチの文字は下辺から12mm上
         
         text_y_score = int(base_y - y_offset_score)
         text_y_match = int(base_y - y_offset_match)
@@ -353,23 +361,23 @@ def analyze_park_lanes(img, ai_meta_data):
         font = cv2.FONT_HERSHEY_SIMPLEX
         font_scale = 0.6
         thickness = 2
-        color_green = (0, 220, 0)
+        color_green = (0, 220, 0) # 見やすい緑色
         
         for f in range(9):
             # ① フレーム開始位置（基準点から20mm + フレーム間14.44mm * f）
             f_start_x = int(base_x + pitch1_offset_px + (f * frame_width_px))
             
-            # 累計スコア（AI読み取り結果）の描画：緑色に変更
+            # 累計スコア（AI読み取り結果）の描画
             ai_tot_val = str(ai_frame_totals[f])
             if ai_tot_val and ai_tot_val != "0":
-                cv2.putText(output_img, ai_tot_val, (f_start_x, text_y_score), font, 0.5, color_green, 1, cv2.LINE_AA)
+                cv2.putText(output_img, ai_tot_val, (f_start_x, text_y_score), font, font_scale, color_green, thickness, cv2.LINE_AA)
             
             # ② 1投目の描画 (位置は累計スコアと同じ横位置、縦位置も同じ)
             t1 = str(row_data[throw_cols_local[f*2]]).replace("R:", "")
             color1 = COLOR_OPENCV if t1 in ["X", "-", "G"] else COLOR_AI
             # if t1: cv2.putText(output_img, t1, (f_start_x, text_y_score), font, font_scale, color1, thickness, cv2.LINE_AA)
             
-            # ③ 2投目（赤文字）の描画 (1投目から右へ7.2mm)
+            # ③ 2投目（赤文字等）の描画 (1投目から右へ7.2mm)
             t2 = str(row_data[throw_cols_local[f*2+1]]).replace("R:", "")
             x2_pos = int(f_start_x + pitch2_offset_px)
             color2 = COLOR_OPENCV if t2 in ["/", "-", "G"] else COLOR_AI
@@ -380,7 +388,7 @@ def analyze_park_lanes(img, ai_meta_data):
         
         ai_tot_val_10 = str(ai_frame_totals[9])
         if ai_tot_val_10 and ai_tot_val_10 != "0":
-            cv2.putText(output_img, ai_tot_val_10, (f10_start_x, text_y_score), font, 0.5, color_green, 1, cv2.LINE_AA)
+            cv2.putText(output_img, ai_tot_val_10, (f10_start_x, text_y_score), font, font_scale, color_green, thickness, cv2.LINE_AA)
 
         t10_1 = str(row_data[throw_cols_local[18]]).replace("R:", "")
         t10_2 = str(row_data[throw_cols_local[19]]).replace("R:", "")
@@ -398,7 +406,7 @@ def analyze_park_lanes(img, ai_meta_data):
         
         if calc_val == ai_tot_int and ai_tot_int > 0:
             check_str = f"MATCH ({calc_val})"
-            check_color = (0, 150, 0)
+            check_color = (0, 150, 0) # MATCH時の文字色は濃い緑
         else:
             check_str = f"DIFF! ({calc_val} vs {ai_tot_int})"
             check_color = COLOR_AI
