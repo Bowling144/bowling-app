@@ -177,14 +177,24 @@ def analyze_park_lanes(img, ai_meta_data):
     # 1フレームあたりの横幅 (box_w) は、全体の約7.2%と推測します
     base_box_w = total_w * 0.072 
     
-    # AIに送るスコア領域は、名前の列を除外し、フレーム1からトータルまでとします
-    x1_score = int(left_x + total_w * 0.15) 
-    x2_score = int(right_x - 5)
+    # AIに送るスコア領域は、名前の列を除外し、フレーム1から10フレーム目までとします
+    # 1mm ≈ 6px として微調整
+    offset_left_mm = 3 * 6   # 左辺を左に3mm(18px)広げる
+    offset_right_mm = 20 * 6 # 右辺を左に20mm(120px)狭める
+    offset_top_mm = 1 * 6    # 上辺を上に1mm(6px)広げる
+    
+    x1_score = int(left_x + total_w * 0.15) - offset_left_mm
+    x2_score = int(right_x - 5) - offset_right_mm
+    
+    # 画面外にはみ出さないように補正
+    x1_score = max(0, x1_score)
+    x2_score = min(target_width, x2_score)
     
     for (y1, y2) in games_y_coords:
         # 下辺(y2)を基準に、スコア数字の領域を切り出し
         crop_y_bottom = y2 - 4  
-        crop_y_top = max(0, y2 - 30) # 高さを30pxに
+        # 基本の高さ30pxから、さらに上に1mm(6px)広げる
+        crop_y_top = max(0, y2 - 30 - offset_top_mm) 
         
         crop = img_resized[crop_y_top:crop_y_bottom, x1_score:x2_score]
         score_crops.append(crop)
@@ -193,10 +203,11 @@ def analyze_park_lanes(img, ai_meta_data):
         cv2.rectangle(output_img, (x1_score, crop_y_top), (x2_score, crop_y_bottom), (255, 0, 0), 2)
         
         # --- スケール情報（マス目の基準）を計算して保存 ---
-        # y2（緑枠の下辺）と x1_score（フレーム1の左端）を基準点とする
+        # y2（緑枠の下辺）と x1_score（調整前のフレーム1の左端）を基準点とする
+        # ※切り出し位置(x1_score)はずらしましたが、ピン位置計算の基準は元のままにするため、offset_left_mmを戻した値を保存します
         game_scales.append({
             'y_base': y2,
-            'x_start': x1_score,
+            'x_start': x1_score + offset_left_mm, 
             'box_w': base_box_w
         })
         
