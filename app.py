@@ -337,8 +337,7 @@ def analyze_park_lanes(img, ai_meta_data):
         frame9_to_10_pitch_px = 13.9 * mm_to_px    # 9フレームから10フレーム1投目への間隔
         frame10_pitch_px = 11.5 * mm_to_px         # 10フレーム内の投球間隔
         
-        radius_px = int(1.35 * mm_to_px)           # 判定枠を直径2.7mm（半径1.35mm）の円に変更
-        box_size_px = 2.7 * mm_to_px               # 閾値判定用のクロップ幅（直径2.7mm）
+        box_size_px = 2.7 * mm_to_px               # 判定枠を2.7mmの正方形に戻す
         yw = int(box_size_px)
         yh = int(box_size_px)
 
@@ -365,9 +364,11 @@ def analyze_park_lanes(img, ai_meta_data):
                 cx_local = int(gx_local + (col_offset * pin_pitch_x_mm * mm_to_px))
                 cy_local = int(gy_local + (row_idx * pin_pitch_y_mm * mm_to_px))
                 
-                yx1_local = int(cx_local - radius_px)
-                yy1_local = int(cy_local - radius_px)
+                # クロップ用の左上座標を計算（中心からサイズの半分を引く）
+                yx1_local = int(cx_local - (yw / 2.0))
+                yy1_local = int(cy_local - (yh / 2.0))
                 
+                # 閾値画像からピクセル数を計算
                 if 0 <= yy1_local < thresh_ink.shape[0] and 0 <= yx1_local < thresh_ink.shape[1]:
                     crop_y = thresh_ink[yy1_local:yy1_local+yh, yx1_local:yx1_local+yw]
                     pixels_y = crop_y.shape[0] * crop_y.shape[1]
@@ -456,6 +457,8 @@ def analyze_park_lanes(img, ai_meta_data):
                 pin_pct = data['pct']
                 cx_local = data['cx']
                 cy_local = data['cy']
+                yx1_local = data['yx1']
+                yy1_local = data['yy1']
                 
                 if row_idx == 0: pin_num = 7 + int(col_offset)
                 elif row_idx == 1: pin_num = 4 + int(col_offset - 0.5)
@@ -463,15 +466,15 @@ def analyze_park_lanes(img, ai_meta_data):
                 elif row_idx == 3: pin_num = 1
                 else: pin_num = 1
                 
-                # 位置確認のためにオレンジ色の太線(2)で全ての枠を円で描画する
-                cv2.circle(output_img, (cx_local, cy_local), radius_px, (0, 165, 255), 2)
+                # 位置確認のためにオレンジ色の太線(2)で全ての枠を四角で描画する
+                cv2.rectangle(output_img, (yx1_local, yy1_local), (yx1_local+yw, yy1_local+yh), (0, 165, 255), 2)
                 
                 # 白抜き丸（低ピクセル率）か、黒塗り丸（高ピクセル率）かの2値で判定
                 if pin_pct > dyn_thresh:
                     # 閾値以上なら黒塗り丸（＝残ピン）
                     frame_pins.append(pin_num)
-                    # 検知を可視化
-                    cv2.line(output_img, (cx_local - radius_px, cy_local - radius_px), (cx_local + radius_px, cy_local + radius_px), (0, 165, 255), 2)
+                    # 検知を可視化（四角の対角線）
+                    cv2.line(output_img, (yx1_local, yy1_local), (yx1_local+yw, yy1_local+yh), (0, 165, 255), 2)
             
             frame_pins.sort()
             all_frame_pins.append(frame_pins)
