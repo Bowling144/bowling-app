@@ -329,11 +329,10 @@ def analyze_park_lanes(img, ai_meta_data):
         pin1_x_offset_mm = 32.1
         pin_pitch_x_mm = (pin1_x_offset_mm - pin7_x_offset_mm) / 1.5 # 約2.4mm
         
-        # Y座標は下辺(base_y)を基準とし、上にマイナスする形で設定
-        # （7番ピンは上部にあるため底辺から離れており、1番ピンは下部にあるため底辺に近い）
-        pin7_y_offset_mm = 10.7 # 下辺から上へ10.7mm
-        pin1_y_offset_mm = 2.3  # 下辺から上へ2.3mm
-        pin_pitch_y_mm = (pin7_y_offset_mm - pin1_y_offset_mm) / 3.0 # 約2.8mm
+        # Y座標は下辺(base_y)を基準とし、下にプラスする形で設定
+        pin7_y_offset_mm = 2.3  # 下辺から下へ2.3mm
+        pin1_y_offset_mm = 10.7 # 下辺から下へ10.7mm
+        pin_pitch_y_mm = (pin1_y_offset_mm - pin7_y_offset_mm) / 3.0 # 約2.8mm
 
         frame_width_px = 14.4 * mm_to_px     # 1〜9フレームの横間隔
         frame10_pitch_px = 11.5 * mm_to_px   # 10フレーム内の投球間隔
@@ -357,8 +356,8 @@ def analyze_park_lanes(img, ai_meta_data):
                 
             gx_local = int(base_x + (pin7_x_offset_mm * mm_to_px) + f_offset_px)
             
-            # 7番ピンのY座標（base_yから上に10.7mm）
-            gy_local = int(base_y - (pin7_y_offset_mm * mm_to_px))
+            # 7番ピンのY座標（base_yから下に2.3mm）
+            gy_local = int(base_y + (pin7_y_offset_mm * mm_to_px))
             
             for row_idx, col_offset in pin_positions:
                 # 各ピンの中心座標を計算（下に向かってrow_idxが増えるためYは加算）
