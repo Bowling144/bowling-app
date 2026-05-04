@@ -87,6 +87,10 @@ def analyze_park_lanes(img, ai_meta_data):
     gray = cv2.cvtColor(img_resized, cv2.COLOR_BGR2GRAY)
     thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 5)
     
+    # ▼ 追加：ピン判定（実測）用の二値化画像を作成（青チャンネルを使用）
+    b_channel = img_resized[:, :, 0]
+    thresh_ink = cv2.adaptiveThreshold(b_channel, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 10)
+
     h_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (100, 1))
     h_mask = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, h_kernel)
     h_dilate = cv2.dilate(h_mask, cv2.getStructuringElement(cv2.MORPH_RECT, (50, 1)), iterations=1)
