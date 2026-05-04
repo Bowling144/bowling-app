@@ -322,7 +322,6 @@ def analyze_park_lanes(img, ai_meta_data):
         # 【新規追加】イーグルボウルと同等のピン判定ロジック
         # ----------------------------------------------------
         all_frame_pins = []
-        dyn_thresh_green = 20.0 + st.session_state.get("pin_thresh_offset", 0.0) # 暫定の閾値
         
         # 実測値に基づくピン配置設定（1mmあたりのピクセル数 mm_to_px を適用）
         pin7_x_offset_mm = 28.1
@@ -330,12 +329,12 @@ def analyze_park_lanes(img, ai_meta_data):
         pin_pitch_x_mm = (pin1_x_offset_mm - pin7_x_offset_mm) / 1.5
         
         # Y座標は下辺(base_y)を基準とし、下にプラスする形で設定
-        pin7_y_offset_mm = 2.6  # 2.4からさらに0.2mm下へ
-        pin1_y_offset_mm = 11.2 # 11.0からさらに0.2mm下へ
+        pin7_y_offset_mm = 2.6
+        pin1_y_offset_mm = 11.2
         pin_pitch_y_mm = (pin1_y_offset_mm - pin7_y_offset_mm) / 3.0
 
         frame_width_px = 14.4 * mm_to_px           # 1〜9フレームの横間隔
-        frame9_to_10_pitch_px = 13.9 * mm_to_px    # 9フレームから10フレーム1投目への間隔を13.9mmに変更
+        frame9_to_10_pitch_px = 13.9 * mm_to_px    # 9フレームから10フレーム1投目への間隔
         frame10_pitch_px = 11.5 * mm_to_px         # 10フレーム内の投球間隔
         
         radius_px = int(1.35 * mm_to_px)           # 判定枠を直径2.7mm（半径1.35mm）の円に変更
@@ -343,10 +342,13 @@ def analyze_park_lanes(img, ai_meta_data):
         yw = int(box_size_px)
         yh = int(box_size_px)
 
+        # ----------------------------------------------------
+        # ピンpct収集とヒストグラムによる動的閾値算出（全体分布基準を強制適用）
+        # ----------------------------------------------------
+        game_pin_pcts = []
+        game_pin_data = {}
+
         for f in range(12):
-            frame_pins = []
-            
-            # 各フレームの基準X座標（7番ピンのX座標）を計算
             if f < 9:
                 f_offset_px = f * frame_width_px
             elif f == 9:
@@ -357,20 +359,15 @@ def analyze_park_lanes(img, ai_meta_data):
                 f_offset_px = 8 * frame_width_px + frame9_to_10_pitch_px + (2 * frame10_pitch_px)
                 
             gx_local = int(base_x + (pin7_x_offset_mm * mm_to_px) + f_offset_px)
-            
-            # 7番ピンのY座標（base_yから下に2.6mm）
             gy_local = int(base_y + (pin7_y_offset_mm * mm_to_px))
             
             for row_idx, col_offset in pin_positions:
-                # 各ピンの中心座標を計算（下に向かってrow_idxが増えるためYは加算）
                 cx_local = int(gx_local + (col_offset * pin_pitch_x_mm * mm_to_px))
                 cy_local = int(gy_local + (row_idx * pin_pitch_y_mm * mm_to_px))
                 
-                # クロップ用の左上座標を計算（中心から半径を引く）
                 yx1_local = int(cx_local - radius_px)
                 yy1_local = int(cy_local - radius_px)
                 
-                # 閾値画像からピクセル数を計算（円に内接する四角領域で計算）
                 if 0 <= yy1_local < thresh_ink.shape[0] and 0 <= yx1_local < thresh_ink.shape[1]:
                     crop_y = thresh_ink[yy1_local:yy1_local+yh, yx1_local:yx1_local+yw]
                     pixels_y = crop_y.shape[0] * crop_y.shape[1]
@@ -378,21 +375,75 @@ def analyze_park_lanes(img, ai_meta_data):
                 else:
                     pin_pct = 0
                 
+                game_pin_pcts.append(pin_pct)
+                game_pin_data[(f, row_idx, col_offset)] = {
+                    'pct': pin_pct, 'cx': cx_local, 'cy': cy_local,
+                    'yx1': yx1_local, 'yy1': yy1_local
+                }
+
+        dyn_thresh_empty_base = 20.0
+        if game_pin_pcts:
+            hist, bin_edges = np.histogram(game_pin_pcts, bins=100, range=(0, 100))
+            peak1_idx = np.argmax(hist[:25])
+            peak2_idx = 25 + np.argmax(hist[25:])
+
+            if hist[peak2_idx] > 0 and peak2_idx > peak1_idx + 5:
+                between_hist = hist[peak1_idx:peak2_idx+1]
+                zero_indices = np.where(between_hist == 0)[0]
+                if len(zero_indices) > 0:
+                    longest_zeros = []
+                    current_zeros = []
+                    for i in zero_indices:
+                        if not current_zeros or i == current_zeros[-1] + 1:
+                            current_zeros.append(i)
+                        else:
+                            if len(current_zeros) > len(longest_zeros): longest_zeros = current_zeros
+                            current_zeros = [i]
+                    if len(current_zeros) > len(longest_zeros): longest_zeros = current_zeros
+                    valley_idx = longest_zeros[int(len(longest_zeros) * 0.6)]
+                    dyn_thresh_empty_base = peak1_idx + valley_idx
+                else:
+                    valley_idx = np.argmin(between_hist)
+                    dyn_thresh_empty_base = peak1_idx + valley_idx
+            else:
+                dyn_thresh_empty_base = np.max(game_pin_pcts) + 5.0
+        
+        offset = st.session_state.get("pin_thresh_offset", 0.0)
+        
+        # 相模原は4箇所基準を使わず、常に全体分布基準方式で解析する
+        dyn_thresh = dyn_thresh_empty_base + 1.0 + offset
+        
+        # イーグルボウルと同様の白黒判定の境界閾値（CIRCLE と DOUBLE の境目）
+        dyn_thresh_circle = dyn_thresh + 12.0
+
+        for f in range(12):
+            frame_pins = []
+            
+            for row_idx, col_offset in pin_positions:
+                data = game_pin_data[(f, row_idx, col_offset)]
+                pin_pct = data['pct']
+                cx_local = data['cx']
+                cy_local = data['cy']
+                
                 if row_idx == 0: pin_num = 7 + int(col_offset)
                 elif row_idx == 1: pin_num = 4 + int(col_offset - 0.5)
                 elif row_idx == 2: pin_num = 2 + int(col_offset - 1.0)
                 elif row_idx == 3: pin_num = 1
                 else: pin_num = 1
                 
-                # 判定
-                if pin_pct < dyn_thresh_green: result = "EMPTY"
-                else: result = "CIRCLE"
+                # 白黒判定（イーグルボウルと同等のロジック）
+                if pin_pct < dyn_thresh: result = "EMPTY"
+                elif pin_pct < dyn_thresh_circle: result = "CIRCLE"
+                else: result = "DOUBLE"
                 
-                if result == "CIRCLE":
-                    frame_pins.append(pin_num)
-                
-                # ▼ 判定結果に関わらず、位置確認のためにオレンジ色の太線(2)で全ての枠を円で描画する
+                # 位置確認のためにオレンジ色の太線(2)で全ての枠を円で描画する
                 cv2.circle(output_img, (cx_local, cy_local), radius_px, (0, 165, 255), 2)
+                
+                # 相模原パークレーンズでは黒丸(DOUBLE)が残ピン
+                if result == "DOUBLE":
+                    frame_pins.append(pin_num)
+                    # イーグルボウルと同様に斜線を描画して検知を可視化
+                    cv2.line(output_img, (cx_local - radius_px, cy_local - radius_px), (cx_local + radius_px, cy_local + radius_px), (0, 165, 255), 2)
             
             frame_pins.sort()
             all_frame_pins.append(frame_pins)
