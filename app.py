@@ -58,16 +58,153 @@ st.set_page_config(page_title="ボウリング解析", page_icon="🎳", layout=
 # ▼ ボウリング場別 専用解析ロジック（ダミー） ▼
 # =========================================================
 def analyze_park_lanes(img, ai_meta_data):
-    """相模原パークレーンズ用の解析ロジック（開発中）"""
-    # TODO: OpenCVを用いた枠線抽出、ピン認識などをここに実装する
-    # 現在は空のリストを返すダミー
-    return [], img
+    """相模原パークレーンズ用の解析ロジック（開発ベース）"""
+    # ユーザーが後で微調整しやすいように、処理の枠組み（ボイラープレート）を提供します。
+    # 既存のイーグルボウル処理と同様に、最終的な all_games_export_data と output_img を返します。
+    
+    target_width = 1200
+    scale = target_width / img.shape[1]
+    target_height = int(img.shape[0] * scale)
+    img_resized = cv2.resize(img, (target_width, target_height))
+    output_img = img_resized.copy()
+    
+    all_games_export_data = []
+    
+    # 1. ゲーム枠の特定（ダミー座標）
+    # ※実際にはcv2.findContoursなどで黒い横線を検出し、ゲームの行を切り出します。
+    games_y_coords = []
+    h = img_resized.shape[0]
+    game_h = int(h / 6)
+    for i in range(5): # 仮に5ゲームと仮定
+        y1 = int(game_h * (i + 0.8))
+        y2 = int(game_h * (i + 1.8))
+        games_y_coords.append((y1, y2))
+        cv2.rectangle(output_img, (10, y1), (target_width-10, y2), (0, 255, 0), 2)
+        cv2.putText(output_img, f"Game {i+1} Area", (20, y1 + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+    # 2. スコア画像の作成（AI読み取り用）
+    score_crops = []
+    for (y1, y2) in games_y_coords:
+        # スコア数字がある領域をクロップ（仮の座標）
+        x1 = int(target_width * 0.1)
+        x2 = int(target_width * 0.95)
+        crop = img_resized[y1:y2, x1:x2]
+        score_crops.append(crop)
+        
+    if score_crops:
+        max_w = max(c.shape[1] for c in score_crops)
+        padded_crops = []
+        for c in score_crops:
+            pad_w = max_w - c.shape[1]
+            padded = cv2.copyMakeBorder(c, 0, 0, 0, pad_w, cv2.BORDER_CONSTANT, value=(255, 255, 255))
+            padded_crops.append(padded)
+        stacked_scores = cv2.vconcat(padded_crops)
+        img_pil_scores = Image.fromarray(cv2.cvtColor(stacked_scores, cv2.COLOR_BGR2RGB))
+    else:
+        img_pil_scores = Image.fromarray(cv2.cvtColor(img_resized, cv2.COLOR_BGR2RGB))
+
+    # 3. AI（Gemini）によるスコア読み取り
+    # イーグルボウルと同じプロンプト・処理を利用します。
+    ai_score_data = {"games": []}
+    try:
+        compressed_score_img = compress_image_for_ai(img_pil_scores)
+        score_bytes_io = io.BytesIO()
+        compressed_score_img.save(score_bytes_io, format='JPEG')
+        score_bytes = score_bytes_io.getvalue()
+        
+        client = genai.Client(vertexai=True, project="bowling-vertex-ai", location="asia-northeast1")
+        # 混雑対策の簡易リトライ
+        for attempt_model in ["gemini-2.5-pro", "gemini-1.5-pro-002"]:
+            try:
+                response = client.models.generate_content(
+                    model=attempt_model,
+                    contents=[prompt_score, types.Part.from_bytes(data=score_bytes, mime_type="image/jpeg")],
+                    config=types.GenerateContentConfig(temperature=0.0, response_mime_type="application/json")
+                )
+                raw_text = response.text.strip()
+                if raw_text.startswith("```"):
+                    lines = raw_text.split('\n')
+                    raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
+                ai_score_data = json.loads(raw_text)
+                if not isinstance(ai_score_data, dict): ai_score_data = {"games": []}
+                if "games" not in ai_score_data: ai_score_data["games"] = []
+                break
+            except Exception:
+                continue
+    except Exception as e:
+        print(f"AI解析エラー: {e}")
+
+    # 4. データ統合とall_games_export_dataの作成
+    global_date = str(ai_meta_data.get("date", "日付不明")).replace("-", "/")
+    global_start_time = str(ai_meta_data.get("start_time", "時刻不明"))
+    global_end_time = str(ai_meta_data.get("end_time", "時刻不明"))
+    lane = str(ai_meta_data.get("lane", ""))
+    games_time_list = ai_meta_data.get("games_time", [])
+    try:
+        base_game_num = int(ai_meta_data.get("start_game_num", 1))
+    except:
+        base_game_num = 1
+
+    games_list = ai_score_data.get("games", [])
+
+    for i in range(len(games_y_coords)):
+        g_start_time = global_start_time
+        g_end_time = global_end_time
+        if i < len(games_time_list):
+            g_time_info = games_time_list[i]
+            if g_time_info.get("start_time") and g_time_info.get("start_time") != "時刻不明":
+                g_start_time = str(g_time_info["start_time"])
+            if g_time_info.get("end_time") and g_time_info.get("end_time") != "時刻不明":
+                g_end_time = str(g_time_info["end_time"])
+                
+        row_data = [""] * 52
+        row_data[0] = global_date
+        row_data[1] = g_start_time
+        row_data[2] = g_end_time 
+        row_data[3] = lane
+        row_data[4] = f"G{base_game_num + i}"
+        
+        g_info = games_list[i] if i < len(games_list) else {}
+        ai_total = g_info.get("total", "")
+        row_data[50] = str(ai_total)
+        
+        # --- ピンとスコアのダミーデータ生成 ---
+        # 実際にはOpenCVで読み取った結果をここに代入します。
+        # 今回は開発用のダミーとして、すべてストライクとして登録します。
+        throw_cols_local = [7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47]
+        target_indices_local = [8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 46, 48]
+        
+        for f in range(9):
+            row_data[throw_cols_local[f*2]] = "X"
+            row_data[throw_cols_local[f*2+1]] = ""
+            row_data[target_indices_local[f]] = "" # 残ピンなし
+            
+        # 10フレーム
+        row_data[throw_cols_local[18]] = "X"
+        row_data[throw_cols_local[19]] = "X"
+        row_data[throw_cols_local[20]] = "X"
+        row_data[target_indices_local[9]] = ""
+        row_data[target_indices_local[10]] = ""
+        row_data[target_indices_local[11]] = ""
+        
+        all_games_export_data.append(row_data)
+
+    cv2.putText(output_img, "Sagamihara Park Lanes Mode (Dummy)", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3, cv2.LINE_AA)
+
+    return all_games_export_data, output_img
 
 def analyze_copa_bowl(img, ai_meta_data):
-    """永山コパボウル用の解析ロジック（開発中）"""
-    # TODO: OpenCVを用いた枠線抽出、ピン認識などをここに実装する
-    # 現在は空のリストを返すダミー
-    return [], img
+    """永山コパボウル用の解析ロジック（開発ベース）"""
+    target_width = 1200
+    scale = target_width / img.shape[1]
+    target_height = int(img.shape[0] * scale)
+    img_resized = cv2.resize(img, (target_width, target_height))
+    output_img = img_resized.copy()
+    cv2.putText(output_img, "Nagayama Copa Bowl Mode (Dummy)", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 0, 0), 3, cv2.LINE_AA)
+    
+    # 永山コパボウルも同様に、後日ここに切り出しやOpenCVのロジックを組み込みます。
+    # 現状は空リストを返して処理をスキップさせます。
+    return [], output_img
 
 # ▼▼▼ プレイヤー分析画面のAWARD画面を参考にした共通ダークテーマ・統一CSS ▼▼▼
 st.markdown("""
@@ -4983,14 +5120,30 @@ if st.session_state.analyzed_results is None:
 
         # ▼ ボウリング場に応じた専用プログラムへのルーティング
         if detected_alley == "相模原パークレーンズ":
-            parsed_games, output_img = analyze_park_lanes(img, ai_meta_data)
-            st.warning("相模原パークレーンズの解析ロジックは現在開発中（ダミー状態）です。")
-            # 開発中はここでスキップさせるか、あるいは空のまま後続処理に流すか制御が必要ですが
-            # 今はエラーにならないようスキップさせます。
+            all_games_export_data, output_img = analyze_park_lanes(img, ai_meta_data)
+            analyzed_results.append({
+                "file_name": file_name,
+                "file_id": file_id,
+                "output_img": output_img,
+                "all_games_export_data": all_games_export_data,
+                "meta_data": ai_meta_data
+            })
+            status_text.empty()
             continue
         elif detected_alley == "永山コパボウル":
-            parsed_games, output_img = analyze_copa_bowl(img, ai_meta_data)
-            st.warning("永山コパボウルの解析ロジックは現在開発中（ダミー状態）です。")
+            all_games_export_data, output_img = analyze_copa_bowl(img, ai_meta_data)
+            if not all_games_export_data: # ダミーで空データが返ってきた場合はスキップ
+                st.warning("永山コパボウルの解析ロジックは現在開発中（ダミー状態）です。")
+                continue
+            
+            analyzed_results.append({
+                "file_name": file_name,
+                "file_id": file_id,
+                "output_img": output_img,
+                "all_games_export_data": all_games_export_data,
+                "meta_data": ai_meta_data
+            })
+            status_text.empty()
             continue
         elif detected_alley != "イーグルボウル":
             # デフォルトフォールバック
