@@ -335,13 +335,14 @@ def analyze_park_lanes(img, ai_meta_data):
         
         # 基準点間の距離（ピクセル）から、動的な縮尺を計算する
         # 相模原パークレーンズのフレーム1左端〜トータル右端までの実際の幅を約184.5mmと仮定（比率計算用）
-        # distance_ab_px = right_x - left_x は上で計算済み
+        distance_ab_px = right_x - left_x
+        mm_to_px = distance_ab_px / 184.5
         
         # 指定の距離（自動スケール換算）
-        pitch1_offset_px = int(20.0 * mm_to_px)    # ① 基準点Aから右へ20mm
-        frame_width_px = int(14.44 * mm_to_px)     # ① フレーム間距離14.44mm
-        pitch2_offset_px = int(7.2 * mm_to_px)     # ③ 1投目の位置から右へ7.2mm
-        match_x_offset_px = int(168.0 * mm_to_px)  # ④ マッチの文字は基準点Aから168mm
+        pitch1_offset_px = int(20.0 * mm_to_px)    # ① 各フレームの開始位置：基準点Aから右へ20mm
+        frame_width_px = int(14.44 * mm_to_px)     # ① フレーム間距離：14.44mm
+        pitch2_offset_px = int(7.2 * mm_to_px)     # ③ 2投目の位置：1投目の位置から右へ7.2mm
+        match_x_offset_px = int(168.0 * mm_to_px)  # ④ マッチの文字：基準点Aから168mm
         
         # 縦位置の指定
         y_offset_score = int(11.0 * mm_to_px)      # 縦①② 1投目と赤文字は下辺から11mm上
@@ -353,44 +354,53 @@ def analyze_park_lanes(img, ai_meta_data):
         font = cv2.FONT_HERSHEY_SIMPLEX
         font_scale = 0.6
         thickness = 2
-        color_green = (0, 220, 0) # 見やすい緑色
+        color_green = (0, 150, 0) # イーグルボウルと同じ濃い緑色
+        color_opencv = (255, 0, 0) # OpenCVの青色
+        color_ai = (0, 0, 220) # AIの赤色
         
         for f in range(9):
-            # ① フレーム開始位置（基準点から20mm + フレーム間14.44mm * f）
+            # フレームの基準X座標
             f_start_x = int(base_x + pitch1_offset_px + (f * frame_width_px))
             
-            # 累計スコア（AI読み取り結果）の描画
+            # ① 累計スコアの描画
             ai_tot_val = str(ai_frame_totals[f])
             if ai_tot_val and ai_tot_val != "0":
-                cv2.putText(output_img, ai_tot_val, (f_start_x, text_y_score), font, font_scale, color_green, thickness, cv2.LINE_AA)
+                cv2.putText(output_img, ai_tot_val, (f_start_x, text_y_score), font, 0.5, color_green, 1, cv2.LINE_AA)
             
-            # ② 1投目の描画 (位置は累計スコアと同じ横位置、縦位置も同じ)
+            # ② 1投目の描画 (累計スコアと同じ横位置、指定の縦位置)
+            # イーグルボウルと同じく row_data を参照し、計算結果が存在すれば描画
             t1 = str(row_data[throw_cols_local[f*2]]).replace("R:", "")
-            color1 = COLOR_OPENCV if t1 in ["X", "-", "G"] else COLOR_AI
-            # if t1: cv2.putText(output_img, t1, (f_start_x, text_y_score), font, font_scale, color1, thickness, cv2.LINE_AA)
+            color1 = color_opencv if t1 in ["X", "-", "G"] else color_ai
+            # フォールバック処理：t1が存在するなら描画（空文字判定を修正）
+            if t1.strip(): 
+                cv2.putText(output_img, t1, (f_start_x, text_y_score), font, font_scale, color1, thickness, cv2.LINE_AA)
             
-            # ③ 2投目（赤文字等）の描画 (1投目から右へ7.2mm)
+            # ③ 2投目（逆算された赤文字等）の描画
             t2 = str(row_data[throw_cols_local[f*2+1]]).replace("R:", "")
             x2_pos = int(f_start_x + pitch2_offset_px)
-            color2 = COLOR_OPENCV if t2 in ["/", "-", "G"] else COLOR_AI
-            if t2: cv2.putText(output_img, t2, (x2_pos, text_y_score), font, font_scale, color2, thickness, cv2.LINE_AA)
+            color2 = color_opencv if t2 in ["/", "-", "G"] else color_ai
+            if t2.strip(): 
+                cv2.putText(output_img, t2, (x2_pos, text_y_score), font, font_scale, color2, thickness, cv2.LINE_AA)
             
         # 10フレームの描画
         f10_start_x = int(base_x + pitch1_offset_px + (9 * frame_width_px))
         
         ai_tot_val_10 = str(ai_frame_totals[9])
         if ai_tot_val_10 and ai_tot_val_10 != "0":
-            cv2.putText(output_img, ai_tot_val_10, (f10_start_x, text_y_score), font, font_scale, color_green, thickness, cv2.LINE_AA)
+            cv2.putText(output_img, ai_tot_val_10, (f10_start_x, text_y_score), font, 0.5, color_green, 1, cv2.LINE_AA)
 
         t10_1 = str(row_data[throw_cols_local[18]]).replace("R:", "")
         t10_2 = str(row_data[throw_cols_local[19]]).replace("R:", "")
         t10_3 = str(row_data[throw_cols_local[20]]).replace("R:", "")
         
-        # if t10_1: cv2.putText(output_img, t10_1, (f10_start_x, text_y_score), font, font_scale, COLOR_OPENCV if t10_1 in ["X", "-", "G"] else COLOR_AI, thickness, cv2.LINE_AA)
-        if t10_2: cv2.putText(output_img, t10_2, (int(f10_start_x + pitch2_offset_px), text_y_score), font, font_scale, COLOR_OPENCV if t10_2 in ["X", "/", "-", "G"] else COLOR_AI, thickness, cv2.LINE_AA)
-        if t10_3: cv2.putText(output_img, t10_3, (int(f10_start_x + pitch2_offset_px * 2), text_y_score), font, font_scale, COLOR_OPENCV if t10_3 in ["X", "/", "-", "G"] else COLOR_AI, thickness, cv2.LINE_AA)
+        if t10_1.strip(): 
+            cv2.putText(output_img, t10_1, (f10_start_x, text_y_score), font, font_scale, color_opencv if t10_1 in ["X", "-", "G"] else color_ai, thickness, cv2.LINE_AA)
+        if t10_2.strip(): 
+            cv2.putText(output_img, t10_2, (int(f10_start_x + pitch2_offset_px), text_y_score), font, font_scale, color_opencv if t10_2 in ["X", "/", "-", "G"] else color_ai, thickness, cv2.LINE_AA)
+        if t10_3.strip(): 
+            cv2.putText(output_img, t10_3, (int(f10_start_x + pitch2_offset_px * 2), text_y_score), font, font_scale, color_opencv if t10_3 in ["X", "/", "-", "G"] else color_ai, thickness, cv2.LINE_AA)
 
-        # トータルスコア（AI読み取り結果）の照合と描画
+        # トータルスコアの照合と MATCH/DIFF! の描画
         calc_val = curr_score 
         ai_tot_int = int(ai_total) if str(ai_total).isdigit() else int(ai_frame_totals[-1]) if ai_frame_totals else 0
         
@@ -398,10 +408,10 @@ def analyze_park_lanes(img, ai_meta_data):
         
         if calc_val == ai_tot_int and ai_tot_int > 0:
             check_str = f"MATCH ({calc_val})"
-            check_color = (0, 150, 0) # MATCH時の文字色は濃い緑
+            check_color = color_green # MATCH時の文字色は濃い緑
         else:
             check_str = f"DIFF! ({calc_val} vs {ai_tot_int})"
-            check_color = COLOR_AI
+            check_color = color_ai
             
         cv2.putText(output_img, check_str, (result_text_x, text_y_match), font, font_scale, check_color, thickness, cv2.LINE_AA)
 
