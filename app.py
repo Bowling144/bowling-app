@@ -337,8 +337,8 @@ def analyze_park_lanes(img, ai_meta_data):
         frame9_to_10_pitch_px = 14.1 * mm_to_px    # 13.9から0.2mm広げて14.1mmに変更
         frame10_pitch_px = 11.5 * mm_to_px         # 10フレーム内の投球間隔
         
-        radius_px = int(0.75 * mm_to_px)           # 判定枠を直径1.5mm（半径0.75mm）の円に変更
-        box_size_px = 1.5 * mm_to_px               # 閾値判定用のクロップ幅（直径1.5mm）
+        radius_px = int(0.6 * mm_to_px)            # 判定枠を直径1.2mm（半径0.6mm）の円に変更
+        box_size_px = 1.2 * mm_to_px               # 閾値判定用のクロップ幅（直径1.2mm）
         yw = int(box_size_px)
         yh = int(box_size_px)
 
