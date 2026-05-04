@@ -167,18 +167,18 @@ def analyze_park_lanes(img, ai_meta_data):
 
     # 4. スコア画像の作成（AI読み取り用）およびマス目（スケール）の計算
     score_crops = []
-    game_scales = [] # ゲームごとのスケール（1マスの幅など）を保持するリスト
     
     # 枠の全体の横幅を計算
     total_w = right_x - left_x
     
-    px_per_mm = 5.7 # 1200px幅画像における 1mm のおおよそのピクセル数
+    # 基準点A（left_x）と基準点B（right_x）の距離を実際のスコアシートの約184.5mmと仮定し、1mmあたりのピクセル数を算出
+    distance_ab_px = right_x - left_x
+    mm_to_px = distance_ab_px / 184.5
     
-    # AIに送るスコア領域は、名前の列を除外し、フレーム1から10フレーム目までとします
-    # 1mm ≈ 5.7px として微調整
-    offset_left_mm = int(3 * px_per_mm)   # 左辺を左に3mm広げる
-    offset_right_mm = int(20 * px_per_mm) # 右辺を左に20mm狭める
-    offset_top_mm = int(1 * px_per_mm)    # 上辺を上に1mm広げる
+    # 1mm ≈ mm_to_px として微調整（青枠切り出し用）
+    offset_left_mm = int(3 * mm_to_px)   # 左辺を左に3mm広げる
+    offset_right_mm = int(20 * mm_to_px) # 右辺を左に20mm狭める
+    offset_top_mm = int(1 * mm_to_px)    # 上辺を上に1mm広げる
     
     # 相模原のスコアシートの横幅の比率を推測します
     base_box_w = total_w * 0.072 
@@ -202,13 +202,6 @@ def analyze_park_lanes(img, ai_meta_data):
         
         # 画面表示用：AIに送る領域を青枠で囲む
         cv2.rectangle(output_img, (x1_score, crop_y_top), (x2_score, crop_y_bottom), (255, 0, 0), 2)
-        
-        # --- スケール情報（マス目の基準）を計算して保存 ---
-        game_scales.append({
-            'y_base': y2,
-            'x_start': x1_score + offset_left_mm, 
-            'box_w': base_box_w
-        })
         
     if score_crops:
         max_w = max(c.shape[1] for c in score_crops)
@@ -295,7 +288,6 @@ def analyze_park_lanes(img, ai_meta_data):
         
         prev_score = 0
         for f in range(9):
-            cufor f in range(9):
             curr_score = int(ai_frame_totals[f]) if str(ai_frame_totals[f]).isdigit() else 0
             diff = curr_score - prev_score
             
@@ -343,8 +335,7 @@ def analyze_park_lanes(img, ai_meta_data):
         
         # 基準点間の距離（ピクセル）から、動的な縮尺を計算する
         # 相模原パークレーンズのフレーム1左端〜トータル右端までの実際の幅を約184.5mmと仮定（比率計算用）
-        distance_ab_px = right_x - left_x
-        mm_to_px = distance_ab_px / 184.5
+        # distance_ab_px = right_x - left_x は上で計算済み
         
         # 指定の距離（自動スケール換算）
         pitch1_offset_px = int(20.0 * mm_to_px)    # ① 基準点Aから右へ20mm
@@ -371,7 +362,7 @@ def analyze_park_lanes(img, ai_meta_data):
             # 累計スコア（AI読み取り結果）の描画
             ai_tot_val = str(ai_frame_totals[f])
             if ai_tot_val and ai_tot_val != "0":
-                cv2.putText(output_img, ai_tot_val, (f_start_x, text_y_score), font, 0.5, color_green, 1, cv2.LINE_AA)
+                cv2.putText(output_img, ai_tot_val, (f_start_x, text_y_score), font, font_scale, color_green, thickness, cv2.LINE_AA)
             
             # ② 1投目の描画 (位置は累計スコアと同じ横位置、縦位置も同じ)
             t1 = str(row_data[throw_cols_local[f*2]]).replace("R:", "")
@@ -389,7 +380,7 @@ def analyze_park_lanes(img, ai_meta_data):
         
         ai_tot_val_10 = str(ai_frame_totals[9])
         if ai_tot_val_10 and ai_tot_val_10 != "0":
-            cv2.putText(output_img, ai_tot_val_10, (f10_start_x, text_y_score), font, 0.5, color_green, 1, cv2.LINE_AA)
+            cv2.putText(output_img, ai_tot_val_10, (f10_start_x, text_y_score), font, font_scale, color_green, thickness, cv2.LINE_AA)
 
         t10_1 = str(row_data[throw_cols_local[18]]).replace("R:", "")
         t10_2 = str(row_data[throw_cols_local[19]]).replace("R:", "")
@@ -414,7 +405,7 @@ def analyze_park_lanes(img, ai_meta_data):
             
         cv2.putText(output_img, check_str, (result_text_x, text_y_match), font, font_scale, check_color, thickness, cv2.LINE_AA)
 
-    cv2.putText(output_img, "Sagamihara Park Lanes Mode (Grid Based)", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3, cv2.LINE_AA)
+    cv2.putText(output_img, "Sagamihara Park Lanes Mode (Line Extract)", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3, cv2.LINE_AA)
 
     return all_games_export_data, output_img
 
