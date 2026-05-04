@@ -96,19 +96,18 @@ def analyze_park_lanes(img, ai_meta_data):
     h_lines_info = []
     for cnt in contours:
         x, y, w, h = cv2.boundingRect(cnt)
-        if w > target_width * 0.4: # 横幅の40%以上の直線を抽出
+        if w > target_width * 0.4:
             y_center = y + h / 2.0
             h_lines_info.append({'y': y_center, 'w': w, 'x': x})
             
     h_lines_info.sort(key=lambda item: item['y'])
 
-    # Y座標の近接具合で「ゲームのブロック」をまとめる
     blocks = []
     if h_lines_info:
         current_block = [h_lines_info[0]]
         prev_y = h_lines_info[0]['y']
         for line in h_lines_info[1:]:
-            if line['y'] - prev_y > 50: # 50px以上離れていれば別のブロックとみなす
+            if line['y'] - prev_y > 50:
                 blocks.append(current_block)
                 current_block = [line]
             else:
@@ -117,79 +116,67 @@ def analyze_park_lanes(img, ai_meta_data):
         blocks.append(current_block)
 
     games_y_coords = []
-    # 各ブロックのうち、線が3本以上密集しており、かつ特定の高さ範囲にあるものを「1つのゲーム枠」と判定
     for b in blocks:
         if len(b) >= 3 and 200 < b[0]['y'] < 1400: 
             y_min = min(l['y'] for l in b)
             y_max = max(l['y'] for l in b)
             games_y_coords.append((int(y_min), int(y_max)))
-            # 確認用：ゲーム全体の枠を緑で描画
             cv2.rectangle(output_img, (10, int(y_min)), (target_width-10, int(y_max)), (0, 255, 0), 2)
             cv2.putText(output_img, f"Game {len(games_y_coords)}", (20, int(y_min) + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
-    # 3. 縦線の検出と交点（グリッド）の作成
-    # 相模原の縦線（黒線）を抽出するために、二値化画像を元に縦方向のカーネルを適用します。
-    # h_dilateで使用したthresh（文字も黒として抽出されている反転画像）をベースにします。
-    v_kernel_len = int(target_height * 0.05) # 縦線の長さの閾値
+    # 3. 縦線の検出と大枠の特定（上14.5%と下18%を除外して抽出）
+    v_kernel_len = int(target_height * 0.05)
     v_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, v_kernel_len))
     v_mask = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, v_kernel)
+
+    y_start = int(target_height * 0.145)
+    y_end = int(target_height * 0.82)
+    v_mask[:y_start, :] = 0
+    v_mask[y_end:, :] = 0
+
     v_dilate = cv2.dilate(v_mask, cv2.getStructuringElement(cv2.MORPH_RECT, (1, 20)), iterations=1)
-    
     v_contours, _ = cv2.findContours(v_dilate, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
+
     v_lines_x = []
     for cnt in v_contours:
         x, y, w, h = cv2.boundingRect(cnt)
-        # ある程度長さがある縦線を抽出（ゲーム枠の高さの半分以上）
-        if h > (games_y_coords[0][1] - games_y_coords[0][0]) * 0.5 if games_y_coords else target_height * 0.1:
-            x_center = x + w / 2.0
-            v_lines_x.append(x_center)
-            
+        if h > target_height * 0.2:
+            v_lines_x.append(x + w / 2.0)
     v_lines_x.sort()
-    
-    # 近接する縦線を統合
+
     merged_v_lines = []
     if v_lines_x:
         current_x = v_lines_x[0]
         group = [current_x]
         for x in v_lines_x[1:]:
-            if x - current_x < 15: # 15px以内なら同じ線
+            if x - current_x < 15:
                 group.append(x)
             else:
                 merged_v_lines.append(sum(group) / len(group))
                 group = [x]
         merged_v_lines.append(sum(group) / len(group))
 
-    # 確認用：検出した縦線を黄色で描画
-    for vx in merged_v_lines:
-        cv2.line(output_img, (int(vx), 0), (int(vx), target_height), (0, 255, 255), 1)
+    left_x = target_width * 0.13 # デフォルトフォールバック
+    right_x = target_width * 0.99
+    
+    if merged_v_lines:
+        left_x = merged_v_lines[0]
+        right_x = merged_v_lines[-1]
+        cv2.line(output_img, (int(left_x), 0), (int(left_x), target_height), (0, 255, 255), 2)
+        cv2.line(output_img, (int(right_x), 0), (int(right_x), target_height), (0, 255, 255), 2)
 
     # 4. スコア画像の作成（AI読み取り用）
     score_crops = []
-    
-    # 縦線が正しく検出されていれば、左から2番目の線(フレーム1の開始)と右から2番目の線(トータルの手前)をX座標の境界として使用する
-    # 縦線の検出が不完全な場合のフォールバックとして固定値も用意
-    if len(merged_v_lines) > 10:
-        x1 = int(merged_v_lines[1]) if len(merged_v_lines) > 1 else int(target_width * 0.16)
-        x2 = int(merged_v_lines[-2]) if len(merged_v_lines) > 2 else int(target_width * 0.95)
-    else:
-        x1 = int(target_width * 0.16)
-        x2 = int(target_width * 0.95)
-    
     for (y1, y2) in games_y_coords:
-        # 緑枠の下辺(y2)を基準（スコアとピン図の境界線）とする
-        # 相模原は数字が少し小さいため、高さを30px程度に絞り込み、上下の余計な線を入れないようにします
-        crop_y_bottom = y2 - 4  # 下辺の線そのものを少し避ける
-        crop_y_top = y2 - 32    # 下辺から32px上までをスコア領域とする
+        # 左端と右端の縦線の座標を利用しつつ、少しだけマージンを持たせる
+        x1 = max(0, int(left_x + 5))
+        x2 = min(target_width, int(right_x - 5))
         
-        # 範囲外にならないよう補正
-        crop_y_top = max(0, crop_y_top)
+        crop_y_bottom = y2 - 4
+        crop_y_top = max(0, y2 - 32)
         
-        # 切り出し
         crop = img_resized[crop_y_top:crop_y_bottom, x1:x2]
         score_crops.append(crop)
-        
-        # 確認用：AIに送るスコア領域を青枠で囲む
         cv2.rectangle(output_img, (x1, crop_y_top), (x2, crop_y_bottom), (255, 0, 0), 2)
         
     if score_crops:
@@ -202,23 +189,9 @@ def analyze_park_lanes(img, ai_meta_data):
         stacked_scores = cv2.vconcat(padded_crops)
         img_pil_scores = Image.fromarray(cv2.cvtColor(stacked_scores, cv2.COLOR_BGR2RGB))
     else:
-        # フォールバック
-        img_pil_scores = Image.fromarray(cv2.cvtColor(img_resized, cv2.COLOR_BGR2RGB))
-        
-    if score_crops:
-        max_w = max(c.shape[1] for c in score_crops)
-        padded_crops = []
-        for c in score_crops:
-            pad_w = max_w - c.shape[1]
-            padded = cv2.copyMakeBorder(c, 0, 0, 0, pad_w, cv2.BORDER_CONSTANT, value=(255, 255, 255))
-            padded_crops.append(padded)
-        stacked_scores = cv2.vconcat(padded_crops)
-        img_pil_scores = Image.fromarray(cv2.cvtColor(stacked_scores, cv2.COLOR_BGR2RGB))
-    else:
-        # フォールバック
         img_pil_scores = Image.fromarray(cv2.cvtColor(img_resized, cv2.COLOR_BGR2RGB))
 
-    # 4. AI（Gemini）によるスコア読み取り
+    # 5. AI（Gemini）によるスコア読み取り
     ai_score_data = {"games": []}
     try:
         compressed_score_img = compress_image_for_ai(img_pil_scores)
@@ -247,7 +220,7 @@ def analyze_park_lanes(img, ai_meta_data):
     except Exception as e:
         print(f"AI解析エラー: {e}")
 
-    # 5. データ統合とall_games_export_dataの作成
+    # 6. データ統合とダミーデータの作成
     global_date = str(ai_meta_data.get("date", "日付不明")).replace("-", "/")
     global_start_time = str(ai_meta_data.get("start_time", "時刻不明"))
     global_end_time = str(ai_meta_data.get("end_time", "時刻不明"))
@@ -260,7 +233,7 @@ def analyze_park_lanes(img, ai_meta_data):
 
     games_list = ai_score_data.get("games", [])
 
-    for i in range(len(games_y_coords)):
+    for i, (y1, y2) in enumerate(games_y_coords):
         g_start_time = global_start_time
         g_end_time = global_end_time
         if i < len(games_time_list):
@@ -289,8 +262,6 @@ def analyze_park_lanes(img, ai_meta_data):
         throw_cols_local = [7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47]
         target_indices_local = [8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 46, 48]
         
-        # AIが読み取った累計スコア（frame_totals）から、各フレームの倒ピン数を逆算してダミー入力
-        # ※ピンの白黒判定が未実装のため、スコアのつじつまが合うようにストライクやスペアを仮割り当てします
         prev_score = 0
         for f in range(9):
             curr_score = int(ai_frame_totals[f]) if str(ai_frame_totals[f]).isdigit() else 0
@@ -331,7 +302,7 @@ def analyze_park_lanes(img, ai_meta_data):
         
         all_games_export_data.append(row_data)
 
-    cv2.putText(output_img, "Sagamihara Park Lanes Mode (Line Extract)", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3, cv2.LINE_AA)
+    cv2.putText(output_img, "Sagamihara Park Lanes Mode (Grid Based)", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3, cv2.LINE_AA)
 
     return all_games_export_data, output_img
 
