@@ -324,60 +324,52 @@ def analyze_park_lanes(img, ai_meta_data):
         all_frame_pins = []
         dyn_thresh_green = 20.0 + st.session_state.get("pin_thresh_offset", 0.0) # 暫定の閾値
         
-        # 1番ピンと7番ピンの実測位置（基準点Aからのオフセット、下辺基準）
-        # 1番ピン: X = 32.1mm, Y = -10.7mm
-        # 7番ピン: X = 28.5mm, Y = -2.3mm
-        # ピンの間隔計算（横方向・縦方向）
-        pin_pitch_x_mm = (32.1 - 28.5) / 1.5  # 7番から1番までのXオフセットは1.5マス分
-        pin_pitch_y_mm = (10.7 - 2.3) / 3.0   # 7番(上)から1番(下)までのYオフセットは3マス分
-
-        # 1フレーム目1番ピンの中心座標
-        pin1_center_x_px = 32.1 * mm_to_px
-        pin1_center_y_px = -10.7 * mm_to_px
+        # 実測値に基づくピン配置設定（1mmあたりのピクセル数 mm_to_px を適用）
+        pin7_x_offset_mm = 28.5
+        pin1_x_offset_mm = 32.1
+        pin_pitch_x_mm = (pin1_x_offset_mm - pin7_x_offset_mm) / 1.5 # 約2.4mm
         
-        # 7番ピン（左上端）の基準座標を1番ピンから逆算
-        pin7_center_x_px = pin1_center_x_px - (1.5 * pin_pitch_x_mm * mm_to_px)
-        pin7_center_y_px = pin1_center_y_px + (3.0 * pin_pitch_y_mm * mm_to_px)
+        # Y座標は下辺(base_y)を基準とし、上にマイナスする形で設定
+        # （7番ピンは上部にあるため底辺から離れており、1番ピンは下部にあるため底辺に近い）
+        pin7_y_offset_mm = 10.7 # 下辺から上へ10.7mm
+        pin1_y_offset_mm = 2.3  # 下辺から上へ2.3mm
+        pin_pitch_y_mm = (pin7_y_offset_mm - pin1_y_offset_mm) / 3.0 # 約2.8mm
 
-        # フレームごとの間隔
-        frame_width_px = 14.4 * mm_to_px
+        frame_width_px = 14.4 * mm_to_px     # 1〜9フレームの横間隔
+        frame10_pitch_px = 11.5 * mm_to_px   # 10フレーム内の投球間隔
         
-        # 10フレーム目の投球間隔
-        frame10_pitch_px = 11.5 * mm_to_px
-
-        # 四角枠の大きさ（2.6mm）
-        box_size_px = 2.6 * mm_to_px
+        box_size_px = 2.6 * mm_to_px         # 四角枠の大きさ（2.6mm正方形）
         yw = int(box_size_px)
         yh = int(box_size_px)
 
         for f in range(12):
             frame_pins = []
             
-            # 各フレームの開始Xオフセットを計算
-            if f < 9: # 1〜9フレーム
+            # 各フレームの基準X座標（7番ピンのX座標）を計算
+            if f < 9:
                 f_offset_px = f * frame_width_px
-            elif f == 9: # 10フレーム 1投目
+            elif f == 9:
                 f_offset_px = 9 * frame_width_px
-            elif f == 10: # 10フレーム 2投目
+            elif f == 10:
                 f_offset_px = 9 * frame_width_px + frame10_pitch_px
-            else: # 10フレーム 3投目
+            else:
                 f_offset_px = 9 * frame_width_px + (2 * frame10_pitch_px)
                 
-            # 各フレームの7番ピン（基準点）のX座標
-            gx_local = int(base_x + pin7_center_x_px + f_offset_px)
-            # 各フレームの7番ピン（基準点）のY座標
-            gy_local = int(base_y + pin7_center_y_px)
+            gx_local = int(base_x + (pin7_x_offset_mm * mm_to_px) + f_offset_px)
+            
+            # 7番ピンのY座標（base_yから上に10.7mm）
+            gy_local = int(base_y - (pin7_y_offset_mm * mm_to_px))
             
             for row_idx, col_offset in pin_positions:
-                # 各ピンの中心座標を計算
+                # 各ピンの中心座標を計算（下に向かってrow_idxが増えるためYは加算）
                 cx_local = int(gx_local + (col_offset * pin_pitch_x_mm * mm_to_px))
-                cy_local = int(gy_local - (row_idx * pin_pitch_y_mm * mm_to_px)) # Y座標は下へ行くほどプラスなので、基準（7番）から引く
+                cy_local = int(gy_local + (row_idx * pin_pitch_y_mm * mm_to_px))
                 
-                # 四角形の左上座標を計算（中心から幅/高さの半分を引く）
+                # 四角形の左上座標を計算（中心からサイズの半分を引く）
                 yx1_local = int(cx_local - (yw / 2.0))
                 yy1_local = int(cy_local - (yh / 2.0))
                 
-                # 閾値画像（thresh_inkは青チャンネルの二値化画像）からピクセル数を計算
+                # 閾値画像からピクセル数を計算
                 if 0 <= yy1_local < thresh_ink.shape[0] and 0 <= yx1_local < thresh_ink.shape[1]:
                     crop_y = thresh_ink[yy1_local:yy1_local+yh, yx1_local:yx1_local+yw]
                     pixels_y = crop_y.shape[0] * crop_y.shape[1]
@@ -397,7 +389,9 @@ def analyze_park_lanes(img, ai_meta_data):
                 
                 if result == "CIRCLE":
                     frame_pins.append(pin_num)
-                    cv2.rectangle(output_img, (yx1_local, yy1_local), (yx1_local+yw, yy1_local+yh), (0, 165, 255), 1)
+                
+                # ▼ 判定結果に関わらず、位置確認のためにオレンジ色の太線(2)で全ての枠を描画する
+                cv2.rectangle(output_img, (yx1_local, yy1_local), (yx1_local+yw, yy1_local+yh), (0, 165, 255), 2)
             
             frame_pins.sort()
             all_frame_pins.append(frame_pins)
