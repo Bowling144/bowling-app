@@ -6122,31 +6122,64 @@ if st.session_state.analyzed_results is None:
                 row_data[col_idx] = final_throws[t_idx]
             all_games_export_data.append(row_data)
 
+            # --- ▼ 画像への解析結果の描画処理 ▼ ---
+            # ⑤ 基準点AとBの距離の実測は192mm
+            base_x = left_x
+            base_y = y2
+            distance_ab_px = right_x - left_x
+            mm_to_px = distance_ab_px / 192.0
+            
+            # 指定の距離（自動スケール換算）
+            pitch1_offset_px = 20.0 * mm_to_px       # 横①② 各フレーム1投目の位置（基準点Aから右へ20mm）
+            frame_width_px = 14.44 * mm_to_px        # 横① 2フレーム目以降（14.44mmずつ移動）
+            pitch2_offset_px = 7.2 * mm_to_px        # 横③ 2投目・赤文字の位置（1投目から右へ7.2mm）
+            match_x_offset_px = 168.0 * mm_to_px     # 横④ マッチ文字の位置（基準点Aから168mm）
+            
+            # 縦位置の指定
+            y_offset_score = 11.0 * mm_to_px         # 縦①② 1投目と2投目・赤文字（下辺から11mm上）
+            y_offset_match = 12.0 * mm_to_px         # 縦③ マッチ文字（下辺から12mm上）
+            
+            text_y_score = int(base_y - y_offset_score)
+            text_y_match = int(base_y - y_offset_match)
+            
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            font_scale = 0.7
+            thickness = 2
+            color_green = (0, 150, 0) # ② トータルスコアの色（濃い緑）
+            
+            # 1〜9フレームの描画
             for f in range(9):
+                f_start_x = base_x + pitch1_offset_px + (f * frame_width_px)
+                
+                # ③④ 1投目と2投目の描画はイーグルボウルと完全に同じロジック（final_throws を使用）
                 t1 = final_throws[f*2].replace("R:", "")
-                put_rotated_text(output_img, t1, start_x_base + f * box_w + 3 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, throw_colors[f*2])
+                if t1: put_rotated_text(output_img, t1, f_start_x, text_y_score - new_ref1[1], new_ref1[0], new_ref1[1], theta, throw_colors[f*2], scale=font_scale, thickness=thickness)
+                
                 t2 = final_throws[f*2+1].replace("R:", "")
-                put_rotated_text(output_img, t2, start_x_base + f * box_w + 10 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, throw_colors[f*2+1])
+                if t2: put_rotated_text(output_img, t2, f_start_x + pitch2_offset_px, text_y_score - new_ref1[1], new_ref1[0], new_ref1[1], theta, throw_colors[f*2+1], scale=font_scale, thickness=thickness)
 
+            # 10フレームの描画
             f = 9
+            f10_start_x = base_x + pitch1_offset_px + (f * frame_width_px)
+            
             t1 = final_throws[18].replace("R:", "")
-            put_rotated_text(output_img, t1, start_x_base + f * box_w + 3 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, throw_colors[18])
+            if t1: put_rotated_text(output_img, t1, f10_start_x, text_y_score - new_ref1[1], new_ref1[0], new_ref1[1], theta, throw_colors[18], scale=font_scale, thickness=thickness)
+            
             t2 = final_throws[19].replace("R:", "")
-            put_rotated_text(output_img, t2, start_x_base + f * box_w + 10 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, throw_colors[19])
+            if t2: put_rotated_text(output_img, t2, f10_start_x + pitch2_offset_px, text_y_score - new_ref1[1], new_ref1[0], new_ref1[1], theta, throw_colors[19], scale=font_scale, thickness=thickness)
+            
             t3 = final_throws[20].replace("R:", "")
-            put_rotated_text(output_img, t3, start_x_base + f * box_w + 17 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, throw_colors[20])
+            if t3: put_rotated_text(output_img, t3, f10_start_x + pitch2_offset_px * 2, text_y_score - new_ref1[1], new_ref1[0], new_ref1[1], theta, throw_colors[20], scale=font_scale, thickness=thickness)
 
-            # ▼ 追加: AIが読み取った各フレームの累計トータルスコアの描画（高さを3mm上に微調整）
+            # ① 各フレームの累計トータルスコアの描画（元の変更不要な縦位置のロジックに戻す。横位置は基準点から20mm+フレーム幅）
             for f_tot in range(10):
                 val_tot = str(ai_frame_totals[f_tot])
                 if val_tot and val_tot != "0":
-                    # X座標: 1投目の列の左端から左へ約2mm（位置は維持）
-                    tot_x = start_x_base + f_tot * box_w - 1.0 * current_scale
-                    # Y座標: 前回の +7.5 から 3mm分（3.0）引き、+4.5 に調整（一番下の線の上に乗る高さ）
+                    tot_x = base_x + pitch1_offset_px + (f_tot * frame_width_px)
                     tot_y = py1_local + ph_full + 4.5 * current_scale
-                    # 文字サイズ（0.8）と色は維持
-                    put_rotated_text(output_img, val_tot, tot_x, tot_y, new_ref1[0], new_ref1[1], theta, (0, 220, 0), scale=0.6, thickness=1)
+                    put_rotated_text(output_img, val_tot, tot_x, tot_y, new_ref1[0], new_ref1[1], theta, color_green, scale=0.6, thickness=1)
 
+            # トータルスコア（MATCH / DIFF!）の照合と描画
             clean_throws = [str(t).replace("R:", "") for t in final_throws]
             try:
                 calc_totals = calculate_bowling_score(clean_throws)
@@ -6154,18 +6187,18 @@ if st.session_state.analyzed_results is None:
                 calc_totals = []
 
             ai_tot_int = int(ai_total) if str(ai_total).isdigit() else int(ai_frame_totals[-1]) if ai_frame_totals else 0
-            result_text_x = start_x_base + 9 * box_w + 5 * current_scale
-            result_text_y = py1_local - 10 * current_scale
-
+            
+            result_text_x = base_x + match_x_offset_px
+            
             if calc_totals and len(ai_frame_totals) > 0 and calc_totals[-1] == ai_tot_int:
                 check_str = f"MATCH ({calc_totals[-1]})"
-                check_color = (0, 150, 0)
+                check_color = color_green # ④ MATCH時の文字色は濃い緑
             else:
                 calc_val = calc_totals[-1] if calc_totals else 0
                 check_str = f"DIFF! ({calc_val} vs {ai_tot_int})"
                 check_color = COLOR_AI
 
-            put_rotated_text(output_img, check_str, result_text_x, result_text_y, new_ref1[0], new_ref1[1], theta, check_color, scale=0.6, thickness=2)
+            put_rotated_text(output_img, check_str, result_text_x, text_y_match - new_ref1[1], new_ref1[0], new_ref1[1], theta, check_color, scale=0.6, thickness=2)
 
         analyzed_results.append({
             "file_name": file_name,
