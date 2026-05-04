@@ -339,7 +339,11 @@ def analyze_park_lanes(img, ai_meta_data):
         # 指定の距離（自動スケール換算）
         pitch1_offset_px = int(20.0 * mm_to_px)    # ① 各フレームの開始位置：基準点Aから右へ20mm
         frame_width_px = int(14.44 * mm_to_px)     # ① フレーム間距離：14.44mm
-        pitch2_offset_px = int(7.2 * mm_to_px)     # ③ 2投目の位置：1投目の位置から右へ7.2mm
+        
+        # ① 基準点Aから20mmだったものを5mm右へずらす (20 + 5 = 25mm)
+        pitch1_offset_px = int(25.0 * mm_to_px)    
+        pitch2_offset_px = int(7.2 * mm_to_px)     # 1〜9フレームの2投目の位置（1投目の位置から右へ7.2mm）
+        pitch10_offset_px = int(4.4 * mm_to_px)    # ① 10フレーム目の間隔は狭いので 4.4mm
         match_x_offset_px = int(168.0 * mm_to_px)  # ④ マッチの文字：基準点Aから168mm
         
         # 縦位置の指定
@@ -349,31 +353,32 @@ def analyze_park_lanes(img, ai_meta_data):
         text_y_score = int(base_y - y_offset_score)
         text_y_match = int(base_y - y_offset_match)
         
+        # ③ トータルスコアの緑字の位置を、1投目の位置(text_y_score)から3mm下にする
+        tot_y_score = text_y_score + int(3.0 * mm_to_px)
+        
         font = cv2.FONT_HERSHEY_SIMPLEX
         font_scale = 0.6
         thickness = 2
-        color_green = (0, 150, 0) # ① イーグルボウルと同じ濃い緑色
+        color_green = (0, 150, 0) # イーグルボウルと同じ濃い緑色
         color_opencv = (255, 0, 0) # OpenCVの青色
         color_ai = (0, 0, 220) # AIの赤色
         
-        # ★ダミーデータ（`row_data`）を用いた描画を復元
         for f in range(9):
-            # ① フレームの基準X座標（1投目・トータルスコア共通）
+            # フレームの基準X座標
             f_start_x = int(base_x + pitch1_offset_px + (f * frame_width_px))
             
-            # ① 累計トータルスコアの描画（元の位置を維持：枠の上）
+            # ①③ トータルスコアの描画（位置を3mm下げ、フォントスケールを 0.5 -> 0.6、太さを 1 -> 2 へ大きく）
             ai_tot_val = str(ai_frame_totals[f])
             if ai_tot_val and ai_tot_val != "0":
-                tot_y = int(base_y - 30) # 修正: y_base の未定義エラー(NameError)を防ぐため base_y を使用
-                cv2.putText(output_img, ai_tot_val, (f_start_x, tot_y), font, 0.5, color_green, 1, cv2.LINE_AA)
+                cv2.putText(output_img, ai_tot_val, (f_start_x, tot_y_score), font, 0.6, color_green, 2, cv2.LINE_AA)
             
-            # ③ 1投目の描画 (ダミーデータ `row_data` を参照)
+            # ② 1投目の描画 (指定の縦位置 text_y_score を維持)
             t1 = str(row_data[throw_cols_local[f*2]]).replace("R:", "")
             color1 = color_opencv if t1 in ["X", "-", "G"] else color_ai
             if t1.strip(): 
                 cv2.putText(output_img, t1, (f_start_x, text_y_score), font, font_scale, color1, thickness, cv2.LINE_AA)
             
-            # ④ 2投目の描画
+            # ③ 2投目（逆算された赤文字等）の描画
             t2 = str(row_data[throw_cols_local[f*2+1]]).replace("R:", "")
             x2_pos = int(f_start_x + pitch2_offset_px)
             color2 = color_opencv if t2 in ["/", "-", "G"] else color_ai
@@ -385,7 +390,7 @@ def analyze_park_lanes(img, ai_meta_data):
         
         ai_tot_val_10 = str(ai_frame_totals[9])
         if ai_tot_val_10 and ai_tot_val_10 != "0":
-            cv2.putText(output_img, ai_tot_val_10, (f10_start_x, int(base_y - 30)), font, 0.5, color_green, 1, cv2.LINE_AA)
+            cv2.putText(output_img, ai_tot_val_10, (f10_start_x, tot_y_score), font, 0.6, color_green, 2, cv2.LINE_AA)
 
         t10_1 = str(row_data[throw_cols_local[18]]).replace("R:", "")
         t10_2 = str(row_data[throw_cols_local[19]]).replace("R:", "")
@@ -394,9 +399,11 @@ def analyze_park_lanes(img, ai_meta_data):
         if t10_1.strip(): 
             cv2.putText(output_img, t10_1, (f10_start_x, text_y_score), font, font_scale, color_opencv if t10_1 in ["X", "-", "G"] else color_ai, thickness, cv2.LINE_AA)
         if t10_2.strip(): 
-            cv2.putText(output_img, t10_2, (int(f10_start_x + pitch2_offset_px), text_y_score), font, font_scale, color_opencv if t10_2 in ["X", "/", "-", "G"] else color_ai, thickness, cv2.LINE_AA)
+            # ① 10フレーム目の2投目は、1投目から 4.4mm の間隔に設定
+            cv2.putText(output_img, t10_2, (int(f10_start_x + pitch10_offset_px), text_y_score), font, font_scale, color_opencv if t10_2 in ["X", "/", "-", "G"] else color_ai, thickness, cv2.LINE_AA)
         if t10_3.strip(): 
-            cv2.putText(output_img, t10_3, (int(f10_start_x + pitch2_offset_px * 2), text_y_score), font, font_scale, color_opencv if t10_3 in ["X", "/", "-", "G"] else color_ai, thickness, cv2.LINE_AA)
+            # ① 10フレーム目の3投目は、1投目から 8.8mm（4.4mm × 2）の間隔に設定
+            cv2.putText(output_img, t10_3, (int(f10_start_x + pitch10_offset_px * 2), text_y_score), font, font_scale, color_opencv if t10_3 in ["X", "/", "-", "G"] else color_ai, thickness, cv2.LINE_AA)
 
         # トータルスコアの照合と MATCH/DIFF! の描画
         calc_val = curr_score 
@@ -406,14 +413,16 @@ def analyze_park_lanes(img, ai_meta_data):
         
         if calc_val == ai_tot_int and ai_tot_int > 0:
             check_str = f"MATCH ({calc_val})"
-            check_color = color_green # ④ MATCH時の文字色は濃い緑
+            check_color = color_green # MATCH時の文字色は濃い緑
         else:
             check_str = f"DIFF! ({calc_val} vs {ai_tot_int})"
-            check_color = COLOR_AI
+            check_color = color_ai
             
         cv2.putText(output_img, check_str, (result_text_x, text_y_match), font, font_scale, check_color, thickness, cv2.LINE_AA)
-    
-    return [], output_img
+
+    cv2.putText(output_img, "Sagamihara Park Lanes Mode (Line Extract)", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3, cv2.LINE_AA)
+
+    return all_games_export_data, output_img
 
 # ▼▼▼ プレイヤー分析画面のAWARD画面を参考にした共通ダークテーマ・統一CSS ▼▼▼
 st.markdown("""
