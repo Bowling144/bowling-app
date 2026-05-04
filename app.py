@@ -129,15 +129,26 @@ def analyze_park_lanes(img, ai_meta_data):
 
     # 3. スコア画像の作成（AI読み取り用）
     score_crops = []
+    # 相模原のスコアレイアウト：右側の大部分にフレームスコアがある
+    x1 = int(target_width * 0.13)
+    x2 = int(target_width * 0.99)
+    
     for (y1, y2) in games_y_coords:
-        # 相模原パークレーンズのレイアウト：スコア数字は枠内の上半分の、右側約80%の領域にある
-        x1 = int(target_width * 0.15)
-        x2 = int(target_width * 0.98)
-        # 行の高さから上半分くらいをクロップ
-        h_game = y2 - y1
-        crop_y2 = min(img_resized.shape[0], int(y1 + h_game * 0.6))
-        crop = img_resized[y1:crop_y2, x1:x2]
+        # 緑枠の下辺(y2)を基準（スコアとピン図の境界線）とする
+        # スコア数字は、その境界線の少し上（例えば25px〜50px程度上）にあると推測
+        # ※もし数字が欠ける場合は 45 や 50 などの数値を調整します
+        crop_y_bottom = y2 - 3  # 下辺の線そのものを少し避ける
+        crop_y_top = y2 - 40    # 下辺から40px上までをスコア領域とする
+        
+        # 範囲外にならないよう補正
+        crop_y_top = max(0, crop_y_top)
+        
+        # 切り出し
+        crop = img_resized[crop_y_top:crop_y_bottom, x1:x2]
         score_crops.append(crop)
+        
+        # 確認用：AIに送るスコア領域を青枠で囲む
+        cv2.rectangle(output_img, (x1, crop_y_top), (x2, crop_y_bottom), (255, 0, 0), 2)
         
     if score_crops:
         max_w = max(c.shape[1] for c in score_crops)
@@ -215,21 +226,50 @@ def analyze_park_lanes(img, ai_meta_data):
         ai_total = g_info.get("total", "")
         row_data[50] = str(ai_total)
         
-        # --- ピンとスコアのダミーデータ生成 ---
-        # 実際にはOpenCVで読み取った結果をここに代入します。
-        # 今回は開発用のダミーとして、すべてストライクとして登録します。
+        # --- スコアデータの統合と逆算（AI読み取り結果を反映） ---
+        ai_frame_totals = g_info.get("frame_totals", [])
+        if not isinstance(ai_frame_totals, list): ai_frame_totals = []
+        while len(ai_frame_totals) < 10: ai_frame_totals.append(0)
+        
         throw_cols_local = [7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47]
         target_indices_local = [8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 46, 48]
         
+        # AIが読み取った累計スコア（frame_totals）から、各フレームの倒ピン数を逆算してダミー入力
+        # ※ピンの白黒判定が未実装のため、スコアのつじつまが合うようにストライクやスペアを仮割り当てします
+        prev_score = 0
         for f in range(9):
-            row_data[throw_cols_local[f*2]] = "X"
-            row_data[throw_cols_local[f*2+1]] = ""
-            row_data[target_indices_local[f]] = "" # 残ピンなし
+            curr_score = int(ai_frame_totals[f]) if str(ai_frame_totals[f]).isdigit() else 0
+            diff = curr_score - prev_score
+            
+            if diff >= 10:
+                row_data[throw_cols_local[f*2]] = "X"
+                row_data[throw_cols_local[f*2+1]] = ""
+            else:
+                row_data[throw_cols_local[f*2]] = str(diff) if diff > 0 else "-"
+                row_data[throw_cols_local[f*2+1]] = "-"
+            row_data[target_indices_local[f]] = "" # 残ピンのダミー
+            prev_score = curr_score
             
         # 10フレーム
-        row_data[throw_cols_local[18]] = "X"
-        row_data[throw_cols_local[19]] = "X"
-        row_data[throw_cols_local[20]] = "X"
+        curr_score = int(ai_frame_totals[9]) if str(ai_frame_totals[9]).isdigit() else 0
+        diff = curr_score - prev_score
+        if diff >= 30:
+            row_data[throw_cols_local[18]] = "X"
+            row_data[throw_cols_local[19]] = "X"
+            row_data[throw_cols_local[20]] = "X"
+        elif diff >= 20:
+            row_data[throw_cols_local[18]] = "X"
+            row_data[throw_cols_local[19]] = "X"
+            row_data[throw_cols_local[20]] = "-"
+        elif diff >= 10:
+            row_data[throw_cols_local[18]] = "X"
+            row_data[throw_cols_local[19]] = "-"
+            row_data[throw_cols_local[20]] = "-"
+        else:
+            row_data[throw_cols_local[18]] = str(diff) if diff > 0 else "-"
+            row_data[throw_cols_local[19]] = "-"
+            row_data[throw_cols_local[20]] = ""
+            
         row_data[target_indices_local[9]] = ""
         row_data[target_indices_local[10]] = ""
         row_data[target_indices_local[11]] = ""
