@@ -902,7 +902,7 @@ def analyze_copa_bowl(img, ai_meta_data):
         pitch1_offset_px = 21.2 * mm_to_px         # ③ 1フレーム目の1投目スコア（基準点Aから右へ21.2mm）
         frame_pitch_px = 13.67 * mm_to_px          # ②④ 各フレームの移動間隔（13.67mm）
         pitch2_offset_px = 6.83 * mm_to_px         # ⑤ 2投目の位置（1投目から右へ6.83mm）
-        pitch10_offset_px = 4.4 * mm_to_px         # 10フレーム目の間隔は狭いので 4.4mm（変更指示なしのため維持）
+        pitch10_offset_px = 6.83 * mm_to_px        # 10フレーム目の投球間隔（他と同じ6.83mmに変更）
         match_x_offset_px = int(160.0 * mm_to_px)  # ⑥ マッチの文字：基準点Aから160mm
         
         # 縦位置の指定
