@@ -710,46 +710,20 @@ def analyze_copa_bowl(img, ai_meta_data):
             cv2.rectangle(output_img, (10, int(y_min)), (target_width-10, int(y_max)), (0, 255, 0), 2)
             cv2.putText(output_img, f"Game {len(games_y_coords)}", (20, int(y_min) + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
-    # 3. 縦線の検出と大枠の特定（上14.5%と下18%を除外して抽出）
-    v_kernel_len = int(target_height * 0.05)
-    v_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, v_kernel_len))
-    v_mask = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, v_kernel)
-
-    y_start = int(target_height * 0.145)
-    y_end = int(target_height * 0.82)
-    v_mask[:y_start, :] = 0
-    v_mask[y_end:, :] = 0
-
-    v_dilate = cv2.dilate(v_mask, cv2.getStructuringElement(cv2.MORPH_RECT, (1, 20)), iterations=1)
-    v_contours, _ = cv2.findContours(v_dilate, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    v_lines_x = []
-    for cnt in v_contours:
-        x, y, w, h = cv2.boundingRect(cnt)
-        if h > target_height * 0.2:
-            v_lines_x.append(x + w / 2.0)
-    v_lines_x.sort()
-
-    merged_v_lines = []
-    if v_lines_x:
-        current_x = v_lines_x[0]
-        group = [current_x]
-        for x in v_lines_x[1:]:
-            if x - current_x < 15:
-                group.append(x)
-            else:
-                merged_v_lines.append(sum(group) / len(group))
-                group = [x]
-        merged_v_lines.append(sum(group) / len(group))
-
+    # 3. 横線の長さを基準にした大枠（左右の端）の特定
     left_x = target_width * 0.13 # デフォルトフォールバック
     right_x = target_width * 0.99
     
-    if merged_v_lines:
-        left_x = merged_v_lines[0]
-        right_x = merged_v_lines[-1]
-        cv2.line(output_img, (int(left_x), 0), (int(left_x), target_height), (0, 255, 255), 2)
-        cv2.line(output_img, (int(right_x), 0), (int(right_x), target_height), (0, 255, 255), 2)
+    if h_lines_info:
+        # 誤検知を防ぐため、画面幅の50%以上の長さを持つ主要な横線のみを対象とする
+        valid_h_lines = [l for l in h_lines_info if l['w'] > target_width * 0.5]
+        if valid_h_lines:
+            left_x = min(l['x'] for l in valid_h_lines)
+            right_x = max(l['x'] + l['w'] for l in valid_h_lines)
+
+    # 確認用：抽出した左右の枠に黄色の縦線を引く
+    cv2.line(output_img, (int(left_x), 0), (int(left_x), target_height), (0, 255, 255), 2)
+    cv2.line(output_img, (int(right_x), 0), (int(right_x), target_height), (0, 255, 255), 2)
 
     # 4. スコア画像の作成（AI読み取り用）およびマス目（スケール）の計算
     score_crops = []
