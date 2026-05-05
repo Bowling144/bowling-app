@@ -931,15 +931,16 @@ def analyze_copa_bowl(img, ai_meta_data):
         pin1_x_offset_mm = 27.4  # ① 1フレーム目1番ピンのX軸（基準点Aから右へ27.4mm）
         pin_pitch_x_mm = (pin1_x_offset_mm - pin7_x_offset_mm) / 1.5  # ③ 1番ピンと7番ピンの位置からピッチを計算
         
+        # 変更後
         # Y座標は下辺(base_y)を基準とし、下にプラスする形で設定
         pin7_y_offset_mm = 3.6   # ② 1フレーム目7番ピンのY軸（基準点Aから下へ3.6mm）
         pin1_y_offset_mm = 10.9  # ① 1フレーム目1番ピンのY軸（基準点Aから下へ10.9mm）
         pin_pitch_y_mm = (pin1_y_offset_mm - pin7_y_offset_mm) / 3.0  # ③ 1番ピンと7番ピンの位置からピッチを計算
         
-        radius_px = int(0.75 * mm_to_px)           # 判定枠を直径1.5mm（半径0.75mm）の円
-        box_size_px = 1.5 * mm_to_px               # 閾値判定用のクロップ幅（直径1.5mm）
-        yw = int(box_size_px)
-        yh = int(box_size_px)
+        axes_x_px = int((2.4 / 2) * mm_to_px)      # 判定枠の楕円X軸半径（幅2.4mmの半分）
+        axes_y_px = int((2.0 / 2) * mm_to_px)      # 判定枠の楕円Y軸半径（高さ2.0mmの半分）
+        yw = int(2.4 * mm_to_px)                   # 閾値判定用のクロップ幅（2.4mm）
+        yh = int(2.0 * mm_to_px)                   # 閾値判定用のクロップ高さ（2.0mm）
 
         # ----------------------------------------------------
         # ピンpct収集とヒストグラムによる動的閾値算出（全体分布基準を強制適用）
@@ -954,15 +955,16 @@ def analyze_copa_bowl(img, ai_meta_data):
             gx_local = int(base_x + (pin7_x_offset_mm * mm_to_px) + f_offset_px)
             gy_local = int(base_y + (pin7_y_offset_mm * mm_to_px))
             
+            # 変更後
             for row_idx, col_offset in pin_positions:
                 cx_local = int(gx_local + (col_offset * pin_pitch_x_mm * mm_to_px))
                 cy_local = int(gy_local + (row_idx * pin_pitch_y_mm * mm_to_px))
                 
-                # クロップ用の左上座標を計算（中心から半径を引く）
-                yx1_local = int(cx_local - radius_px)
-                yy1_local = int(cy_local - radius_px)
+                # クロップ用の左上座標を計算（中心から楕円の各半径を引く）
+                yx1_local = int(cx_local - axes_x_px)
+                yy1_local = int(cy_local - axes_y_px)
                 
-                # 閾値画像からピクセル数を計算（円に内接する四角領域で計算）
+                # 閾値画像からピクセル数を計算（楕円に外接する四角領域で計算）
                 if 0 <= yy1_local < thresh_ink.shape[0] and 0 <= yx1_local < thresh_ink.shape[1]:
                     crop_y = thresh_ink[yy1_local:yy1_local+yh, yx1_local:yx1_local+yw]
                     pixels_y = crop_y.shape[0] * crop_y.shape[1]
@@ -1058,15 +1060,16 @@ def analyze_copa_bowl(img, ai_meta_data):
                 elif row_idx == 3: pin_num = 1
                 else: pin_num = 1
                 
+                # 変更後
                 # 白抜き丸（低ピクセル率）か、黒塗り丸（高ピクセル率）かの2値で判定
                 if pin_pct > dyn_thresh:
                     # 閾値以上なら黒塗り丸（＝残ピン）
                     frame_pins.append(pin_num)
-                    # 検知を可視化するため、赤色で塗りつぶした円を描画する
-                    cv2.circle(output_img, (cx_local, cy_local), radius_px, (0, 0, 255), -1)
+                    # 検知を可視化するため、赤色で塗りつぶした楕円を描画する
+                    cv2.ellipse(output_img, (cx_local, cy_local), (axes_x_px, axes_y_px), 0, 0, 360, (0, 0, 255), -1)
                 else:
-                    # 検知されなかったピンは、これまで通りオレンジ色の枠（太さ2）を描画する
-                    cv2.circle(output_img, (cx_local, cy_local), radius_px, (0, 165, 255), 2)
+                    # 検知されなかったピンは、これまで通りオレンジ色の枠（太さ2）の楕円を描画する
+                    cv2.ellipse(output_img, (cx_local, cy_local), (axes_x_px, axes_y_px), 0, 0, 360, (0, 165, 255), 2)
             
             frame_pins.sort()
             all_frame_pins.append(frame_pins)
