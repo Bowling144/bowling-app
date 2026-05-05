@@ -765,35 +765,33 @@ def analyze_copa_bowl(img, ai_meta_data):
         cv2.circle(output_img, point_b, point_radius, color_pink, point_thickness)
     # ▲ ここまで ▲
 
+    # 変更後
     # 4. スコア画像の作成（AI読み取り用）およびマス目（スケール）の計算
     score_crops = []
     
     # 枠の全体の横幅を計算
     total_w = right_x - left_x
     
-    # 基準点A（left_x）と基準点B（right_x）の距離を実際のスコアシートの約192.0mmとして、1mmあたりのピクセル数を算出
+    # 基準点A（left_x）と基準点B（right_x）の距離を実際のスコアシートの187.5mmとして、1mmあたりのピクセル数を算出
     distance_ab_px = right_x - left_x
-    mm_to_px = distance_ab_px / 192.0
+    mm_to_px = distance_ab_px / 187.5
     
-    # 1mm ≈ mm_to_px として微調整（青枠切り出し用）
-    offset_left_mm = int(3 * mm_to_px)   # 左辺を左に3mm広げる
-    offset_right_mm = int(20 * mm_to_px) # 右辺を左に20mm狭める
-    
-    # 相模原のスコアシートの横幅の比率を推測します
-    base_box_w = total_w * 0.072 
-    
-    x1_score = int(left_x + total_w * 0.15) - offset_left_mm
-    x2_score = int(right_x - 5) - offset_right_mm
+    # 青枠のX座標の計算（基準点AのX座標 = left_x）
+    # ③青枠の左辺は、基準点AのX座標よりも右に20㎜の位置
+    x1_score = int(left_x + (20.0 * mm_to_px))
+    # ④青枠の右辺は、基準点AのX座標よりも右に164㎜の位置
+    x2_score = int(left_x + (164.0 * mm_to_px))
     
     # 画面外にはみ出さないように補正
     x1_score = max(0, x1_score)
     x2_score = min(target_width, x2_score)
     
     for (y1, y2) in games_y_coords:
-        # 下辺(y2)を基準に、スコア数字の領域を切り出し
-        crop_y_bottom = y2 - 4  
-        # 上辺を1mm上に広げる処理を削除し、元の高さ(40px)に戻す
-        crop_y_top = max(0, y2 - 40) 
+        # Y座標の計算（基準点AのY座標 = y2）
+        # ②青枠の下辺は、基準点AのY座標と同じ
+        crop_y_bottom = int(y2)
+        # ①青枠の上辺は、基準点AのY座標よりも上に6㎜の位置
+        crop_y_top = max(0, int(y2 - (6.0 * mm_to_px)))
         
         # 切り出し
         crop = img_resized[crop_y_top:crop_y_bottom, x1_score:x2_score]
