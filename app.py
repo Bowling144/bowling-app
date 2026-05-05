@@ -702,16 +702,63 @@ def analyze_copa_bowl(img, ai_meta_data):
             cv2.rectangle(output_img, (10, int(y_min)), (target_width-10, int(y_max)), (0, 255, 0), 2)
             cv2.putText(output_img, f"Game {len(games_y_coords)}", (20, int(y_min) + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
-    # 3. 横線の長さを基準にした大枠（左右の端）の特定
+   # 3. 縦線の検出と大枠の特定（途切れた短い縦線を拾うよう条件を緩和）
+    # 各ゲームで区切られている約10mm以上の縦線を抽出する
+    v_kernel_len = 20 # 約10mm相当（画像サイズ依存だが20ピクセル程度と設定）
+    v_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, v_kernel_len))
+    v_mask = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, v_kernel)
+
+    # 抽出範囲をゲーム枠が存在するY座標のみに限定してノイズを減らす
+    if games_y_coords:
+        y_min_all = min(y1 for y1, y2 in games_y_coords) - 10
+        y_max_all = max(y2 for y1, y2 in games_y_coords) + 10
+        v_mask[:max(0, y_min_all), :] = 0
+        v_mask[min(target_height, y_max_all):, :] = 0
+
+    v_contours, _ = cv2.findContours(v_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    left_candidates = []
+    right_candidates = []
+
+    for cnt in v_contours:
+        x, y, w, h = cv2.boundingRect(cnt)
+        if h >= 20: # 高さが20ピクセル（約10mm）以上ある縦線のみを対象
+            center_x = x + w / 2.0
+            # 左右約15%の範囲にあるものを対象とする
+            if center_x < target_width * 0.15:
+                left_candidates.append(center_x)
+            elif center_x > target_width * 0.85:
+                right_candidates.append(center_x)
+
     left_x = target_width * 0.13 # デフォルトフォールバック
     right_x = target_width * 0.99
     
-    if h_lines_info:
-        # 誤検知を防ぐため、画面幅の50%以上の長さを持つ主要な横線のみを対象とする
-        valid_h_lines = [l for l in h_lines_info if l['w'] > target_width * 0.5]
-        if valid_h_lines:
-            left_x = min(l['x'] for l in valid_h_lines)
-            right_x = max(l['x'] + l['w'] for l in valid_h_lines)
+    # 抽出した短い縦線をグループ化し、最も内側（スコア枠側）の線を基準とする
+    if left_candidates:
+        left_candidates.sort()
+        group = [left_candidates[0]]
+        merged_left = []
+        for x in left_candidates[1:]:
+            if x - group[-1] < 15:
+                group.append(x)
+            else:
+                merged_left.append(sum(group)/len(group))
+                group = [x]
+        merged_left.append(sum(group)/len(group))
+        left_x = merged_left[-1] # 最も右側（内側）の縦線を左端とする
+
+    if right_candidates:
+        right_candidates.sort()
+        group = [right_candidates[0]]
+        merged_right = []
+        for x in right_candidates[1:]:
+            if x - group[-1] < 15:
+                group.append(x)
+            else:
+                merged_right.append(sum(group)/len(group))
+                group = [x]
+        merged_right.append(sum(group)/len(group))
+        right_x = merged_right[0] # 最も左側（内側）の縦線を右端とする
 
     # 確認用：抽出した左右の枠に黄色の縦線を引く
     cv2.line(output_img, (int(left_x), 0), (int(left_x), target_height), (0, 255, 255), 2)
@@ -1122,6 +1169,12 @@ def analyze_copa_bowl(img, ai_meta_data):
         # ----------------------------------------------------
         # ▼ 画像への描画処理 ▼
         # ----------------------------------------------------
+        # 基準点A(左辺)と基準点B(右辺)をピンクの点で描画（見やすいようにサイズと枠線を調整）
+        cv2.circle(output_img, (int(left_x), int(base_y)), 10, (255, 0, 255), -1)
+        cv2.circle(output_img, (int(left_x), int(base_y)), 10, (255, 255, 255), 2)
+        cv2.circle(output_img, (int(right_x), int(base_y)), 10, (255, 0, 255), -1)
+        cv2.circle(output_img, (int(right_x), int(base_y)), 10, (255, 255, 255), 2)
+
         for f in range(9):
             f_start_x = int(base_x + pitch1_offset_px + (f * 14.44 * mm_to_px))
             
