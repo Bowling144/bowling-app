@@ -1229,7 +1229,7 @@ def analyze_copa_bowl(img, ai_meta_data):
         except Exception:
             calc_totals = []
 
-        ai_tot_int = int(ai_total) if str(ai_total).isdigit() else int(ai_frame_totals[-1]) if ai_frame_totals else 0
+        ai_tot_int = int(ai_total) if str(ai_total).isdigit() else (int(ai_frame_totals[-1]) if (ai_frame_totals and str(ai_frame_totals[-1]).isdigit()) else 0)
         result_text_x = int(base_x + match_x_offset_px)
         
         if calc_totals and len(ai_frame_totals) > 0 and calc_totals[-1] == ai_tot_int:
