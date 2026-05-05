@@ -574,6 +574,10 @@ def analyze_park_lanes(img, ai_meta_data):
         # ----------------------------------------------------
         # ▼ 画像への描画処理 ▼
         # ----------------------------------------------------
+        # 基準点A(左辺)と基準点B(右辺)をピンクの点で描画
+        cv2.circle(output_img, (int(left_x), int(base_y)), 5, (255, 0, 255), -1)
+        cv2.circle(output_img, (int(right_x), int(base_y)), 5, (255, 0, 255), -1)
+
         for f in range(9):
             f_start_x = int(base_x + pitch1_offset_px + (f * 14.44 * mm_to_px))
             
