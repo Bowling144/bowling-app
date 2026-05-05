@@ -896,11 +896,14 @@ def analyze_copa_bowl(img, ai_meta_data):
         distance_ab_px = right_x - left_x
         mm_to_px = distance_ab_px / 187.5
         
+        # 変更後
         # 指定の距離（自動スケール換算）
-        pitch1_offset_px = 25.0 * mm_to_px         # ① 横位置を5mm右へずらす (20 + 5 = 25mm)
-        pitch2_offset_px = 7.2 * mm_to_px          # 1〜9フレームの2投目の位置（1投目の位置から右へ7.2mm）
-        pitch10_offset_px = 4.4 * mm_to_px         # ① 10フレーム目の間隔は狭いので 4.4mm
-        match_x_offset_px = int(168.0 * mm_to_px)  # マッチの文字：基準点Aから168mm
+        tot_offset_px = 17.0 * mm_to_px            # ① 1フレーム目の緑文字（基準点Aから右へ17mm）
+        pitch1_offset_px = 21.2 * mm_to_px         # ③ 1フレーム目の1投目スコア（基準点Aから右へ21.2mm）
+        frame_pitch_px = 13.67 * mm_to_px          # ②④ 各フレームの移動間隔（13.67mm）
+        pitch2_offset_px = 6.83 * mm_to_px         # ⑤ 2投目の位置（1投目から右へ6.83mm）
+        pitch10_offset_px = 4.4 * mm_to_px         # 10フレーム目の間隔は狭いので 4.4mm（変更指示なしのため維持）
+        match_x_offset_px = int(160.0 * mm_to_px)  # ⑥ マッチの文字：基準点Aから160mm
         
         # 縦位置の指定
         y_offset_score = int(11.0 * mm_to_px)      # 1投目と赤文字は下辺から11mm上
@@ -1170,16 +1173,19 @@ def analyze_copa_bowl(img, ai_meta_data):
             
         all_games_export_data.append(row_data)
 
+        # 変更後
         # ----------------------------------------------------
         # ▼ 画像への描画処理 ▼
         # ----------------------------------------------------
         for f in range(9):
-            f_start_x = int(base_x + pitch1_offset_px + (f * 14.44 * mm_to_px))
+            # 緑文字(トータル)と1投目(青/赤)のX座標を分離して計算
+            tot_start_x = int(base_x + tot_offset_px + (f * frame_pitch_px))
+            f_start_x = int(base_x + pitch1_offset_px + (f * frame_pitch_px))
             
             # 累計トータルスコアの描画
             ai_tot_val = str(ai_frame_totals[f])
             if ai_tot_val and ai_tot_val != "0":
-                cv2.putText(output_img, ai_tot_val, (f_start_x, tot_y_score), font, 0.6, color_green, 2, cv2.LINE_AA)
+                cv2.putText(output_img, ai_tot_val, (tot_start_x, tot_y_score), font, 0.6, color_green, 2, cv2.LINE_AA)
             
             # 1投目の描画 (画像判定の final_throws を参照)
             t1 = str(final_throws[f*2]).replace("R:", "")
@@ -1188,16 +1194,17 @@ def analyze_copa_bowl(img, ai_meta_data):
             
             # 2投目の描画
             t2 = str(final_throws[f*2+1]).replace("R:", "")
-            x2_pos = int(base_x + pitch1_offset_px + (f * 14.44 * mm_to_px) + pitch2_offset_px)
+            x2_pos = int(f_start_x + pitch2_offset_px)
             if t2.strip(): 
                 cv2.putText(output_img, t2, (x2_pos, text_y_score), font, font_scale, throw_colors[f*2+1], thickness, cv2.LINE_AA)
             
         # 10フレームの描画
-        f10_start_x = int(base_x + pitch1_offset_px + (9 * 14.44 * mm_to_px))
+        tot10_start_x = int(base_x + tot_offset_px + (9 * frame_pitch_px))
+        f10_start_x = int(base_x + pitch1_offset_px + (9 * frame_pitch_px))
         
         ai_tot_val_10 = str(ai_frame_totals[9])
         if ai_tot_val_10 and ai_tot_val_10 != "0":
-            cv2.putText(output_img, ai_tot_val_10, (f10_start_x, tot_y_score), font, 0.6, color_green, 2, cv2.LINE_AA)
+            cv2.putText(output_img, ai_tot_val_10, (tot10_start_x, tot_y_score), font, 0.6, color_green, 2, cv2.LINE_AA)
 
         t10_1 = str(final_throws[18]).replace("R:", "")
         t10_2 = str(final_throws[19]).replace("R:", "")
@@ -1209,7 +1216,6 @@ def analyze_copa_bowl(img, ai_meta_data):
             cv2.putText(output_img, t10_2, (int(f10_start_x + pitch10_offset_px), text_y_score), font, font_scale, throw_colors[19], thickness, cv2.LINE_AA)
         if t10_3.strip(): 
             cv2.putText(output_img, t10_3, (int(f10_start_x + pitch10_offset_px * 2), text_y_score), font, font_scale, throw_colors[20], thickness, cv2.LINE_AA)
-
         # トータルスコアの照合と MATCH/DIFF! の描画
         clean_throws = [str(t).replace("R:", "") for t in final_throws]
         try:
