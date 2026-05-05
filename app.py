@@ -707,9 +707,9 @@ def analyze_copa_bowl(img, ai_meta_data):
             cv2.rectangle(output_img, (10, int(y_min)), (target_width-10, int(y_max)), (0, 255, 0), 2)
             cv2.putText(output_img, f"Game {len(games_y_coords)}", (20, int(y_min) + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
-    # 3. 縦線の検出と大枠の特定（上14.5%と下18%を除外して抽出）
-    v_kernel_len = int(target_height * 0.05)
-    v_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, v_kernel_len))
+    # 変更後
+    # 3. 縦線の検出と大枠の特定（左右10%にある10mm以上の縦線を抽出して交点を出す）
+    v_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 50)) # 10mmを約50pxとして抽出
     v_mask = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, v_kernel)
 
     y_start = int(target_height * 0.145)
@@ -720,33 +720,29 @@ def analyze_copa_bowl(img, ai_meta_data):
     v_dilate = cv2.dilate(v_mask, cv2.getStructuringElement(cv2.MORPH_RECT, (1, 20)), iterations=1)
     v_contours, _ = cv2.findContours(v_dilate, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    v_lines_x = []
+    left_lines_x = []
+    right_lines_x = []
+
     for cnt in v_contours:
         x, y, w, h = cv2.boundingRect(cnt)
-        if h > target_height * 0.2:
-            v_lines_x.append(x + w / 2.0)
-    v_lines_x.sort()
-
-    merged_v_lines = []
-    if v_lines_x:
-        current_x = v_lines_x[0]
-        group = [current_x]
-        for x in v_lines_x[1:]:
-            if x - current_x < 15:
-                group.append(x)
-            else:
-                merged_v_lines.append(sum(group) / len(group))
-                group = [x]
-        merged_v_lines.append(sum(group) / len(group))
+        if h >= 50: # 10mm(約50px)以上
+            line_center_x = x + w / 2.0
+            # 左右10%の領域にあるか判定
+            if line_center_x < target_width * 0.10:
+                left_lines_x.append(line_center_x)
+            elif line_center_x > target_width * 0.90:
+                right_lines_x.append(line_center_x)
 
     left_x = target_width * 0.13 # デフォルトフォールバック
     right_x = target_width * 0.99
     
-    if merged_v_lines:
-        left_x = merged_v_lines[0]
-        right_x = merged_v_lines[-1]
-        cv2.line(output_img, (int(left_x), 0), (int(left_x), target_height), (0, 255, 255), 2)
-        cv2.line(output_img, (int(right_x), 0), (int(right_x), target_height), (0, 255, 255), 2)
+    if left_lines_x:
+        left_x = sum(left_lines_x) / len(left_lines_x)
+    if right_lines_x:
+        right_x = sum(right_lines_x) / len(right_lines_x)
+
+    cv2.line(output_img, (int(left_x), 0), (int(left_x), target_height), (0, 255, 255), 2)
+    cv2.line(output_img, (int(right_x), 0), (int(right_x), target_height), (0, 255, 255), 2)
 
     # 4. スコア画像の作成（AI読み取り用）およびマス目（スケール）の計算
     score_crops = []
@@ -1197,7 +1193,8 @@ def analyze_copa_bowl(img, ai_meta_data):
         except Exception:
             calc_totals = []
 
-        ai_tot_int = int(ai_total) if str(ai_total).isdigit() else int(ai_frame_totals[-1]) if ai_frame_totals else 0
+        # 変更後
+        ai_tot_int = int(ai_total) if str(ai_total).isdigit() else (int(ai_frame_totals[-1]) if ai_frame_totals and str(ai_frame_totals[-1]).isdigit() else 0)
         result_text_x = int(base_x + match_x_offset_px)
         
         if calc_totals and len(ai_frame_totals) > 0 and calc_totals[-1] == ai_tot_int:
