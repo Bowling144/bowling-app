@@ -786,12 +786,16 @@ def analyze_copa_bowl(img, ai_meta_data):
     x1_score = max(0, x1_score)
     x2_score = min(target_width, x2_score)
     
+    # 変更後
     for (y1, y2) in games_y_coords:
-        # Y座標の計算（基準点AのY座標 = y2）
-        # ②青枠の下辺は、基準点AのY座標と同じ
-        crop_y_bottom = int(y2)
-        # ①青枠の上辺は、基準点AのY座標よりも上に6㎜の位置
-        crop_y_top = max(0, int(y2 - (6.0 * mm_to_px)))
+        # ▼ 原因究明に基づく修正：AIが誤認識しないよう、上下に「ゆとり（マージン）」を持たせる ▼
+        
+        # ②青枠の下辺：基準点AのY座標(y2)ぴったりだと「枠線の黒い太線」が混入しAIがノイズと判定するため、約0.8mm（約4〜5px）上に逃がす
+        margin_bottom = int(0.8 * mm_to_px)
+        crop_y_bottom = int(y2) - margin_bottom
+        
+        # ①青枠の上辺：高さ6mmだと文字の頭が切れる、またはAI認識用の「上の余白」が足りないため、約7.5mm上に広げて余白を確保する
+        crop_y_top = max(0, int(y2 - (7.5 * mm_to_px)))
         
         # 切り出し
         crop = img_resized[crop_y_top:crop_y_bottom, x1_score:x2_score]
