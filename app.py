@@ -920,26 +920,23 @@ def analyze_copa_bowl(img, ai_meta_data):
         color_opencv = (255, 0, 0)
         color_ai = (0, 0, 220)
 
+        # 変更後
         # ----------------------------------------------------
         # 【新規追加】イーグルボウルと同等のピン判定ロジック
         # ----------------------------------------------------
         all_frame_pins = []
         
         # 実測値に基づくピン配置設定（1mmあたりのピクセル数 mm_to_px を適用）
-        pin7_x_offset_mm = 27.9  # 28.1からさらに0.2mm左へ
-        pin1_x_offset_mm = 31.9
-        pin_pitch_x_mm = (pin1_x_offset_mm - pin7_x_offset_mm) / 1.5
+        pin7_x_offset_mm = 23.4  # ② 1フレーム目7番ピンのX軸（基準点Aから右へ23.4mm）
+        pin1_x_offset_mm = 27.4  # ① 1フレーム目1番ピンのX軸（基準点Aから右へ27.4mm）
+        pin_pitch_x_mm = (pin1_x_offset_mm - pin7_x_offset_mm) / 1.5  # ③ 1番ピンと7番ピンの位置からピッチを計算
         
         # Y座標は下辺(base_y)を基準とし、下にプラスする形で設定
-        pin7_y_offset_mm = 2.6
-        pin1_y_offset_mm = 11.2
-        pin_pitch_y_mm = (pin1_y_offset_mm - pin7_y_offset_mm) / 3.0
-
-        frame_width_px = 14.4 * mm_to_px           # 1〜9フレームの横間隔
-        frame9_to_10_pitch_px = 14.1 * mm_to_px    # 13.9から0.2mm広げて14.1mmに変更
-        frame10_pitch_px = 11.5 * mm_to_px         # 10フレーム内の投球間隔
+        pin7_y_offset_mm = 3.6   # ② 1フレーム目7番ピンのY軸（基準点Aから下へ3.6mm）
+        pin1_y_offset_mm = 10.9  # ① 1フレーム目1番ピンのY軸（基準点Aから下へ10.9mm）
+        pin_pitch_y_mm = (pin1_y_offset_mm - pin7_y_offset_mm) / 3.0  # ③ 1番ピンと7番ピンの位置からピッチを計算
         
-        radius_px = int(0.75 * mm_to_px)           # 判定枠を直径1.5mm（半径0.75mm）の円に変更
+        radius_px = int(0.75 * mm_to_px)           # 判定枠を直径1.5mm（半径0.75mm）の円
         box_size_px = 1.5 * mm_to_px               # 閾値判定用のクロップ幅（直径1.5mm）
         yw = int(box_size_px)
         yh = int(box_size_px)
@@ -951,14 +948,8 @@ def analyze_copa_bowl(img, ai_meta_data):
         game_pin_data = {}
 
         for f in range(12):
-            if f < 9:
-                f_offset_px = f * frame_width_px
-            elif f == 9:
-                f_offset_px = 8 * frame_width_px + frame9_to_10_pitch_px
-            elif f == 10:
-                f_offset_px = 8 * frame_width_px + frame9_to_10_pitch_px + frame10_pitch_px
-            else:
-                f_offset_px = 8 * frame_width_px + frame9_to_10_pitch_px + (2 * frame10_pitch_px)
+            # ④ 2フレーム目〜10フレーム目の3投目は、すべて等間隔（13.67mm）で右に移動
+            f_offset_px = f * frame_pitch_px
                 
             gx_local = int(base_x + (pin7_x_offset_mm * mm_to_px) + f_offset_px)
             gy_local = int(base_y + (pin7_y_offset_mm * mm_to_px))
