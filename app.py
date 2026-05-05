@@ -710,65 +710,34 @@ def analyze_copa_bowl(img, ai_meta_data):
             cv2.rectangle(output_img, (10, int(y_min)), (target_width-10, int(y_max)), (0, 255, 0), 2)
             cv2.putText(output_img, f"Game {len(games_y_coords)}", (20, int(y_min) + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
-   # 3. 縦線の検出と大枠の特定（途切れた短い縦線を拾うよう条件を緩和）
-    # 各ゲームで区切られている約12mmの縦線を確実に拾うため、カーネルを小さくし、ノイズ除去を追加
-    v_kernel_len = 10 # 10px（約5mm）以上の線を抽出
+   # 3. 縦線の検出と大枠の特定（コパボウル専用：各ゲームで区切られている縦線を拾う）
+    v_kernel_len = 20 # 約10mm相当
     v_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, v_kernel_len))
     v_mask = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, v_kernel)
 
-    # 抽出範囲をゲーム枠が存在するY座標のみに限定してノイズを減らす
-    if games_y_coords:
-        y_min_all = min(y1 for y1, y2 in games_y_coords) - 10
-        y_max_all = max(y2 for y1, y2 in games_y_coords) + 10
-        v_mask[:max(0, y_min_all), :] = 0
-        v_mask[min(target_height, y_max_all):, :] = 0
-
-    # 線を少し太らせてから輪郭抽出
-    v_dilate = cv2.dilate(v_mask, cv2.getStructuringElement(cv2.MORPH_RECT, (1, 10)), iterations=1)
-    v_contours, _ = cv2.findContours(v_dilate, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    v_contours, _ = cv2.findContours(v_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     left_candidates = []
     right_candidates = []
 
     for cnt in v_contours:
         x, y, w, h = cv2.boundingRect(cnt)
-        if h >= 15 and w <= 20: # 高さが15px以上で、幅が広すぎないものを縦線とみなす
+        if h >= 20: # 高さが20ピクセル（約10mm）以上の縦線
             center_x = x + w / 2.0
-            # 探索範囲を左右25%に拡大（枠が内側に入り込んでいる場合に対応）
-            if center_x < target_width * 0.25:
+            # ユーザー指示通り、左右約15%の範囲にあるものを対象とする
+            if center_x < target_width * 0.15:
                 left_candidates.append(center_x)
-            elif center_x > target_width * 0.75:
+            elif center_x > target_width * 0.85:
                 right_candidates.append(center_x)
 
     left_x = target_width * 0.13 # デフォルトフォールバック
     right_x = target_width * 0.99
     
-    # 抽出した短い縦線をグループ化し、最も内側（スコア枠側）の線を基準とする
+    # 左右それぞれで抽出された縦線のうち、最も「内側」にあるものを枠の端とする
     if left_candidates:
-        left_candidates.sort()
-        group = [left_candidates[0]]
-        merged_left = []
-        for x in left_candidates[1:]:
-            if x - group[-1] < 15:
-                group.append(x)
-            else:
-                merged_left.append(sum(group)/len(group))
-                group = [x]
-        merged_left.append(sum(group)/len(group))
-        left_x = merged_left[-1] # 最も右側（内側）の縦線を左端とする
-
+        left_x = max(left_candidates)
     if right_candidates:
-        right_candidates.sort()
-        group = [right_candidates[0]]
-        merged_right = []
-        for x in right_candidates[1:]:
-            if x - group[-1] < 15:
-                group.append(x)
-            else:
-                merged_right.append(sum(group)/len(group))
-                group = [x]
-        merged_right.append(sum(group)/len(group))
-        right_x = merged_right[0] # 最も左側（内側）の縦線を右端とする
+        right_x = min(right_candidates)
 
     # 確認用：抽出した左右の枠に黄色の縦線を引く
     cv2.line(output_img, (int(left_x), 0), (int(left_x), target_height), (0, 255, 255), 2)
