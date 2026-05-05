@@ -6522,12 +6522,13 @@ if st.session_state.analyzed_results is None:
             val = safe_calc_mid(g1,f1,p1, g2,f2,p2, (0, 165, 255))
             if val is not None: pcts_orange.append(val)
 
+        # 変更後
         thresh_method = st.session_state.get("thresh_method_setting", "全体分布基準")
         
         if thresh_method == "4箇所基準":
-            # 新方式のベース加算値 (+15.0) にスライダーの微調整値 (offset) を適用
-            dyn_thresh_green = (sum(pcts_green) / len(pcts_green)) + 15.0 + offset if pcts_green else dyn_thresh_empty_base
-            dyn_thresh_orange = (sum(pcts_orange) / len(pcts_orange)) + 15.0 + offset if pcts_orange else dyn_thresh_empty_base
+            # 新方式のベース加算値 (+11.0) にスライダーの微調整値 (offset) を適用（永山コパボウル調整）
+            dyn_thresh_green = (sum(pcts_green) / len(pcts_green)) + 11.0 + offset if pcts_green else dyn_thresh_empty_base
+            dyn_thresh_orange = (sum(pcts_orange) / len(pcts_orange)) + 11.0 + offset if pcts_orange else dyn_thresh_empty_base
         else:
             dyn_thresh_green = dyn_thresh_empty_base
             dyn_thresh_orange = dyn_thresh_empty_base
