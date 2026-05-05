@@ -887,9 +887,10 @@ def analyze_copa_bowl(img, ai_meta_data):
         base_x = left_x
         base_y = y2
         
-        # ⑤ 基準点間の距離（ピクセル）から、動的な縮尺を計算する（実測値 192.0mm）
+        # 変更後
+        # ⑤ 基準点間の距離（ピクセル）から、動的な縮尺を計算する（実測値 187.5mm）
         distance_ab_px = right_x - left_x
-        mm_to_px = distance_ab_px / 192.0
+        mm_to_px = distance_ab_px / 187.5
         
         # 指定の距離（自動スケール換算）
         pitch1_offset_px = 25.0 * mm_to_px         # ① 横位置を5mm右へずらす (20 + 5 = 25mm)
