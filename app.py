@@ -7262,6 +7262,7 @@ if st.session_state.analyzed_results:
             if check_key not in st.session_state:
                 st.session_state[check_key] = True
 
+            # 変更後
             # 上の段：【ゲーム数】日時 ｜ [レ] データ登録する
             chk_col1, chk_col2 = st.columns([2.5, 7.5])
             with chk_col1:
@@ -7274,6 +7275,33 @@ if st.session_state.analyzed_results:
                     on_change=uncheck_all_if_needed,
                     args=(check_key,)
                 )
+
+            # ▼ 追加：ノーミス＆10フレ1,2投目ストライクの警告（永山コパボウル限定） ▼
+            needs_nomiss_correction = False
+            if res.get("meta_data", {}).get("bowling_alley", "") == "永山コパボウル":
+                # 10フレーム目の1投目(43)と2投目(45)をチェック
+                t10_1 = str(row[43]).replace("R:", "").strip().upper()
+                t10_2 = str(row[45]).replace("R:", "").strip().upper()
+                
+                if t10_1 == 'X' and t10_2 == 'X':
+                    is_nomiss = True
+                    # 1〜9フレーム目までにオープン（ミス）がないかをチェック
+                    for f in range(9):
+                        t1 = str(row[7 + f*4]).strip().upper()
+                        t2 = str(row[9 + f*4]).strip().upper()
+                        if 'X' not in t1 and '/' not in t2:
+                            is_nomiss = False
+                            break
+                    
+                    if is_nomiss:
+                        needs_nomiss_correction = True
+
+            if needs_nomiss_correction:
+                # 画面右下のポップアップ（Toast）表示
+                st.toast(f"【{game_name}】 10フレーム目3投目の残ピン表示が「NO MISS」に被っているため、手動修正してください", icon="⚠️")
+                # 画面上にも目立つように警告を残す
+                st.warning(f"⚠️ {game_name} の10フレーム目3投目の残ピン表示が、「NO MISS」表示で消えているため、手動修正を行ってください")
+            # ▲ 追加ここまで ▲
 
             game_checkboxes.append({
                 "is_checked": is_checked,
