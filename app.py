@@ -695,7 +695,7 @@ def analyze_copa_bowl(img, ai_meta_data):
 
     games_y_coords = []
     for b in blocks:
-        if len(b) >= 3 and 200 < b[0]['y'] < 1400: 
+        if len(b) >= 2 and 200 < b[0]['y'] < 1400: 
             y_min = min(l['y'] for l in b)
             y_max = max(l['y'] for l in b)
             games_y_coords.append((int(y_min), int(y_max)))
