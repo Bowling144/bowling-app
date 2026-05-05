@@ -685,7 +685,7 @@ def analyze_copa_bowl(img, ai_meta_data):
         current_block = [h_lines_info[0]]
         prev_y = h_lines_info[0]['y']
         for line in h_lines_info[1:]:
-            if line['y'] - prev_y > 50:
+            if line['y'] - prev_y > 100:
                 blocks.append(current_block)
                 current_block = [line]
             else:
