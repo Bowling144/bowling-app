@@ -937,10 +937,10 @@ def analyze_copa_bowl(img, ai_meta_data):
         pin1_y_offset_mm = 10.9  # ① 1フレーム目1番ピンのY軸（基準点Aから下へ10.9mm）
         pin_pitch_y_mm = (pin1_y_offset_mm - pin7_y_offset_mm) / 3.0  # ③ 1番ピンと7番ピンの位置からピッチを計算
         
-        axes_x_px = int((2.4 / 2) * mm_to_px)      # 判定枠の楕円X軸半径（幅2.4mmの半分）
-        axes_y_px = int((2.0 / 2) * mm_to_px)      # 判定枠の楕円Y軸半径（高さ2.0mmの半分）
-        yw = int(2.4 * mm_to_px)                   # 閾値判定用のクロップ幅（2.4mm）
-        yh = int(2.0 * mm_to_px)                   # 閾値判定用のクロップ高さ（2.0mm）
+        axes_x_px = int((2.8 / 2) * mm_to_px)      # 判定枠の楕円X軸半径（幅2.8mmの半分に変更）
+        axes_y_px = int((2.2 / 2) * mm_to_px)      # 判定枠の楕円Y軸半径（高さ2.2mmの半分に変更）
+        yw = int(2.8 * mm_to_px)                   # 閾値判定用のクロップ幅（2.8mmに変更）
+        yh = int(2.2 * mm_to_px)                   # 閾値判定用のクロップ高さ（2.2mmに変更）
 
         # ----------------------------------------------------
         # ピンpct収集とヒストグラムによる動的閾値算出（全体分布基準を強制適用）
