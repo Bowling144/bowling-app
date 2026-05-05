@@ -650,18 +650,10 @@ def analyze_copa_bowl(img, ai_meta_data):
     
     all_games_export_data = []
     
+    # 変更後
     # 1. 画像の回転補正（横長にする）
     h_orig, w_orig = img_resized.shape[:2]
-    gray_rot = cv2.cvtColor(img_resized, cv2.COLOR_BGR2GRAY)
-    thresh_rot = cv2.adaptiveThreshold(gray_rot, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 5)
-    
-    line_length = int(min(h_orig, w_orig) * 0.2)
-    h_k = cv2.getStructuringElement(cv2.MORPH_RECT, (line_length, 1))
-    v_k = cv2.getStructuringElement(cv2.MORPH_RECT, (1, line_length))
-    h_lines = cv2.morphologyEx(thresh_rot, cv2.MORPH_OPEN, h_k)
-    v_lines = cv2.morphologyEx(thresh_rot, cv2.MORPH_OPEN, v_k)
-    
-    if cv2.countNonZero(v_lines) > cv2.countNonZero(h_lines) * 1.2:
+    if h_orig > w_orig:
         img_resized = cv2.rotate(img_resized, cv2.ROTATE_90_CLOCKWISE)
         output_img = img_resized.copy()
         
