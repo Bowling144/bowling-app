@@ -736,6 +736,7 @@ def analyze_copa_bowl(img, ai_meta_data):
     left_x = target_width * 0.13 # デフォルトフォールバック
     right_x = target_width * 0.99
     
+    # 変更後（analyze_copa_bowl関数内）
     if left_lines_x:
         left_x = sum(left_lines_x) / len(left_lines_x)
     if right_lines_x:
@@ -743,6 +744,26 @@ def analyze_copa_bowl(img, ai_meta_data):
 
     cv2.line(output_img, (int(left_x), 0), (int(left_x), target_height), (0, 255, 255), 2)
     cv2.line(output_img, (int(right_x), 0), (int(right_x), target_height), (0, 255, 255), 2)
+
+    # ▼ 追加：基準点A, Bの特定とピンクの点の描画 ▼
+    # ピンク色 (BGR)
+    color_pink = (255, 0, 255)
+    # 点の半径
+    point_radius = 8
+    # 点の厚さ (-1で塗りつぶし)
+    point_thickness = -1
+
+    for y_min, y_max in games_y_coords:
+        # 基準点A (左側、黄色縦線left_xとゲーム枠下辺y_maxの交点)
+        # BGRカラーが黄色であるOpenCVの(0, 255, 255)の線と、黄緑色の(0, 255, 0)の四角の下辺の交点
+        point_a = (int(left_x), int(y_max))
+        # 基準点B (右側、黄色縦線right_xとゲーム枠下辺y_maxの交点)
+        point_b = (int(right_x), int(y_max))
+        
+        # ピンクの点を描画
+        cv2.circle(output_img, point_a, point_radius, color_pink, point_thickness)
+        cv2.circle(output_img, point_b, point_radius, color_pink, point_thickness)
+    # ▲ ここまで ▲
 
     # 4. スコア画像の作成（AI読み取り用）およびマス目（スケール）の計算
     score_crops = []
