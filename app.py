@@ -902,15 +902,16 @@ def analyze_copa_bowl(img, ai_meta_data):
         # ----------------------------------------------------
         all_frame_pins = []
         
+        # 変更後
         # 実測値に基づくピン配置設定（1mmあたりのピクセル数 mm_to_px を適用）
-        pin7_x_offset_mm = 23.4  # ② 1フレーム目7番ピンのX軸（基準点Aから右へ23.4mm）
-        pin1_x_offset_mm = 27.4  # ① 1フレーム目1番ピンのX軸（基準点Aから右へ27.4mm）
-        pin_pitch_x_mm = (pin1_x_offset_mm - pin7_x_offset_mm) / 1.5  # ③ 1番ピンと7番ピンの位置からピッチを計算
+        pin7_x_offset_mm = 23.4  
+        pin1_x_offset_mm = 27.4  
+        pin_pitch_x_mm = (pin1_x_offset_mm - pin7_x_offset_mm) / 1.5  
         
-        # Y座標は下辺(base_y)を基準とし、下にプラスする形で設定
-        pin7_y_offset_mm = 3.6   # ② 1フレーム目7番ピンのY軸（基準点Aから下へ3.6mm）
-        pin1_y_offset_mm = 10.9  # ① 1フレーム目1番ピンのY軸（基準点Aから下へ10.9mm）
-        pin_pitch_y_mm = (pin1_y_offset_mm - pin7_y_offset_mm) / 3.0  # ③ 1番ピンと7番ピンの位置からピッチを計算
+        # ▼ 変更（永山）：1番ピンを下に0.5mm、7番ピンを上に0.5mm移動 ▼
+        pin7_y_offset_mm = 3.1   # 元の 3.6 から -0.5 (上へ)
+        pin1_y_offset_mm = 11.4  # 元の 10.9 から +0.5 (下へ)
+        pin_pitch_y_mm = (pin1_y_offset_mm - pin7_y_offset_mm) / 3.0
         
         axes_x_px = int((2.8 / 2) * mm_to_px)      # 判定枠の楕円X軸半径（幅2.8mmの半分に変更）
         axes_y_px = int((2.2 / 2) * mm_to_px)      # 判定枠の楕円Y軸半径（高さ2.2mmの半分に変更）
