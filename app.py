@@ -54,587 +54,6 @@ def compress_image_for_ai(pil_img, max_size=1024):
 # --- ページ設定 ---
 st.set_page_config(page_title="ボウリング解析", page_icon="🎳", layout="wide")
 
-# =========================================================
-# ▼ ボウリング場別 専用解析ロジック ▼
-# =========================================================
-def analyze_park_lanes(img, ai_meta_data):
-    """相模原パークレーンズ用の解析ロジック"""
-    
-    target_width = 1200
-    scale = target_width / img.shape[1]
-    target_height = int(img.shape[0] * scale)
-    img_resized = cv2.resize(img, (target_width, target_height))
-    output_img = img_resized.copy()
-    
-    all_games_export_data = []
-    
-    # 1. 画像の回転補正（横長にする）
-    h_orig, w_orig = img_resized.shape[:2]
-    gray_rot = cv2.cvtColor(img_resized, cv2.COLOR_BGR2GRAY)
-    thresh_rot = cv2.adaptiveThreshold(gray_rot, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 5)
-    
-    line_length = int(min(h_orig, w_orig) * 0.2)
-    h_k = cv2.getStructuringElement(cv2.MORPH_RECT, (line_length, 1))
-    v_k = cv2.getStructuringElement(cv2.MORPH_RECT, (1, line_length))
-    h_lines = cv2.morphologyEx(thresh_rot, cv2.MORPH_OPEN, h_k)
-    v_lines = cv2.morphologyEx(thresh_rot, cv2.MORPH_OPEN, v_k)
-    
-    if cv2.countNonZero(v_lines) > cv2.countNonZero(h_lines) * 1.2:
-        img_resized = cv2.rotate(img_resized, cv2.ROTATE_90_CLOCKWISE)
-        output_img = img_resized.copy()
-        
-    # 2. 横線の検出によるゲーム枠の特定
-    gray = cv2.cvtColor(img_resized, cv2.COLOR_BGR2GRAY)
-    thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 5)
-    
-    # ▼ 追加：ピン判定（実測）用の二値化画像を作成（青チャンネルを使用）
-    b_channel = img_resized[:, :, 0]
-    thresh_ink = cv2.adaptiveThreshold(b_channel, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 10)
-
-    h_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (100, 1))
-    h_mask = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, h_kernel)
-    h_dilate = cv2.dilate(h_mask, cv2.getStructuringElement(cv2.MORPH_RECT, (50, 1)), iterations=1)
-    
-    contours, _ = cv2.findContours(h_dilate, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
-    h_lines_info = []
-    for cnt in contours:
-        x, y, w, h = cv2.boundingRect(cnt)
-        if w > target_width * 0.4:
-            y_center = y + h / 2.0
-            h_lines_info.append({'y': y_center, 'w': w, 'x': x})
-            
-    h_lines_info.sort(key=lambda item: item['y'])
-
-    blocks = []
-    if h_lines_info:
-        current_block = [h_lines_info[0]]
-        prev_y = h_lines_info[0]['y']
-        for line in h_lines_info[1:]:
-            if line['y'] - prev_y > 50:
-                blocks.append(current_block)
-                current_block = [line]
-            else:
-                current_block.append(line)
-            prev_y = line['y']
-        blocks.append(current_block)
-
-    games_y_coords = []
-    for b in blocks:
-        if len(b) >= 3 and 200 < b[0]['y'] < 1400: 
-            y_min = min(l['y'] for l in b)
-            y_max = max(l['y'] for l in b)
-            games_y_coords.append((int(y_min), int(y_max)))
-            cv2.rectangle(output_img, (10, int(y_min)), (target_width-10, int(y_max)), (0, 255, 0), 2)
-            cv2.putText(output_img, f"Game {len(games_y_coords)}", (20, int(y_min) + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-
-    # 3. 縦線の検出と大枠の特定（上14.5%と下18%を除外して抽出）
-    v_kernel_len = int(target_height * 0.05)
-    v_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, v_kernel_len))
-    v_mask = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, v_kernel)
-
-    y_start = int(target_height * 0.145)
-    y_end = int(target_height * 0.82)
-    v_mask[:y_start, :] = 0
-    v_mask[y_end:, :] = 0
-
-    v_dilate = cv2.dilate(v_mask, cv2.getStructuringElement(cv2.MORPH_RECT, (1, 20)), iterations=1)
-    v_contours, _ = cv2.findContours(v_dilate, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    v_lines_x = []
-    for cnt in v_contours:
-        x, y, w, h = cv2.boundingRect(cnt)
-        if h > target_height * 0.2:
-            v_lines_x.append(x + w / 2.0)
-    v_lines_x.sort()
-
-    merged_v_lines = []
-    if v_lines_x:
-        current_x = v_lines_x[0]
-        group = [current_x]
-        for x in v_lines_x[1:]:
-            if x - current_x < 15:
-                group.append(x)
-            else:
-                merged_v_lines.append(sum(group) / len(group))
-                group = [x]
-        merged_v_lines.append(sum(group) / len(group))
-
-    left_x = target_width * 0.13 # デフォルトフォールバック
-    right_x = target_width * 0.99
-    
-    if merged_v_lines:
-        left_x = merged_v_lines[0]
-        right_x = merged_v_lines[-1]
-        cv2.line(output_img, (int(left_x), 0), (int(left_x), target_height), (0, 255, 255), 2)
-        cv2.line(output_img, (int(right_x), 0), (int(right_x), target_height), (0, 255, 255), 2)
-
-    # 4. スコア画像の作成（AI読み取り用）およびマス目（スケール）の計算
-    score_crops = []
-    
-    # 枠の全体の横幅を計算
-    total_w = right_x - left_x
-    
-    # 基準点A（left_x）と基準点B（right_x）の距離を実際のスコアシートの約192.0mmとして、1mmあたりのピクセル数を算出
-    distance_ab_px = right_x - left_x
-    mm_to_px = distance_ab_px / 192.0
-    
-    # 1mm ≈ mm_to_px として微調整（青枠切り出し用）
-    offset_left_mm = int(3 * mm_to_px)   # 左辺を左に3mm広げる
-    offset_right_mm = int(20 * mm_to_px) # 右辺を左に20mm狭める
-    
-    # 相模原のスコアシートの横幅の比率を推測します
-    base_box_w = total_w * 0.072 
-    
-    x1_score = int(left_x + total_w * 0.15) - offset_left_mm
-    x2_score = int(right_x - 5) - offset_right_mm
-    
-    # 画面外にはみ出さないように補正
-    x1_score = max(0, x1_score)
-    x2_score = min(target_width, x2_score)
-    
-    for (y1, y2) in games_y_coords:
-        # 下辺(y2)を基準に、スコア数字の領域を切り出し
-        crop_y_bottom = y2 - 4  
-        # 上辺を1mm上に広げる処理を削除し、元の高さ(40px)に戻す
-        crop_y_top = max(0, y2 - 40) 
-        
-        # 切り出し
-        crop = img_resized[crop_y_top:crop_y_bottom, x1_score:x2_score]
-        score_crops.append(crop)
-        
-        # 画面表示用：AIに送る領域を青枠で囲む
-        cv2.rectangle(output_img, (x1_score, crop_y_top), (x2_score, crop_y_bottom), (255, 0, 0), 2)
-        
-    if score_crops:
-        max_w = max(c.shape[1] for c in score_crops)
-        padded_crops = []
-        for c in score_crops:
-            pad_w = max_w - c.shape[1]
-            padded = cv2.copyMakeBorder(c, 0, 0, 0, pad_w, cv2.BORDER_CONSTANT, value=(255, 255, 255))
-            padded_crops.append(padded)
-        stacked_scores = cv2.vconcat(padded_crops)
-        img_pil_scores = Image.fromarray(cv2.cvtColor(stacked_scores, cv2.COLOR_BGR2RGB))
-    else:
-        img_pil_scores = Image.fromarray(cv2.cvtColor(img_resized, cv2.COLOR_BGR2RGB))
-
-    # 5. AI（Gemini）によるスコア読み取り
-    ai_score_data = {"games": []}
-    try:
-        compressed_score_img = compress_image_for_ai(img_pil_scores)
-        score_bytes_io = io.BytesIO()
-        compressed_score_img.save(score_bytes_io, format='JPEG')
-        score_bytes = score_bytes_io.getvalue()
-        
-        client = genai.Client(vertexai=True, project="bowling-vertex-ai", location="asia-northeast1")
-        for attempt_model in ["gemini-2.5-pro", "gemini-1.5-pro-002"]:
-            try:
-                response = client.models.generate_content(
-                    model=attempt_model,
-                    contents=[prompt_score, types.Part.from_bytes(data=score_bytes, mime_type="image/jpeg")],
-                    config=types.GenerateContentConfig(temperature=0.0, response_mime_type="application/json")
-                )
-                raw_text = response.text.strip()
-                if raw_text.startswith("```"):
-                    lines = raw_text.split('\n')
-                    raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
-                ai_score_data = json.loads(raw_text)
-                if not isinstance(ai_score_data, dict): ai_score_data = {"games": []}
-                if "games" not in ai_score_data: ai_score_data["games"] = []
-                break
-            except Exception:
-                continue
-    except Exception as e:
-        print(f"AI解析エラー: {e}")
-
-    # 6. データ統合とダミーデータの作成
-    global_date = str(ai_meta_data.get("date", "日付不明")).replace("-", "/")
-    global_start_time = str(ai_meta_data.get("start_time", "時刻不明"))
-    global_end_time = str(ai_meta_data.get("end_time", "時刻不明"))
-    lane = str(ai_meta_data.get("lane", ""))
-    games_time_list = ai_meta_data.get("games_time", [])
-    try:
-        base_game_num = int(ai_meta_data.get("start_game_num", 1))
-    except:
-        base_game_num = 1
-
-    games_list = ai_score_data.get("games", [])
-
-    for i, (y1, y2) in enumerate(games_y_coords):
-        g_start_time = global_start_time
-        g_end_time = global_end_time
-        if i < len(games_time_list):
-            g_time_info = games_time_list[i]
-            if g_time_info.get("start_time") and g_time_info.get("start_time") != "時刻不明":
-                g_start_time = str(g_time_info["start_time"])
-            if g_time_info.get("end_time") and g_time_info.get("end_time") != "時刻不明":
-                g_end_time = str(g_time_info["end_time"])
-                
-        row_data = [""] * 52
-        row_data[0] = global_date
-        row_data[1] = g_start_time
-        row_data[2] = g_end_time 
-        row_data[3] = lane
-        row_data[4] = f"G{base_game_num + i}"
-        
-        g_info = games_list[i] if i < len(games_list) else {}
-        ai_total = g_info.get("total", "")
-        row_data[50] = str(ai_total)
-        
-        # --- スコアデータの統合と逆算（AI読み取り結果を反映） ---
-        ai_frame_totals = g_info.get("frame_totals", [])
-        if not isinstance(ai_frame_totals, list): ai_frame_totals = []
-        while len(ai_frame_totals) < 10: ai_frame_totals.append(0)
-        
-        throw_cols_local = [7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47]
-        target_indices_local = [8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 46, 48]
-        
-        # --- ▼ ピンの白黒判定（画像認識）とスコア計算 ▼ ---
-        base_x = left_x
-        base_y = y2
-        
-        # ⑤ 基準点間の距離（ピクセル）から、動的な縮尺を計算する（実測値 192.0mm）
-        distance_ab_px = right_x - left_x
-        mm_to_px = distance_ab_px / 192.0
-        
-        # 指定の距離（自動スケール換算）
-        pitch1_offset_px = 25.0 * mm_to_px         # ① 横位置を5mm右へずらす (20 + 5 = 25mm)
-        pitch2_offset_px = 7.2 * mm_to_px          # 1〜9フレームの2投目の位置（1投目の位置から右へ7.2mm）
-        pitch10_offset_px = 4.4 * mm_to_px         # ① 10フレーム目の間隔は狭いので 4.4mm
-        match_x_offset_px = int(168.0 * mm_to_px)  # マッチの文字：基準点Aから168mm
-        
-        # 縦位置の指定
-        y_offset_score = int(11.0 * mm_to_px)      # 1投目と赤文字は下辺から11mm上
-        y_offset_match = int(12.0 * mm_to_px)      # マッチの文字は下辺から12mm上
-        
-        text_y_score = int(base_y - y_offset_score)
-        text_y_match = int(base_y - y_offset_match)
-        tot_y_score = text_y_score + int(10.0 * mm_to_px) # トータルスコアの位置をさらに7mm下へ移動（合計10mm下）
-        
-        font = cv2.FONT_HERSHEY_SIMPLEX
-        font_scale = 0.6
-        thickness = 2
-        color_green = (0, 150, 0)
-        color_opencv = (255, 0, 0)
-        color_ai = (0, 0, 220)
-
-        # ----------------------------------------------------
-        # 【新規追加】イーグルボウルと同等のピン判定ロジック
-        # ----------------------------------------------------
-        all_frame_pins = []
-        
-        # 実測値に基づくピン配置設定（1mmあたりのピクセル数 mm_to_px を適用）
-        pin7_x_offset_mm = 27.9  # 28.1からさらに0.2mm左へ
-        pin1_x_offset_mm = 31.9
-        pin_pitch_x_mm = (pin1_x_offset_mm - pin7_x_offset_mm) / 1.5
-        
-        # Y座標は下辺(base_y)を基準とし、下にプラスする形で設定
-        pin7_y_offset_mm = 2.6
-        pin1_y_offset_mm = 11.2
-        pin_pitch_y_mm = (pin1_y_offset_mm - pin7_y_offset_mm) / 3.0
-
-        frame_width_px = 14.4 * mm_to_px           # 1〜9フレームの横間隔
-        frame9_to_10_pitch_px = 14.1 * mm_to_px    # 13.9から0.2mm広げて14.1mmに変更
-        frame10_pitch_px = 11.5 * mm_to_px         # 10フレーム内の投球間隔
-        
-        radius_px = int(0.75 * mm_to_px)           # 判定枠を直径1.5mm（半径0.75mm）の円に変更
-        box_size_px = 1.5 * mm_to_px               # 閾値判定用のクロップ幅（直径1.5mm）
-        yw = int(box_size_px)
-        yh = int(box_size_px)
-
-        # ----------------------------------------------------
-        # ピンpct収集とヒストグラムによる動的閾値算出（全体分布基準を強制適用）
-        # ----------------------------------------------------
-        game_pin_pcts = []
-        game_pin_data = {}
-
-        for f in range(12):
-            if f < 9:
-                f_offset_px = f * frame_width_px
-            elif f == 9:
-                f_offset_px = 8 * frame_width_px + frame9_to_10_pitch_px
-            elif f == 10:
-                f_offset_px = 8 * frame_width_px + frame9_to_10_pitch_px + frame10_pitch_px
-            else:
-                f_offset_px = 8 * frame_width_px + frame9_to_10_pitch_px + (2 * frame10_pitch_px)
-                
-            gx_local = int(base_x + (pin7_x_offset_mm * mm_to_px) + f_offset_px)
-            gy_local = int(base_y + (pin7_y_offset_mm * mm_to_px))
-            
-            for row_idx, col_offset in pin_positions:
-                cx_local = int(gx_local + (col_offset * pin_pitch_x_mm * mm_to_px))
-                cy_local = int(gy_local + (row_idx * pin_pitch_y_mm * mm_to_px))
-                
-                # クロップ用の左上座標を計算（中心から半径を引く）
-                yx1_local = int(cx_local - radius_px)
-                yy1_local = int(cy_local - radius_px)
-                
-                # 閾値画像からピクセル数を計算（円に内接する四角領域で計算）
-                if 0 <= yy1_local < thresh_ink.shape[0] and 0 <= yx1_local < thresh_ink.shape[1]:
-                    crop_y = thresh_ink[yy1_local:yy1_local+yh, yx1_local:yx1_local+yw]
-                    pixels_y = crop_y.shape[0] * crop_y.shape[1]
-                    pin_pct = (cv2.countNonZero(crop_y) / pixels_y * 100) if pixels_y > 0 else 0
-                else:
-                    pin_pct = 0
-                
-                game_pin_pcts.append(pin_pct)
-                game_pin_data[(f, row_idx, col_offset)] = {
-                    'pct': pin_pct, 'cx': cx_local, 'cy': cy_local,
-                    'yx1': yx1_local, 'yy1': yy1_local
-                }
-
-        dyn_thresh_base = 20.0
-        if game_pin_pcts:
-            hist, bin_edges = np.histogram(game_pin_pcts, bins=100, range=(0, 100))
-            # 相模原では、倒れたピン(白抜き丸)と残ったピン(黒丸)の2つのピークが存在する
-            peak1_idx = np.argmax(hist[:30]) # 白抜き丸のピーク (ピクセルが少ない)
-            peak2_idx = 30 + np.argmax(hist[30:]) # 黒丸のピーク (ピクセルが多い)
-
-            if hist[peak2_idx] > 0 and peak2_idx > peak1_idx + 10:
-                between_hist = hist[peak1_idx:peak2_idx+1]
-                zero_indices = np.where(between_hist == 0)[0]
-                if len(zero_indices) > 0:
-                    longest_zeros = []
-                    current_zeros = []
-                    for i in zero_indices:
-                        if not current_zeros or i == current_zeros[-1] + 1:
-                            current_zeros.append(i)
-                        else:
-                            if len(current_zeros) > len(longest_zeros): longest_zeros = current_zeros
-                            current_zeros = [i]
-                    if len(current_zeros) > len(longest_zeros): longest_zeros = current_zeros
-                    # 谷間の中心を閾値のベースとする
-                    valley_idx = longest_zeros[int(len(longest_zeros) * 0.5)]
-                    dyn_thresh_base = peak1_idx + valley_idx
-                else:
-                    valley_idx = np.argmin(between_hist)
-                    dyn_thresh_base = peak1_idx + valley_idx
-            else:
-                # 黒丸がない(全てストライク)場合などの安全値
-                dyn_thresh_base = peak1_idx + 15.0
-        
-        offset = st.session_state.get("pin_thresh_offset", 0.0)
-        
-        # 相模原は白抜き丸と黒丸の2値判定となるため、谷間の閾値を直接使用する
-        dyn_thresh = dyn_thresh_base + offset
-
-        # ----------------------------------------------------
-        # ▼ 追加：判定グラフ（ヒストグラム）の生成と描画
-        # ----------------------------------------------------
-        plt.style.use('dark_background')
-        # イーグルボウルと全く同じサイズ(4.5, 2.25)に設定
-        fig, ax1 = plt.subplots(figsize=(4.5, 2.25))
-        
-        # ピクセル密度の分布をプロット（X軸の範囲を10〜60に変更）
-        ax1.hist(game_pin_pcts, bins=50, range=(10, 60), color='#00FFFF', alpha=0.7, label='All Pins')
-        
-        # 算出された閾値のラインを引く
-        ax1.axvline(dyn_thresh, color='#FF2D55', linestyle='dashed', linewidth=2, label=f'Threshold: {dyn_thresh:.1f}%')
-        
-        ax1.legend(loc='upper right', fontsize='small')
-        ax1.set_title("Pixel Distribution & Threshold (Sagamihara)", fontsize='medium')
-        ax1.set_xlim(10, 60) # グラフの表示範囲も明示的に10〜60に固定
-        fig.tight_layout()
-
-        # 画像としてメモリ上に保存し、OpenCV形式に変換
-        buf = io.BytesIO()
-        fig.savefig(buf, format='png', dpi=100)
-        buf.seek(0)
-        graph_img = cv2.imdecode(np.frombuffer(buf.getvalue(), dtype=np.uint8), 1)
-        plt.close(fig)
-
-        # 右上にグラフを合成
-        gh, gw, _ = graph_img.shape
-        oh, ow, _ = output_img.shape
-        if oh >= gh and ow >= gw:
-            output_img[0:gh, ow-gw:ow] = graph_img
-        # ----------------------------------------------------
-
-        for f in range(12):
-            frame_pins = []
-            
-            for row_idx, col_offset in pin_positions:
-                data = game_pin_data[(f, row_idx, col_offset)]
-                pin_pct = data['pct']
-                cx_local = data['cx']
-                cy_local = data['cy']
-                
-                if row_idx == 0: pin_num = 7 + int(col_offset)
-                elif row_idx == 1: pin_num = 4 + int(col_offset - 0.5)
-                elif row_idx == 2: pin_num = 2 + int(col_offset - 1.0)
-                elif row_idx == 3: pin_num = 1
-                else: pin_num = 1
-                
-                # 白抜き丸（低ピクセル率）か、黒塗り丸（高ピクセル率）かの2値で判定
-                if pin_pct > dyn_thresh:
-                    # 閾値以上なら黒塗り丸（＝残ピン）
-                    frame_pins.append(pin_num)
-                    # 検知を可視化するため、赤色で塗りつぶした円を描画する
-                    cv2.circle(output_img, (cx_local, cy_local), radius_px, (0, 0, 255), -1)
-                else:
-                    # 検知されなかったピンは、これまで通りオレンジ色の枠（太さ2）を描画する
-                    cv2.circle(output_img, (cx_local, cy_local), radius_px, (0, 165, 255), 2)
-            
-            frame_pins.sort()
-            all_frame_pins.append(frame_pins)
-
-        # ----------------------------------------------------
-        # 1投目・2投目のスコア計算（逆算ではなくピン数から）
-        # ----------------------------------------------------
-        final_throws = [""] * 21
-        throw_colors = [color_opencv] * 21 # 1投目はすべて青文字基準
-        
-        for f in range(9):
-            v1 = 10 - len(all_frame_pins[f])
-            str1 = 'X' if v1 == 10 else ('-' if v1 == 0 else str(v1))
-            final_throws[f*2] = str1
-            
-            if str1 == 'X':
-                final_throws[f*2+1] = ""
-            else:
-                curr_total = int(ai_frame_totals[f]) if str(ai_frame_totals[f]).isdigit() else 0
-                prev_total = int(ai_frame_totals[f-1]) if f > 0 and str(ai_frame_totals[f-1]).isdigit() else 0
-                diff = curr_total - prev_total
-                
-                if diff >= 10:
-                    final_throws[f*2+1] = "R:/"
-                    throw_colors[f*2+1] = color_ai
-                else:
-                    v2 = diff - v1
-                    if v2 < 0: v2 = 0
-                    if v2 + v1 > 9: v2 = 9 - v1
-                    final_throws[f*2+1] = "R:-" if v2 == 0 else f"R:{v2}"
-                    throw_colors[f*2+1] = color_ai
-
-        # 10フレーム目の計算
-        p9, p10, p11 = all_frame_pins[9], all_frame_pins[10], all_frame_pins[11]
-        v1_10 = 10 - len(p9)
-        str1_10 = 'X' if v1_10 == 10 else ('-' if v1_10 == 0 else str(v1_10))
-        final_throws[18] = str1_10
-        
-        curr_total_10 = int(ai_frame_totals[9]) if str(ai_frame_totals[9]).isdigit() else 0
-        prev_total_10 = int(ai_frame_totals[8]) if str(ai_frame_totals[8]).isdigit() else 0
-        diff_10 = curr_total_10 - prev_total_10
-
-        if str1_10 == 'X':
-            v2_10 = 10 - len(p10)
-            str2_10 = 'X' if v2_10 == 10 else ('-' if v2_10 == 0 else str(v2_10))
-            final_throws[19] = str2_10
-            
-            if str2_10 == 'X':
-                v3_10 = 10 - len(p11)
-                str3_10 = 'X' if v3_10 == 10 else ('-' if v3_10 == 0 else str(v3_10))
-                final_throws[20] = str3_10
-            else:
-                if (diff_10 - 10) >= 10:
-                    final_throws[20] = "R:/"
-                    throw_colors[20] = color_ai
-                else:
-                    v3_10 = diff_10 - 10 - v2_10
-                    if v3_10 < 0: v3_10 = 0
-                    if v3_10 + v2_10 > 9: v3_10 = 9 - v2_10
-                    final_throws[20] = "R:-" if v3_10 == 0 else f"R:{v3_10}"
-                    throw_colors[20] = color_ai
-        else:
-            if diff_10 >= 10:
-                final_throws[19] = "R:/"
-                throw_colors[19] = color_ai
-                v3_10 = diff_10 - 10
-                if v3_10 < 0: v3_10 = 0
-                if v3_10 > 10: v3_10 = 10
-                str3_10 = 'X' if v3_10 == 10 else ('-' if v3_10 == 0 else str(v3_10))
-                final_throws[20] = f"R:{str3_10}" if str3_10 != 'X' else "R:X"
-                throw_colors[20] = color_ai
-            else:
-                v2_10 = diff_10 - v1_10
-                if v2_10 < 0: v2_10 = 0
-                if v2_10 + v1_10 > 9: v2_10 = 9 - v1_10
-                final_throws[19] = "R:-" if v2_10 == 0 else f"R:{v2_10}"
-                throw_colors[19] = color_ai
-                final_throws[20] = ""
-
-        # ----------------------------------------------------
-        # データエクスポート用の row_data を構築
-        # ----------------------------------------------------
-        for t_idx, col_idx in enumerate(throw_cols_local):
-            row_data[col_idx] = final_throws[t_idx]
-            
-        for f in range(9): row_data[target_indices_local[f]] = ",".join(map(str, all_frame_pins[f]))
-        row_data[target_indices_local[9]] = ",".join(map(str, p9))
-
-        if len(p9) == 0:
-            row_data[target_indices_local[10]] = ",".join(map(str, p10))
-            row_data[target_indices_local[11]] = ",".join(map(str, p11))
-        else:
-            row_data[target_indices_local[10]] = ""
-            row_data[target_indices_local[11]] = ",".join(map(str, p10))
-            
-        all_games_export_data.append(row_data)
-
-        # ----------------------------------------------------
-        # ▼ 画像への描画処理 ▼
-        # ----------------------------------------------------
-        for f in range(9):
-            f_start_x = int(base_x + pitch1_offset_px + (f * 14.44 * mm_to_px))
-            
-            # 累計トータルスコアの描画
-            ai_tot_val = str(ai_frame_totals[f])
-            if ai_tot_val and ai_tot_val != "0":
-                cv2.putText(output_img, ai_tot_val, (f_start_x, tot_y_score), font, 0.6, color_green, 2, cv2.LINE_AA)
-            
-            # 1投目の描画 (画像判定の final_throws を参照)
-            t1 = str(final_throws[f*2]).replace("R:", "")
-            if t1.strip(): 
-                cv2.putText(output_img, t1, (f_start_x, text_y_score), font, font_scale, throw_colors[f*2], thickness, cv2.LINE_AA)
-            
-            # 2投目の描画
-            t2 = str(final_throws[f*2+1]).replace("R:", "")
-            x2_pos = int(base_x + pitch1_offset_px + (f * 14.44 * mm_to_px) + pitch2_offset_px)
-            if t2.strip(): 
-                cv2.putText(output_img, t2, (x2_pos, text_y_score), font, font_scale, throw_colors[f*2+1], thickness, cv2.LINE_AA)
-            
-        # 10フレームの描画
-        f10_start_x = int(base_x + pitch1_offset_px + (9 * 14.44 * mm_to_px))
-        
-        ai_tot_val_10 = str(ai_frame_totals[9])
-        if ai_tot_val_10 and ai_tot_val_10 != "0":
-            cv2.putText(output_img, ai_tot_val_10, (f10_start_x, tot_y_score), font, 0.6, color_green, 2, cv2.LINE_AA)
-
-        t10_1 = str(final_throws[18]).replace("R:", "")
-        t10_2 = str(final_throws[19]).replace("R:", "")
-        t10_3 = str(final_throws[20]).replace("R:", "")
-        
-        if t10_1.strip(): 
-            cv2.putText(output_img, t10_1, (f10_start_x, text_y_score), font, font_scale, throw_colors[18], thickness, cv2.LINE_AA)
-        if t10_2.strip(): 
-            cv2.putText(output_img, t10_2, (int(f10_start_x + pitch10_offset_px), text_y_score), font, font_scale, throw_colors[19], thickness, cv2.LINE_AA)
-        if t10_3.strip(): 
-            cv2.putText(output_img, t10_3, (int(f10_start_x + pitch10_offset_px * 2), text_y_score), font, font_scale, throw_colors[20], thickness, cv2.LINE_AA)
-
-        # トータルスコアの照合と MATCH/DIFF! の描画
-        clean_throws = [str(t).replace("R:", "") for t in final_throws]
-        try:
-            calc_totals = calculate_bowling_score(clean_throws)
-        except Exception:
-            calc_totals = []
-
-        ai_tot_int = int(ai_total) if str(ai_total).isdigit() else int(ai_frame_totals[-1]) if ai_frame_totals else 0
-        result_text_x = int(base_x + match_x_offset_px)
-        
-        if calc_totals and len(ai_frame_totals) > 0 and calc_totals[-1] == ai_tot_int:
-            check_str = f"MATCH ({calc_totals[-1]})"
-            check_color = color_green
-        else:
-            calc_val = calc_totals[-1] if calc_totals else 0
-            check_str = f"DIFF! ({calc_val} vs {ai_tot_int})"
-            check_color = color_ai
-            
-        cv2.putText(output_img, check_str, (result_text_x, text_y_match), font, font_scale, check_color, thickness, cv2.LINE_AA)
-
-    cv2.putText(output_img, "Sagamihara Park Lanes Mode (Line Extract)", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3, cv2.LINE_AA)
-
-    return all_games_export_data, output_img
-
 # ▼▼▼ プレイヤー分析画面のAWARD画面を参考にした共通ダークテーマ・統一CSS ▼▼▼
 st.markdown("""
     <style>
@@ -895,7 +314,6 @@ def render_section_title(title_text):
 def get_gspread_client():
     import json
     import gspread
-    import time
     from google.oauth2 import service_account
     from googleapiclient.discovery import build
     creds_json_str = st.secrets["google_credentials"]
@@ -907,20 +325,10 @@ def get_gspread_client():
     gc = gspread.authorize(creds)
     drive_service = build('drive', 'v3', credentials=creds)
     query = "name = 'EagleBowl_ROLLERS' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"
-    
-    # API制限回避のための自動リトライ処理を追加
-    max_retries = 3
-    for attempt in range(max_retries):
-        try:
-            results = drive_service.files().list(q=query, fields="files(id, name)").execute()
-            if results.get('files', []):
-                return gc.open_by_key(results['files'][0]['id'])
-            return None
-        except Exception as e:
-            if attempt < max_retries - 1:
-                time.sleep(2 ** attempt) # 指数バックオフ（1秒, 2秒と待機時間を増やす）
-            else:
-                raise e
+    results = drive_service.files().list(q=query, fields="files(id, name)").execute()
+    if results.get('files', []):
+        return gc.open_by_key(results['files'][0]['id'])
+    return None
 
 # =========================================================
 # ▼ 追加：お知らせ・イベント機能用共通関数 ▼
@@ -963,7 +371,7 @@ def sync_calendar_to_sps(sh, file_id):
         if "private_key" in creds_info:
             creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
         
-        drive_creds = service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/drive'])
+        drive_creds = service_account.Credentials.from_service_account_info(creds_info, scopes=['[https://www.googleapis.com/auth/drive](https://www.googleapis.com/auth/drive)'])
         drive_service = build('drive', 'v3', credentials=drive_creds)
         
         # Vertex AI専用のクライアント初期化
@@ -1006,7 +414,7 @@ def sync_calendar_to_sps(sh, file_id):
                 try:
                     # ▼ ダウンロードしたBytesIOオブジェクト(fh)からバイト列を取得し、明示的に位置引数で渡す
                     pdf_bytes = fh.getvalue()
-                    pdf_part = types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf")
+                    pdf_part = types.Part.from_bytes(pdf_bytes, "application/pdf")
                     
                     response = ai_client.models.generate_content(
                         model=attempt_model,
@@ -2430,26 +1838,11 @@ if app_mode == "プレイヤー分析":
             # ▲ 追加ここまで ▲
 
             if selected_player:
-                # ▼ 追加: 分析対象のボウリング場フィルター
-                # マスターデータから、選択されたプレイヤーがプレイしたボウリング場のリストを抽出
-                player_alleys = set()
-                for row in master_data[1:]:
-                    if len(row) >= 53 and row[1] == selected_player:
-                        alley = row[58].strip() if len(row) > 58 and row[58].strip() else "イーグルボウル"
-                        player_alleys.add(alley)
-                
-                alley_filter_options = ["すべて"] + sorted(list(player_alleys))
-                selected_alley_filter = st.selectbox("🎯 分析対象のボウリング場", alley_filter_options, index=0)
-
                 # 1. マスターシートから選択されたプレイヤーの「直近50ゲーム」と「7-10G」を抽出
                 player_games = []
                 player_710_rows = [] 
                 for row in master_data[1:]:
                     if len(row) >= 53 and row[1] == selected_player:
-                        row_alley = row[58].strip() if len(row) > 58 and row[58].strip() else "イーグルボウル"
-                        if selected_alley_filter != "すべて" and row_alley != selected_alley_filter:
-                            continue
-
                         is_710_game = (len(row) > 54 and str(row[54]).strip().upper() == "TRUE")
                         if is_710_game:
                             player_710_rows.append(row)
@@ -4784,7 +4177,6 @@ if app_mode == "データ比較":
                 cond1 = str(row[55]).strip() if len(row) > 55 else ""
                 cond2 = str(row[56]).strip() if len(row) > 56 else ""
                 cond3 = str(row[57]).strip() if len(row) > 57 else ""
-                bowling_alley = str(row[58]).strip() if len(row) > 58 and str(row[58]).strip() else "イーグルボウル"
                 ball = str(row[9]).strip()
                 lane = str(row[5]).strip()
                 oil_len = str(row[7]).strip()
@@ -4884,7 +4276,7 @@ if app_mode == "データ比較":
                     "up200": 1 if score >= 200 else 0, "up225": 1 if score >= 225 else 0, "up250": 1 if score >= 250 else 0,
                     "first_pitch_pins": first_pitch_pins, "first_pitch_count": first_pitch_count, "no_head": no_head,
                     "db_c": db_c, "db_s": db_s, "tk_c": tk_c, "tk_s": tk_s,
-                    "cond1": cond1, "cond2": cond2, "cond3": cond3, "bowling_alley": bowling_alley,
+                    "cond1": cond1, "cond2": cond2, "cond3": cond3,
                     "ball": ball, "lane": lane, "oil_len": oil_len, "oil_vol": oil_vol
                 }
                 for i in range(1, 11): parsed_row[f"pin{i}_left"] = pin_left[str(i)]
@@ -4945,7 +4337,6 @@ if app_mode == "データ比較":
 
     X_AXIS_OPTIONS = {
         "プレイヤー": "player",
-        "ボウリング場": "bowling_alley",
         "ゲーム順 (時系列)": "game_num",
         "月別推移 (YYYY/MM)": "month_key",
         "個別条件1": "cond1",
@@ -5291,29 +4682,26 @@ status_text = st.empty()
 # =========================================================
 prompt_metadata = """
 画像はボウリングのスコアシートの全体写真です。
-この画像から「ボウリング場名」「日付」「最初のゲーム数」「全体の開始時刻」「全体の終了時刻」「レーン番号」「プレイヤーネーム」および「各ゲームの開始・終了時刻」を探し出し、以下のJSON形式で出力してください。
+この画像から「日付」「最初のゲーム数」「全体の開始時刻」「全体の終了時刻」「レーン番号」「プレイヤーネーム」および「各ゲームの開始・終了時刻」を探し出し、以下のJSON形式で出力してください。
 
 【ルール】
-1. ボウリング場名: 画像内のロゴやヘッダー文字からボウリング場名を "bowling_alley" に出力してください。
-   - 例: 「相模原パークレーンズ」のロゴや文字があれば "相模原パークレーンズ" とする。
-   - 例: ボウリング場名の記載がなくても、左上に「[ヨーロピアン] 一般G」、右上に「日付：YYYY年 MM月 DD日」、右端に「HDCP込トータル / スクラッチトータル」というレイアウトと印字がある場合は "永山コパボウル" とする。
-   - 上記の特徴に当てはまらず、判別できない場合はデフォルトで "イーグルボウル" とする。
-2. 日付: 中央上部等にある日付。「YY/MM/DD」の形式で "date" に出力。
-3. 最初のゲーム数: 一番上のゲームのスコア欄付近の数字。「1」などの数値のみを "start_game_num" に出力。
-4. 全体の開始時刻: "HH:MM" 形式で "start_time" に出力。見つからなければ "時刻不明" にする。
-5. 全体の終了時刻: "HH:MM" 形式で "end_time" に出力。見つからなければ "時刻不明" にする。
-6. レーン番号: レーン番号を "lane" に出力。見つからなければ空文字にする。
-7. プレイヤーネーム: プレイヤー名を "player_name" に出力。見つからなければ空文字にする。
-8. 各ゲームの時刻: 各ゲームごとの開始時刻と終了時刻を読み取り、配列 "games_time" に出力してください。
+1. 日付: 中央上部にある黒い文字。「YY/MM/DD」の形式で "date" に出力。
+2. 最初のゲーム数: 一番上のゲームのスコア欄の左端に記載。フレームという文字の下GAMEの下に改行されて数字を記載。GAME1, GAME7, GAME13, GAME19, GAME25のいずれか。「1」などの数値のみを "start_game_num" に出力。
+3. 全体の開始時刻: 1枚のスコアシートの日付の右下に記載。1ゲーム目の開始時刻と終了時刻が左右に並んでいて、その左側の時刻が開始時刻。"HH:MM" 形式で "start_time" に出力。見つからなければ "時刻不明" にする。
+4. 全体の終了時刻: 1枚のスコアシートの一番最後のゲームの9フレーム目のスコア欄の上部に記載。開始時刻と終了時刻が左右に並んでいて、その右側の時刻が終了時刻。"HH:MM" 形式で "end_time" に出力。見つからなければ "時刻不明" にする。
+5. レーン番号: 「ゲーム日付」の右側にある「使用レーン」の右に記載されている数字。1から18までの単独の整数か、「1-2」「3-4」「5-6」「7-8」「9-10」「11-12」「13-14」「15-16」「17-18」または、その逆の「2-1」から「18-17」までの文字列を "lane" に出力。見つからなければ空文字にする。
+6. プレイヤーネーム: 一番上のゲームのスコア欄の左上の「プレーヤ ネーム」の文字の右側に書かれている名前を "player_name" に出力。見つからなければ空文字にする。
+7. 各ゲームの時刻: 画像の上から順に、各ゲームごとの開始時刻と終了時刻を読み取り、配列 "games_time" に出力してください。各ゲームの時刻はスコア欄の周辺（主に9フレーム目の上部など）に記載されています。
    【重要な自己検証ステップ】
+   読み取った各時刻について、以下の論理チェックを必ず行ってください。
    a. 各ゲームの開始時刻・終了時刻が、全体の「開始時刻」と「終了時刻」の間に入っているか。
-   b. 同一ゲーム内で「開始時刻 ＜ 終了時刻」となっているか。
+   b. 同一ゲーム内で「開始時刻 ＜ 終了時刻」となっているか（開始と終了がテレコになっていないか）。
    c. 「前のゲームの終了時刻 ≦ 次のゲームの開始時刻」となっているか。
-9. Markdownの記号などは一切含めず、純粋なJSON文字列だけを出力してください。
+   ※もし上記チェックに1つでも矛盾（NG）がある場合、推測で大幅に時刻を捏造するのではなく、間違っている箇所を特定し、その部分の画像をもう一度よく観察して正確な数字を読み直してください。
+8. Markdownの記号などは一切含めず、純粋なJSON文字列だけを出力してください。
 
 【出力フォーマット例】
 {
-  "bowling_alley": "イーグルボウル",
   "date": "26/02/07",
   "start_game_num": 1,
   "start_time": "14:12",
@@ -5325,6 +4713,11 @@ prompt_metadata = """
       "game_index": 1,
       "start_time": "14:12",
       "end_time": "14:25"
+    },
+    {
+      "game_index": 2,
+      "start_time": "14:25",
+      "end_time": "14:40"
     }
   ]
 }
@@ -5511,84 +4904,6 @@ if st.session_state.analyzed_results is None:
             h_lines = cv2.morphologyEx(thresh_rot, cv2.MORPH_OPEN, h_k)
 
         # ※ 上下逆さま（180度）の自動判定は誤判定の原因となるため削除し、そのまま解析へ進む
-
-        # ▼ 先にAIでメタデータ（ボウリング場名など）を取得
-        status_text.info(f"画像 {img_idx+1}: AIがボウリング場・日付・時刻などを取得中...")
-        img_pil_full_for_meta = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-        compressed_full_img_for_meta = compress_image_for_ai(img_pil_full_for_meta, max_size=2048)
-        
-        ai_meta_data = {"bowling_alley": "イーグルボウル", "date": "日付不明", "start_time": "時刻不明", "end_time": "時刻不明", "start_game_num": 1, "lane": "", "player_name": ""}
-        max_retries = 7
-        for attempt in range(max_retries):
-            current_model = fallback_models[attempt % len(fallback_models)]
-            try:
-                meta_bytes_io = io.BytesIO()
-                compressed_full_img_for_meta.save(meta_bytes_io, format='JPEG')
-                meta_bytes = meta_bytes_io.getvalue()
-                
-                response = client.models.generate_content(
-                    model=current_model,
-                    contents=[
-                        prompt_metadata, 
-                        types.Part.from_bytes(data=meta_bytes, mime_type="image/jpeg")
-                    ],
-                    config=types.GenerateContentConfig(
-                        temperature=0.0,
-                        response_mime_type="application/json"
-                    )
-                )
-                raw_text = response.text.strip()
-                if raw_text.startswith("```"):
-                    lines = raw_text.split('\n')
-                    raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
-                ai_meta_data = json.loads(raw_text)
-                break
-            except Exception as e:
-                if attempt < max_retries - 1:
-                    wait_sec = (2 ** (attempt + 1)) + random.uniform(0, 1)
-                    time.sleep(wait_sec)
-                    continue
-                break
-                
-        detected_alley = ai_meta_data.get("bowling_alley", "イーグルボウル")
-        
-        # ▼ 権限チェック（イーグルボウル以外は開発者のみ）
-        user_role = st.session_state.get("user_role", "")
-        if detected_alley != "イーグルボウル" and user_role != "開発者":
-            st.error(f"【権限エラー】{detected_alley} のスコア登録は開発者権限でのみ許可されています。")
-            continue
-
-        # ▼ ボウリング場に応じた専用プログラムへのルーティング
-        if detected_alley == "相模原パークレーンズ":
-            all_games_export_data, output_img = analyze_park_lanes(img, ai_meta_data)
-            analyzed_results.append({
-                "file_name": file_name,
-                "file_id": file_id,
-                "output_img": output_img,
-                "all_games_export_data": all_games_export_data,
-                "meta_data": ai_meta_data
-            })
-            status_text.empty()
-            continue
-        elif detected_alley == "永山コパボウル":
-            all_games_export_data, output_img = analyze_copa_bowl(img, ai_meta_data)
-            if not all_games_export_data: # ダミーで空データが返ってきた場合はスキップ
-                st.warning("永山コパボウルの解析ロジックは現在開発中（ダミー状態）です。")
-                continue
-            
-            analyzed_results.append({
-                "file_name": file_name,
-                "file_id": file_id,
-                "output_img": output_img,
-                "all_games_export_data": all_games_export_data,
-                "meta_data": ai_meta_data
-            })
-            status_text.empty()
-            continue
-        elif detected_alley != "イーグルボウル":
-            # デフォルトフォールバック
-            st.warning(f"{detected_alley} の解析ロジックは未実装です。イーグルボウルのロジックで試行します。")
-            detected_alley = "イーグルボウル"
 
         all_games_export_data = []
         blue_lines = []
@@ -6190,6 +5505,52 @@ if st.session_state.analyzed_results is None:
         if not success_score:
             st.warning(f"{file_name}: AIのスコア読み取りに失敗しました。理由: {last_error}")
 
+        status_text.info(f"画像 {img_idx+1}: AIが日付・時刻・ゲーム数を取得中...")
+        time.sleep(5) 
+
+        # ▼ 時刻の小さな文字が潰れないよう、圧縮サイズを2048へ拡大して解像度を保つ
+        compressed_full_img = compress_image_for_ai(img_pil_full, max_size=2048)
+
+        ai_meta_data = {"date": "日付不明", "start_time": "時刻不明", "end_time": "時刻不明", "start_game_num": 1, "lane": "", "player_name": ""}
+        success_meta = False
+        
+        for attempt in range(max_retries):
+            current_model = fallback_models[attempt % len(fallback_models)]
+            try:
+                # Pillow画像をJPEGのバイト列に変換
+                meta_bytes_io = io.BytesIO()
+                compressed_full_img.save(meta_bytes_io, format='JPEG')
+                meta_bytes = meta_bytes_io.getvalue()
+                
+                response = client.models.generate_content(
+                    model=current_model,
+                    contents=[
+                        prompt_metadata, 
+                        types.Part.from_bytes(data=meta_bytes, mime_type="image/jpeg")
+                    ],
+                    config=types.GenerateContentConfig(
+                        temperature=0.0,
+                        response_mime_type="application/json"
+                    )
+                )
+                raw_text = response.text.strip()
+                if raw_text.startswith("```"):
+                    lines = raw_text.split('\n')
+                    raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
+                ai_meta_data = json.loads(raw_text)
+                success_meta = True
+                break
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    # サーバー混雑による連続エラー全滅を防ぐため、試行ごとに待機時間を倍増させる（指数バックオフ）
+                    wait_sec = (2 ** (attempt + 1)) + random.uniform(0, 1)
+                    status_text.warning(f"読取エラー({current_model})。混雑回避のため {wait_sec:.1f}秒待機して再試行します... ({attempt+1}/{max_retries})")
+                    time.sleep(wait_sec)
+                    status_text.info(f"画像 {img_idx+1}: AI解析中... (再試行 {attempt+1})")
+                    continue
+                break
+                   
+
         # ---------------------------------------------------------
         # 📍 【ブロック 10】 解析結果の統合とデータ整形
         # ---------------------------------------------------------
@@ -6338,64 +5699,31 @@ if st.session_state.analyzed_results is None:
                 row_data[col_idx] = final_throws[t_idx]
             all_games_export_data.append(row_data)
 
-            # --- ▼ 画像への解析結果の描画処理 ▼ ---
-            # ⑤ 基準点AとBの距離の実測は192mm
-            base_x = left_x
-            base_y = y2
-            distance_ab_px = right_x - left_x
-            mm_to_px = distance_ab_px / 192.0
-            
-            # 指定の距離（自動スケール換算）
-            pitch1_offset_px = 20.0 * mm_to_px       # 横①② 各フレーム1投目の位置（基準点Aから右へ20mm）
-            frame_width_px = 14.44 * mm_to_px        # 横① 2フレーム目以降（14.44mmずつ移動）
-            pitch2_offset_px = 7.2 * mm_to_px        # 横③ 2投目・赤文字の位置（1投目から右へ7.2mm）
-            match_x_offset_px = 168.0 * mm_to_px     # 横④ マッチ文字の位置（基準点Aから168mm）
-            
-            # 縦位置の指定
-            y_offset_score = 11.0 * mm_to_px         # 縦①② 1投目と2投目・赤文字（下辺から11mm上）
-            y_offset_match = 12.0 * mm_to_px         # 縦③ マッチ文字（下辺から12mm上）
-            
-            text_y_score = int(base_y - y_offset_score)
-            text_y_match = int(base_y - y_offset_match)
-            
-            font = cv2.FONT_HERSHEY_SIMPLEX
-            font_scale = 0.7
-            thickness = 2
-            color_green = (0, 150, 0) # ② トータルスコアの色（濃い緑）
-            
-            # 1〜9フレームの描画
             for f in range(9):
-                f_start_x = base_x + pitch1_offset_px + (f * frame_width_px)
-                
-                # ③④ 1投目と2投目の描画はイーグルボウルと完全に同じロジック（final_throws を使用）
                 t1 = final_throws[f*2].replace("R:", "")
-                if t1: put_rotated_text(output_img, t1, f_start_x, text_y_score - new_ref1[1], new_ref1[0], new_ref1[1], theta, throw_colors[f*2], scale=font_scale, thickness=thickness)
-                
+                put_rotated_text(output_img, t1, start_x_base + f * box_w + 3 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, throw_colors[f*2])
                 t2 = final_throws[f*2+1].replace("R:", "")
-                if t2: put_rotated_text(output_img, t2, f_start_x + pitch2_offset_px, text_y_score - new_ref1[1], new_ref1[0], new_ref1[1], theta, throw_colors[f*2+1], scale=font_scale, thickness=thickness)
+                put_rotated_text(output_img, t2, start_x_base + f * box_w + 10 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, throw_colors[f*2+1])
 
-            # 10フレームの描画
             f = 9
-            f10_start_x = base_x + pitch1_offset_px + (f * frame_width_px)
-            
             t1 = final_throws[18].replace("R:", "")
-            if t1: put_rotated_text(output_img, t1, f10_start_x, text_y_score - new_ref1[1], new_ref1[0], new_ref1[1], theta, throw_colors[18], scale=font_scale, thickness=thickness)
-            
+            put_rotated_text(output_img, t1, start_x_base + f * box_w + 3 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, throw_colors[18])
             t2 = final_throws[19].replace("R:", "")
-            if t2: put_rotated_text(output_img, t2, f10_start_x + pitch2_offset_px, text_y_score - new_ref1[1], new_ref1[0], new_ref1[1], theta, throw_colors[19], scale=font_scale, thickness=thickness)
-            
+            put_rotated_text(output_img, t2, start_x_base + f * box_w + 10 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, throw_colors[19])
             t3 = final_throws[20].replace("R:", "")
-            if t3: put_rotated_text(output_img, t3, f10_start_x + pitch2_offset_px * 2, text_y_score - new_ref1[1], new_ref1[0], new_ref1[1], theta, throw_colors[20], scale=font_scale, thickness=thickness)
+            put_rotated_text(output_img, t3, start_x_base + f * box_w + 17 * current_scale, py1_local - 2 * current_scale, new_ref1[0], new_ref1[1], theta, throw_colors[20])
 
-            # ① 各フレームの累計トータルスコアの描画（元の変更不要な縦位置のロジックに戻す。横位置は基準点から20mm+フレーム幅）
+            # ▼ 追加: AIが読み取った各フレームの累計トータルスコアの描画（高さを3mm上に微調整）
             for f_tot in range(10):
                 val_tot = str(ai_frame_totals[f_tot])
                 if val_tot and val_tot != "0":
-                    tot_x = base_x + pitch1_offset_px + (f_tot * frame_width_px)
+                    # X座標: 1投目の列の左端から左へ約2mm（位置は維持）
+                    tot_x = start_x_base + f_tot * box_w - 1.0 * current_scale
+                    # Y座標: 前回の +7.5 から 3mm分（3.0）引き、+4.5 に調整（一番下の線の上に乗る高さ）
                     tot_y = py1_local + ph_full + 4.5 * current_scale
-                    put_rotated_text(output_img, val_tot, tot_x, tot_y, new_ref1[0], new_ref1[1], theta, color_green, scale=0.6, thickness=1)
+                    # 文字サイズ（0.8）と色は維持
+                    put_rotated_text(output_img, val_tot, tot_x, tot_y, new_ref1[0], new_ref1[1], theta, (0, 220, 0), scale=0.6, thickness=1)
 
-            # トータルスコア（MATCH / DIFF!）の照合と描画
             clean_throws = [str(t).replace("R:", "") for t in final_throws]
             try:
                 calc_totals = calculate_bowling_score(clean_throws)
@@ -6403,18 +5731,18 @@ if st.session_state.analyzed_results is None:
                 calc_totals = []
 
             ai_tot_int = int(ai_total) if str(ai_total).isdigit() else int(ai_frame_totals[-1]) if ai_frame_totals else 0
-            
-            result_text_x = base_x + match_x_offset_px
-            
+            result_text_x = start_x_base + 9 * box_w + 5 * current_scale
+            result_text_y = py1_local - 10 * current_scale
+
             if calc_totals and len(ai_frame_totals) > 0 and calc_totals[-1] == ai_tot_int:
                 check_str = f"MATCH ({calc_totals[-1]})"
-                check_color = color_green # ④ MATCH時の文字色は濃い緑
+                check_color = (0, 150, 0)
             else:
                 calc_val = calc_totals[-1] if calc_totals else 0
                 check_str = f"DIFF! ({calc_val} vs {ai_tot_int})"
                 check_color = COLOR_AI
 
-            put_rotated_text(output_img, check_str, result_text_x, text_y_match - new_ref1[1], new_ref1[0], new_ref1[1], theta, check_color, scale=0.6, thickness=2)
+            put_rotated_text(output_img, check_str, result_text_x, result_text_y, new_ref1[0], new_ref1[1], theta, check_color, scale=0.6, thickness=2)
 
         analyzed_results.append({
             "file_name": file_name,
@@ -6481,16 +5809,6 @@ if st.session_state.analyzed_results:
                         oil_data_list = oil_data_raw[2:] if len(oil_data_raw) > 2 else []
                     except Exception as e:
                         st.warning(f"オイル入力シートの読み込みに失敗しました: {e}")
-
-                    try:
-                        alley_sheet = sh.worksheet("ボウリング場")
-                        alley_vals = alley_sheet.col_values(1)
-                        alley_list = [v for v in alley_vals if v and v.strip()]
-                        if not alley_list:
-                            alley_list = ["イーグルボウル"]
-                    except Exception as e:
-                        st.warning(f"ボウリング場シートの読み込みに失敗しました: {e}")
-                        alley_list = ["イーグルボウル"]
                 
                 if fetched_players:
                     st.session_state.dynamic_player_list = fetched_players
@@ -6500,17 +5818,14 @@ if st.session_state.analyzed_results:
                     st.session_state.player_nickname_map = {}
                     
                 st.session_state.oil_data = oil_data_list 
-                st.session_state.alley_list = alley_list
             except Exception as e:
                 st.warning(f"設定の読み込みに失敗しました: {e}")
                 st.session_state.dynamic_player_list = ["999_ゲスト"]
                 st.session_state.player_nickname_map = {}
                 st.session_state.oil_data = [] 
-                st.session_state.alley_list = ["イーグルボウル"]
 
     
     player_list = st.session_state.dynamic_player_list
-    alley_list = st.session_state.get("alley_list", ["イーグルボウル"])
     
     default_player_index = 0
     ai_player_name = ""
@@ -7020,10 +6335,6 @@ if st.session_state.analyzed_results:
     for img_idx, items in games_by_img.items():
         st.markdown(f"**画像 {img_idx+1} の設定**")
         
-        ai_alley = st.session_state.analyzed_results[img_idx].get("meta_data", {}).get("bowling_alley", "イーグルボウル")
-        default_alley_index = alley_list.index(ai_alley) if ai_alley in alley_list else 0
-        common_alley = st.selectbox("ボウリング場", alley_list, index=default_alley_index, key=f"c_alley_{img_idx}")
-
         ai_lane = items[0]["export_row"][3]
         default_lane_index = LANE_OPTIONS.index(ai_lane) if ai_lane in LANE_OPTIONS else 0
         
@@ -7109,7 +6420,7 @@ if st.session_state.analyzed_results:
                 final_c2 = i_c2_val if (not st.session_state.get("kiosk_mode") and i_c2_val.strip()) else common_c2
                 final_c3 = i_c3_val if (not st.session_state.get("kiosk_mode") and i_c3_val.strip()) else common_c3
                 
-                input_data[(img_idx, l_idx)] = (common_alley, common_lane, final_len, final_vol, final_ball, final_c1, final_c2, final_c3)
+                input_data[(img_idx, l_idx)] = (common_lane, final_len, final_vol, final_ball, final_c1, final_c2, final_c3)
     
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("<h3 style='text-align: left;'>☟　☟　☟　☟　☟　☟</h3>", unsafe_allow_html=True)
@@ -7348,7 +6659,7 @@ if st.session_state.analyzed_results:
                     new_end = row[2]
                     new_game = row[4] 
             
-                    alley_val, selected_lane, oil_len, oil_vol, ball_used, c1_val, c2_val, c3_val = input_data.get((item["img_idx"], item["local_idx"]), ("イーグルボウル", "", "", "", "", "", "", ""))
+                    selected_lane, oil_len, oil_vol, ball_used, c1_val, c2_val, c3_val = input_data.get((item["img_idx"], item["local_idx"]), ("", "", "", "", "", "", ""))
 
                     formatted_row = [
                         user_email,      
@@ -7385,8 +6696,6 @@ if st.session_state.analyzed_results:
                     formatted_row.append(c1_val) # 56番目 (BD)
                     formatted_row.append(c2_val) # 57番目 (BE)
                     formatted_row.append(c3_val) # 58番目 (BF)
-                    # ▼ BG列(59) へのボウリング場データの追加
-                    formatted_row.append(alley_val) # 59番目 (BG)
                     
                     match_found = False
                     for i, ex_row in enumerate(existing_data):
