@@ -1149,6 +1149,7 @@ def analyze_copa_bowl(img, ai_meta_data):
                 throw_colors[19] = color_ai
                 final_throws[20] = ""
 
+        # 変更後
         # ----------------------------------------------------
         # データエクスポート用の row_data を構築
         # ----------------------------------------------------
@@ -1165,9 +1166,29 @@ def analyze_copa_bowl(img, ai_meta_data):
             row_data[target_indices_local[10]] = ""
             row_data[target_indices_local[11]] = ",".join(map(str, p10))
             
+        # ▼ 追加：ノーミス＆10フレ1,2投目ストライクの場合、強制的に「要修正フラグ(10フレ3投目隠れ)」を立てる（永山コパボウル専用） ▼
+        needs_nomiss_correction = False
+        t10_1 = str(row_data[43]).replace("R:", "").strip().upper()
+        t10_2 = str(row_data[45]).replace("R:", "").strip().upper()
+        
+        if t10_1 == 'X' and t10_2 == 'X':
+            is_nomiss = True
+            for f in range(9):
+                t1 = str(row_data[7 + f*4]).strip().upper()
+                t2 = str(row_data[9 + f*4]).strip().upper()
+                if 'X' not in t1 and '/' not in t2:
+                    is_nomiss = False
+                    break
+            if is_nomiss:
+                needs_nomiss_correction = True
+
+        # flagを51列目（本来は7-10Gのチェック用列だが、UIに渡すため一時的に別の空き列＝51列目に格納）に保持
+        # ※データ出力枠は52列（0〜51）あるため、末尾[51]を使用
+        row_data[51] = "NEEDS_NOMISS_CORRECTION" if needs_nomiss_correction else ""
+        # ▲ 追加ここまで ▲
+
         all_games_export_data.append(row_data)
 
-        # 変更後
         # ----------------------------------------------------
         # ▼ 画像への描画処理 ▼
         # ----------------------------------------------------
@@ -7318,11 +7339,11 @@ if st.session_state.analyzed_results:
                 # 濃い黄色（オレンジ）背景と警告マークを採用
                 match_status = ":orange-background[⚠️計算不一致]"
             
+            # 変更後
             check_key = f"check_{img_idx}_{local_idx}"
             if check_key not in st.session_state:
                 st.session_state[check_key] = True
 
-            # 変更後
             # 上の段：【ゲーム数】日時 ｜ [レ] データ登録する
             chk_col1, chk_col2 = st.columns([2.5, 7.5])
             with chk_col1:
@@ -7336,31 +7357,12 @@ if st.session_state.analyzed_results:
                     args=(check_key,)
                 )
 
-            # ▼ 追加：ノーミス＆10フレ1,2投目ストライクの警告（永山コパボウル限定） ▼
-            needs_nomiss_correction = False
-            if res.get("meta_data", {}).get("bowling_alley", "") == "永山コパボウル":
-                # 10フレーム目の1投目(43)と2投目(45)をチェック
-                t10_1 = str(row[43]).replace("R:", "").strip().upper()
-                t10_2 = str(row[45]).replace("R:", "").strip().upper()
-                
-                if t10_1 == 'X' and t10_2 == 'X':
-                    is_nomiss = True
-                    # 1〜9フレーム目までにオープン（ミス）がないかをチェック
-                    for f in range(9):
-                        t1 = str(row[7 + f*4]).strip().upper()
-                        t2 = str(row[9 + f*4]).strip().upper()
-                        if 'X' not in t1 and '/' not in t2:
-                            is_nomiss = False
-                            break
-                    
-                    if is_nomiss:
-                        needs_nomiss_correction = True
-
-            if needs_nomiss_correction:
-                # 画面右下のポップアップ（Toast）表示
+            # ▼ 追加：フラグを検知して警告を表示 ▼
+            if len(row) > 51 and row[51] == "NEEDS_NOMISS_CORRECTION":
                 st.toast(f"【{game_name}】 10フレーム目3投目の残ピン表示が「NO MISS」に被っているため、手動修正してください", icon="⚠️")
-                # 画面上にも目立つように警告を残す
                 st.warning(f"⚠️ {game_name} の10フレーム目3投目の残ピン表示が、「NO MISS」表示で消えているため、手動修正を行ってください")
+                # 表示後はフラグを消去（SPS保存時に邪魔にならないようにする）
+                row[51] = ""
             # ▲ 追加ここまで ▲
 
             game_checkboxes.append({
