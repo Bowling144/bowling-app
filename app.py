@@ -3103,65 +3103,88 @@ if app_mode == "プレイヤー分析":
                 # （各項目の見た目やロジックは一切変更していません）
                 # =========================================================
 
+                # 変更後
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 # 【01】 HOME：レーティングバッジ・ステータス
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_01_rating_card():
-                    # 通算ストライク率・スペア率の取得
-                    all_st_rate = p_awards.get("②1投目ストライク率", "0.0")
-                    all_sp_rate = p_awards.get("③2投目スペア率", "0.0")
-                    
-                    # 通算AVEの計算
+                    # 通算AVEの計算 (player_gamesは既にボウリング場でフィルタリング済み)
                     all_games_scores = [g["score"] for g in player_games]
                     all_ave = round(sum(all_games_scores) / len(all_games_scores), 1) if all_games_scores else 0.0
 
-                    # 直近50ゲームのストライク率・スペア率の計算
+                    # ストライク率・スペア率の計算（ALLデータ・直近50Gデータを動的に一括集計）
+                    all_st_chances = 0
+                    all_st_success = 0
+                    all_sp_chances = 0
+                    all_sp_success = 0
+                    
                     recent_50_st_chances = 0
                     recent_50_st_success = 0
                     recent_50_sp_chances = 0
                     recent_50_sp_success = 0
 
-                    for g in player_games[:50]:
+                    for idx, g in enumerate(player_games):
                         r = g["row"]
+                        g_st_chances = 0
+                        g_st_success = 0
+                        g_sp_chances = 0
+                        g_sp_success = 0
+                        
                         # 1〜9フレーム
                         for f in range(9):
                             res1 = str(r[10 + f*4]).strip().upper()
                             res2 = str(r[12 + f*4]).strip().upper()
                             
-                            recent_50_st_chances += 1
+                            g_st_chances += 1
                             if "X" in res1:
-                                recent_50_st_success += 1
+                                g_st_success += 1
                             else:
-                                recent_50_sp_chances += 1
+                                g_sp_chances += 1
                                 if "/" in res2:
-                                    recent_50_sp_success += 1
+                                    g_sp_success += 1
                                     
                         # 10フレーム
                         res10_1 = str(r[46]).strip().upper() if len(r) > 46 else ""
                         res10_2 = str(r[48]).strip().upper() if len(r) > 48 else ""
                         res10_3 = str(r[50]).strip().upper() if len(r) > 50 else ""
                         
-                        recent_50_st_chances += 1
+                        g_st_chances += 1
                         if "X" in res10_1:
-                            recent_50_st_success += 1
-                            recent_50_st_chances += 1
+                            g_st_success += 1
+                            g_st_chances += 1
                             if "X" in res10_2:
-                                recent_50_st_success += 1
-                                recent_50_st_chances += 1
+                                g_st_success += 1
+                                g_st_chances += 1
                                 if "X" in res10_3:
-                                    recent_50_st_success += 1
+                                    g_st_success += 1
                             else:
-                                recent_50_sp_chances += 1
+                                g_sp_chances += 1
                                 if "/" in res10_3:
-                                    recent_50_sp_success += 1
+                                    g_sp_success += 1
                         else:
-                            recent_50_sp_chances += 1
+                            g_sp_chances += 1
                             if "/" in res10_2:
-                                recent_50_sp_success += 1
-                                recent_50_st_chances += 1
+                                g_sp_success += 1
+                                g_st_chances += 1
                                 if "X" in res10_3:
-                                    recent_50_st_success += 1
-                            
+                                    g_st_success += 1
+                                    
+                        # 全データの累計に加算
+                        all_st_chances += g_st_chances
+                        all_st_success += g_st_success
+                        all_sp_chances += g_sp_chances
+                        all_sp_success += g_sp_success
+                        
+                        # 直近50ゲームの累計にも加算（idxが50未満の場合）
+                        if idx < 50:
+                            recent_50_st_chances += g_st_chances
+                            recent_50_st_success += g_st_success
+                            recent_50_sp_chances += g_sp_chances
+                            recent_50_sp_success += g_sp_success
+
+                    all_st_rate = round((all_st_success / all_st_chances) * 100, 1) if all_st_chances > 0 else 0.0
+                    all_sp_rate = round((all_sp_success / all_sp_chances) * 100, 1) if all_sp_chances > 0 else 0.0
+                    
                     st_rate = round((recent_50_st_success / recent_50_st_chances) * 100, 1) if recent_50_st_chances > 0 else 0.0
                     sp_rate = round((recent_50_sp_success / recent_50_sp_chances) * 100, 1) if recent_50_sp_chances > 0 else 0.0
 
