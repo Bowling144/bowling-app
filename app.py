@@ -2441,7 +2441,7 @@ if app_mode == "オイル情報入力":
                 st.session_state[f"oil_in_len_{i}"], st.session_state[f"oil_in_vol_{i}"] = src_len, src_vol
 
     # ★ タブ分け構成の導入 ★
-    tab_ai, tab_manual = st.tabs(["🎯 AI自動スキャン", "✍️ 手入力登録"])
+    tab_ai, tab_manual = st.tabs(["🖥️ AI自動スキャン", "✍️ 手入力登録"])
 
     # ---------------------------------------------------------
     # TAB 1: AI自動スキャン
