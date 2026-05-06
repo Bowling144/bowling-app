@@ -1845,6 +1845,19 @@ if not st.session_state.logged_in:
                         login_success = True
                         break
                 if login_success:
+                    if st.session_state.user_role != "開発者":
+                        try:
+                            import datetime
+                            now_jst = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=+9)))
+                            dt_str = now_jst.strftime("%Y/%m/%d %H:%M:%S")
+                            ws_history = sh.worksheet("ログイン履歴")
+                            ws_history.insert_row([dt_str, st.session_state.user_name], index=2)
+                            
+                            row_count = len(ws_history.col_values(1))
+                            if row_count > 1001:
+                                ws_history.delete_rows(1002, row_count)
+                        except Exception:
+                            pass
                     st.rerun()
                 else:
                     st.error("IDまたはパスワードが間違っています。")
