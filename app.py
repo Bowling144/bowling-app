@@ -1532,12 +1532,27 @@ def get_announcement_data(_sh):
         return _sh.worksheet("お知らせ").acell("A1").value or "現在、はありません。"
     except: return "現在、はありません。"
 
+# 変更後
 def update_announcement_data(sh, text):
     try:
         # シート名を "お知らせ" に修正
         sh.worksheet("お知らせ").update(range_name="A1", values=[[text]])
         # 更新直後にこの関数のキャッシュのみをピンポイントで破棄
         get_announcement_data.clear()
+        return True
+    except: return False
+
+@st.cache_data(ttl=600)
+def get_manual_data(_sh):
+    try:
+        # お知らせシートのB1セルを操作方法として使用
+        return _sh.worksheet("お知らせ").acell("B1").value or "・解析開始前に共用ドライブ（towada.eaglebowl@gmail.com）にスコアシートをスキャンして保存。PDFは解析できないためJPEGで保存すること。\n・「解析を開始する」ボタンで自動で解析を実行。"
+    except: return "・解析開始前に共用ドライブ（towada.eaglebowl@gmail.com）にスコアシートをスキャンして保存。PDFは解析できないためJPEGで保存すること。\n・「解析を開始する」ボタンで自動で解析を実行。"
+
+def update_manual_data(sh, text):
+    try:
+        sh.worksheet("お知らせ").update(range_name="B1", values=[[text]])
+        get_manual_data.clear()
         return True
     except: return False
 
@@ -1897,13 +1912,27 @@ if st.session_state.logged_in and not st.session_state.get("kiosk_mode"):
                 st.session_state.clear()
                 st.rerun()
 
+        # 変更後
         with st.expander("🛠 管理ツール"):
             st.markdown("**お知らせ情報編集**")
             sh_admin = get_gspread_client()
             ann_current = get_announcement_data(sh_admin) if sh_admin else ""
-            new_ann = st.text_area("編集", value=ann_current, height=100)
+            # widgetの重複エラーを防ぐため key="ann_edit" を追加
+            new_ann = st.text_area("編集", value=ann_current, height=100, key="ann_edit")
             if st.button("お知らせを保存"):
                 if sh_admin and update_announcement_data(sh_admin, new_ann): 
+                    st.cache_data.clear()
+                    st.session_state.current_app_mode = st.session_state.get("main_app_mode_select", "スコア登録")
+                    st.success("保存完了")
+                    time.sleep(1)
+                    st.rerun()
+
+            st.markdown("---")
+            st.markdown("**操作方法（マニュアル）編集**")
+            manual_current = get_manual_data(sh_admin) if sh_admin else ""
+            new_manual = st.text_area("操作方法を編集", value=manual_current, height=100, key="manual_edit")
+            if st.button("操作方法を保存"):
+                if sh_admin and update_manual_data(sh_admin, new_manual):
                     st.cache_data.clear()
                     st.session_state.current_app_mode = st.session_state.get("main_app_mode_select", "スコア登録")
                     st.success("保存完了")
@@ -5732,10 +5761,18 @@ if "downloaded_images" not in st.session_state:
     st.session_state.downloaded_images = []    
 if "waiting_for_scan" not in st.session_state:
     st.session_state.waiting_for_scan = False
+# 変更後
 if "last_file_id_at_click" not in st.session_state:
     st.session_state.last_file_id_at_click = None
 
 st.markdown("<h3 style='text-align: center;'>☟　☟　☟</h3>", unsafe_allow_html=True)
+
+# ▼ 新規追加：操作方法の表示（折りたたみタブ） ▼
+with st.expander("📖 操作方法"):
+    sh = get_gspread_client()
+    manual_text = get_manual_data(sh) if sh else "設定されていません。"
+    # 改行を正しく反映させるために white-space: pre-wrap を適用したdivで囲む
+    st.markdown(f"<div style='white-space: pre-wrap; font-size: 14px; color: silver;'>{manual_text}</div>", unsafe_allow_html=True)
 
 # --- モード別のボタン表示制御 ---
 if st.session_state.get("kiosk_mode") and st.session_state.get("waiting_for_scan"):
