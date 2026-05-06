@@ -684,13 +684,6 @@ def analyze_copa_bowl(img, ai_meta_data):
     # 変更後
     h_lines_info.sort(key=lambda item: item['y'])
 
-    # ▼ 追加（永山）：一番上のゲーム（Game 1）の黄緑枠が上にズレるのを防ぐ補正 ▼
-    # スコアシート上部のヘッダー等の不要な横線を無視し、上から3番目の横線を基準にする
-    if len(h_lines_info) >= 3:
-        base_y_threshold = h_lines_info[2]['y'] - 10
-        h_lines_info = [line for line in h_lines_info if line['y'] >= base_y_threshold]
-    # ▲ 追加（永山）ここまで ▲
-
     blocks = []
     if h_lines_info:
         current_block = [h_lines_info[0]]
