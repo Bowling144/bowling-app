@@ -3068,7 +3068,7 @@ if app_mode == "プレイヤー分析":
                         player_alleys.add(alley)
                 
                 alley_filter_options = ["すべて"] + sorted(list(player_alleys))
-                selected_alley_filter = st.selectbox("🎯 分析対象のボウリング場", alley_filter_options, index=0)
+                selected_alley_filter = st.selectbox("🎳 分析対象のボウリング場", alley_filter_options, index=0)
 
                 # 1. マスターシートから選択されたプレイヤーの「直近50ゲーム」と「7-10G」を抽出
                 player_games = []
