@@ -984,8 +984,9 @@ def analyze_copa_bowl(img, ai_meta_data):
         
         offset = st.session_state.get("pin_thresh_offset", 0.0)
         
-        # 相模原は白抜き丸と黒丸の2値判定となるため、谷間の閾値を直接使用する
-        dyn_thresh = dyn_thresh_base + offset
+        # ▼ 変更（永山）：印字の薄さ・小ささに合わせた閾値のマイナス補正 ▼
+        # ※以前の調整に合わせて「-5.0」としています。もし「-3.0だった」など記憶があればここの数字を微調整してください。
+        dyn_thresh = dyn_thresh_base - 5.0 + offset
 
         # ----------------------------------------------------
         # ▼ 追加：判定グラフ（ヒストグラム）の生成と描画
