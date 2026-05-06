@@ -903,14 +903,19 @@ def analyze_copa_bowl(img, ai_meta_data):
         all_frame_pins = []
         
         # 変更後
+        # ----------------------------------------------------
+        # 【新規追加】イーグルボウルと同等のピン判定ロジック
+        # ----------------------------------------------------
+        all_frame_pins = []
+        
+        # ▼ 変更（永山）：7番ピンをさらに左へ0.2mm、下へ0.2mm移動 ▼
         # 実測値に基づくピン配置設定（1mmあたりのピクセル数 mm_to_px を適用）
-        pin7_x_offset_mm = 23.4  
+        pin7_x_offset_mm = 23.2  # 元の 23.4 から -0.2 (左へ)
         pin1_x_offset_mm = 27.4  
         pin_pitch_x_mm = (pin1_x_offset_mm - pin7_x_offset_mm) / 1.5  
         
-        # ▼ 変更（永山）：1番ピンを下に0.5mm、7番ピンを上に0.5mm移動 ▼
-        pin7_y_offset_mm = 3.1   # 元の 3.6 から -0.5 (上へ)
-        pin1_y_offset_mm = 11.4  # 元の 10.9 から +0.5 (下へ)
+        pin7_y_offset_mm = 3.3   # 前回の 3.1 から +0.2 (下へ)
+        pin1_y_offset_mm = 11.4  
         pin_pitch_y_mm = (pin1_y_offset_mm - pin7_y_offset_mm) / 3.0
         
         axes_x_px = int((2.8 / 2) * mm_to_px)      # 判定枠の楕円X軸半径（幅2.8mmの半分に変更）
