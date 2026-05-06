@@ -1149,7 +1149,6 @@ def analyze_copa_bowl(img, ai_meta_data):
                 throw_colors[19] = color_ai
                 final_throws[20] = ""
 
-        # 変更後
         # ----------------------------------------------------
         # データエクスポート用の row_data を構築
         # ----------------------------------------------------
@@ -1166,29 +1165,9 @@ def analyze_copa_bowl(img, ai_meta_data):
             row_data[target_indices_local[10]] = ""
             row_data[target_indices_local[11]] = ",".join(map(str, p10))
             
-        # ▼ 追加：ノーミス＆10フレ1,2投目ストライクの場合、強制的に「要修正フラグ(10フレ3投目隠れ)」を立てる（永山コパボウル専用） ▼
-        needs_nomiss_correction = False
-        t10_1 = str(row_data[43]).replace("R:", "").strip().upper()
-        t10_2 = str(row_data[45]).replace("R:", "").strip().upper()
-        
-        if t10_1 == 'X' and t10_2 == 'X':
-            is_nomiss = True
-            for f in range(9):
-                t1 = str(row_data[7 + f*4]).strip().upper()
-                t2 = str(row_data[9 + f*4]).strip().upper()
-                if 'X' not in t1 and '/' not in t2:
-                    is_nomiss = False
-                    break
-            if is_nomiss:
-                needs_nomiss_correction = True
-
-        # flagを51列目（本来は7-10Gのチェック用列だが、UIに渡すため一時的に別の空き列＝51列目に格納）に保持
-        # ※データ出力枠は52列（0〜51）あるため、末尾[51]を使用
-        row_data[51] = "NEEDS_NOMISS_CORRECTION" if needs_nomiss_correction else ""
-        # ▲ 追加ここまで ▲
-
         all_games_export_data.append(row_data)
 
+        # 変更後
         # ----------------------------------------------------
         # ▼ 画像への描画処理 ▼
         # ----------------------------------------------------
@@ -1553,27 +1532,12 @@ def get_announcement_data(_sh):
         return _sh.worksheet("お知らせ").acell("A1").value or "現在、はありません。"
     except: return "現在、はありません。"
 
-# 変更後
 def update_announcement_data(sh, text):
     try:
         # シート名を "お知らせ" に修正
         sh.worksheet("お知らせ").update(range_name="A1", values=[[text]])
         # 更新直後にこの関数のキャッシュのみをピンポイントで破棄
         get_announcement_data.clear()
-        return True
-    except: return False
-
-@st.cache_data(ttl=600)
-def get_manual_data(_sh):
-    try:
-        # お知らせシートのB1セルを操作方法として使用
-        return _sh.worksheet("お知らせ").acell("B1").value or "・解析開始前に共用ドライブ（towada.eaglebowl@gmail.com）にスコアシートをスキャンして保存。PDFは解析できないためJPEGで保存すること。\n・「解析を開始する」ボタンで自動で解析を実行。"
-    except: return "・解析開始前に共用ドライブ（towada.eaglebowl@gmail.com）にスコアシートをスキャンして保存。PDFは解析できないためJPEGで保存すること。\n・「解析を開始する」ボタンで自動で解析を実行。"
-
-def update_manual_data(sh, text):
-    try:
-        sh.worksheet("お知らせ").update(range_name="B1", values=[[text]])
-        get_manual_data.clear()
         return True
     except: return False
 
@@ -1933,27 +1897,13 @@ if st.session_state.logged_in and not st.session_state.get("kiosk_mode"):
                 st.session_state.clear()
                 st.rerun()
 
-        # 変更後
         with st.expander("🛠 管理ツール"):
             st.markdown("**お知らせ情報編集**")
             sh_admin = get_gspread_client()
             ann_current = get_announcement_data(sh_admin) if sh_admin else ""
-            # widgetの重複エラーを防ぐため key="ann_edit" を追加
-            new_ann = st.text_area("編集", value=ann_current, height=100, key="ann_edit")
+            new_ann = st.text_area("編集", value=ann_current, height=100)
             if st.button("お知らせを保存"):
                 if sh_admin and update_announcement_data(sh_admin, new_ann): 
-                    st.cache_data.clear()
-                    st.session_state.current_app_mode = st.session_state.get("main_app_mode_select", "スコア登録")
-                    st.success("保存完了")
-                    time.sleep(1)
-                    st.rerun()
-
-            st.markdown("---")
-            st.markdown("**操作方法（マニュアル）編集**")
-            manual_current = get_manual_data(sh_admin) if sh_admin else ""
-            new_manual = st.text_area("操作方法を編集", value=manual_current, height=100, key="manual_edit")
-            if st.button("操作方法を保存"):
-                if sh_admin and update_manual_data(sh_admin, new_manual):
                     st.cache_data.clear()
                     st.session_state.current_app_mode = st.session_state.get("main_app_mode_select", "スコア登録")
                     st.success("保存完了")
@@ -3089,7 +3039,7 @@ if app_mode == "プレイヤー分析":
                         player_alleys.add(alley)
                 
                 alley_filter_options = ["すべて"] + sorted(list(player_alleys))
-                selected_alley_filter = st.selectbox("🎳 分析対象のボウリング場", alley_filter_options, index=0)
+                selected_alley_filter = st.selectbox("🎯 分析対象のボウリング場", alley_filter_options, index=0)
 
                 # 1. マスターシートから選択されたプレイヤーの「直近50ゲーム」と「7-10G」を抽出
                 player_games = []
@@ -3161,88 +3111,65 @@ if app_mode == "プレイヤー分析":
                 # （各項目の見た目やロジックは一切変更していません）
                 # =========================================================
 
-                # 変更後
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 # 【01】 HOME：レーティングバッジ・ステータス
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_01_rating_card():
+                    # 通算ストライク率・スペア率の取得
+                    all_st_rate = p_awards.get("②1投目ストライク率", "0.0")
+                    all_sp_rate = p_awards.get("③2投目スペア率", "0.0")
+                    
                     # 通算AVEの計算
                     all_games_scores = [g["score"] for g in player_games]
                     all_ave = round(sum(all_games_scores) / len(all_games_scores), 1) if all_games_scores else 0.0
 
-                    # ストライク率・スペア率の計算（ALLデータ・直近50Gデータを動的に集計）
-                    all_st_chances = 0
-                    all_st_success = 0
-                    all_sp_chances = 0
-                    all_sp_success = 0
-                    
+                    # 直近50ゲームのストライク率・スペア率の計算
                     recent_50_st_chances = 0
                     recent_50_st_success = 0
                     recent_50_sp_chances = 0
                     recent_50_sp_success = 0
 
-                    for idx, g in enumerate(player_games):
+                    for g in player_games[:50]:
                         r = g["row"]
-                        g_st_chances = 0
-                        g_st_success = 0
-                        g_sp_chances = 0
-                        g_sp_success = 0
-                        
                         # 1〜9フレーム
                         for f in range(9):
                             res1 = str(r[10 + f*4]).strip().upper()
                             res2 = str(r[12 + f*4]).strip().upper()
                             
-                            g_st_chances += 1
+                            recent_50_st_chances += 1
                             if "X" in res1:
-                                g_st_success += 1
+                                recent_50_st_success += 1
                             else:
-                                g_sp_chances += 1
+                                recent_50_sp_chances += 1
                                 if "/" in res2:
-                                    g_sp_success += 1
+                                    recent_50_sp_success += 1
                                     
                         # 10フレーム
                         res10_1 = str(r[46]).strip().upper() if len(r) > 46 else ""
                         res10_2 = str(r[48]).strip().upper() if len(r) > 48 else ""
                         res10_3 = str(r[50]).strip().upper() if len(r) > 50 else ""
                         
-                        g_st_chances += 1
+                        recent_50_st_chances += 1
                         if "X" in res10_1:
-                            g_st_success += 1
-                            g_st_chances += 1
+                            recent_50_st_success += 1
+                            recent_50_st_chances += 1
                             if "X" in res10_2:
-                                g_st_success += 1
-                                g_st_chances += 1
+                                recent_50_st_success += 1
+                                recent_50_st_chances += 1
                                 if "X" in res10_3:
-                                    g_st_success += 1
+                                    recent_50_st_success += 1
                             else:
-                                g_sp_chances += 1
+                                recent_50_sp_chances += 1
                                 if "/" in res10_3:
-                                    g_sp_success += 1
+                                    recent_50_sp_success += 1
                         else:
-                            g_sp_chances += 1
+                            recent_50_sp_chances += 1
                             if "/" in res10_2:
-                                g_sp_success += 1
-                                g_st_chances += 1
+                                recent_50_sp_success += 1
+                                recent_50_st_chances += 1
                                 if "X" in res10_3:
-                                    g_st_success += 1
-                                    
-                        # 全データの累計に加算
-                        all_st_chances += g_st_chances
-                        all_st_success += g_st_success
-                        all_sp_chances += g_sp_chances
-                        all_sp_success += g_sp_success
-                        
-                        # 直近50ゲームの累計にも加算（idxが50未満の場合）
-                        if idx < 50:
-                            recent_50_st_chances += g_st_chances
-                            recent_50_st_success += g_st_success
-                            recent_50_sp_chances += g_sp_chances
-                            recent_50_sp_success += g_sp_success
-
-                    all_st_rate = round((all_st_success / all_st_chances) * 100, 1) if all_st_chances > 0 else 0.0
-                    all_sp_rate = round((all_sp_success / all_sp_chances) * 100, 1) if all_sp_chances > 0 else 0.0
-                    
+                                    recent_50_st_success += 1
+                            
                     st_rate = round((recent_50_st_success / recent_50_st_chances) * 100, 1) if recent_50_st_chances > 0 else 0.0
                     sp_rate = round((recent_50_sp_success / recent_50_sp_chances) * 100, 1) if recent_50_sp_chances > 0 else 0.0
 
@@ -5805,18 +5732,10 @@ if "downloaded_images" not in st.session_state:
     st.session_state.downloaded_images = []    
 if "waiting_for_scan" not in st.session_state:
     st.session_state.waiting_for_scan = False
-# 変更後
 if "last_file_id_at_click" not in st.session_state:
     st.session_state.last_file_id_at_click = None
 
 st.markdown("<h3 style='text-align: center;'>☟　☟　☟</h3>", unsafe_allow_html=True)
-
-# ▼ 新規追加：操作方法の表示（折りたたみタブ） ▼
-with st.expander("📖 操作方法"):
-    sh = get_gspread_client()
-    manual_text = get_manual_data(sh) if sh else "設定されていません。"
-    # 改行を正しく反映させるために white-space: pre-wrap を適用したdivで囲む
-    st.markdown(f"<div style='white-space: pre-wrap; font-size: 14px; color: silver;'>{manual_text}</div>", unsafe_allow_html=True)
 
 # --- モード別のボタン表示制御 ---
 if st.session_state.get("kiosk_mode") and st.session_state.get("waiting_for_scan"):
@@ -7339,7 +7258,6 @@ if st.session_state.analyzed_results:
                 # 濃い黄色（オレンジ）背景と警告マークを採用
                 match_status = ":orange-background[⚠️計算不一致]"
             
-            # 変更後
             check_key = f"check_{img_idx}_{local_idx}"
             if check_key not in st.session_state:
                 st.session_state[check_key] = True
@@ -7356,14 +7274,6 @@ if st.session_state.analyzed_results:
                     on_change=uncheck_all_if_needed,
                     args=(check_key,)
                 )
-
-            # ▼ 追加：フラグを検知して警告を表示 ▼
-            if len(row) > 51 and row[51] == "NEEDS_NOMISS_CORRECTION":
-                st.toast(f"【{game_name}】 10フレーム目3投目の残ピン表示が「NO MISS」に被っているため、手動修正してください", icon="⚠️")
-                st.warning(f"⚠️ {game_name} の10フレーム目3投目の残ピン表示が、「NO MISS」表示で消えているため、手動修正を行ってください")
-                # 表示後はフラグを消去（SPS保存時に邪魔にならないようにする）
-                row[51] = ""
-            # ▲ 追加ここまで ▲
 
             game_checkboxes.append({
                 "is_checked": is_checked,
@@ -8470,6 +8380,5 @@ if st.session_state.analyzed_results:
 
             except Exception as e:
                 st.error(f"SPSへの登録中にエラーが発生しました: {e}")
-
 
 
