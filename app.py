@@ -3704,137 +3704,7 @@ if app_mode == "プレイヤー分析":
                     st.plotly_chart(fig_ave, use_container_width=True, config={'displayModeBar': False, 'staticPlot': True})
 
 
-                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-                # 【06】 AWARDS：TOTAL & MONTHLY AWARDS
-                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-                def render_06_total_monthly():
-                    # --- 🎯 新機能：ダーツライブ風 トータル＆月別アワード集計 ---
-                    player_full_games = []
-                    for r in master_data[1:]:
-                        if len(r) >= 53 and r[1] == selected_player:
-                            is_710 = (len(r) > 54 and str(r[54]).strip().upper() == "TRUE")
-                            if not is_710:
-                                try:
-                                    date_str = str(r[2]).strip()
-                                    parts = date_str.split('/')
-                                    if len(parts) == 3:
-                                        yy = int(parts[0])
-                                        yyyy = 2000 + yy if yy < 100 else yy
-                                        mm = int(parts[1])
-                                        dd = int(parts[2])
-                                        month_key = f"{yyyy:04d}/{mm:02d}"
-                                    else:
-                                        continue
-                                        
-                                    score = int(r[52])
-                                    st_count = 0
-                                    sp_count = 0
-                                    
-                                    # 1〜9フレームのストライク・スペア判定
-                                    for f in range(9):
-                                        t1 = str(r[10+f*4]).upper()
-                                        t2 = str(r[12+f*4]).upper()
-                                        if 'X' in t1: st_count += 1
-                                        elif '/' in t2: sp_count += 1
-                                    
-                                    # 10フレーム目の判定
-                                    t10_1 = str(r[46]).upper() if len(r)>46 else ""
-                                    t10_2 = str(r[48]).upper() if len(r)>48 else ""
-                                    t10_3 = str(r[50]).upper() if len(r)>50 else ""
-                                    if 'X' in t10_1: st_count += 1
-                                    if 'X' in t10_2: st_count += 1
-                                    elif '/' in t10_2: sp_count += 1
-                                    if 'X' in t10_3: st_count += 1
-                                    elif '/' in t10_3: sp_count += 1
-
-                                    player_full_games.append({
-                                        "month_key": month_key,
-                                        "score": score,
-                                        "strikes": st_count,
-                                        "spares": sp_count,
-                                        "sort_key": f"{yyyy:04d}/{mm:02d}/{dd:02d}_{str(r[3]).strip()}_{str(r[6]).strip().zfill(3)}"
-                                    })
-                                except ValueError:
-                                    pass
-                                    
-                    # 古い順にソート（過去50ゲームのレーティング計算のため）
-                    player_full_games.sort(key=lambda x: x["sort_key"])
-                    
-                    total_g = 0
-                    total_st = 0
-                    total_sp = 0
-                    monthly_stats = {}
-                    history_scores = []
-                    
-                    for g in player_full_games:
-                        mk = g["month_key"]
-                        if mk not in monthly_stats:
-                            monthly_stats[mk] = {"g": 0, "st": 0, "sp": 0, "rt": 0.0}
-                        
-                        monthly_stats[mk]["g"] += 1
-                        monthly_stats[mk]["st"] += g["strikes"]
-                        monthly_stats[mk]["sp"] += g["spares"]
-                        
-                        total_g += 1
-                        total_st += g["strikes"]
-                        total_sp += g["spares"]
-                        
-                        history_scores.append(g["score"])
-                        # その時点の直近50ゲームを取得
-                        recent_50 = history_scores[-50:]
-                        rt_val, _, _ = calc_rating_flight(recent_50)
-                        # 月が変わるまで上書きされ続けるため、最終的に「その月の最終ゲーム終了時点のレーティング」になる
-                        monthly_stats[mk]["rt"] = rt_val
-                        
-                    # ダーツライブ風 UI描画
-                    st.markdown("### 🎳 TOTAL AWARDS")
-                    
-                    total_html = f"""
-                    <div style="background-color: #1a1a1c; border-top: 2px solid #333; border-bottom: 2px solid #333; padding: 15px; margin-bottom: 30px;">
-                        <div style="color: #bf953f; font-size: 14px; font-weight: bold; margin-bottom: 10px;">TOTAL</div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 8px;">
-                            <span style="color: white; font-size: 16px;">PLAY COUNT</span>
-                            <span style="color: white; font-size: 20px; font-weight: bold;">{total_g}</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 8px;">
-                            <span style="color: white; font-size: 16px;">STRIKE</span>
-                            <span style="color: white; font-size: 20px; font-weight: bold;">{total_st}</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span style="color: white; font-size: 16px;">SPARE</span>
-                            <span style="color: white; font-size: 20px; font-weight: bold;">{total_sp}</span>
-                        </div>
-                    </div>
-                    """
-                    st.markdown(total_html, unsafe_allow_html=True)
-                    
-                    st.markdown("### 📅 MONTHLY AWARDS")
-                    sorted_months = sorted(monthly_stats.keys(), reverse=True)
-                    for mk in sorted_months:
-                        m_data = monthly_stats[mk]
-                        month_html = f"""
-                        <div style="background-color: #2a2a2e; border-radius: 8px; padding: 15px; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                                <span style="color: white; font-size: 18px; font-weight: bold;">{mk}</span>
-                                <span style="color: #bf953f; font-size: 14px; font-weight: bold;">RATING <span style="color: white; font-size: 22px; margin-left: 5px;">{m_data['rt']:.2f}</span></span>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; padding-bottom: 5px; margin-bottom: 5px;">
-                                <span style="color: #ccc; font-size: 14px;">PLAY COUNT</span>
-                                <span style="color: white; font-size: 16px; font-weight: bold;">{m_data['g']}</span>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; padding-bottom: 5px; margin-bottom: 5px;">
-                                <span style="color: #ccc; font-size: 14px;">STRIKE</span>
-                                <span style="color: white; font-size: 16px; font-weight: bold;">{m_data['st']}</span>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <span style="color: #ccc; font-size: 14px;">SPARE</span>
-                                <span style="color: white; font-size: 16px; font-weight: bold;">{m_data['sp']}</span>
-                            </div>
-                        </div>
-                        """
-                        st.markdown(month_html, unsafe_allow_html=True)
-                        
-                    st.markdown("<br>", unsafe_allow_html=True)
+                【06】 AWARDS：TOTAL & MONTHLY AWARDS
 
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 # 【07】 AWARDS：ハイスコア & レコード (ROLLERS RECORD)
@@ -3994,34 +3864,77 @@ if app_mode == "プレイヤー分析":
 
 
                 
+                # 変更後
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 # 【08】 AWARDS：スプリット・メイク
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_08_split_make():
                     st.markdown("### <span style='color: silver;'>🎳 SPLIT MAKE DATA</span>", unsafe_allow_html=True)
                     
-                    split_records = []
+                    named_splits = {
+                        "7-10": "スネークアイ",
+                        "2-7": "ベビースプリット",
+                        "3-10": "ベビースプリット",
+                        "4-6": "フォーシックス",
+                        "4-9": "ビッグディボット",
+                        "6-8": "ビッグディボット",
+                        "5-7": "ダイムストア",
+                        "5-10": "ダイムストア",
+                        "7-9": "ムース",
+                        "8-10": "ムース",
+                        "5-7-10": "リリー",
+                        "2-7-10": "クリスマスツリー",
+                        "3-7-10": "クリスマスツリー",
+                        "4-7-10": "マイティマイト",
+                        "6-7-10": "マイティマイト",
+                        "4-6-7-10": "ビッグフォー",
+                        "4-6-7-8-10": "グリークチャーチ",
+                        "4-6-7-9-10": "ワシントン条約"
+                    }
                     
-                    for row in award_data:
-                        if len(row) >= 7 and row[1] == selected_player and "⑥" in row[3]:
-                            name_part = row[3].replace("⑥", "")
-                            # name_part は "スネークアイ (7-10)" のような形式なので、名前とピン配置に分割
-                            if " (" in name_part and ")" in name_part:
-                                s_name = name_part.split(" (")[0]
-                                s_pins = name_part.split(" (")[1].replace(")", "")
-                            else:
-                                s_name = name_part
-                                s_pins = ""
+                    split_counts = {k: {"c": 0, "s": 0, "name": v} for k, v in named_splits.items()}
+                    
+                    import re
+                    def get_left_pins(pin_str):
+                        if not pin_str: return []
+                        return [str(p) for p in re.findall(r'\d+', str(pin_str)) if 1 <= int(p) <= 10]
+                        
+                    for g in player_games:
+                        r = g['row']
+                        for f in range(9):
+                            pin1 = str(r[11 + f*4]).strip()
+                            res2 = str(r[12 + f*4]).strip().upper()
+                            p_list = get_left_pins(pin1)
+                            if len(p_list) >= 2:
+                                p_str = "-".join(sorted(p_list, key=int))
+                                if p_str in split_counts:
+                                    split_counts[p_str]["c"] += 1
+                                    if "/" in res2: split_counts[p_str]["s"] += 1
+                                    
+                        # 10フレーム
+                        pin10_1 = str(r[47]).strip() if len(r) > 47 else ""
+                        res10_2 = str(r[48]).strip().upper() if len(r) > 48 else ""
+                        p_list1 = get_left_pins(pin10_1)
+                        if len(p_list1) >= 2:
+                            p_str = "-".join(sorted(p_list1, key=int))
+                            if p_str in split_counts:
+                                split_counts[p_str]["c"] += 1
+                                if "/" in res10_2: split_counts[p_str]["s"] += 1
                                 
-                            try:
-                                chances = int(row[4])
-                                success = int(row[5])
-                                rate = float(row[6])
-                            except ValueError:
-                                continue
-                            
-                            if s_name != "Others":
-                                split_records.append({"name": s_name, "pins": s_pins, "chances": chances, "success": success, "rate": rate})
+                        pin10_2 = str(r[49]).strip() if len(r) > 49 else ""
+                        res10_3 = str(r[50]).strip().upper() if len(r) > 50 else ""
+                        p_list2 = get_left_pins(pin10_2)
+                        if len(p_list2) >= 2:
+                            p_str = "-".join(sorted(p_list2, key=int))
+                            if p_str in split_counts:
+                                split_counts[p_str]["c"] += 1
+                                if "/" in res10_3: split_counts[p_str]["s"] += 1
+
+                    split_records = []
+                    for pins, data in split_counts.items():
+                        if data["c"] > 0:
+                            rate = (data["s"] / data["c"]) * 100
+                            split_records.append({"name": data["name"], "pins": pins, "chances": data["c"], "success": data["s"], "rate": rate})
                     
                     if not split_records:
                         st.info("スプリットの記録がありません。")
@@ -4114,13 +4027,26 @@ if app_mode == "プレイヤー分析":
                     st.markdown(html, unsafe_allow_html=True)
                 
 
+                # 変更後
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 # 【09】 ENVIRONMENT：投球方式 適性
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_09_play_style():
                     st.markdown("### <span style='color: silver;'>🎳 投球方式 適性</span>", unsafe_allow_html=True)
-                    euro_ave = float(p_awards.get("⑨1レーン", "0"))
-                    am_ave = float(p_awards.get("⑨2レーン", "0"))
+                    euro_s, euro_g = 0, 0
+                    am_s, am_g = 0, 0
+                    for g in player_games:
+                        lane = str(g['row'][5]).strip()
+                        if "-" in lane:
+                            am_s += g['score']
+                            am_g += 1
+                        elif lane:
+                            euro_s += g['score']
+                            euro_g += 1
+                    
+                    euro_ave = round(euro_s / euro_g, 1) if euro_g > 0 else 0.0
+                    am_ave = round(am_s / am_g, 1) if am_g > 0 else 0.0
+
                     fig_style = px.bar(
                         x=["ヨーロピアン (1レーン)", "アメリカン (2レーン)"], 
                         y=[euro_ave, am_ave],
@@ -4133,20 +4059,33 @@ if app_mode == "プレイヤー分析":
                     st.plotly_chart(fig_style, use_container_width=True)
 
 
+                # 変更後
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 # 【10】 ENVIRONMENT：オイル長 適性
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_10_oil_length():
                     st.markdown("### <span style='color: silver;'>📏 オイル長 (Length) 適性</span>", unsafe_allow_html=True)
-                    len_keys, len_aves = [], []
-                    for row in award_data:
-                        if len(row) >= 7 and row[1] == selected_player and "⑪" in row[3]:
+                    stats = {k: {"g": 0, "s": 0} for k in ["L < 32ft", "32 ≦ L < 34ft", "34 ≦ L < 36ft", "36 ≦ L < 38ft", "38 ≦ L < 40ft", "40 ≦ L < 42ft", "42 ≦ L < 44ft", "44 ≦ L < 46ft", "46ft ≦ L"]}
+                    for g in player_games:
+                        oil_len = str(g['row'][7]).strip()
+                        if oil_len:
                             try:
-                                if float(row[4]) > 0: # プレイ回数が1回以上のものだけ抽出
-                                    len_keys.append(row[3].replace("⑪", ""))
-                                    len_aves.append(float(row[6]))
+                                olen = float(oil_len)
+                                if olen < 32: k = "L < 32ft"
+                                elif olen >= 46: k = "46ft ≦ L"
+                                else:
+                                    lower = int((olen - 32) // 2) * 2 + 32
+                                    k = f"{lower} ≦ L < {lower+2}ft"
+                                stats[k]["g"] += 1
+                                stats[k]["s"] += g['score']
                             except ValueError:
                                 pass
+                    len_keys, len_aves = [], []
+                    for k, d in stats.items():
+                        if d["g"] > 0:
+                            len_keys.append(k)
+                            len_aves.append(round(d["s"] / d["g"], 1))
+                            
                     if len_keys:
                         fig_len = px.line(x=len_keys, y=len_aves, markers=True, labels={"x": "オイル長 (ft)", "y": "アベレージ"})
                         fig_len.update_traces(line_color='#00CC96')
@@ -4156,20 +4095,33 @@ if app_mode == "プレイヤー分析":
                         st.info("オイル長のプレイデータがありません。")
 
 
+                # 変更後
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 # 【11】 ENVIRONMENT：オイル量 適性
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_11_oil_volume():
                     st.markdown("### <span style='color: silver;'>💧 オイル量 (Volume) 適性</span>", unsafe_allow_html=True)
-                    vol_keys, vol_aves = [], []
-                    for row in award_data:
-                        if len(row) >= 7 and row[1] == selected_player and "⑫" in row[3]:
+                    stats = {k: {"g": 0, "s": 0} for k in ["V < 20ml", "20 ≦ V < 22ml", "22 ≦ V < 24ml", "24 ≦ V < 26ml", "26 ≦ V < 28ml", "28 ≦ V < 30ml", "30 ≦ V < 32ml", "32 ≦ V < 34ml", "34 ≦ V < 36ml", "36ml ≦ V"]}
+                    for g in player_games:
+                        oil_vol = str(g['row'][8]).strip()
+                        if oil_vol:
                             try:
-                                if float(row[4]) > 0: # プレイ回数が1回以上のものだけ抽出
-                                    vol_keys.append(row[3].replace("⑫", ""))
-                                    vol_aves.append(float(row[6]))
+                                ovol = float(oil_vol)
+                                if ovol < 20: k = "V < 20ml"
+                                elif ovol >= 36: k = "36ml ≦ V"
+                                else:
+                                    lower = int((ovol - 20) // 2) * 2 + 20
+                                    k = f"{lower} ≦ V < {lower+2}ml"
+                                stats[k]["g"] += 1
+                                stats[k]["s"] += g['score']
                             except ValueError:
                                 pass
+                    vol_keys, vol_aves = [], []
+                    for k, d in stats.items():
+                        if d["g"] > 0:
+                            vol_keys.append(k)
+                            vol_aves.append(round(d["s"] / d["g"], 1))
+                            
                     if vol_keys:
                         fig_vol = px.line(x=vol_keys, y=vol_aves, markers=True, labels={"x": "オイル量 (ml)", "y": "アベレージ"})
                         fig_vol.update_traces(line_color='#AB63FA')
@@ -4690,6 +4642,7 @@ if app_mode == "プレイヤー分析":
 
                 
 
+                # 変更後
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 # 【14】月別集計（MONTHLY STATS）機能
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
@@ -4730,11 +4683,9 @@ if app_mode == "プレイヤー分析":
                     def is_spare(val):
                         return "/" in str(val).upper()
 
-                    # データ集計ループ
-                    for row in master_data:
-                        if len(row) < 55 or str(row[1]).strip() != selected_player:
-                            continue
-                            
+                    # データ集計ループ (通常ゲーム)
+                    for g in player_games:
+                        row = g['row']
                         date_str = str(row[2]).strip()
                         if len(date_str) < 5: continue
                         month_key = "/".join(date_str.split("/")[:2]) # "YY/MM" の形式
@@ -4755,14 +4706,6 @@ if app_mode == "プレイヤー分析":
                         
                         m_stat = monthly_data[month_key]
                         
-                        # 7-10ゲーム判定
-                        is_710 = str(row[54]).strip().upper() == "TRUE"
-                        if is_710:
-                            m_stat["game_710_c"] += 1
-                            if str(row[52]).strip() == "10":
-                                m_stat["game_710_s"] += 1
-                            continue
-                            
                         # ゲーム数・スコア
                         m_stat["games"] += 1
                         try:
@@ -4913,6 +4856,30 @@ if app_mode == "プレイヤー分析":
                         if current_streak >= 3:
                             rec_streak = min(current_streak, 12)
                             m_stat["streak"][rec_streak] += 1
+                            
+                    # データ集計ループ (7-10ゲーム)
+                    for row in player_710_rows:
+                        date_str = str(row[2]).strip()
+                        if len(date_str) < 5: continue
+                        month_key = "/".join(date_str.split("/")[:2])
+                        
+                        if month_key not in monthly_data:
+                            monthly_data[month_key] = {
+                                "games": 0, "pitches": 0, "pin_falls": 0, "total_score": 0,
+                                "high_score": 0, "score_300": 0, "score_275": 0, "score_250": 0,
+                                "score_225": 0, "score_200": 0, "no_miss_games": 0,
+                                "strikes": 0, "strike_chances": 0, "spares": 0, "spare_chances": 0,
+                                "no_head": 0, "no_head_chances": 0,
+                                "pin7_s": 0, "pin7_c": 0, "pin10_s": 0, "pin10_c": 0,
+                                "split_s": 0, "split_c": 0,
+                                "streak": {i: 0 for i in range(3, 13)},
+                                "games_by_num": {i: {"score": 0, "count": 0} for i in range(1, 14)},
+                                "game_710_c": 0, "game_710_s": 0
+                            }
+                        m_stat = monthly_data[month_key]
+                        m_stat["game_710_c"] += 1
+                        if str(row[52]).strip() == "10":
+                            m_stat["game_710_s"] += 1
 
                     if not monthly_data:
                         st.info("集計可能な月別データがありません。")
