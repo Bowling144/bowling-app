@@ -3104,6 +3104,7 @@ if app_mode == "プレイヤー分析":
                         "03_seven_ten",                        
                         "05_consecutive",
                         "12_lane_data",
+                        "18_frame_analysis",
                         "17_env_scatter",
                     ],
                     "🎳 7-10GAME": [
@@ -5192,10 +5193,119 @@ if app_mode == "プレイヤー分析":
                         # ★ config={'displayModeBar': False} を追加して右上のアイコンを全消去
                         st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
                 
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                # 【18】 ANALYSIS：フレーム分析
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                def render_18_frame_analysis():
+                    st.markdown("### <span style='color: silver;'>🧭 フレーム分析</span>", unsafe_allow_html=True)
+                    if not player_games:
+                        st.info("データがありません。")
+                        return
+
+                    recent_50 = player_games[:50]
+
+                    frame_counts = [0] * 10
+                    first_pitch_pins = [0] * 10
+                    strikes = [0] * 10
+                    opens = [0] * 10
+                    splits = [0] * 10
+
+                    import re
+                    def get_pins(p_str):
+                        return [str(p) for p in re.findall(r'\d+', str(p_str)) if 1 <= int(p) <= 10]
+
+                    for g in recent_50:
+                        r = g['row']
+                        
+                        # 1〜9フレーム
+                        for f in range(9):
+                            frame_counts[f] += 1
+                            res1 = str(r[10+f*4]).strip().upper()
+                            pin1 = str(r[11+f*4]).strip()
+                            res2 = str(r[12+f*4]).strip().upper()
+                            
+                            if "X" in res1:
+                                strikes[f] += 1
+                                first_pitch_pins[f] += 10
+                            else:
+                                left_arr = get_pins(pin1)
+                                first_pitch_pins[f] += (10 - len(left_arr))
+                                
+                                if "1" not in left_arr and len(left_arr) >= 2:
+                                    splits[f] += 1
+                                    
+                                if "/" not in res2:
+                                    opens[f] += 1
+                                    
+                        # 10フレーム
+                        f = 9
+                        frame_counts[f] += 1
+                        res10_1 = str(r[46]).strip().upper() if len(r) > 46 else ""
+                        pin10_1 = str(r[47]).strip() if len(r) > 47 else ""
+                        res10_2 = str(r[48]).strip().upper() if len(r) > 48 else ""
+                        
+                        if "X" in res10_1:
+                            strikes[f] += 1
+                            first_pitch_pins[f] += 10
+                        else:
+                            left_arr = get_pins(pin10_1)
+                            first_pitch_pins[f] += (10 - len(left_arr))
+                            
+                            if "1" not in left_arr and len(left_arr) >= 2:
+                                splits[f] += 1
+                                
+                            if "/" not in res10_2:
+                                opens[f] += 1
+
+                    ave_pins = [first_pitch_pins[f] / frame_counts[f] if frame_counts[f] > 0 else 0 for f in range(10)]
+                    strike_rates = [strikes[f] / frame_counts[f] * 100 if frame_counts[f] > 0 else 0 for f in range(10)]
+                    open_rates = [opens[f] / frame_counts[f] * 100 if frame_counts[f] > 0 else 0 for f in range(10)]
+                    split_rates = [splits[f] / frame_counts[f] * 100 if frame_counts[f] > 0 else 0 for f in range(10)]
+
+                    frames_labels = [f"{i+1}F" for i in range(10)]
+
+                    def draw_bar_chart(title, y_vals, text_fmt, max_y, color):
+                        fig = go.Figure(go.Bar(
+                            x=frames_labels,
+                            y=y_vals,
+                            marker=dict(color=color),
+                            text=[text_fmt.format(v) for v in y_vals],
+                            textposition='outside',
+                            textangle=-90,
+                            textfont=dict(size=12, color='#cccccc'),
+                            cliponaxis=False
+                        ))
+                        fig.update_layout(
+                            title=dict(text=title, font=dict(size=13, color='silver', family="Arial"), x=0.5),
+                            uniformtext=dict(minsize=12, mode='show'),
+                            bargap=0.15,
+                            plot_bgcolor='rgba(0,0,0,0)',
+                            paper_bgcolor='rgba(0,0,0,0)',
+                            xaxis=dict(showgrid=False, fixedrange=True, tickfont=dict(size=11, color='silver')),
+                            yaxis=dict(range=[0, max_y], color='silver', gridcolor='#444', fixedrange=True),
+                            margin=dict(l=10, r=10, t=35, b=10),
+                            height=220
+                        )
+                        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False, 'staticPlot': True})
+
+                    st.markdown("<hr style='border-top: 1px solid #444; margin: 20px 0px;'>", unsafe_allow_html=True)
+                    st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif; text-align: center;'>FRAME ANALYSIS (RECENT 50G)</div>", unsafe_allow_html=True)
+
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        draw_bar_chart("① 1投目平均倒ピン数", ave_pins, "{:.1f}", 11, "#A07855")
+                    with c2:
+                        draw_bar_chart("② ストライク率 (%)", strike_rates, "{:.1f}%", 110, "#4285f4")
+                    
+                    c3, c4 = st.columns(2)
+                    with c3:
+                        draw_bar_chart("③ オープン率 (%)", open_rates, "{:.1f}%", 110, "#ea4335")
+                    with c4:
+                        draw_bar_chart("④ スプリット発生率 (%)", split_rates, "{:.1f}%", 110, "#fbbc04")
+
                 # =========================================================
                 # ▼▼▼ 設定に従って画面を描画する処理（ここは変更不要） ▼▼▼
                 # =========================================================
-                
                 # 全関数を辞書に登録
                 render_functions = {
                     "01_rating_card": render_01_rating_card,
@@ -5214,7 +5324,8 @@ if app_mode == "プレイヤー分析":
                     "14_top10_scores": render_14_top10_scores,
                     "15_monthly_stats": render_monthly_stats,
                     "16_rating_trend": render_16_rating_trend,
-                    "17_env_scatter": render_17_env_scatter
+                    "17_env_scatter": render_17_env_scatter,
+                    "18_frame_analysis": render_18_frame_analysis
                 }
 
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
