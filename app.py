@@ -3106,6 +3106,7 @@ if app_mode == "プレイヤー分析":
                         "12_lane_data",
                         "18_frame_analysis",
                         "19_time_analysis",
+                        "20_day_of_week_analysis",
                         "17_env_scatter",
                     ],
                     "🎳 7-10GAME": [
@@ -5404,6 +5405,97 @@ if app_mode == "プレイヤー分析":
                     with c2:
                         draw_bar_chart("② 時刻毎のストライク率 (%)", st_rates, "{:.1f}%", 110, "#4285f4")
 
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                # 【20】 ANALYSIS：曜日別分析
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                def render_20_day_of_week_analysis():
+                    st.markdown("<hr style='border-top: 1px solid #444; margin: 20px 0px;'>", unsafe_allow_html=True)
+                    st.markdown("<div style='color: #E2DCC8; font-weight: 900; margin-bottom: 15px; margin-top: 10px; font-size: 16px;'>🧭 曜日別分析</div>", unsafe_allow_html=True)
+                    if not player_games:
+                        st.info("データがありません。")
+                        return
+
+                    day_counts = [0] * 7
+                    day_scores = [0] * 7
+                    day_st_chances = [0] * 7
+                    day_strikes = [0] * 7
+
+                    recent_200 = player_games[:200]
+                    import datetime
+
+                    for g in recent_200:
+                        r = g['row']
+                        try:
+                            # r[2] に日付（例:"2026/05/08"）が入っていると想定
+                            date_str = str(r[2]).strip().replace('-', '/')
+                            if not date_str:
+                                continue
+                            dt = datetime.datetime.strptime(date_str, "%Y/%m/%d")
+                            w_idx = dt.weekday() # 0:月, 1:火, 2:水, 3:木, 4:金, 5:土, 6:日
+                            
+                            day_counts[w_idx] += 1
+                            day_scores[w_idx] += g['score']
+                            
+                            full_rack_shots = []
+                            for f in range(9):
+                                t1 = str(r[10+f*4]).strip().upper()
+                                full_rack_shots.append('X' if 'X' in t1 else '-')
+                            
+                            t10_1 = str(r[46]).strip().upper() if len(r) > 46 else ""
+                            t10_2 = str(r[48]).strip().upper() if len(r) > 48 else ""
+                            t10_3 = str(r[50]).strip().upper() if len(r) > 50 else ""
+                            
+                            full_rack_shots.append('X' if 'X' in t10_1 else '-')
+                            if 'X' in t10_1:
+                                full_rack_shots.append('X' if 'X' in t10_2 else '-')
+                                if 'X' in t10_2:
+                                    full_rack_shots.append('X' if 'X' in t10_3 else '-')
+                            elif '/' in t10_2:
+                                full_rack_shots.append('X' if 'X' in t10_3 else '-')
+                                
+                            day_st_chances[w_idx] += len(full_rack_shots)
+                            day_strikes[w_idx] += full_rack_shots.count('X')
+                        except Exception:
+                            pass
+
+                    ave_scores = [day_scores[d] / day_counts[d] if day_counts[d] > 0 else 0 for d in range(7)]
+                    st_rates = [day_strikes[d] / day_st_chances[d] * 100 if day_st_chances[d] > 0 else 0 for d in range(7)]
+                    day_labels = ["月曜", "火曜", "水曜", "木曜", "金曜", "土曜", "日曜"]
+
+                    def draw_bar_chart(title, y_vals, text_fmt, max_y, color):
+                        # データが存在しない曜日の0は非表示にして見やすくする
+                        text_labels = [text_fmt.format(v) if v > 0 else "" for v in y_vals]
+                        fig = go.Figure(go.Bar(
+                            x=day_labels,
+                            y=y_vals,
+                            marker=dict(color=color),
+                            text=text_labels,
+                            textposition='outside',
+                            textangle=0,
+                            textfont=dict(size=12, color='#cccccc'),
+                            cliponaxis=False
+                        ))
+                        fig.update_layout(
+                            title=dict(text=title, font=dict(size=13, color='silver', family="Arial"), x=0.5),
+                            uniformtext=dict(minsize=12, mode='show'),
+                            bargap=0.15,
+                            plot_bgcolor='rgba(0,0,0,0)',
+                            paper_bgcolor='rgba(0,0,0,0)',
+                            xaxis=dict(showgrid=False, fixedrange=True, tickfont=dict(size=11, color='silver')),
+                            yaxis=dict(range=[0, max_y], color='silver', gridcolor='#444', fixedrange=True),
+                            margin=dict(l=10, r=10, t=35, b=10),
+                            height=220
+                        )
+                        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False, 'staticPlot': True})
+
+                    st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif; text-align: center;'>DAY OF WEEK ANALYSIS (RECENT 200G)</div>", unsafe_allow_html=True)
+
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        draw_bar_chart("① 曜日毎の平均スコア", ave_scores, "{:.1f}", 310, "#9c27b0")
+                    with c2:
+                        draw_bar_chart("② 曜日毎のストライク率 (%)", st_rates, "{:.1f}%", 110, "#4285f4")
+
 
                 # =========================================================
                 # ▼▼▼ 設定に従って画面を描画する処理（ここは変更不要） ▼▼▼
@@ -5428,7 +5520,8 @@ if app_mode == "プレイヤー分析":
                     "16_rating_trend": render_16_rating_trend,
                     "17_env_scatter": render_17_env_scatter,
                     "18_frame_analysis": render_18_frame_analysis,
-                    "19_time_analysis": render_19_time_analysis
+                    "19_time_analysis": render_19_time_analysis,
+                    "20_day_of_week_analysis": render_20_day_of_week_analysis
                 }
 
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
