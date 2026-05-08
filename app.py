@@ -5329,7 +5329,9 @@ if app_mode == "プレイヤー分析":
                     time_st_chances = [0] * 24
                     time_strikes = [0] * 24
 
-                    for g in player_games:
+                    recent_200 = player_games[:200]
+
+                    for g in recent_200:
                         r = g['row']
                         try:
                             # r[3] に開始時刻（例:"19:30"等）が入っていると想定
@@ -5392,6 +5394,9 @@ if app_mode == "プレイヤー分析":
                             height=220
                         )
                         st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False, 'staticPlot': True})
+
+                    st.markdown("<hr style='border-top: 1px solid #444; margin: 20px 0px;'>", unsafe_allow_html=True)
+                    st.markdown("<div style='color: silver; font-weight: 900; margin-bottom: 5px; font-size: 16px; font-family: Arial, sans-serif; text-align: center;'>TIME ANALYSIS (RECENT 200G)</div>", unsafe_allow_html=True)
 
                     c1, c2 = st.columns(2)
                     with c1:
