@@ -5468,9 +5468,7 @@ if app_mode == "プレイヤー分析":
                     st_rates = [day_strikes[d] / day_st_chances[d] * 100 if day_st_chances[d] > 0 else 0 for d in range(7)]
                     day_labels = ["月曜", "火曜", "水曜", "木曜", "金曜", "土曜", "日曜"]
 
-                    def draw_bar_chart(title, y_vals, text_fmt, max_y, color):
-                        # データが存在しない曜日の0は非表示にして見やすくする
-                        text_labels = [text_fmt.format(v) if v > 0 else "" for v in y_vals]
+                    def draw_bar_chart(title, y_vals, text_labels, max_y, color):
                         fig = go.Figure(go.Bar(
                             x=day_labels,
                             y=y_vals,
@@ -5478,18 +5476,18 @@ if app_mode == "プレイヤー分析":
                             text=text_labels,
                             textposition='outside',
                             textangle=0,
-                            textfont=dict(size=12, color='#cccccc'),
+                            textfont=dict(size=11, color='#cccccc'), # 少しフォントサイズを調整
                             cliponaxis=False
                         ))
                         fig.update_layout(
                             title=dict(text=title, font=dict(size=13, color='silver', family="Arial"), x=0.5),
-                            uniformtext=dict(minsize=12, mode='show'),
+                            uniformtext=dict(minsize=10, mode='show'),
                             bargap=0.15,
                             plot_bgcolor='rgba(0,0,0,0)',
                             paper_bgcolor='rgba(0,0,0,0)',
                             xaxis=dict(showgrid=False, fixedrange=True, tickfont=dict(size=11, color='silver')),
                             yaxis=dict(range=[0, max_y], color='silver', gridcolor='#444', fixedrange=True),
-                            margin=dict(l=10, r=10, t=35, b=10),
+                            margin=dict(l=10, r=10, t=45, b=10), # テキスト2行分のため上部マージン(t)を拡張
                             height=220
                         )
                         st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False, 'staticPlot': True})
@@ -5498,9 +5496,12 @@ if app_mode == "プレイヤー分析":
 
                     c1, c2 = st.columns(2)
                     with c1:
-                        draw_bar_chart("① 曜日毎の平均スコア", ave_scores, "{:.1f}", 310, "#9c27b0")
+                        # スコアの下に改行(<br>)を入れてゲーム数を表示
+                        score_texts = [f"{ave_scores[i]:.1f}<br>({day_counts[i]}G)" if day_counts[i] > 0 else "" for i in range(7)]
+                        draw_bar_chart("① 曜日毎の平均スコア", ave_scores, score_texts, 340, "#9c27b0")
                     with c2:
-                        draw_bar_chart("② 曜日毎のストライク率 (%)", st_rates, "{:.1f}%", 110, "#4285f4")
+                        rate_texts = [f"{st_rates[i]:.1f}%" if day_counts[i] > 0 else "" for i in range(7)]
+                        draw_bar_chart("② 曜日毎のストライク率 (%)", st_rates, rate_texts, 110, "#4285f4")
 
 
                 # =========================================================
