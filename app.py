@@ -5214,6 +5214,12 @@ if app_mode == "プレイヤー分析":
                     def get_pins(p_str):
                         return [str(p) for p in re.findall(r'\d+', str(p_str)) if 1 <= int(p) <= 10]
 
+                    # AWARDS対象スプリットの定義
+                    named_splits = {
+                        "7-10", "2-7", "3-10", "4-6", "4-9", "6-8", "5-7", "5-10", "7-9", "8-10",
+                        "5-7-10", "2-7-10", "3-7-10", "4-7-10", "6-7-10", "4-6-7-10", "4-6-7-8-10", "4-6-7-9-10"
+                    }
+
                     for g in recent_50:
                         r = g['row']
                         
@@ -5231,8 +5237,10 @@ if app_mode == "プレイヤー分析":
                                 left_arr = get_pins(pin1)
                                 first_pitch_pins[f] += (10 - len(left_arr))
                                 
-                                if "1" not in left_arr and len(left_arr) >= 2:
-                                    splits[f] += 1
+                                if left_arr:
+                                    p_str = "-".join(sorted(left_arr, key=int))
+                                    if p_str in named_splits:
+                                        splits[f] += 1
                                     
                                 if "/" not in res2:
                                     opens[f] += 1
@@ -5251,8 +5259,10 @@ if app_mode == "プレイヤー分析":
                             left_arr = get_pins(pin10_1)
                             first_pitch_pins[f] += (10 - len(left_arr))
                             
-                            if "1" not in left_arr and len(left_arr) >= 2:
-                                splits[f] += 1
+                            if left_arr:
+                                p_str = "-".join(sorted(left_arr, key=int))
+                                if p_str in named_splits:
+                                    splits[f] += 1
                                 
                             if "/" not in res10_2:
                                 opens[f] += 1
@@ -5301,7 +5311,7 @@ if app_mode == "プレイヤー分析":
                     with c3:
                         draw_bar_chart("③ オープン率 (%)", open_rates, "{:.1f}%", 110, "#ea4335")
                     with c4:
-                        draw_bar_chart("④ スプリット発生率 (%)", split_rates, "{:.1f}%", 110, "#fbbc04")
+                        draw_bar_chart("④ AWARDS掲載スプリット発生率 (%)", split_rates, "{:.1f}%", 110, "#fbbc04")
 
                 # =========================================================
                 # ▼▼▼ 設定に従って画面を描画する処理（ここは変更不要） ▼▼▼
