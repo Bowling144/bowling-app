@@ -8073,15 +8073,15 @@ if st.session_state.analyzed_results:
                 formatted_row.append(bowling_alley) 
                 
                 match_found = False
-                    for i, ex_row in enumerate(existing_data):
-                        if i == 0 or len(ex_row) < 7: 
-                            continue
-                        
-                        ex_player = ex_row[1]
-                        ex_date = ex_row[2]
-                        ex_start = ex_row[3]
-                        ex_end = ex_row[4]
-                        ex_game = ex_row[6] 
+                for i, ex_row in enumerate(existing_data):
+                    if i == 0 or len(ex_row) < 7: 
+                        continue
+                    
+                    ex_player = ex_row[1]
+                    ex_date = ex_row[2]
+                    ex_start = ex_row[3]
+                    ex_end = ex_row[4]
+                    ex_game = ex_row[6]
                         
                         if ex_player == selected_player and ex_date == new_date and (ex_start == new_start or ex_end == new_end) and ex_game == new_game:
                             row_num = i + 1
