@@ -5197,7 +5197,7 @@ if app_mode == "プレイヤー分析":
                 # 【18】 ANALYSIS：フレーム分析
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 def render_18_frame_analysis():
-                    st.markdown("### <span style='color: silver;'>🧭 フレーム分析</span>", unsafe_allow_html=True)
+                    st.markdown("<div style='color: #E2DCC8; font-weight: 900; margin-bottom: 15px; margin-top: 10px; font-size: 16px;'>🧭 フレーム分析</div>", unsafe_allow_html=True)
                     if not player_games:
                         st.info("データがありません。")
                         return
