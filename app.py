@@ -3561,10 +3561,10 @@ if app_mode == "プレイヤー分析":
                     # --- 1. ストライク率の計算 ---
                     st_chances = 0
                     strikes = 0
+                    chances_after_st = 0
+                    st_after_st = 0
                     chances_after_db = 0
                     st_after_db = 0
-                    chances_after_tk = 0
-                    st_after_tk = 0
 
                     for g in recent_50_games:
                         r = g['row']
@@ -3574,7 +3574,7 @@ if app_mode == "プレイヤー分析":
                         for f in range(9):
                             t1 = str(r[10+f*4]).strip().upper()
                             full_rack_shots.append('X' if 'X' in t1 else '-')
-
+                            
                         # 10フレーム
                         t10_1 = str(r[46]).strip().upper() if len(r) > 46 else ""
                         t10_2 = str(r[48]).strip().upper() if len(r) > 48 else ""
@@ -3592,20 +3592,20 @@ if app_mode == "プレイヤー分析":
                             st_chances += 1
                             if full_rack_shots[i] == 'X':
                                 strikes += 1
-
+                                
+                            if i > 0 and full_rack_shots[i-1] == 'X':
+                                chances_after_st += 1
+                                if full_rack_shots[i] == 'X':
+                                    st_after_st += 1
+                                    
                             if i > 1 and full_rack_shots[i-1] == 'X' and full_rack_shots[i-2] == 'X':
                                 chances_after_db += 1
                                 if full_rack_shots[i] == 'X':
                                     st_after_db += 1
 
-                            if i > 2 and full_rack_shots[i-1] == 'X' and full_rack_shots[i-2] == 'X' and full_rack_shots[i-3] == 'X':
-                                chances_after_tk += 1
-                                if full_rack_shots[i] == 'X':
-                                    st_after_tk += 1
-
                     st_rate = (strikes / st_chances * 100) if st_chances > 0 else 0
+                    st_after_st_rate = (st_after_st / chances_after_st * 100) if chances_after_st > 0 else 0
                     db_st_rate = (st_after_db / chances_after_db * 100) if chances_after_db > 0 else 0
-                    tk_st_rate = (st_after_tk / chances_after_tk * 100) if chances_after_tk > 0 else 0
 
                     # --- 2. アベレージの計算 ---
                     scores_50 = [g['score'] for g in recent_50_games]
@@ -3627,8 +3627,8 @@ if app_mode == "プレイヤー分析":
                     st.markdown("<div style='color: #E2DCC8; font-weight: 900; margin-bottom: 5px; margin-top: 10px; font-size: 16px;'>☕ ストライク持続率</div>", unsafe_allow_html=True)
                     
                     # ご指定の項目名に完全統一
-                    labels_st = ['ターキー後の次投ストライク率', 'ダブル後の次投ストライク率', 'ストライク率']
-                    values_st = [tk_st_rate, db_st_rate, st_rate]
+                    labels_st = ['ダブル後の次投ストライク率', 'ストライク後の次投ストライク率', 'ストライク率']
+                    values_st = [db_st_rate, st_after_st_rate, st_rate]
 
                     # カフェ風カラー：エスプレッソ、モカ、ラテのグラデーション
                     colors_st = ['#5C4033', '#8B5A2B', '#C19A6B']
@@ -8058,17 +8058,21 @@ if st.session_state.analyzed_results:
                     formatted_row.append(row[50]) 
                     
                     unique_id = f"{selected_player}_{new_date}_{new_start}_{new_game}"
-                    formatted_row.append(unique_id)
-                    
-                    is_710_flag = row[51] if len(row) > 51 else False
-                    formatted_row.append("TRUE" if is_710_flag else "FALSE")
+                formatted_row.append(unique_id)
+                is_710_flag = row[51] if len(row) > 51 else False
+                formatted_row.append("TRUE" if is_710_flag else "FALSE")
+                
+                # ▼ BD列(56), BE列(57), BF列(58) への個別条件データの追加
+                formatted_row.append(c1_val) # 56番目 (BD)
+                formatted_row.append(c2_val) # 57番目 (BE)
+                formatted_row.append(c3_val) # 58番目 (BF)
 
-                    # ▼ BD列(56), BE列(57), BF列(58) への個別条件データの追加
-                    formatted_row.append(c1_val) # 56番目 (BD)
-                    formatted_row.append(c2_val) # 57番目 (BE)
-                    formatted_row.append(c3_val) # 58番目 (BF)
-                    
-                    match_found = False
+                # ▼ BG列(59) ボウリング場情報の追加
+                ai_meta_data = st.session_state.analyzed_results[item["img_idx"]]["meta_data"]
+                bowling_alley = ai_meta_data.get("bowling_alley", "イーグルボウル")
+                formatted_row.append(bowling_alley) 
+                
+                match_found = False
                     for i, ex_row in enumerate(existing_data):
                         if i == 0 or len(ex_row) < 7: 
                             continue
