@@ -8083,13 +8083,13 @@ if st.session_state.analyzed_results:
                     ex_end = ex_row[4]
                     ex_game = ex_row[6]
                         
-                        if ex_player == selected_player and ex_date == new_date and (ex_start == new_start or ex_end == new_end) and ex_game == new_game:
-                            row_num = i + 1
-                            worksheet.update(range_name=f"A{row_num}", values=[formatted_row])
-                            existing_data[i] = formatted_row
-                            update_count += 1
-                            match_found = True
-                            break
+                    if ex_player == selected_player and ex_date == new_date and (ex_start == new_start or ex_end == new_end) and ex_game == new_game:
+                        row_num = i + 1
+                        worksheet.update(range_name=f"A{row_num}", values=[formatted_row])
+                        existing_data[i] = formatted_row
+                        update_count += 1
+                        match_found = True
+                        break
             
                     if not match_found:
                         rows_to_append.append(formatted_row)
