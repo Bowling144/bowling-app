@@ -5422,16 +5422,22 @@ if app_mode == "プレイヤー分析":
 
                     recent_200 = player_games[:200]
                     import datetime
+                    import re
 
                     for g in recent_200:
                         r = g['row']
                         try:
-                            # r[2] に日付（例:"2026/05/08"）が入っていると想定
-                            date_str = str(r[2]).strip().replace('-', '/')
-                            if not date_str:
+                            # 日付文字列から数字（年月日）のみを抽出して確実なパースを行う
+                            nums = re.findall(r'\d+', str(r[2]))
+                            if len(nums) >= 3:
+                                y, m, d = int(nums[0]), int(nums[1]), int(nums[2])
+                                # 2桁の西暦(例:26)が来た場合は2000を足す
+                                if y < 100:
+                                    y += 2000
+                                dt = datetime.datetime(y, m, d)
+                                w_idx = dt.weekday() # 0:月, 1:火, 2:水, 3:木, 4:金, 5:土, 6:日
+                            else:
                                 continue
-                            dt = datetime.datetime.strptime(date_str, "%Y/%m/%d")
-                            w_idx = dt.weekday() # 0:月, 1:火, 2:水, 3:木, 4:金, 5:土, 6:日
                             
                             day_counts[w_idx] += 1
                             day_scores[w_idx] += g['score']
