@@ -3105,6 +3105,7 @@ if app_mode == "プレイヤー分析":
                         "05_consecutive",
                         "12_lane_data",
                         "18_frame_analysis",
+                        "19_time_analysis",
                         "17_env_scatter",
                     ],
                     "🎳 7-10GAME": [
@@ -5313,6 +5314,92 @@ if app_mode == "プレイヤー分析":
                     with c4:
                         draw_bar_chart("④ AWARDS掲載スプリット発生率 (%)", split_rates, "{:.1f}%", 110, "#fbbc04")
 
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                # 【19】 ANALYSIS：時間帯分析
+                # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                def render_19_time_analysis():
+                    st.markdown("<hr style='border-top: 1px solid #444; margin: 20px 0px;'>", unsafe_allow_html=True)
+                    st.markdown("<div style='color: #E2DCC8; font-weight: 900; margin-bottom: 15px; margin-top: 10px; font-size: 16px;'>🧭 時間帯分析</div>", unsafe_allow_html=True)
+                    if not player_games:
+                        st.info("データがありません。")
+                        return
+
+                    time_counts = [0] * 24
+                    time_scores = [0] * 24
+                    time_st_chances = [0] * 24
+                    time_strikes = [0] * 24
+
+                    for g in player_games:
+                        r = g['row']
+                        try:
+                            # r[3] に開始時刻（例:"19:30"等）が入っていると想定
+                            start_time_str = str(r[3]).strip()
+                            if not start_time_str:
+                                continue
+                            hour = int(start_time_str.split(':')[0])
+                            if 0 <= hour <= 23:
+                                time_counts[hour] += 1
+                                time_scores[hour] += g['score']
+                                
+                                full_rack_shots = []
+                                for f in range(9):
+                                    t1 = str(r[10+f*4]).strip().upper()
+                                    full_rack_shots.append('X' if 'X' in t1 else '-')
+                                
+                                t10_1 = str(r[46]).strip().upper() if len(r) > 46 else ""
+                                t10_2 = str(r[48]).strip().upper() if len(r) > 48 else ""
+                                t10_3 = str(r[50]).strip().upper() if len(r) > 50 else ""
+                                
+                                full_rack_shots.append('X' if 'X' in t10_1 else '-')
+                                if 'X' in t10_1:
+                                    full_rack_shots.append('X' if 'X' in t10_2 else '-')
+                                    if 'X' in t10_2:
+                                        full_rack_shots.append('X' if 'X' in t10_3 else '-')
+                                elif '/' in t10_2:
+                                    full_rack_shots.append('X' if 'X' in t10_3 else '-')
+                                    
+                                time_st_chances[hour] += len(full_rack_shots)
+                                time_strikes[hour] += full_rack_shots.count('X')
+                        except Exception:
+                            pass
+
+                    ave_scores = [time_scores[h] / time_counts[h] if time_counts[h] > 0 else 0 for h in range(24)]
+                    st_rates = [time_strikes[h] / time_st_chances[h] * 100 if time_st_chances[h] > 0 else 0 for h in range(24)]
+                    time_labels = [f"{h}時" for h in range(24)]
+
+                    def draw_bar_chart(title, y_vals, text_fmt, max_y, color):
+                        # データが存在しない時間帯の0は非表示にして見やすくする
+                        text_labels = [text_fmt.format(v) if v > 0 else "" for v in y_vals]
+                        fig = go.Figure(go.Bar(
+                            x=time_labels,
+                            y=y_vals,
+                            marker=dict(color=color),
+                            text=text_labels,
+                            textposition='outside',
+                            textangle=-90,
+                            textfont=dict(size=12, color='#cccccc'),
+                            cliponaxis=False
+                        ))
+                        fig.update_layout(
+                            title=dict(text=title, font=dict(size=13, color='silver', family="Arial"), x=0.5),
+                            uniformtext=dict(minsize=12, mode='show'),
+                            bargap=0.15,
+                            plot_bgcolor='rgba(0,0,0,0)',
+                            paper_bgcolor='rgba(0,0,0,0)',
+                            xaxis=dict(showgrid=False, fixedrange=True, tickfont=dict(size=11, color='silver')),
+                            yaxis=dict(range=[0, max_y], color='silver', gridcolor='#444', fixedrange=True),
+                            margin=dict(l=10, r=10, t=35, b=10),
+                            height=220
+                        )
+                        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False, 'staticPlot': True})
+
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        draw_bar_chart("① 時刻毎の平均スコア", ave_scores, "{:.1f}", 310, "#9c27b0")
+                    with c2:
+                        draw_bar_chart("② 時刻毎のストライク率 (%)", st_rates, "{:.1f}%", 110, "#4285f4")
+
+
                 # =========================================================
                 # ▼▼▼ 設定に従って画面を描画する処理（ここは変更不要） ▼▼▼
                 # =========================================================
@@ -5335,7 +5422,8 @@ if app_mode == "プレイヤー分析":
                     "15_monthly_stats": render_monthly_stats,
                     "16_rating_trend": render_16_rating_trend,
                     "17_env_scatter": render_17_env_scatter,
-                    "18_frame_analysis": render_18_frame_analysis
+                    "18_frame_analysis": render_18_frame_analysis,
+                    "19_time_analysis": render_19_time_analysis
                 }
 
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
