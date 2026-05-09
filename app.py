@@ -7,8 +7,7 @@ import json
 import time
 import random
 from PIL import Image
-from google import
-genai
+from google import genai
 from google.genai import types
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
