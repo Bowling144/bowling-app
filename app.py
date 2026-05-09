@@ -5963,7 +5963,6 @@ if app_mode == "プレイヤー分析":
                     for g in recent_200:
                         r = g['row']
                         try:
-                            # r[3] に開始時刻（例:"19:30"等）が入っていると想定
                             start_time_str = str(r[3]).strip()
                             if not start_time_str:
                                 continue
@@ -5998,8 +5997,8 @@ if app_mode == "プレイヤー分析":
                     st_rates = [time_strikes[h] / time_st_chances[h] * 100 if time_st_chances[h] > 0 else 0 for h in range(24)]
                     time_labels = [f"{h}時" for h in range(24)]
 
-                    def draw_bar_chart(title, y_vals, text_fmt, max_y, color):
-                        # データが存在しない時間帯の0は非表示にして見やすくする
+                    # ▼ 関数名を変更し、曜日グラフとの混線を完全に防止
+                    def draw_time_bar_chart(title, y_vals, text_fmt, max_y, color):
                         text_labels = [text_fmt.format(v) if v > 0 else "" for v in y_vals]
                         fig = go.Figure(go.Bar(
                             x=time_labels,
@@ -6029,9 +6028,9 @@ if app_mode == "プレイヤー分析":
 
                     c1, c2 = st.columns(2)
                     with c1:
-                        draw_bar_chart("① 時刻毎の平均スコア", ave_scores, "{:.1f}", 310, "#9c27b0")
+                        draw_time_bar_chart("① 時刻毎の平均スコア", ave_scores, "{:.1f}", 310, "#9c27b0")
                     with c2:
-                        draw_bar_chart("② 時刻毎のストライク率 (%)", st_rates, "{:.1f}%", 110, "#4285f4")
+                        draw_time_bar_chart("② 時刻毎のストライク率 (%)", st_rates, "{:.1f}%", 110, "#4285f4")
 
                 # ＃★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 # 【20】 ANALYSIS：曜日別分析
@@ -6055,15 +6054,13 @@ if app_mode == "プレイヤー分析":
                     for g in recent_200:
                         r = g['row']
                         try:
-                            # 日付文字列から数字（年月日）のみを抽出して確実なパースを行う
                             nums = re.findall(r'\d+', str(r[2]))
                             if len(nums) >= 3:
                                 y, m, d = int(nums[0]), int(nums[1]), int(nums[2])
-                                # 2桁の西暦(例:26)が来た場合は2000を足す
                                 if y < 100:
                                     y += 2000
                                 dt = datetime.datetime(y, m, d)
-                                w_idx = dt.weekday() # 0:月, 1:火, 2:水, 3:木, 4:金, 5:土, 6:日
+                                w_idx = dt.weekday()
                             else:
                                 continue
                             
@@ -6096,7 +6093,8 @@ if app_mode == "プレイヤー分析":
                     st_rates = [day_strikes[d] / day_st_chances[d] * 100 if day_st_chances[d] > 0 else 0 for d in range(7)]
                     day_labels = ["月曜", "火曜", "水曜", "木曜", "金曜", "土曜", "日曜"]
 
-                    def draw_bar_chart(title, y_vals, text_labels, max_y, color):
+                    # ▼ 関数名を変更し、時間帯グラフとの混線を完全に防止
+                    def draw_day_bar_chart(title, y_vals, text_labels, max_y, color):
                         fig = go.Figure(go.Bar(
                             x=day_labels,
                             y=y_vals,
@@ -6104,7 +6102,7 @@ if app_mode == "プレイヤー分析":
                             text=text_labels,
                             textposition='outside',
                             textangle=0,
-                            textfont=dict(size=11, color='#cccccc'), # 少しフォントサイズを調整
+                            textfont=dict(size=11, color='#cccccc'),
                             cliponaxis=False
                         ))
                         fig.update_layout(
@@ -6115,7 +6113,7 @@ if app_mode == "プレイヤー分析":
                             paper_bgcolor='rgba(0,0,0,0)',
                             xaxis=dict(showgrid=False, fixedrange=True, tickfont=dict(size=11, color='silver')),
                             yaxis=dict(range=[0, max_y], color='silver', gridcolor='#444', fixedrange=True),
-                            margin=dict(l=10, r=10, t=45, b=10), # テキスト2行分のため上部マージン(t)を拡張
+                            margin=dict(l=10, r=10, t=45, b=10),
                             height=220
                         )
                         st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False, 'staticPlot': True})
@@ -6124,12 +6122,11 @@ if app_mode == "プレイヤー分析":
 
                     c1, c2 = st.columns(2)
                     with c1:
-                        # スコアの下に改行(<br>)を入れてゲーム数を表示
                         score_texts = [f"{ave_scores[i]:.1f}<br>({day_counts[i]}G)" if day_counts[i] > 0 else "" for i in range(7)]
-                        draw_bar_chart("① 曜日毎の平均スコア", ave_scores, score_texts, 340, "#9c27b0")
+                        draw_day_bar_chart("① 曜日毎の平均スコア", ave_scores, score_texts, 340, "#9c27b0")
                     with c2:
                         rate_texts = [f"{st_rates[i]:.1f}%" if day_counts[i] > 0 else "" for i in range(7)]
-                        draw_bar_chart("② 曜日毎のストライク率 (%)", st_rates, rate_texts, 110, "#4285f4")
+                        draw_day_bar_chart("② 曜日毎のストライク率 (%)", st_rates, rate_texts, 110, "#4285f4")
 
 
                 # =========================================================
