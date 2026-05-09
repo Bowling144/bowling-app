@@ -7214,6 +7214,11 @@ if st.session_state.analyzed_results is None:
                 
         detected_alley = ai_meta_data.get("bowling_alley", "イーグルボウル")
         
+        # AIの表記揺れ（英語出力など）を吸収して「ラウンドワン」に完全統一する
+        if detected_alley.upper().replace(" ", "") in ["ROUND1", "ROUNDONE"]:
+            detected_alley = "ラウンドワン"
+            ai_meta_data["bowling_alley"] = "ラウンドワン"
+            
         user_role = st.session_state.get("user_role", "")
         if detected_alley != "イーグルボウル" and user_role != "開発者":
             st.error(f"【権限エラー】{detected_alley} のスコア登録は開発者権限でのみ許可されています。")
