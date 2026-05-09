@@ -8682,22 +8682,6 @@ if st.session_state.analyzed_results:
         import unicodedata
         import re
 
-        # （ラウワン）AIが判別したボウリング場を初期値として設定
-        meta = st.session_state.analyzed_results[img_idx].get("meta_data", {})
-        ai_alley = meta.get("bowling_alley", "イーグルボウル")
-        # 取得したリストに存在するか確認し、なければリストの先頭を選択
-        try:
-            default_alley_index = ALLEY_OPTIONS.index(ai_alley)
-        except ValueError:
-            default_alley_index = 0
-        
-        # （ラウワン）ボウリング場選択セレクトボックスの表示
-        for img_idx, items in games_by_img.items():
-        st.markdown(f"**画像 {img_idx+1} の設定**")
-        
-        import unicodedata
-        import re
-
         # （ラウワン）AIが判別したボウリング場を反映。正規化後の値（ラウンドワン等）でインデックスを探す。
         meta = st.session_state.analyzed_results[img_idx].get("meta_data", {})
         ai_alley = meta.get("bowling_alley", "イーグルボウル")
