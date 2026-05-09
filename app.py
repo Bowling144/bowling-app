@@ -56,18 +56,14 @@ def compress_image_for_ai(pil_img, max_size=1024):
 st.set_page_config(page_title="ボウリング解析", page_icon="🎳", layout="wide")
 
 # =========================================================
-# ▼ 追加（相模原・永山）：ボウリング場別 専用解析ロジック ▼
+# ▼ 追加：全ボウリング場共通の画像前処理（回転と傾き補正） ▼
 # =========================================================
-def analyze_park_lanes(img, ai_meta_data):
-    """相模原パークレーンズ用の解析ロジック"""
-    
+def preprocess_and_correct_skew(img):
+    """画像の横長回転と、スコア表の横線に基づく傾き補正を行う共通関数"""
     target_width = 1200
     scale = target_width / img.shape[1]
     target_height = int(img.shape[0] * scale)
     img_resized = cv2.resize(img, (target_width, target_height))
-    output_img = img_resized.copy()
-    
-    all_games_export_data = []
     
     # 1. 画像の回転補正（横長にする）
     h_orig, w_orig = img_resized.shape[:2]
@@ -82,11 +78,66 @@ def analyze_park_lanes(img, ai_meta_data):
     
     if cv2.countNonZero(v_lines) > cv2.countNonZero(h_lines) * 1.2:
         img_resized = cv2.rotate(img_resized, cv2.ROTATE_90_CLOCKWISE)
-        output_img = img_resized.copy()
+
+    # 2. 傾き補正のための横線検出（ノイズ対策としてぼかしを入れる）
+    gray = cv2.cvtColor(img_resized, cv2.COLOR_BGR2GRAY)
+    gray_blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    thresh = cv2.adaptiveThreshold(gray_blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 15)
+    h_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (100, 1))
+    h_mask = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, h_kernel)
+    h_dilate = cv2.dilate(h_mask, cv2.getStructuringElement(cv2.MORPH_RECT, (50, 1)), iterations=1)
+    
+    contours, _ = cv2.findContours(h_dilate, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    h_lines_info = []
+    max_w = 0
+    for cnt in contours:
+        x, y, w, h = cv2.boundingRect(cnt)
+        if w > target_width * 0.4:
+            y_center = y + h / 2.0
+            h_lines_info.append({'y': y_center, 'w': w, 'x': x, 'cnt': cnt})
+            if w > max_w:
+                max_w = w
+
+    # 上から50mm（最大幅を160mmと仮定して算出）より下にある最初の横線を基準線にする
+    ref_50mm_px = 50.0 * (max_w / 160.0) if max_w > 0 else target_height * 0.16
+    h_lines_info.sort(key=lambda item: item['y'])
+    
+    target_line_cnt = None
+    for line in h_lines_info:
+        if line['y'] > ref_50mm_px:
+            target_line_cnt = line['cnt']
+            break
+            
+    if target_line_cnt is not None:
+        [vx, vy, x, y] = cv2.fitLine(target_line_cnt, cv2.DIST_L2, 0, 0.01, 0.01)
+        angle = np.arctan2(vy, vx) * 180 / np.pi
+        if abs(angle) > 0.05:
+            center = (target_width // 2, target_height // 2)
+            M = cv2.getRotationMatrix2D(center, angle, 1.0)
+            img_resized = cv2.warpAffine(img_resized, M, (target_width, target_height), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+            
+    return img_resized
+
+# =========================================================
+# ▼ 追加（相模原・永山）：ボウリング場別 専用解析ロジック ▼
+# =========================================================
+def analyze_park_lanes(img, ai_meta_data):
+    """相模原パークレーンズ用の解析ロジック"""
+    
+    # ▼ 修正：共通関数で回転・傾き補正を行う
+    img_resized = preprocess_and_correct_skew(img)
+    target_width = img_resized.shape[1]
+    target_height = img_resized.shape[0]
+    output_img = img_resized.copy()
+    
+    all_games_export_data = []
         
     # 2. 横線の検出によるゲーム枠の特定
     gray = cv2.cvtColor(img_resized, cv2.COLOR_BGR2GRAY)
-    thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 5)
+    # ラウワンと共通のノイズ対策を適用
+    gray_blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    thresh = cv2.adaptiveThreshold(gray_blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 15)
     
     # ▼ 追加：ピン判定（実測）用の二値化画像を作成（青チャンネルを使用）
     b_channel = img_resized[:, :, 0]
@@ -644,32 +695,18 @@ def analyze_park_lanes(img, ai_meta_data):
 def analyze_copa_bowl(img, ai_meta_data):
     """永山コパボウル用の解析ロジック（相模原ベース）"""
     
-    target_width = 1200
-    scale = target_width / img.shape[1]
-    target_height = int(img.shape[0] * scale)
-    img_resized = cv2.resize(img, (target_width, target_height))
+    # ▼ 修正：共通関数で回転・傾き補正を行う
+    img_resized = preprocess_and_correct_skew(img)
+    target_width = img_resized.shape[1]
+    target_height = img_resized.shape[0]
     output_img = img_resized.copy()
     
     all_games_export_data = []
-    
-    # 1. 画像の回転補正（横長にする）
-    h_orig, w_orig = img_resized.shape[:2]
-    gray_rot = cv2.cvtColor(img_resized, cv2.COLOR_BGR2GRAY)
-    thresh_rot = cv2.adaptiveThreshold(gray_rot, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 5)
-    
-    line_length = int(min(h_orig, w_orig) * 0.2)
-    h_k = cv2.getStructuringElement(cv2.MORPH_RECT, (line_length, 1))
-    v_k = cv2.getStructuringElement(cv2.MORPH_RECT, (1, line_length))
-    h_lines = cv2.morphologyEx(thresh_rot, cv2.MORPH_OPEN, h_k)
-    v_lines = cv2.morphologyEx(thresh_rot, cv2.MORPH_OPEN, v_k)
-    
-    if cv2.countNonZero(v_lines) > cv2.countNonZero(h_lines) * 1.2:
-        img_resized = cv2.rotate(img_resized, cv2.ROTATE_90_CLOCKWISE)
-        output_img = img_resized.copy()
         
     # 2. 横線の検出によるゲーム枠の特定
     gray = cv2.cvtColor(img_resized, cv2.COLOR_BGR2GRAY)
-    thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 5)
+    gray_blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    thresh = cv2.adaptiveThreshold(gray_blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 15)
     
     # ピン判定（実測）用の二値化画像を作成（青チャンネルを使用）
     b_channel = img_resized[:, :, 0]
@@ -1259,34 +1296,19 @@ def analyze_copa_bowl(img, ai_meta_data):
 def analyze_round1(img, ai_meta_data):
     """（ラウワン）ラウンドワン用の解析ロジック（永山ベース）"""
     
-    target_width = 1200
-    scale = target_width / img.shape[1]
-    target_height = int(img.shape[0] * scale)
-    img_resized = cv2.resize(img, (target_width, target_height))
+    # ▼ 修正：共通関数で回転・傾き補正を行う
+    img_resized = preprocess_and_correct_skew(img)
+    target_width = img_resized.shape[1]
+    target_height = img_resized.shape[0]
     output_img = img_resized.copy()
     
     all_games_export_data = []
-    
-    # （ラウワン）1. 画像の回転補正（横長にする）
-    h_orig, w_orig = img_resized.shape[:2]
-    gray_rot = cv2.cvtColor(img_resized, cv2.COLOR_BGR2GRAY)
-    thresh_rot = cv2.adaptiveThreshold(gray_rot, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 5)
-    
-    line_length = int(min(h_orig, w_orig) * 0.2)
-    h_k = cv2.getStructuringElement(cv2.MORPH_RECT, (line_length, 1))
-    v_k = cv2.getStructuringElement(cv2.MORPH_RECT, (1, line_length))
-    h_lines = cv2.morphologyEx(thresh_rot, cv2.MORPH_OPEN, h_k)
-    v_lines = cv2.morphologyEx(thresh_rot, cv2.MORPH_OPEN, v_k)
-    
-    if cv2.countNonZero(v_lines) > cv2.countNonZero(h_lines) * 1.2:
-        img_resized = cv2.rotate(img_resized, cv2.ROTATE_90_CLOCKWISE)
-        output_img = img_resized.copy()
         
     # （ラウワン）2. 横線の検出
     gray = cv2.cvtColor(img_resized, cv2.COLOR_BGR2GRAY)
-    # ▼ 追加：薄い裏写りや紙のシワなどの細かいノイズを消すために少しぼかしを入れる
+    # 薄い裏写りや紙のシワなどの細かいノイズを消すために少しぼかしを入れる
     gray_blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-    # ▼ 修正：閾値の定数(C)を 5 から 15 に上げて、より濃くはっきりした線だけを抽出するように感度を下げる
+    # 閾値の定数(C)を15にして感度を下げる
     thresh = cv2.adaptiveThreshold(gray_blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 15)
     b_channel = img_resized[:, :, 0]
     thresh_ink = cv2.adaptiveThreshold(b_channel, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 10)
