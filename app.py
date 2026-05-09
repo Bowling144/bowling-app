@@ -7,7 +7,8 @@ import json
 import time
 import random
 from PIL import Image
-from google import genai
+from google import
+genai
 from google.genai import types
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -1677,8 +1678,8 @@ def analyze_round1(img, ai_meta_data):
                 if pin_pct > dyn_thresh:
                     # （ラウワン）閾値以上なら黒塗り丸（＝残ピン）
                     frame_pins.append(pin_num)
-                    # （ラウワン）検知を可視化するため、赤色で塗りつぶした楕円を描画する
-                    cv2.ellipse(output_img, (cx_local, cy_local), (axes_x_px, axes_y_px), 0, 0, 360, (0, 0, 255), -1)
+                    # ▼ 修正：塗りつぶし(-1)をやめて、赤の細線(太さ1)に変更 ▼
+                    cv2.ellipse(output_img, (cx_local, cy_local), (axes_x_px, axes_y_px), 0, 0, 360, (0, 0, 255), 1)
                 else:
                     # （ラウワン）検知されなかったピンは、これまで通りオレンジ色の枠（太さ2）の楕円を描画する
                     cv2.ellipse(output_img, (cx_local, cy_local), (axes_x_px, axes_y_px), 0, 0, 360, (0, 165, 255), 2)
