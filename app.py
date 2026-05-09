@@ -8390,23 +8390,23 @@ if st.session_state.analyzed_results:
                     if not is_target:
                         continue
 
-                row = item["export_row"]
-                new_date = row[0]
-                new_start = row[1]
-                new_end = row[2]
-                new_game = row[4] 
-        
-                # （ラウワン）受取変数に selected_alley を追加
-                selected_alley, selected_lane, oil_len, oil_vol, ball_used, c1_val, c2_val, c3_val = input_data.get((item["img_idx"], item["local_idx"]), ("", "", "", "", "", "", "", ""))
+                    row = item["export_row"]
+                    new_date = row[0]
+                    new_start = row[1]
+                    new_end = row[2]
+                    new_game = row[4] 
+            
+                    # （ラウワン）受取変数に selected_alley を追加
+                    selected_alley, selected_lane, oil_len, oil_vol, ball_used, c1_val, c2_val, c3_val = input_data.get((item["img_idx"], item["local_idx"]), ("", "", "", "", "", "", "", ""))
 
-                formatted_row = [
-                    user_email,      
-                    selected_player, 
-                    row[0], row[1], row[2], 
-                    selected_lane,   
-                    row[4],          
-                    oil_len, oil_vol, ball_used, 
-                ]
+                    formatted_row = [
+                        user_email,      
+                        selected_player, 
+                        row[0], row[1], row[2], 
+                        selected_lane,   
+                        row[4],          
+                        oil_len, oil_vol, ball_used, 
+                    ]
 
                     for f in range(9):
                         formatted_row.extend([
@@ -8425,36 +8425,36 @@ if st.session_state.analyzed_results:
                     formatted_row.append(row[50]) 
                     
                     unique_id = f"{selected_player}_{new_date}_{new_start}_{new_game}"
-                formatted_row.append(unique_id)
-                is_710_flag = row[51] if len(row) > 51 else False
-                formatted_row.append("TRUE" if is_710_flag else "FALSE")
-                
-                # ▼ BD列(56), BE列(57), BF列(58) への個別条件データの追加
-                formatted_row.append(c1_val) # 56番目 (BD)
-                formatted_row.append(c2_val) # 57番目 (BE)
-                formatted_row.append(c3_val) # 58番目 (BF)
-
-                # （ラウワン）BG列(59) ボウリング場情報の追加（修正：AI判定ではなく画面で確定された値を使用）
-                formatted_row.append(selected_alley)
-                
-                match_found = False
-                for i, ex_row in enumerate(existing_data):
-                    if i == 0 or len(ex_row) < 7: 
-                        continue
+                    formatted_row.append(unique_id)
+                    is_710_flag = row[51] if len(row) > 51 else False
+                    formatted_row.append("TRUE" if is_710_flag else "FALSE")
                     
-                    ex_player = ex_row[1]
-                    ex_date = ex_row[2]
-                    ex_start = ex_row[3]
-                    ex_end = ex_row[4]
-                    ex_game = ex_row[6]
+                    # ▼ BD列(56), BE列(57), BF列(58) への個別条件データの追加
+                    formatted_row.append(c1_val) # 56番目 (BD)
+                    formatted_row.append(c2_val) # 57番目 (BE)
+                    formatted_row.append(c3_val) # 58番目 (BF)
+
+                    # （ラウワン）BG列(59) ボウリング場情報の追加（修正：AI判定ではなく画面で確定された値を使用）
+                    formatted_row.append(selected_alley) 
+                    
+                    match_found = False
+                    for i, ex_row in enumerate(existing_data):
+                        if i == 0 or len(ex_row) < 7: 
+                            continue
                         
-                    if ex_player == selected_player and ex_date == new_date and (ex_start == new_start or ex_end == new_end) and ex_game == new_game:
-                        row_num = i + 1
-                        worksheet.update(range_name=f"A{row_num}", values=[formatted_row])
-                        existing_data[i] = formatted_row
-                        update_count += 1
-                        match_found = True
-                        break
+                        ex_player = ex_row[1]
+                        ex_date = ex_row[2]
+                        ex_start = ex_row[3]
+                        ex_end = ex_row[4]
+                        ex_game = ex_row[6]
+                            
+                        if ex_player == selected_player and ex_date == new_date and (ex_start == new_start or ex_end == new_end) and ex_game == new_game:
+                            row_num = i + 1
+                            worksheet.update(range_name=f"A{row_num}", values=[formatted_row])
+                            existing_data[i] = formatted_row
+                            update_count += 1
+                            match_found = True
+                            break
             
                     if not match_found:
                         rows_to_append.append(formatted_row)
