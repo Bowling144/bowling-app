@@ -111,9 +111,10 @@ def preprocess_and_correct_skew(img):
             
     if target_line_cnt is not None:
         [vx, vy, x, y] = cv2.fitLine(target_line_cnt, cv2.DIST_L2, 0, 0.01, 0.01)
-        angle = np.arctan2(vy, vx) * 180 / np.pi
+        # ▼ 修正：OpenCVの仕様エラーを防ぐため、配列から純粋な数値(float)として角度を取り出す ▼
+        angle = float(np.arctan2(vy[0], vx[0]) * 180.0 / np.pi)
         if abs(angle) > 0.05:
-            center = (target_width // 2, target_height // 2)
+            center = (int(target_width / 2), int(target_height / 2))
             M = cv2.getRotationMatrix2D(center, angle, 1.0)
             img_resized = cv2.warpAffine(img_resized, M, (target_width, target_height), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
             
