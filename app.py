@@ -120,6 +120,12 @@ def analyze_park_lanes(img, ai_meta_data):
             prev_y = line['y']
         blocks.append(current_block)
 
+    # 開始ゲーム数を取得
+    try:
+        base_game_num = int(ai_meta_data.get("start_game_num", 1))
+    except:
+        base_game_num = 1
+
     games_y_coords = []
     for b in blocks:
         if len(b) >= 3 and 200 < b[0]['y'] < 1400: 
@@ -127,8 +133,9 @@ def analyze_park_lanes(img, ai_meta_data):
             y_max = max(l['y'] for l in b)
             games_y_coords.append((int(y_min), int(y_max)))
             cv2.rectangle(output_img, (10, int(y_min)), (target_width-10, int(y_max)), (0, 255, 0), 2)
-            cv2.putText(output_img, f"Game {len(games_y_coords)}", (20, int(y_min) + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-
+            # 画像上の番号表示を開始ゲーム数に合わせる
+            display_game_num = base_game_num + len(games_y_coords) - 1
+            cv2.putText(output_img, f"Game {display_game_num}", (20, int(y_min) + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
     # 3. 縦線の検出と大枠の特定（上14.5%と下18%を除外して抽出）
     v_kernel_len = int(target_height * 0.05)
     v_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, v_kernel_len))
@@ -697,6 +704,18 @@ def analyze_copa_bowl(img, ai_meta_data):
             prev_y = line['y']
         blocks.append(current_block)
 
+    # 開始ゲーム数を取得
+    try:
+        base_game_num = int(ai_meta_data.get("start_game_num", 1))
+    except:
+        base_game_num = 1
+
+    # 開始ゲーム数を取得
+    try:
+        base_game_num = int(ai_meta_data.get("start_game_num", 1))
+    except:
+        base_game_num = 1
+
     games_y_coords = []
     for b in blocks:
         if len(b) >= 3 and 200 < b[0]['y'] < 1400: 
@@ -704,8 +723,9 @@ def analyze_copa_bowl(img, ai_meta_data):
             y_max = max(l['y'] for l in b)
             games_y_coords.append((int(y_min), int(y_max)))
             cv2.rectangle(output_img, (10, int(y_min)), (target_width-10, int(y_max)), (0, 255, 0), 2)
-            cv2.putText(output_img, f"Game {len(games_y_coords)}", (20, int(y_min) + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-
+            # 画像上の番号表示を開始ゲーム数に合わせる
+            display_game_num = base_game_num + len(games_y_coords) - 1
+            cv2.putText(output_img, f"Game {display_game_num}", (20, int(y_min) + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
     # 3. 縦線の検出と大枠の特定（左右10%にある10mm以上の縦線を抽出して交点を出す）
     v_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 50)) # 10mmを約50pxとして抽出
     v_mask = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, v_kernel)
