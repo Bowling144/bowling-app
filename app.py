@@ -1389,13 +1389,14 @@ def analyze_round1(img, ai_meta_data):
     # （ラウワン）枠の全体の横幅を計算
     total_w = right_x - left_x
     
-    # （ラウワン）基準点A（left_x）と基準点B（right_x）の距離を実際のスコアシートの187.5mmとして、1mmあたりのピクセル数を算出
+    # （ラウワン）基準点A（left_x）と基準点B（right_x）の距離を実際のスコアシートの159.4mmとして、1mmあたりのピクセル数を算出
     distance_ab_px = right_x - left_x
-    mm_to_px = distance_ab_px / 187.5
+    mm_to_px = distance_ab_px / 159.4
     
     # （ラウワン）青枠のX座標の計算（基準点AのX座標 = left_x）
-    x1_score = int(left_x + (20.0 * mm_to_px))
-    x2_score = int(left_x + (164.0 * mm_to_px))
+    # ※ここはAI読み取り用の青枠なので、1投目(0mm)から10フレ3投目(142.6mm)をカバーする範囲に修正
+    x1_score = int(left_x)
+    x2_score = int(left_x + (142.6 * mm_to_px))
     
     # （ラウワン）画面外にはみ出さないように補正
     x1_score = max(0, x1_score)
@@ -1500,17 +1501,19 @@ def analyze_round1(img, ai_meta_data):
         base_x = left_x
         base_y = y2
         
-        # （ラウワン）⑤ 基準点間の距離（ピクセル）から、動的な縮尺を計算する（実測値 187.5mm）
+        # （ラウワン）⑤ 基準点間の距離（ピクセル）から、動的な縮尺を計算する（実測値 159.4mm）
         distance_ab_px = right_x - left_x
-        mm_to_px = distance_ab_px / 187.5
+        mm_to_px = distance_ab_px / 159.4
         
-        # （ラウワン）指定の距離（自動スケール換算）
-        tot_offset_px = 17.0 * mm_to_px            # （ラウワン）① 1フレーム目の緑文字（基準点Aから右へ17mm）
-        pitch1_offset_px = 21.2 * mm_to_px         # （ラウワン）③ 1フレーム目の1投目スコア（基準点Aから右へ21.2mm）
-        frame_pitch_px = 13.67 * mm_to_px          # （ラウワン）②④ 各フレームの移動間隔（13.67mm）
-        pitch2_offset_px = 6.83 * mm_to_px         # （ラウワン）⑤ 2投目の位置（1投目から右へ6.83mm）
-        pitch10_offset_px = 6.83 * mm_to_px        # （ラウワン）10フレーム目の投球間隔（他と同じ6.83mmに変更）
-        match_x_offset_px = int(160.0 * mm_to_px)  # （ラウワン）⑥ マッチの文字：基準点Aから160mm
+        # （ラウワン）指定の距離（均等割り計算）
+        # 1フレ1投目(0mm)から10フレ3投目(142.6mm)までの20間隔分（投球数は21）を均等割り
+        pitch_per_throw_mm = 142.6 / 20.0
+        pitch_per_throw_px = pitch_per_throw_mm * mm_to_px
+        
+        # 緑文字（フレームトータル）の位置：1フレ1投目と2投目の中間より少し右あたりに仮置き
+        tot_offset_px = pitch_per_throw_px * 0.8
+        
+        match_x_offset_px = int(145.0 * mm_to_px)  # （ラウワン）⑥ マッチの文字：10フレ3投目の少し右
         
         # （ラウワン）縦位置の指定
         y_offset_score = int(11.0 * mm_to_px)      # （ラウワン）1投目と赤文字は下辺から11mm上
@@ -1796,29 +1799,31 @@ def analyze_round1(img, ai_meta_data):
         # （ラウワン）▼ 画像への描画処理 ▼
         # （ラウワン）----------------------------------------------------
         for f in range(9):
-            # （ラウワン）緑文字(トータル)と1投目(青/赤)のX座標を分離して計算
-            tot_start_x = int(base_x + tot_offset_px + (f * frame_pitch_px))
-            f_start_x = int(base_x + pitch1_offset_px + (f * frame_pitch_px))
+            # （ラウワン）均等割りピッチに基づくX座標計算
+            f_start_x = int(base_x + (f * 2 * pitch_per_throw_px))
+            x2_pos = int(base_x + ((f * 2 + 1) * pitch_per_throw_px))
+            tot_start_x = int(base_x + (f * 2 * pitch_per_throw_px) + tot_offset_px)
             
             # （ラウワン）累計トータルスコアの描画
             ai_tot_val = str(ai_frame_totals[f])
             if ai_tot_val and ai_tot_val != "0":
                 cv2.putText(output_img, ai_tot_val, (tot_start_x, tot_y_score), font, 0.6, color_green, 2, cv2.LINE_AA)
             
-            # （ラウワン）1投目の描画 (画像判定の final_throws を参照)
+            # （ラウワン）1投目の描画
             t1 = str(final_throws[f*2]).replace("R:", "")
             if t1.strip(): 
                 cv2.putText(output_img, t1, (f_start_x, text_y_score), font, font_scale, throw_colors[f*2], thickness, cv2.LINE_AA)
             
             # （ラウワン）2投目の描画
             t2 = str(final_throws[f*2+1]).replace("R:", "")
-            x2_pos = int(f_start_x + pitch2_offset_px)
             if t2.strip(): 
                 cv2.putText(output_img, t2, (x2_pos, text_y_score), font, font_scale, throw_colors[f*2+1], thickness, cv2.LINE_AA)
             
         # （ラウワン）10フレームの描画
-        tot10_start_x = int(base_x + tot_offset_px + (9 * frame_pitch_px))
-        f10_start_x = int(base_x + pitch1_offset_px + (9 * frame_pitch_px))
+        f10_1_x = int(base_x + (18 * pitch_per_throw_px))
+        f10_2_x = int(base_x + (19 * pitch_per_throw_px))
+        f10_3_x = int(base_x + (20 * pitch_per_throw_px))
+        tot10_start_x = int(base_x + (18 * pitch_per_throw_px) + tot_offset_px)
         
         ai_tot_val_10 = str(ai_frame_totals[9])
         if ai_tot_val_10 and ai_tot_val_10 != "0":
@@ -1829,12 +1834,11 @@ def analyze_round1(img, ai_meta_data):
         t10_3 = str(final_throws[20]).replace("R:", "")
         
         if t10_1.strip(): 
-            cv2.putText(output_img, t10_1, (f10_start_x, text_y_score), font, font_scale, throw_colors[18], thickness, cv2.LINE_AA)
+            cv2.putText(output_img, t10_1, (f10_1_x, text_y_score), font, font_scale, throw_colors[18], thickness, cv2.LINE_AA)
         if t10_2.strip(): 
-            cv2.putText(output_img, t10_2, (int(f10_start_x + pitch10_offset_px), text_y_score), font, font_scale, throw_colors[19], thickness, cv2.LINE_AA)
+            cv2.putText(output_img, t10_2, (f10_2_x, text_y_score), font, font_scale, throw_colors[19], thickness, cv2.LINE_AA)
         if t10_3.strip(): 
-            cv2.putText(output_img, t10_3, (int(f10_start_x + pitch10_offset_px * 2), text_y_score), font, font_scale, throw_colors[20], thickness, cv2.LINE_AA)
-
+            cv2.putText(output_img, t10_3, (f10_3_x, text_y_score), font, font_scale, throw_colors[20], thickness, cv2.LINE_AA)
         # （ラウワン）トータルスコアの照合と MATCH/DIFF! の描画
         clean_throws = [str(t).replace("R:", "") for t in final_throws]
         try:
