@@ -1355,8 +1355,8 @@ def analyze_round1(img, ai_meta_data):
         x, y, w, h = cv2.boundingRect(cnt)
         if h >= 50: # （ラウワン）10mm(約50px)以上
             line_center_x = x + w / 2.0
-            # （ラウワン）左右10%の領域にあるか判定
-            if line_center_x < target_width * 0.10:
+            # （ラウワン）左は20%、右は10%の領域にあるか判定
+            if line_center_x < target_width * 0.20:
                 left_lines_x.append(line_center_x)
             elif line_center_x > target_width * 0.90:
                 right_lines_x.append(line_center_x)
