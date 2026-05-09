@@ -4890,14 +4890,28 @@ if app_mode == "プレイヤー分析":
 
                     import plotly.graph_objects as go
 
-                    # 横軸のレーンリスト（1, 2, 1-2, 3, 4, 3-4 ... 17-18 まで固定で生成）
+                    # 実際にプレイした最大のレーン番号を特定する
+                    max_lane_num = 18 # 最低18レーンは表示する（イーグルボウル基準）
+                    for g in player_games:
+                        lane_raw = str(g['row'][5]).strip()
+                        import re
+                        nums = [int(x) for x in re.findall(r'\d+', lane_raw)]
+                        if nums:
+                            max_val = max(nums)
+                            if max_val > max_lane_num:
+                                max_lane_num = max_val
+                    
+                    # 最大レーン番号が奇数の場合は偶数に切り上げ（2レーンペアを作るため）
+                    if max_lane_num % 2 != 0:
+                        max_lane_num += 1
+
+                    # 横軸のレーンリストを動的生成
                     target_lanes = []
-                    for i in range(1, 18, 2):
+                    for i in range(1, max_lane_num, 2):
                         target_lanes.extend([str(i), str(i+1), f"{i}-{i+1}"])
 
                     # レーンごとのスコアを格納する辞書
                     lane_scores = {lane: [] for lane in target_lanes}
-
                     for g in player_games:
                         try:
                             # マスターデータの「レーン」列はインデックス 5
@@ -8613,8 +8627,7 @@ if st.session_state.analyzed_results:
     st.markdown("### レーン・オイル・ボール")
     input_data = {}
 
-    LANE_OPTIONS = [""] + [str(i) for i in range(1, 19)] + [f"{i}-{i+1}" for i in range(1, 19, 2)] + [f"{i+1}-{i}" for i in range(1, 19, 2)]
-
+    LANE_OPTIONS = [""] + [str(i) for i in range(1, 61)] + [f"{i}-{i+1}" for i in range(1, 61, 2)] + [f"{i+1}-{i}" for i in range(1, 61, 2)]
     # ▼ 使用ボール(J列=10)、個別条件1〜3(BD列=56, BE=57, BF=58)の履歴を取得
     sh_admin = get_gspread_client()
     sugs_ball = get_past_suggestions(sh_admin, 10) if sh_admin else []
@@ -9107,8 +9120,8 @@ if st.session_state.analyzed_results:
                             "seq": [],
                             "euro_g": 0, "euro_s": 0,
                             "am_g": 0, "am_s": 0,
-                            "euro_lanes": {str(i): {"g": 0, "s": 0} for i in range(1, 19)},
-                            "am_lanes": {f"{i}-{i+1}": {"g": 0, "s": 0} for i in range(1, 18, 2)},
+                            "euro_lanes": {str(i): {"g": 0, "s": 0} for i in range(1, 61)},
+                            "am_lanes": {f"{i}-{i+1}": {"g": 0, "s": 0} for i in range(1, 61, 2)},
                             "oil_lens": {k: {"g": 0, "s": 0} for k in ["L < 32ft", "32 ≦ L < 34ft", "34 ≦ L < 36ft", "36 ≦ L < 38ft", "38 ≦ L < 40ft", "40 ≦ L < 42ft", "42 ≦ L < 44ft", "44 ≦ L < 46ft", "46ft ≦ L"]},
                             "oil_vols": {k: {"g": 0, "s": 0} for k in ["V < 20ml", "20 ≦ V < 22ml", "22 ≦ V < 24ml", "24 ≦ V < 26ml", "26 ≦ V < 28ml", "28 ≦ V < 30ml", "30 ≦ V < 32ml", "32 ≦ V < 34ml", "34 ≦ V < 36ml", "36ml ≦ V"]},
                             "first_pitch_c": 0,
@@ -9345,14 +9358,16 @@ if st.session_state.analyzed_results:
                     award_rows.append([email, n, "6.投球方式", "⑨1レーン", stats["euro_g"], stats["euro_s"], calc_ave(stats["euro_s"], stats["euro_g"])])
                     award_rows.append([email, n, "6.投球方式", "⑨2レーン", stats["am_g"], stats["am_s"], calc_ave(stats["am_s"], stats["am_g"])])
                         
-                    for i in range(1, 19):
+                    for i in range(1, 61):
                         k = str(i)
                         d = stats["euro_lanes"][k]
-                        award_rows.append([email, n, "7.レーン別", f"⑩{k}レーン", d["g"], d["s"], calc_ave(d["s"], d["g"])])
-                    for i in range(1, 18, 2):
+                        if d["g"] > 0: # データがあるレーンだけ出力
+                            award_rows.append([email, n, "7.レーン別", f"⑩{k}レーン", d["g"], d["s"], calc_ave(d["s"], d["g"])])
+                    for i in range(1, 61, 2):
                         k = f"{i}-{i+1}"
                         d = stats["am_lanes"][k]
-                        award_rows.append([email, n, "7.レーン別", f"⑩{i}-{i+1}・{i+1}-{i} レーン", d["g"], d["s"], calc_ave(d["s"], d["g"])])
+                        if d["g"] > 0: # データがあるレーンだけ出力
+                            award_rows.append([email, n, "7.レーン別", f"⑩{i}-{i+1}・{i+1}-{i} レーン", d["g"], d["s"], calc_ave(d["s"], d["g"])])
                         
                     for l_key, d in stats["oil_lens"].items():
                         award_rows.append([email, n, "8.オイル長別", f"⑪{l_key}", d["g"], d["s"], calc_ave(d["s"], d["g"])])
