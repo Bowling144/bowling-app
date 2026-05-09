@@ -7192,51 +7192,51 @@ if st.session_state.analyzed_results is None:
                 
         detected_alley = ai_meta_data.get("bowling_alley", "イーグルボウル")
         user_role = st.session_state.get("user_role", "")
-            if detected_alley != "イーグルボウル" and user_role != "開発者":
-                st.error(f"【権限エラー】{detected_alley} のスコア登録は開発者権限でのみ許可されています。")
-                continue
+        if detected_alley != "イーグルボウル" and user_role != "開発者":
+            st.error(f"【権限エラー】{detected_alley} のスコア登録は開発者権限でのみ許可されています。")
+            continue
 
-            if detected_alley == "相模原パークレーンズ":
-                all_games_export_data, output_img = analyze_park_lanes(img, ai_meta_data)
-                analyzed_results.append({
-                    "file_name": file_name,
-                    "file_id": file_id,
-                    "output_img": output_img,
-                    "all_games_export_data": all_games_export_data,
-                    "meta_data": ai_meta_data
-                })
-                status_text.empty()
+        if detected_alley == "相模原パークレーンズ":
+            all_games_export_data, output_img = analyze_park_lanes(img, ai_meta_data)
+            analyzed_results.append({
+                "file_name": file_name,
+                "file_id": file_id,
+                "output_img": output_img,
+                "all_games_export_data": all_games_export_data,
+                "meta_data": ai_meta_data
+            })
+            status_text.empty()
+            continue
+        elif detected_alley == "永山コパボウル":
+            all_games_export_data, output_img = analyze_copa_bowl(img, ai_meta_data)
+            if not all_games_export_data:
+                st.warning("永山コパボウルの解析ロジックは現在開発中（ダミー状態）です。")
                 continue
-            elif detected_alley == "永山コパボウル":
-                all_games_export_data, output_img = analyze_copa_bowl(img, ai_meta_data)
-                if not all_games_export_data:
-                    st.warning("永山コパボウルの解析ロジックは現在開発中（ダミー状態）です。")
-                    continue
-                analyzed_results.append({
-                    "file_name": file_name,
-                    "file_id": file_id,
-                    "output_img": output_img,
-                    "all_games_export_data": all_games_export_data,
-                    "meta_data": ai_meta_data
-                })
-                status_text.empty()
-                continue
-            elif detected_alley == "ラウンドワン":
-                all_games_export_data, output_img = analyze_round1(img, ai_meta_data)
-                analyzed_results.append({
-                    "file_name": file_name,
-                    "file_id": file_id,
-                    "output_img": output_img,
-                    "all_games_export_data": all_games_export_data,
-                    "meta_data": ai_meta_data
-                })
-                status_text.empty()
-                continue
-            elif detected_alley != "イーグルボウル":
-                st.warning(f"{detected_alley} の解析ロジックは未実装です。イーグルボウルのロジックで試行します。")
-                detected_alley = "イーグルボウル"
+            analyzed_results.append({
+                "file_name": file_name,
+                "file_id": file_id,
+                "output_img": output_img,
+                "all_games_export_data": all_games_export_data,
+                "meta_data": ai_meta_data
+            })
+            status_text.empty()
+            continue
+        elif detected_alley == "ラウンドワン":
+            all_games_export_data, output_img = analyze_round1(img, ai_meta_data)
+            analyzed_results.append({
+                "file_name": file_name,
+                "file_id": file_id,
+                "output_img": output_img,
+                "all_games_export_data": all_games_export_data,
+                "meta_data": ai_meta_data
+            })
+            status_text.empty()
+            continue
+        elif detected_alley != "イーグルボウル":
+            st.warning(f"{detected_alley} の解析ロジックは未実装です。イーグルボウルのロジックで試行します。")
+            detected_alley = "イーグルボウル"
 
-            # ▲ 追加（共通）ここまで ▲
+        # ▲ 追加（共通）ここまで ▲
 
         all_games_export_data = []
         blue_lines = []
