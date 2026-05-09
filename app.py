@@ -8139,8 +8139,8 @@ if st.session_state.analyzed_results:
                 try:
                     alleys_sheet = sh.worksheet("ボウリング場")
                     alleys_data = alleys_sheet.col_values(1)
-                    # ヘッダー(1行目)を除外して、空行以外を取得
-                    fetched_alleys = [a.strip() for a in alleys_data[1:] if a.strip()]
+                    # ▼ 修正：ボウリング場シートにはヘッダー行がないため、1行目（そのまま）から取得する ▼
+                    fetched_alleys = [a.strip() for a in alleys_data if a.strip()]
                     if not fetched_alleys:
                         fetched_alleys = ["イーグルボウル", "相模原パークレーンズ", "永山コパボウル", "ラウンドワン"]
                 except:
