@@ -1282,11 +1282,12 @@ def analyze_round1(img, ai_meta_data):
         img_resized = cv2.rotate(img_resized, cv2.ROTATE_90_CLOCKWISE)
         output_img = img_resized.copy()
         
-    # （ラウワン）2. 横線の検出によるゲーム枠の特定
+    # （ラウワン）2. 横線の検出
     gray = cv2.cvtColor(img_resized, cv2.COLOR_BGR2GRAY)
-    thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 5)
-    
-    # （ラウワン）ピン判定（実測）用の二値化画像を作成（青チャンネルを使用）
+    # ▼ 追加：薄い裏写りや紙のシワなどの細かいノイズを消すために少しぼかしを入れる
+    gray_blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    # ▼ 修正：閾値の定数(C)を 5 から 15 に上げて、より濃くはっきりした線だけを抽出するように感度を下げる
+    thresh = cv2.adaptiveThreshold(gray_blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 15)
     b_channel = img_resized[:, :, 0]
     thresh_ink = cv2.adaptiveThreshold(b_channel, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 10)
 
