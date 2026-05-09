@@ -8692,20 +8692,34 @@ if st.session_state.analyzed_results:
             default_alley_index = 0
         
         # （ラウワン）ボウリング場選択セレクトボックスの表示
+        cfor img_idx, items in games_by_img.items():
+        st.markdown(f"**画像 {img_idx+1} の設定**")
+        
+        import unicodedata
+        import re
+
+        # （ラウワン）AIが判別したボウリング場を反映。正規化後の値（ラウンドワン等）でインデックスを探す。
+        meta = st.session_state.analyzed_results[img_idx].get("meta_data", {})
+        ai_alley = meta.get("bowling_alley", "イーグルボウル")
+        try:
+            default_alley_index = ALLEY_OPTIONS.index(ai_alley)
+        except ValueError:
+            default_alley_index = 0
+        
+        # （ラウワン）ボウリング場選択セレクトボックスを表示
         common_alley = st.selectbox("ボウリング場", ALLEY_OPTIONS, index=default_alley_index, key=f"c_alley_{img_idx}")
 
-        # （ラウワン）レーン番号の正規化処理（"07" -> "7" や 全角 "７" -> 半角 "7"）
+        # （ラウワン）レーン番号の正規化処理（"07" -> "7" や 全角を半角に変換）
         raw_lane = str(items[0]["export_row"][3]).strip()
-        # 全角を半角に、前後の空白を除去
-        norm_lane = unicodedata.normalize('NFKC', raw_lane)
-        # 数字とハイフン以外を除去
-        match_l = re.search(r'[\d\-]+', norm_lane)
+        norm_lane = unicodedata.normalize('NFKC', raw_lane) # 全角英数を半角へ
+        match_l = re.search(r'[\d\-]+', norm_lane) # 数字とハイフンを抽出
         ai_lane = match_l.group(0) if match_l else norm_lane
-        # 先頭の0を除去して数値化
+
+        # ▼ 追加：先頭の0を除去して数値化（"07" を "7" にする） ▼
         if ai_lane.isdigit():
             ai_lane = str(int(ai_lane))
         
-        # 選択肢リストにAIが読み取った番号が含まれていなければ、一時的に追加してエラーを防ぐ
+        # 選択肢リストにない番号なら一時的に追加してエラーを回避
         if ai_lane and ai_lane not in LANE_OPTIONS:
             LANE_OPTIONS.append(ai_lane)
             
@@ -9186,8 +9200,9 @@ if st.session_state.analyzed_results:
                             "seq": [],
                             "euro_g": 0, "euro_s": 0,
                             "am_g": 0, "am_s": 0,
-                            "euro_lanes": {str(i): {"g": 0, "s": 0} for i in range(1, 19)},
-                            "am_lanes": {f"{i}-{i+1}": {"g": 0, "s": 0} for i in range(1, 18, 2)},
+                            # ▼ 修正：AWARD集計用に、事前に用意する枠を60レーンまで拡張
+                            "euro_lanes": {str(i): {"g": 0, "s": 0} for i in range(1, 61)},
+                            "am_lanes": {f"{i}-{i+1}": {"g": 0, "s": 0} for i in range(1, 61, 2)},
                             "oil_lens": {k: {"g": 0, "s": 0} for k in ["L < 32ft", "32 ≦ L < 34ft", "34 ≦ L < 36ft", "36 ≦ L < 38ft", "38 ≦ L < 40ft", "40 ≦ L < 42ft", "42 ≦ L < 44ft", "44 ≦ L < 46ft", "46ft ≦ L"]},
                             "oil_vols": {k: {"g": 0, "s": 0} for k in ["V < 20ml", "20 ≦ V < 22ml", "22 ≦ V < 24ml", "24 ≦ V < 26ml", "26 ≦ V < 28ml", "28 ≦ V < 30ml", "30 ≦ V < 32ml", "32 ≦ V < 34ml", "34 ≦ V < 36ml", "36ml ≦ V"]},
                             "first_pitch_c": 0,
