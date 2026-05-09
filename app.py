@@ -7191,7 +7191,7 @@ if st.session_state.analyzed_results is None:
                 break
                 
         detected_alley = ai_meta_data.get("bowling_alley", "イーグルボウル")
-            user_role = st.session_state.get("user_role", "")
+        user_role = st.session_state.get("user_role", "")
             if detected_alley != "イーグルボウル" and user_role != "開発者":
                 st.error(f"【権限エラー】{detected_alley} のスコア登録は開発者権限でのみ許可されています。")
                 continue
