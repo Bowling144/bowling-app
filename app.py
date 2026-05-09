@@ -1469,6 +1469,9 @@ def analyze_round1(img, ai_meta_data):
 
     games_list = ai_score_data.get("games", [])
 
+    # （ラウワン）▼ 変更：時刻不明時に前のゲームから +5 分するための記憶用変数
+    prev_start_time = global_start_time
+
     for i, (y1, y2) in enumerate(games_y_coords):
         g_start_time = global_start_time
         g_end_time = global_end_time
@@ -1478,6 +1481,21 @@ def analyze_round1(img, ai_meta_data):
                 g_start_time = str(g_time_info["start_time"])
             if g_time_info.get("end_time") and g_time_info.get("end_time") != "時刻不明":
                 g_end_time = str(g_time_info["end_time"])
+
+        # （ラウワン）▼ 追加：時刻が不明な場合、前のゲームの開始時刻に +5分 する ▼
+        if g_start_time == "時刻不明" or not g_start_time.strip():
+            if prev_start_time and prev_start_time != "時刻不明":
+                try:
+                    import datetime
+                    time_parts = prev_start_time.split(":")
+                    if len(time_parts) >= 2:
+                        h, m = int(time_parts[0]), int(time_parts[1][:2])
+                        dt = datetime.datetime(2000, 1, 1, h, m) + datetime.timedelta(minutes=5)
+                        g_start_time = dt.strftime("%H:%M")
+                except Exception:
+                    pass
+                    
+        prev_start_time = g_start_time # （ラウワン）記憶を更新
                 
         row_data = [""] * 52
         row_data[0] = global_date
