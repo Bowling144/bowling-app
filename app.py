@@ -1413,9 +1413,10 @@ def analyze_round1(img, ai_meta_data):
     x2_score = min(target_width, x2_score)
     
     for (y1, y2) in games_y_coords:
-        margin_bottom = int(0.8 * mm_to_px)
-        crop_y_bottom = int(y2) - margin_bottom
-        crop_y_top = max(0, int(y2 - (7.5 * mm_to_px)))
+        # ▼ 修正：トータルスコアを読み取りやすくするため、青枠（AI解析範囲）を上下に2mmずつ広げる ▼
+        margin_bottom = int(-1.2 * mm_to_px) # （元の0.8から下に2.0mm広げる）
+        crop_y_bottom = min(target_height, int(y2) - margin_bottom) # 画像下端を超えないよう保護
+        crop_y_top = max(0, int(y2 - (9.5 * mm_to_px))) # （元の7.5から上に2.0mm広げる）
         
         # （ラウワン）切り出し
         crop = img_resized[crop_y_top:crop_y_bottom, x1_score:x2_score]
