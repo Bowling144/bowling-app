@@ -7494,11 +7494,25 @@ if st.session_state.analyzed_results:
                     st.session_state.player_nickname_map = {}
                     
                 st.session_state.oil_data = oil_data_list 
+
+                # ▼ 追加：ボウリング場リストをSPSの「ボウリング場」シートA列から取得
+                try:
+                    alleys_sheet = sh.worksheet("ボウリング場")
+                    alleys_data = alleys_sheet.col_values(1)
+                    # ヘッダー(1行目)を除外して取得
+                    fetched_alleys = [a.strip() for a in alleys_data[1:] if a.strip()]
+                except:
+                    # シートがない場合のフォールバック
+                    fetched_alleys = ["イーグルボウル", "相模原パークレーンズ", "永山コパボウル", "ラウンドワン"]
+                st.session_state.bowling_alley_list = fetched_alleys
+
             except Exception as e:
                 st.warning(f"設定の読み込みに失敗しました: {e}")
                 st.session_state.dynamic_player_list = ["999_ゲスト"]
                 st.session_state.player_nickname_map = {}
                 st.session_state.oil_data = [] 
+                # エラー時のデフォルト値
+                st.session_state.bowling_alley_list = ["イーグルボウル", "相模原パークレーンズ", "永山コパボウル", "ラウンドワン"]
 
     
     player_list = st.session_state.dynamic_player_list
@@ -8001,7 +8015,10 @@ if st.session_state.analyzed_results:
     st.markdown("### レーン・オイル・ボール")
     input_data = {}
 
-    LANE_OPTIONS = [""] + [str(i) for i in range(1, 19)] + [f"{i}-{i+1}" for i in range(1, 19, 2)] + [f"{i+1}-{i}" for i in range(1, 19, 2)]
+    # ▼ 修正：上限を60レーンまで拡張
+    LANE_OPTIONS = [""] + [str(i) for i in range(1, 61)] + [f"{i}-{i+1}" for i in range(1, 61, 2)] + [f"{i+1}-{i}" for i in range(1, 61, 2)]
+    # ▼ 追加：SPSから取得したボウリング場リスト
+    ALLEY_OPTIONS = st.session_state.get("bowling_alley_list", ["イーグルボウル", "相模原パークレーンズ", "永山コパボウル", "ラウンドワン"])
 
     # ▼ 使用ボール(J列=10)、個別条件1〜3(BD列=56, BE=57, BF=58)の履歴を取得
     sh_admin = get_gspread_client()
@@ -8020,9 +8037,29 @@ if st.session_state.analyzed_results:
     for img_idx, items in games_by_img.items():
         st.markdown(f"**画像 {img_idx+1} の設定**")
         
-        ai_lane = items[0]["export_row"][3]
+        import unicodedata
+        import re
+
+        # ▼ 追加：ボウリング場の初期値設定
+        meta = st.session_state.analyzed_results[img_idx].get("meta_data", {})
+        ai_alley = meta.get("bowling_alley", "イーグルボウル")
+        default_alley_index = ALLEY_OPTIONS.index(ai_alley) if ai_alley in ALLEY_OPTIONS else 0
+        
+        # ▼ 修正：レーン番号の「07」を「7」に、「７」を「7」に変換して確実に選択肢にマッチさせる
+        raw_lane = str(items[0]["export_row"][3]).strip()
+        norm_lane = unicodedata.normalize('NFKC', raw_lane) # 全角を半角へ
+        match_l = re.search(r'[\d\-]+', norm_lane) # 数字とハイフンだけ抽出
+        ai_lane = match_l.group(0) if match_l else norm_lane
+        if ai_lane.isdigit(): ai_lane = str(int(ai_lane)) # "07" -> "7" 
+        
+        # 選択肢になければ追加してエラーを防ぐ
+        if ai_lane and ai_lane not in LANE_OPTIONS:
+            LANE_OPTIONS.append(ai_lane)
         default_lane_index = LANE_OPTIONS.index(ai_lane) if ai_lane in LANE_OPTIONS else 0
         
+        # ▼ 追加：ボウリング場の選択欄
+        common_alley = st.selectbox("ボウリング場", ALLEY_OPTIONS, index=default_alley_index, key=f"c_alley_{img_idx}")
+
         c_lane, c_len, c_vol = st.columns([1.5, 1, 1])
         with c_lane:
             common_lane = st.selectbox("レーン番号", LANE_OPTIONS, index=default_lane_index, key=f"c_lane_{img_idx}")
@@ -8105,7 +8142,8 @@ if st.session_state.analyzed_results:
                 final_c2 = i_c2_val if (not st.session_state.get("kiosk_mode") and i_c2_val.strip()) else common_c2
                 final_c3 = i_c3_val if (not st.session_state.get("kiosk_mode") and i_c3_val.strip()) else common_c3
                 
-                input_data[(img_idx, l_idx)] = (common_lane, final_len, final_vol, final_ball, final_c1, final_c2, final_c3)
+                # ▼ 修正：リストの先頭に common_alley を追加
+                input_data[(img_idx, l_idx)] = (common_alley, common_lane, final_len, final_vol, final_ball, final_c1, final_c2, final_c3)
     
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("<h3 style='text-align: left;'>☟　☟　☟　☟　☟　☟</h3>", unsafe_allow_html=True)
@@ -8344,7 +8382,8 @@ if st.session_state.analyzed_results:
                     new_end = row[2]
                     new_game = row[4] 
             
-                    selected_lane, oil_len, oil_vol, ball_used, c1_val, c2_val, c3_val = input_data.get((item["img_idx"], item["local_idx"]), ("", "", "", "", "", "", ""))
+                    # ▼ 修正：受取変数に selected_alley を追加
+                selected_alley, selected_lane, oil_len, oil_vol, ball_used, c1_val, c2_val, c3_val = input_data.get((item["img_idx"], item["local_idx"]), ("", "", "", "", "", "", "", ""))
 
                     formatted_row = [
                         user_email,      
@@ -8381,10 +8420,8 @@ if st.session_state.analyzed_results:
                 formatted_row.append(c2_val) # 57番目 (BE)
                 formatted_row.append(c3_val) # 58番目 (BF)
 
-                # ▼ BG列(59) ボウリング場情報の追加
-                ai_meta_data = st.session_state.analyzed_results[item["img_idx"]]["meta_data"]
-                bowling_alley = ai_meta_data.get("bowling_alley", "イーグルボウル")
-                formatted_row.append(bowling_alley) 
+                # ▼ BG列(59) ボウリング場情報の追加（修正：AIの結果ではなく画面で選択された値を優先）
+                formatted_row.append(selected_alley)
                 
                 match_found = False
                 for i, ex_row in enumerate(existing_data):
