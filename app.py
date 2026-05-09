@@ -1546,8 +1546,8 @@ def analyze_round1(img, ai_meta_data):
         pin1_x_offset_mm = 6.8   # （ラウワン）基準点Aから右に6.8mm
         pin_pitch_x_mm = (pin1_x_offset_mm - pin7_x_offset_mm) / 1.5  
         
-        pin7_y_offset_mm = 2.6   # （ラウワン）基準点Aから下に2.6mm（さらに0.2mm下へ移動）
-        pin1_y_offset_mm = 13.5  # （ラウワン）基準点Aから下に13.5mm（さらに0.2mm下へ移動）
+        pin7_y_offset_mm = 2.9   # （ラウワン）基準点Aから下に2.9mm（さらに0.3mm下へ移動）
+        pin1_y_offset_mm = 13.8  # （ラウワン）基準点Aから下に13.8mm（さらに0.3mm下へ移動）
         pin_pitch_y_mm = (pin1_y_offset_mm - pin7_y_offset_mm) / 3.0
         
         axes_x_px = int((1.6 / 2) * mm_to_px)      # （ラウワン）判定枠の楕円X軸半径（横幅1.6mmの半分に変更）
