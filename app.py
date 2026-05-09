@@ -1307,11 +1307,12 @@ def analyze_round1(img, ai_meta_data):
             if w > max_w:
                 max_w = w
                 
-    # （ラウワン）▼ 追加：画像上部のヘッダー領域（約45mm）の横線を除外する ▼
-    # 検出された最大の横線の幅(max_w)をスコア表全体の幅(約160mm)とみなし、45mm相当のピクセル数を算出
-    ignore_y_px = 45.0 * (max_w / 160.0) if max_w > 0 else 0
+    # （ラウワン）▼ 修正：ヘッダー領域の除外ロジックを「最大横幅ベース」から「画像高さの割合」に変更 ▼
+    # 撮影環境によって最大の横線(max_w)が異常に長くなり、除外範囲が広がりすぎるバグを防止します。
+    # 画像全体(target_height)の上から約12%（ヘッダーロゴ領域）のみを除外します。
+    ignore_y_px = target_height * 0.12
     
-    # 画像の上端から ignore_y_px以内の位置にある横線は、ゲーム枠ではないと判定して削除
+    # 画像の上端から ignore_y_px 以内の位置にある横線は、ゲーム枠ではないと判定して削除
     h_lines_info = [line for line in h_lines_info if line['y'] > ignore_y_px]
             
     # （ラウワン）変更後
