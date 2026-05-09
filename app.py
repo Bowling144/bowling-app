@@ -8200,8 +8200,8 @@ if st.session_state.analyzed_results:
             except:
                 return "", "", "レーン番号が数値ではありません"
                 
-        if not (1 <= lane_num <= 18):
-            return "", "", "レーン番号が範囲外(1-18)です"
+        if not (1 <= lane_num <= 60):
+            return "", "", "レーン番号が範囲外(1-60)です"
             
         len_col = lane_num * 2
         vol_col = lane_num * 2 + 1
@@ -8645,7 +8645,20 @@ if st.session_state.analyzed_results:
     for img_idx, items in games_by_img.items():
         st.markdown(f"**画像 {img_idx+1} の設定**")
         
-        ai_lane = items[0]["export_row"][3]
+        import unicodedata
+        import re
+        
+        raw_lane = str(items[0]["export_row"][3]).strip()
+        # 全角英数字を半角に変換（例：「２５」→「25」）
+        norm_lane = unicodedata.normalize('NFKC', raw_lane)
+        # 余計な文字や空白を取り除き、数字とハイフンだけを抽出（例：「L25 」→「25」）
+        match = re.search(r'[\d\-]+', norm_lane)
+        ai_lane = match.group(0) if match else norm_lane
+
+        # それでも選択肢に見つからなければ、強制的に選択肢に追加して表示する（フェイルセーフ）
+        if ai_lane and ai_lane not in LANE_OPTIONS:
+            LANE_OPTIONS.append(ai_lane)
+            
         default_lane_index = LANE_OPTIONS.index(ai_lane) if ai_lane in LANE_OPTIONS else 0
         
         c_lane, c_len, c_vol = st.columns([1.5, 1, 1])
