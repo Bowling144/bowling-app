@@ -1541,12 +1541,12 @@ def analyze_round1(img, ai_meta_data):
         
         # （ラウワン）▼ 変更（永山）：7番ピンをさらに左へ0.2mm、下へ0.2mm移動 ▼
         # （ラウワン）実測値に基づくピン配置設定（1mmあたりのピクセル数 mm_to_px を適用）
-        pin7_x_offset_mm = 23.2  # （ラウワン）元の 23.4 から -0.2 (左へ)
-        pin1_x_offset_mm = 27.4  
+        pin7_x_offset_mm = 1.6   # （ラウワン）基準点Aから右に1.6mm
+        pin1_x_offset_mm = 6.8   # （ラウワン）基準点Aから右に6.8mm
         pin_pitch_x_mm = (pin1_x_offset_mm - pin7_x_offset_mm) / 1.5  
         
-        pin7_y_offset_mm = 3.3   # （ラウワン）前回の 3.1 から +0.2 (下へ)
-        pin1_y_offset_mm = 11.4  
+        pin7_y_offset_mm = 1.9   # （ラウワン）基準点Aから下に1.9mm
+        pin1_y_offset_mm = 12.8  # （ラウワン）基準点Aから下に12.8mm
         pin_pitch_y_mm = (pin1_y_offset_mm - pin7_y_offset_mm) / 3.0
         
         axes_x_px = int((2.8 / 2) * mm_to_px)      # （ラウワン）判定枠の楕円X軸半径（幅2.8mmの半分に変更）
@@ -1560,14 +1560,9 @@ def analyze_round1(img, ai_meta_data):
         game_pin_pcts = []
         game_pin_data = {}
 
-        for f in range(12):
-            # （ラウワン）④ 投球ごとの均等割りピッチから、各フレームのピン判定枠の位置（X軸オフセット）を算出
-            if f < 10:
-                f_offset_px = f * 2 * pitch_per_throw_px   # 1〜10フレーム目の1投目
-            elif f == 10:
-                f_offset_px = 19 * pitch_per_throw_px      # 10フレーム目の2投目
-            else:
-                f_offset_px = 20 * pitch_per_throw_px      # 10フレーム目の3投目
+        for f in range(10):
+            # （ラウワン）ラウンドワンは10フレーム目も残ピン表示は1セットのみ。よって各フレームの1投目のみオフセットを算出
+            f_offset_px = f * 2 * pitch_per_throw_px   # 1〜10フレーム目の1投目
                 
             gx_local = int(base_x + (pin7_x_offset_mm * mm_to_px) + f_offset_px)
             gy_local = int(base_y + (pin7_y_offset_mm * mm_to_px))
@@ -1662,7 +1657,7 @@ def analyze_round1(img, ai_meta_data):
             output_img[0:gh, ow-gw:ow] = graph_img
         # （ラウワン）----------------------------------------------------
 
-        for f in range(12):
+        for f in range(10):
             frame_pins = []
             
             for row_idx, col_offset in pin_positions:
@@ -1719,7 +1714,10 @@ def analyze_round1(img, ai_meta_data):
                     throw_colors[f*2+1] = color_ai
 
         # （ラウワン）10フレーム目の計算
-        p9, p10, p11 = all_frame_pins[9], all_frame_pins[10], all_frame_pins[11]
+        # ラウンドワンでは10フレの残ピン画像は1投目分（1セット）しかないため、2投目・3投目はダミー（空）を使用
+        p9 = all_frame_pins[9]
+        p10, p11 = [], []
+        
         v1_10 = 10 - len(p9)
         str1_10 = 'X' if v1_10 == 10 else ('-' if v1_10 == 0 else str(v1_10))
         final_throws[18] = str1_10
