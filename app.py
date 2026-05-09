@@ -1235,608 +1235,6 @@ def analyze_copa_bowl(img, ai_meta_data):
 
     return all_games_export_data, output_img
 
-# ▼ 追加（ラウワン）：ラウンドワン用の解析関数 ▼
-def analyze_round1(img, ai_meta_data):
-    """（ラウワン）ラウンドワン用の解析ロジック（永山ベース）"""
-    
-    target_width = 1200
-    scale = target_width / img.shape[1]
-    target_height = int(img.shape[0] * scale)
-    img_resized = cv2.resize(img, (target_width, target_height))
-    output_img = img_resized.copy()
-    
-    all_games_export_data = []
-    
-    # （ラウワン）1. 画像の回転補正（横長にする）
-    h_orig, w_orig = img_resized.shape[:2]
-    gray_rot = cv2.cvtColor(img_resized, cv2.COLOR_BGR2GRAY)
-    thresh_rot = cv2.adaptiveThreshold(gray_rot, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 5)
-    
-    line_length = int(min(h_orig, w_orig) * 0.2)
-    h_k = cv2.getStructuringElement(cv2.MORPH_RECT, (line_length, 1))
-    v_k = cv2.getStructuringElement(cv2.MORPH_RECT, (1, line_length))
-    h_lines = cv2.morphologyEx(thresh_rot, cv2.MORPH_OPEN, h_k)
-    v_lines = cv2.morphologyEx(thresh_rot, cv2.MORPH_OPEN, v_k)
-    
-    if cv2.countNonZero(v_lines) > cv2.countNonZero(h_lines) * 1.2:
-        img_resized = cv2.rotate(img_resized, cv2.ROTATE_90_CLOCKWISE)
-        output_img = img_resized.copy()
-        
-    # （ラウワン）2. 横線の検出によるゲーム枠の特定
-    gray = cv2.cvtColor(img_resized, cv2.COLOR_BGR2GRAY)
-    thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 5)
-    
-    # （ラウワン）ピン判定（実測）用の二値化画像を作成（青チャンネルを使用）
-    b_channel = img_resized[:, :, 0]
-    thresh_ink = cv2.adaptiveThreshold(b_channel, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 10)
-
-    h_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (100, 1))
-    h_mask = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, h_kernel)
-    h_dilate = cv2.dilate(h_mask, cv2.getStructuringElement(cv2.MORPH_RECT, (50, 1)), iterations=1)
-    
-    contours, _ = cv2.findContours(h_dilate, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
-    h_lines_info = []
-    for cnt in contours:
-        x, y, w, h = cv2.boundingRect(cnt)
-        if w > target_width * 0.4:
-            y_center = y + h / 2.0
-            h_lines_info.append({'y': y_center, 'w': w, 'x': x})
-            
-    # （ラウワン）変更後
-    h_lines_info.sort(key=lambda item: item['y'])
-
-    blocks = []
-    if h_lines_info:
-        current_block = [h_lines_info[0]]
-        prev_y = h_lines_info[0]['y']
-        for line in h_lines_info[1:]:
-            if line['y'] - prev_y > 50:
-                blocks.append(current_block)
-                current_block = [line]
-            else:
-                current_block.append(line)
-            prev_y = line['y']
-        blocks.append(current_block)
-
-    games_y_coords = []
-    for b in blocks:
-        if len(b) >= 3 and 200 < b[0]['y'] < 1400: 
-            y_min = min(l['y'] for l in b)
-            y_max = max(l['y'] for l in b)
-            games_y_coords.append((int(y_min), int(y_max)))
-            cv2.rectangle(output_img, (10, int(y_min)), (target_width-10, int(y_max)), (0, 255, 0), 2)
-            cv2.putText(output_img, f"Game {len(games_y_coords)}", (20, int(y_min) + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-
-    # （ラウワン）3. 縦線の検出と大枠の特定（左右10%にある10mm以上の縦線を抽出して交点を出す）
-    v_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 50)) # （ラウワン）10mmを約50pxとして抽出
-    v_mask = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, v_kernel)
-
-    y_start = int(target_height * 0.145)
-    y_end = int(target_height * 0.82)
-    v_mask[:y_start, :] = 0
-    v_mask[y_end:, :] = 0
-
-    v_dilate = cv2.dilate(v_mask, cv2.getStructuringElement(cv2.MORPH_RECT, (1, 20)), iterations=1)
-    v_contours, _ = cv2.findContours(v_dilate, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    left_lines_x = []
-    right_lines_x = []
-
-    for cnt in v_contours:
-        x, y, w, h = cv2.boundingRect(cnt)
-        if h >= 50: # （ラウワン）10mm(約50px)以上
-            line_center_x = x + w / 2.0
-            # （ラウワン）左右10%の領域にあるか判定
-            if line_center_x < target_width * 0.10:
-                left_lines_x.append(line_center_x)
-            elif line_center_x > target_width * 0.90:
-                right_lines_x.append(line_center_x)
-
-    left_x = target_width * 0.13 # （ラウワン）デフォルトフォールバック
-    right_x = target_width * 0.99
-    
-    if left_lines_x:
-        left_x = sum(left_lines_x) / len(left_lines_x)
-    if right_lines_x:
-        right_x = sum(right_lines_x) / len(right_lines_x)
-
-    cv2.line(output_img, (int(left_x), 0), (int(left_x), target_height), (0, 255, 255), 2)
-    cv2.line(output_img, (int(right_x), 0), (int(right_x), target_height), (0, 255, 255), 2)
-
-    # （ラウワン）基準点A, Bの特定とピンクの点の描画
-    color_pink = (255, 0, 255)
-    point_radius = 8
-    point_thickness = -1
-
-    for y_min, y_max in games_y_coords:
-        point_a = (int(left_x), int(y_max))
-        point_b = (int(right_x), int(y_max))
-        cv2.circle(output_img, point_a, point_radius, color_pink, point_thickness)
-        cv2.circle(output_img, point_b, point_radius, color_pink, point_thickness)
-
-    # （ラウワン）4. スコア画像の作成（AI読み取り用）およびマス目（スケール）の計算
-    score_crops = []
-    
-    # （ラウワン）枠の全体の横幅を計算
-    total_w = right_x - left_x
-    
-    # （ラウワン）基準点A（left_x）と基準点B（right_x）の距離を実際のスコアシートの187.5mmとして、1mmあたりのピクセル数を算出
-    distance_ab_px = right_x - left_x
-    mm_to_px = distance_ab_px / 187.5
-    
-    # （ラウワン）青枠のX座標の計算（基準点AのX座標 = left_x）
-    x1_score = int(left_x + (20.0 * mm_to_px))
-    x2_score = int(left_x + (164.0 * mm_to_px))
-    
-    # （ラウワン）画面外にはみ出さないように補正
-    x1_score = max(0, x1_score)
-    x2_score = min(target_width, x2_score)
-    
-    for (y1, y2) in games_y_coords:
-        margin_bottom = int(0.8 * mm_to_px)
-        crop_y_bottom = int(y2) - margin_bottom
-        crop_y_top = max(0, int(y2 - (7.5 * mm_to_px)))
-        
-        # （ラウワン）切り出し
-        crop = img_resized[crop_y_top:crop_y_bottom, x1_score:x2_score]
-        score_crops.append(crop)
-        
-        # （ラウワン）画面表示用：AIに送る領域を青枠で囲む
-        cv2.rectangle(output_img, (x1_score, crop_y_top), (x2_score, crop_y_bottom), (255, 0, 0), 2)
-        
-    if score_crops:
-        max_w = max(c.shape[1] for c in score_crops)
-        padded_crops = []
-        for c in score_crops:
-            pad_w = max_w - c.shape[1]
-            padded = cv2.copyMakeBorder(c, 0, 0, 0, pad_w, cv2.BORDER_CONSTANT, value=(255, 255, 255))
-            padded_crops.append(padded)
-        stacked_scores = cv2.vconcat(padded_crops)
-        img_pil_scores = Image.fromarray(cv2.cvtColor(stacked_scores, cv2.COLOR_BGR2RGB))
-    else:
-        img_pil_scores = Image.fromarray(cv2.cvtColor(img_resized, cv2.COLOR_BGR2RGB))
-
-    # （ラウワン）5. AI（Gemini）によるスコア読み取り
-    ai_score_data = {"games": []}
-    try:
-        compressed_score_img = compress_image_for_ai(img_pil_scores)
-        score_bytes_io = io.BytesIO()
-        compressed_score_img.save(score_bytes_io, format='JPEG')
-        score_bytes = score_bytes_io.getvalue()
-        
-        client = genai.Client(vertexai=True, project="bowling-vertex-ai", location="asia-northeast1")
-        for attempt_model in ["gemini-2.5-pro", "gemini-1.5-pro-002"]:
-            try:
-                response = client.models.generate_content(
-                    model=attempt_model,
-                    contents=[prompt_score, types.Part.from_bytes(data=score_bytes, mime_type="image/jpeg")],
-                    config=types.GenerateContentConfig(temperature=0.0, response_mime_type="application/json")
-                )
-                raw_text = response.text.strip()
-                if raw_text.startswith("```"):
-                    lines = raw_text.split('\n')
-                    raw_text = "\n".join(lines[1:-1]).strip() if len(lines) > 2 else raw_text
-                ai_score_data = json.loads(raw_text)
-                if not isinstance(ai_score_data, dict): ai_score_data = {"games": []}
-                if "games" not in ai_score_data: ai_score_data["games"] = []
-                break
-            except Exception:
-                continue
-    except Exception as e:
-        print(f"AI解析エラー: {e}")
-
-    # （ラウワン）6. データ統合とダミーデータの作成
-    global_date = str(ai_meta_data.get("date", "日付不明")).replace("-", "/")
-    global_start_time = str(ai_meta_data.get("start_time", "時刻不明"))
-    global_end_time = str(ai_meta_data.get("end_time", "時刻不明"))
-    lane = str(ai_meta_data.get("lane", ""))
-    games_time_list = ai_meta_data.get("games_time", [])
-    try:
-        base_game_num = int(ai_meta_data.get("start_game_num", 1))
-    except:
-        base_game_num = 1
-
-    games_list = ai_score_data.get("games", [])
-
-    for i, (y1, y2) in enumerate(games_y_coords):
-        g_start_time = global_start_time
-        g_end_time = global_end_time
-        if i < len(games_time_list):
-            g_time_info = games_time_list[i]
-            if g_time_info.get("start_time") and g_time_info.get("start_time") != "時刻不明":
-                g_start_time = str(g_time_info["start_time"])
-            if g_time_info.get("end_time") and g_time_info.get("end_time") != "時刻不明":
-                g_end_time = str(g_time_info["end_time"])
-                
-        row_data = [""] * 52
-        row_data[0] = global_date
-        row_data[1] = g_start_time
-        row_data[2] = g_end_time 
-        row_data[3] = lane
-        row_data[4] = f"G{base_game_num + i}"
-        
-        g_info = games_list[i] if i < len(games_list) else {}
-        ai_total = g_info.get("total", "")
-        row_data[50] = str(ai_total)
-        
-        # （ラウワン）--- スコアデータの統合と逆算（AI読み取り結果を反映） ---
-        ai_frame_totals = g_info.get("frame_totals", [])
-        if not isinstance(ai_frame_totals, list): ai_frame_totals = []
-        while len(ai_frame_totals) < 10: ai_frame_totals.append(0)
-        
-        throw_cols_local = [7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47]
-        target_indices_local = [8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 46, 48]
-        
-        # （ラウワン）--- ▼ ピンの白黒判定（画像認識）とスコア計算 ▼ ---
-        base_x = left_x
-        base_y = y2
-        
-        # （ラウワン）⑤ 基準点間の距離（ピクセル）から、動的な縮尺を計算する（実測値 187.5mm）
-        distance_ab_px = right_x - left_x
-        mm_to_px = distance_ab_px / 187.5
-        
-        # （ラウワン）指定の距離（自動スケール換算）
-        tot_offset_px = 17.0 * mm_to_px            # （ラウワン）① 1フレーム目の緑文字（基準点Aから右へ17mm）
-        pitch1_offset_px = 21.2 * mm_to_px         # （ラウワン）③ 1フレーム目の1投目スコア（基準点Aから右へ21.2mm）
-        frame_pitch_px = 13.67 * mm_to_px          # （ラウワン）②④ 各フレームの移動間隔（13.67mm）
-        pitch2_offset_px = 6.83 * mm_to_px         # （ラウワン）⑤ 2投目の位置（1投目から右へ6.83mm）
-        pitch10_offset_px = 6.83 * mm_to_px        # （ラウワン）10フレーム目の投球間隔（他と同じ6.83mmに変更）
-        match_x_offset_px = int(160.0 * mm_to_px)  # （ラウワン）⑥ マッチの文字：基準点Aから160mm
-        
-        # （ラウワン）縦位置の指定
-        y_offset_score = int(11.0 * mm_to_px)      # （ラウワン）1投目と赤文字は下辺から11mm上
-        y_offset_match = int(12.0 * mm_to_px)      # （ラウワン）マッチの文字は下辺から12mm上
-        
-        text_y_score = int(base_y - y_offset_score)
-        text_y_match = int(base_y - y_offset_match)
-        tot_y_score = text_y_score + int(10.0 * mm_to_px) # （ラウワン）トータルスコアの位置をさらに7mm下へ移動（合計10mm下）
-        
-        font = cv2.FONT_HERSHEY_SIMPLEX
-        font_scale = 0.6
-        thickness = 2
-        color_green = (0, 150, 0)
-        color_opencv = (255, 0, 0)
-        color_ai = (0, 0, 220)
-
-        # （ラウワン）----------------------------------------------------
-        # （ラウワン）【新規追加】イーグルボウルと同等のピン判定ロジック
-        # （ラウワン）----------------------------------------------------
-        all_frame_pins = []
-        
-        # （ラウワン）変更後
-        # （ラウワン）----------------------------------------------------
-        # （ラウワン）【新規追加】イーグルボウルと同等のピン判定ロジック
-        # （ラウワン）----------------------------------------------------
-        all_frame_pins = []
-        
-        # （ラウワン）▼ 変更（永山）：7番ピンをさらに左へ0.2mm、下へ0.2mm移動 ▼
-        # （ラウワン）実測値に基づくピン配置設定（1mmあたりのピクセル数 mm_to_px を適用）
-        pin7_x_offset_mm = 23.2  # （ラウワン）元の 23.4 から -0.2 (左へ)
-        pin1_x_offset_mm = 27.4  
-        pin_pitch_x_mm = (pin1_x_offset_mm - pin7_x_offset_mm) / 1.5  
-        
-        pin7_y_offset_mm = 3.3   # （ラウワン）前回の 3.1 から +0.2 (下へ)
-        pin1_y_offset_mm = 11.4  
-        pin_pitch_y_mm = (pin1_y_offset_mm - pin7_y_offset_mm) / 3.0
-        
-        axes_x_px = int((2.8 / 2) * mm_to_px)      # （ラウワン）判定枠の楕円X軸半径（幅2.8mmの半分に変更）
-        axes_y_px = int((2.2 / 2) * mm_to_px)      # （ラウワン）判定枠の楕円Y軸半径（高さ2.2mmの半分に変更）
-        yw = int(2.8 * mm_to_px)                   # （ラウワン）閾値判定用のクロップ幅（2.8mmに変更）
-        yh = int(2.2 * mm_to_px)                   # （ラウワン）閾値判定用のクロップ高さ（2.2mmに変更）
-
-        # （ラウワン）----------------------------------------------------
-        # （ラウワン）ピンpct収集とヒストグラムによる動的閾値算出（全体分布基準を強制適用）
-        # （ラウワン）----------------------------------------------------
-        game_pin_pcts = []
-        game_pin_data = {}
-
-        for f in range(12):
-            # （ラウワン）④ 2フレーム目〜10フレーム目の3投目は、すべて等間隔（13.67mm）で右に移動
-            f_offset_px = f * frame_pitch_px
-                
-            gx_local = int(base_x + (pin7_x_offset_mm * mm_to_px) + f_offset_px)
-            gy_local = int(base_y + (pin7_y_offset_mm * mm_to_px))
-            
-            for row_idx, col_offset in pin_positions:
-                cx_local = int(gx_local + (col_offset * pin_pitch_x_mm * mm_to_px))
-                cy_local = int(gy_local + (row_idx * pin_pitch_y_mm * mm_to_px))
-                
-                # （ラウワン）クロップ用の左上座標を計算（中心から楕円の各半径を引く）
-                yx1_local = int(cx_local - axes_x_px)
-                yy1_local = int(cy_local - axes_y_px)
-                
-                # （ラウワン）閾値画像からピクセル数を計算（楕円に外接する四角領域で計算）
-                if 0 <= yy1_local < thresh_ink.shape[0] and 0 <= yx1_local < thresh_ink.shape[1]:
-                    crop_y = thresh_ink[yy1_local:yy1_local+yh, yx1_local:yx1_local+yw]
-                    pixels_y = crop_y.shape[0] * crop_y.shape[1]
-                    pin_pct = (cv2.countNonZero(crop_y) / pixels_y * 100) if pixels_y > 0 else 0
-                else:
-                    pin_pct = 0
-                
-                game_pin_pcts.append(pin_pct)
-                game_pin_data[(f, row_idx, col_offset)] = {
-                    'pct': pin_pct, 'cx': cx_local, 'cy': cy_local,
-                    'yx1': yx1_local, 'yy1': yy1_local
-                }
-
-        dyn_thresh_base = 20.0
-        if game_pin_pcts:
-            hist, bin_edges = np.histogram(game_pin_pcts, bins=100, range=(0, 100))
-            # （ラウワン）相模原では、倒れたピン(白抜き丸)と残ったピン(黒丸)の2つのピークが存在する
-            peak1_idx = np.argmax(hist[:30]) # （ラウワン）白抜き丸のピーク (ピクセルが少ない)
-            peak2_idx = 30 + np.argmax(hist[30:]) # （ラウワン）黒丸のピーク (ピクセルが多い)
-
-            if hist[peak2_idx] > 0 and peak2_idx > peak1_idx + 10:
-                between_hist = hist[peak1_idx:peak2_idx+1]
-                zero_indices = np.where(between_hist == 0)[0]
-                if len(zero_indices) > 0:
-                    longest_zeros = []
-                    current_zeros = []
-                    for i in zero_indices:
-                        if not current_zeros or i == current_zeros[-1] + 1:
-                            current_zeros.append(i)
-                        else:
-                            if len(current_zeros) > len(longest_zeros): longest_zeros = current_zeros
-                            current_zeros = [i]
-                    if len(current_zeros) > len(longest_zeros): longest_zeros = current_zeros
-                    # （ラウワン）谷間の中心を閾値のベースとする
-                    valley_idx = longest_zeros[int(len(longest_zeros) * 0.5)]
-                    dyn_thresh_base = peak1_idx + valley_idx
-                else:
-                    valley_idx = np.argmin(between_hist)
-                    dyn_thresh_base = peak1_idx + valley_idx
-            else:
-                # （ラウワン）黒丸がない(全てストライク)場合などの安全値
-                dyn_thresh_base = peak1_idx + 15.0
-        
-        offset = st.session_state.get("pin_thresh_offset", 0.0)
-        
-        # （ラウワン）▼ 変更（永山）：印字の薄さ・小ささに合わせた閾値のマイナス補正 ▼
-        # （ラウワン）※以前の調整に合わせて「-5.0」としています。もし「-3.0だった」など記憶があればここの数字を微調整してください。
-        dyn_thresh = dyn_thresh_base - 5.0 + offset
-
-        # （ラウワン）----------------------------------------------------
-        # （ラウワン）▼ 追加：判定グラフ（ヒストグラム）の生成と描画
-        # （ラウワン）----------------------------------------------------
-        plt.style.use('dark_background')
-        # （ラウワン）イーグルボウルと全く同じサイズ(4.5, 2.25)に設定
-        fig, ax1 = plt.subplots(figsize=(4.5, 2.25))
-        
-        # （ラウワン）ピクセル密度の分布をプロット（X軸の範囲を10〜60に変更）
-        ax1.hist(game_pin_pcts, bins=50, range=(10, 60), color='#00FFFF', alpha=0.7, label='All Pins')
-        
-        # （ラウワン）算出された閾値のラインを引く
-        ax1.axvline(dyn_thresh, color='#FF2D55', linestyle='dashed', linewidth=2, label=f'Threshold: {dyn_thresh:.1f}%')
-        
-        ax1.legend(loc='upper right', fontsize='small')
-        ax1.set_title("Pixel Distribution & Threshold (Sagamihara)", fontsize='medium')
-        ax1.set_xlim(10, 60) # （ラウワン）グラフの表示範囲も明示的に10〜60に固定
-        fig.tight_layout()
-
-        # （ラウワン）画像としてメモリ上に保存し、OpenCV形式に変換
-        buf = io.BytesIO()
-        fig.savefig(buf, format='png', dpi=100)
-        buf.seek(0)
-        graph_img = cv2.imdecode(np.frombuffer(buf.getvalue(), dtype=np.uint8), 1)
-        plt.close(fig)
-
-        # （ラウワン）右上にグラフを合成
-        gh, gw, _ = graph_img.shape
-        oh, ow, _ = output_img.shape
-        if oh >= gh and ow >= gw:
-            output_img[0:gh, ow-gw:ow] = graph_img
-        # （ラウワン）----------------------------------------------------
-
-        for f in range(12):
-            frame_pins = []
-            
-            for row_idx, col_offset in pin_positions:
-                data = game_pin_data[(f, row_idx, col_offset)]
-                pin_pct = data['pct']
-                cx_local = data['cx']
-                cy_local = data['cy']
-                
-                if row_idx == 0: pin_num = 7 + int(col_offset)
-                elif row_idx == 1: pin_num = 4 + int(col_offset - 0.5)
-                elif row_idx == 2: pin_num = 2 + int(col_offset - 1.0)
-                elif row_idx == 3: pin_num = 1
-                else: pin_num = 1
-                
-                # （ラウワン）白抜き丸（低ピクセル率）か、黒塗り丸（高ピクセル率）かの2値で判定
-                if pin_pct > dyn_thresh:
-                    # （ラウワン）閾値以上なら黒塗り丸（＝残ピン）
-                    frame_pins.append(pin_num)
-                    # （ラウワン）検知を可視化するため、赤色で塗りつぶした楕円を描画する
-                    cv2.ellipse(output_img, (cx_local, cy_local), (axes_x_px, axes_y_px), 0, 0, 360, (0, 0, 255), -1)
-                else:
-                    # （ラウワン）検知されなかったピンは、これまで通りオレンジ色の枠（太さ2）の楕円を描画する
-                    cv2.ellipse(output_img, (cx_local, cy_local), (axes_x_px, axes_y_px), 0, 0, 360, (0, 165, 255), 2)
-            
-            frame_pins.sort()
-            all_frame_pins.append(frame_pins)
-
-        # （ラウワン）----------------------------------------------------
-        # （ラウワン）1投目・2投目のスコア計算（逆算ではなくピン数から）
-        # （ラウワン）----------------------------------------------------
-        final_throws = [""] * 21
-        throw_colors = [color_opencv] * 21 # （ラウワン）1投目はすべて青文字基準
-        
-        for f in range(9):
-            v1 = 10 - len(all_frame_pins[f])
-            str1 = 'X' if v1 == 10 else ('-' if v1 == 0 else str(v1))
-            final_throws[f*2] = str1
-            
-            if str1 == 'X':
-                final_throws[f*2+1] = ""
-            else:
-                curr_total = int(ai_frame_totals[f]) if str(ai_frame_totals[f]).isdigit() else 0
-                prev_total = int(ai_frame_totals[f-1]) if f > 0 and str(ai_frame_totals[f-1]).isdigit() else 0
-                diff = curr_total - prev_total
-                
-                if diff >= 10:
-                    final_throws[f*2+1] = "R:/"
-                    throw_colors[f*2+1] = color_ai
-                else:
-                    v2 = diff - v1
-                    if v2 < 0: v2 = 0
-                    if v2 + v1 > 9: v2 = 9 - v1
-                    final_throws[f*2+1] = "R:-" if v2 == 0 else f"R:{v2}"
-                    throw_colors[f*2+1] = color_ai
-
-        # （ラウワン）10フレーム目の計算
-        p9, p10, p11 = all_frame_pins[9], all_frame_pins[10], all_frame_pins[11]
-        v1_10 = 10 - len(p9)
-        str1_10 = 'X' if v1_10 == 10 else ('-' if v1_10 == 0 else str(v1_10))
-        final_throws[18] = str1_10
-        
-        curr_total_10 = int(ai_frame_totals[9]) if str(ai_frame_totals[9]).isdigit() else 0
-        prev_total_10 = int(ai_frame_totals[8]) if str(ai_frame_totals[8]).isdigit() else 0
-        diff_10 = curr_total_10 - prev_total_10
-
-        if str1_10 == 'X':
-            v2_10 = 10 - len(p10)
-            str2_10 = 'X' if v2_10 == 10 else ('-' if v2_10 == 0 else str(v2_10))
-            final_throws[19] = str2_10
-            
-            if str2_10 == 'X':
-                v3_10 = 10 - len(p11)
-                str3_10 = 'X' if v3_10 == 10 else ('-' if v3_10 == 0 else str(v3_10))
-                final_throws[20] = str3_10
-            else:
-                if (diff_10 - 10) >= 10:
-                    final_throws[20] = "R:/"
-                    throw_colors[20] = color_ai
-                else:
-                    v3_10 = diff_10 - 10 - v2_10
-                    if v3_10 < 0: v3_10 = 0
-                    if v3_10 + v2_10 > 9: v3_10 = 9 - v2_10
-                    final_throws[20] = "R:-" if v3_10 == 0 else f"R:{v3_10}"
-                    throw_colors[20] = color_ai
-        else:
-            if diff_10 >= 10:
-                final_throws[19] = "R:/"
-                throw_colors[19] = color_ai
-                v3_10 = diff_10 - 10
-                if v3_10 < 0: v3_10 = 0
-                if v3_10 > 10: v3_10 = 10
-                str3_10 = 'X' if v3_10 == 10 else ('-' if v3_10 == 0 else str(v3_10))
-                final_throws[20] = f"R:{str3_10}" if str3_10 != 'X' else "R:X"
-                throw_colors[20] = color_ai
-            else:
-                v2_10 = diff_10 - v1_10
-                if v2_10 < 0: v2_10 = 0
-                if v2_10 + v1_10 > 9: v2_10 = 9 - v1_10
-                final_throws[19] = "R:-" if v2_10 == 0 else f"R:{v2_10}"
-                throw_colors[19] = color_ai
-                final_throws[20] = ""
-
-        # （ラウワン）----------------------------------------------------
-        # （ラウワン）データエクスポート用の row_data を構築
-        # （ラウワン）----------------------------------------------------
-        for t_idx, col_idx in enumerate(throw_cols_local):
-            row_data[col_idx] = final_throws[t_idx]
-            
-        for f in range(9): row_data[target_indices_local[f]] = ",".join(map(str, all_frame_pins[f]))
-        row_data[target_indices_local[9]] = ",".join(map(str, p9))
-
-        if len(p9) == 0:
-            row_data[target_indices_local[10]] = ",".join(map(str, p10))
-            row_data[target_indices_local[11]] = ",".join(map(str, p11))
-        else:
-            row_data[target_indices_local[10]] = ""
-            row_data[target_indices_local[11]] = ",".join(map(str, p10))
-            
-        # （ラウワン）▼ 追加（永山）：ノーミス＆10フレ1,2投目ストライクの場合、強制的に「要修正フラグ(10フレ3投目隠れ)」を立てる ▼
-        needs_nomiss_correction = False
-        t10_1 = str(row_data[43]).replace("R:", "").strip().upper()
-        t10_2 = str(row_data[45]).replace("R:", "").strip().upper()
-        
-        if t10_1 == 'X' and t10_2 == 'X':
-            is_nomiss = True
-            for f in range(9):
-                t1 = str(row_data[7 + f*4]).strip().upper()
-                t2 = str(row_data[9 + f*4]).strip().upper()
-                if 'X' not in t1 and '/' not in t2:
-                    is_nomiss = False
-                    break
-            if is_nomiss:
-                needs_nomiss_correction = True
-
-        # （ラウワン）flagを51列目（本来は7-10Gのチェック用列だが、UIに渡すため一時的に別の空き列＝51列目に格納）に保持
-        # （ラウワン）※データ出力枠は52列（0〜51）あるため、末尾[51]を使用
-        row_data[51] = "NEEDS_NOMISS_CORRECTION" if needs_nomiss_correction else ""
-        # （ラウワン）▲ 追加（永山）ここまで ▲
-        
-        all_games_export_data.append(row_data)
-
-        # （ラウワン）----------------------------------------------------
-        # （ラウワン）▼ 画像への描画処理 ▼
-        # （ラウワン）----------------------------------------------------
-        for f in range(9):
-            # （ラウワン）緑文字(トータル)と1投目(青/赤)のX座標を分離して計算
-            tot_start_x = int(base_x + tot_offset_px + (f * frame_pitch_px))
-            f_start_x = int(base_x + pitch1_offset_px + (f * frame_pitch_px))
-            
-            # （ラウワン）累計トータルスコアの描画
-            ai_tot_val = str(ai_frame_totals[f])
-            if ai_tot_val and ai_tot_val != "0":
-                cv2.putText(output_img, ai_tot_val, (tot_start_x, tot_y_score), font, 0.6, color_green, 2, cv2.LINE_AA)
-            
-            # （ラウワン）1投目の描画 (画像判定の final_throws を参照)
-            t1 = str(final_throws[f*2]).replace("R:", "")
-            if t1.strip(): 
-                cv2.putText(output_img, t1, (f_start_x, text_y_score), font, font_scale, throw_colors[f*2], thickness, cv2.LINE_AA)
-            
-            # （ラウワン）2投目の描画
-            t2 = str(final_throws[f*2+1]).replace("R:", "")
-            x2_pos = int(f_start_x + pitch2_offset_px)
-            if t2.strip(): 
-                cv2.putText(output_img, t2, (x2_pos, text_y_score), font, font_scale, throw_colors[f*2+1], thickness, cv2.LINE_AA)
-            
-        # （ラウワン）10フレームの描画
-        tot10_start_x = int(base_x + tot_offset_px + (9 * frame_pitch_px))
-        f10_start_x = int(base_x + pitch1_offset_px + (9 * frame_pitch_px))
-        
-        ai_tot_val_10 = str(ai_frame_totals[9])
-        if ai_tot_val_10 and ai_tot_val_10 != "0":
-            cv2.putText(output_img, ai_tot_val_10, (tot10_start_x, tot_y_score), font, 0.6, color_green, 2, cv2.LINE_AA)
-
-        t10_1 = str(final_throws[18]).replace("R:", "")
-        t10_2 = str(final_throws[19]).replace("R:", "")
-        t10_3 = str(final_throws[20]).replace("R:", "")
-        
-        if t10_1.strip(): 
-            cv2.putText(output_img, t10_1, (f10_start_x, text_y_score), font, font_scale, throw_colors[18], thickness, cv2.LINE_AA)
-        if t10_2.strip(): 
-            cv2.putText(output_img, t10_2, (int(f10_start_x + pitch10_offset_px), text_y_score), font, font_scale, throw_colors[19], thickness, cv2.LINE_AA)
-        if t10_3.strip(): 
-            cv2.putText(output_img, t10_3, (int(f10_start_x + pitch10_offset_px * 2), text_y_score), font, font_scale, throw_colors[20], thickness, cv2.LINE_AA)
-
-        # （ラウワン）トータルスコアの照合と MATCH/DIFF! の描画
-        clean_throws = [str(t).replace("R:", "") for t in final_throws]
-        try:
-            calc_totals = calculate_bowling_score(clean_throws)
-        except Exception:
-            calc_totals = []
-
-        ai_tot_int = int(ai_total) if str(ai_total).isdigit() else (int(ai_frame_totals[-1]) if ai_frame_totals and str(ai_frame_totals[-1]).isdigit() else 0)
-        result_text_x = int(base_x + match_x_offset_px)
-        
-        if calc_totals and len(ai_frame_totals) > 0 and calc_totals[-1] == ai_tot_int:
-            check_str = f"MATCH ({calc_totals[-1]})"
-            check_color = color_green
-        else:
-            calc_val = calc_totals[-1] if calc_totals else 0
-            check_str = f"DIFF! ({calc_val} vs {ai_tot_int})"
-            check_color = color_ai
-            
-        cv2.putText(output_img, check_str, (result_text_x, text_y_match), font, font_scale, check_color, thickness, cv2.LINE_AA)
-
-    cv2.putText(output_img, "ROUND1 Mode (Line Extract)", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3, cv2.LINE_AA)
-
-    return all_games_export_data, output_img
-
 # ▼▼▼ プレイヤー分析画面のAWARD画面を参考にした共通ダークテーマ・統一CSS ▼▼▼
 st.markdown("""
     <style>
@@ -4890,28 +4288,14 @@ if app_mode == "プレイヤー分析":
 
                     import plotly.graph_objects as go
 
-                    # 実際にプレイした最大のレーン番号を特定する
-                    max_lane_num = 18 # 最低18レーンは表示する（イーグルボウル基準）
-                    for g in player_games:
-                        lane_raw = str(g['row'][5]).strip()
-                        import re
-                        nums = [int(x) for x in re.findall(r'\d+', lane_raw)]
-                        if nums:
-                            max_val = max(nums)
-                            if max_val > max_lane_num:
-                                max_lane_num = max_val
-                    
-                    # 最大レーン番号が奇数の場合は偶数に切り上げ（2レーンペアを作るため）
-                    if max_lane_num % 2 != 0:
-                        max_lane_num += 1
-
-                    # 横軸のレーンリストを動的生成
+                    # 横軸のレーンリスト（1, 2, 1-2, 3, 4, 3-4 ... 17-18 まで固定で生成）
                     target_lanes = []
-                    for i in range(1, max_lane_num, 2):
+                    for i in range(1, 18, 2):
                         target_lanes.extend([str(i), str(i+1), f"{i}-{i+1}"])
 
                     # レーンごとのスコアを格納する辞書
                     lane_scores = {lane: [] for lane in target_lanes}
+
                     for g in player_games:
                         try:
                             # マスターデータの「レーン」列はインデックス 5
@@ -6941,21 +6325,21 @@ status_text = st.empty()
 # =========================================================
 # 📍 【AIプロンプトの定義】
 # =========================================================
+# 変更後
 prompt_metadata = """
 画像はボウリングのスコアシートの全体写真です。
 この画像から「ボウリング場名」「日付」「最初のゲーム数」「全体の開始時刻」「全体の終了時刻」「レーン番号」「プレイヤーネーム」および「各ゲームの開始・終了時刻」を探し出し、以下のJSON形式で出力してください。
 
 【ルール】
 1. ボウリング場名: 画像内のロゴやヘッダー文字からボウリング場名を "bowling_alley" に出力してください。
-- 例: 「相模原パークレーンズ」のロゴや文字があれば "相模原パークレーンズ" とする。
-- 例: ボウリング場名の記載がなくても、左上に「[ヨーロピアン] 一般G」、右上に「日付：YYYY年 MM月 DD日」、右端に「HDCP込トータル / スクラッチトータル」というレイアウトと印字がある場合は "永山コパボウル" とする。
-- 例: 画像内に「ラウンドワン」や「ROUND1」などの記載がある場合は "ラウンドワン" とする。
-- 上記の特徴に当てはまらず、判別できない場合はデフォルトで "イーグルボウル" とする。
+   - 例: 「相模原パークレーンズ」のロゴや文字があれば "相模原パークレーンズ" とする。
+   - 例: ボウリング場名の記載がなくても、左上に「[ヨーロピアン] 一般G」、右上に「日付：YYYY年 MM月 DD日」、右端に「HDCP込トータル / スクラッチトータル」というレイアウトと印字がある場合は "永山コパボウル" とする。
+   - 上記の特徴に当てはまらず、判別できない場合はデフォルトで "イーグルボウル" とする。
 2. 日付: 中央上部等にある日付。「YY/MM/DD」の形式で "date" に出力。
 3. 最初のゲーム数: 一番上のゲームのスコア欄付近の数字。「1」などの数値のみを "start_game_num" に出力。
 4. 全体の開始時刻: "HH:MM" 形式で "start_time" に出力。見つからなければ "時刻不明" にする。
 5. 全体の終了時刻: "HH:MM" 形式で "end_time" に出力。見つからなければ "時刻不明" にする。
-6. レーン番号: レーン番号を "lane" に出力。ラウンドワン画像では、一番上のゲームのスコア欄の中央上部にある「レーン」と「氏名」の間にある大きな数字がレーン番号。見つからなければ空文字にする。
+6. レーン番号: レーン番号を "lane" に出力。見つからなければ空文字にする。
 7. プレイヤーネーム: プレイヤー名を "player_name" に出力。見つからなければ空文字にする。
 8. 各ゲームの時刻: 各ゲームごとの開始時刻と終了時刻を読み取り、配列 "games_time" に出力してください。
    【重要な自己検証ステップ】
@@ -7205,6 +6589,7 @@ if st.session_state.analyzed_results is None:
                 break
                 
         detected_alley = ai_meta_data.get("bowling_alley", "イーグルボウル")
+        
         user_role = st.session_state.get("user_role", "")
         if detected_alley != "イーグルボウル" and user_role != "開発者":
             st.error(f"【権限エラー】{detected_alley} のスコア登録は開発者権限でのみ許可されています。")
@@ -7226,17 +6611,7 @@ if st.session_state.analyzed_results is None:
             if not all_games_export_data:
                 st.warning("永山コパボウルの解析ロジックは現在開発中（ダミー状態）です。")
                 continue
-            analyzed_results.append({
-                "file_name": file_name,
-                "file_id": file_id,
-                "output_img": output_img,
-                "all_games_export_data": all_games_export_data,
-                "meta_data": ai_meta_data
-            })
-            status_text.empty()
-            continue
-        elif detected_alley == "ラウンドワン":
-            all_games_export_data, output_img = analyze_round1(img, ai_meta_data)
+            
             analyzed_results.append({
                 "file_name": file_name,
                 "file_id": file_id,
@@ -7249,7 +6624,6 @@ if st.session_state.analyzed_results is None:
         elif detected_alley != "イーグルボウル":
             st.warning(f"{detected_alley} の解析ロジックは未実装です。イーグルボウルのロジックで試行します。")
             detected_alley = "イーグルボウル"
-
         # ▲ 追加（共通）ここまで ▲
 
         all_games_export_data = []
@@ -8200,8 +7574,8 @@ if st.session_state.analyzed_results:
             except:
                 return "", "", "レーン番号が数値ではありません"
                 
-        if not (1 <= lane_num <= 60):
-            return "", "", "レーン番号が範囲外(1-60)です"
+        if not (1 <= lane_num <= 18):
+            return "", "", "レーン番号が範囲外(1-18)です"
             
         len_col = lane_num * 2
         vol_col = lane_num * 2 + 1
@@ -8627,7 +8001,8 @@ if st.session_state.analyzed_results:
     st.markdown("### レーン・オイル・ボール")
     input_data = {}
 
-    LANE_OPTIONS = [""] + [str(i) for i in range(1, 61)] + [f"{i}-{i+1}" for i in range(1, 61, 2)] + [f"{i+1}-{i}" for i in range(1, 61, 2)]
+    LANE_OPTIONS = [""] + [str(i) for i in range(1, 19)] + [f"{i}-{i+1}" for i in range(1, 19, 2)] + [f"{i+1}-{i}" for i in range(1, 19, 2)]
+
     # ▼ 使用ボール(J列=10)、個別条件1〜3(BD列=56, BE=57, BF=58)の履歴を取得
     sh_admin = get_gspread_client()
     sugs_ball = get_past_suggestions(sh_admin, 10) if sh_admin else []
@@ -8645,20 +8020,7 @@ if st.session_state.analyzed_results:
     for img_idx, items in games_by_img.items():
         st.markdown(f"**画像 {img_idx+1} の設定**")
         
-        import unicodedata
-        import re
-        
-        raw_lane = str(items[0]["export_row"][3]).strip()
-        # 全角英数字を半角に変換（例：「２５」→「25」）
-        norm_lane = unicodedata.normalize('NFKC', raw_lane)
-        # 余計な文字や空白を取り除き、数字とハイフンだけを抽出（例：「L25 」→「25」）
-        match = re.search(r'[\d\-]+', norm_lane)
-        ai_lane = match.group(0) if match else norm_lane
-
-        # それでも選択肢に見つからなければ、強制的に選択肢に追加して表示する（フェイルセーフ）
-        if ai_lane and ai_lane not in LANE_OPTIONS:
-            LANE_OPTIONS.append(ai_lane)
-            
+        ai_lane = items[0]["export_row"][3]
         default_lane_index = LANE_OPTIONS.index(ai_lane) if ai_lane in LANE_OPTIONS else 0
         
         c_lane, c_len, c_vol = st.columns([1.5, 1, 1])
@@ -9133,8 +8495,8 @@ if st.session_state.analyzed_results:
                             "seq": [],
                             "euro_g": 0, "euro_s": 0,
                             "am_g": 0, "am_s": 0,
-                            "euro_lanes": {str(i): {"g": 0, "s": 0} for i in range(1, 61)},
-                            "am_lanes": {f"{i}-{i+1}": {"g": 0, "s": 0} for i in range(1, 61, 2)},
+                            "euro_lanes": {str(i): {"g": 0, "s": 0} for i in range(1, 19)},
+                            "am_lanes": {f"{i}-{i+1}": {"g": 0, "s": 0} for i in range(1, 18, 2)},
                             "oil_lens": {k: {"g": 0, "s": 0} for k in ["L < 32ft", "32 ≦ L < 34ft", "34 ≦ L < 36ft", "36 ≦ L < 38ft", "38 ≦ L < 40ft", "40 ≦ L < 42ft", "42 ≦ L < 44ft", "44 ≦ L < 46ft", "46ft ≦ L"]},
                             "oil_vols": {k: {"g": 0, "s": 0} for k in ["V < 20ml", "20 ≦ V < 22ml", "22 ≦ V < 24ml", "24 ≦ V < 26ml", "26 ≦ V < 28ml", "28 ≦ V < 30ml", "30 ≦ V < 32ml", "32 ≦ V < 34ml", "34 ≦ V < 36ml", "36ml ≦ V"]},
                             "first_pitch_c": 0,
@@ -9371,16 +8733,14 @@ if st.session_state.analyzed_results:
                     award_rows.append([email, n, "6.投球方式", "⑨1レーン", stats["euro_g"], stats["euro_s"], calc_ave(stats["euro_s"], stats["euro_g"])])
                     award_rows.append([email, n, "6.投球方式", "⑨2レーン", stats["am_g"], stats["am_s"], calc_ave(stats["am_s"], stats["am_g"])])
                         
-                    for i in range(1, 61):
+                    for i in range(1, 19):
                         k = str(i)
                         d = stats["euro_lanes"][k]
-                        if d["g"] > 0: # データがあるレーンだけ出力
-                            award_rows.append([email, n, "7.レーン別", f"⑩{k}レーン", d["g"], d["s"], calc_ave(d["s"], d["g"])])
-                    for i in range(1, 61, 2):
+                        award_rows.append([email, n, "7.レーン別", f"⑩{k}レーン", d["g"], d["s"], calc_ave(d["s"], d["g"])])
+                    for i in range(1, 18, 2):
                         k = f"{i}-{i+1}"
                         d = stats["am_lanes"][k]
-                        if d["g"] > 0: # データがあるレーンだけ出力
-                            award_rows.append([email, n, "7.レーン別", f"⑩{i}-{i+1}・{i+1}-{i} レーン", d["g"], d["s"], calc_ave(d["s"], d["g"])])
+                        award_rows.append([email, n, "7.レーン別", f"⑩{i}-{i+1}・{i+1}-{i} レーン", d["g"], d["s"], calc_ave(d["s"], d["g"])])
                         
                     for l_key, d in stats["oil_lens"].items():
                         award_rows.append([email, n, "8.オイル長別", f"⑪{l_key}", d["g"], d["s"], calc_ave(d["s"], d["g"])])
@@ -9417,6 +8777,5 @@ if st.session_state.analyzed_results:
 
             except Exception as e:
                 st.error(f"SPSへの登録中にエラーが発生しました: {e}")
-
 
 
