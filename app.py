@@ -8020,7 +8020,24 @@ if st.session_state.analyzed_results:
     for img_idx, items in games_by_img.items():
         st.markdown(f"**画像 {img_idx+1} の設定**")
         
-        ai_lane = items[0]["export_row"][3]
+        import unicodedata
+        import re
+        
+        raw_lane = str(items[0]["export_row"][3]).strip()
+        # 全角英数字を半角に変換（例：「７」→「7」）
+        norm_lane = unicodedata.normalize('NFKC', raw_lane)
+        # 余計な文字や空白を取り除き、数字とハイフンだけを抽出（例：「L7 」→「7」）
+        match = re.search(r'[\d\-]+', norm_lane)
+        ai_lane = match.group(0) if match else norm_lane
+
+        # ▼ 追加：「07」などの先頭のゼロを取り除いて「7」にする処理 ▼
+        if ai_lane.isdigit():
+            ai_lane = str(int(ai_lane))
+            
+        # 選択肢に見つからなければ強制的に追加する安全装置
+        if ai_lane and ai_lane not in LANE_OPTIONS:
+            LANE_OPTIONS.append(ai_lane)
+            
         default_lane_index = LANE_OPTIONS.index(ai_lane) if ai_lane in LANE_OPTIONS else 0
         
         c_lane, c_len, c_vol = st.columns([1.5, 1, 1])
