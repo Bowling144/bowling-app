@@ -1506,17 +1506,18 @@ def analyze_round1(img, ai_meta_data):
         mm_to_px = distance_ab_px / 159.4
         
         # （ラウワン）指定の距離（均等割り計算）
-        # 1フレ1投目の左端(0mm)から10フレ3投目の右端(142.6mm)の全体幅を「21投分」で均等割り
+        # 投球数21に対して、全体幅142.6mmを21分割して1投あたりのピッチを算出
         pitch_per_throw_mm = 142.6 / 21.0
         pitch_per_throw_px = pitch_per_throw_mm * mm_to_px
         
-        # 文字の左側余白（枠の左線に文字がかぶらないようにするため少し右にズラす）
+        # 文字の左側余白（枠線との重なり防止）
         text_margin_px = pitch_per_throw_px * 0.2
         
-        # 緑文字（フレームトータル）の位置：フレームの真ん中付近
-        tot_offset_px = pitch_per_throw_px * 0.8
+        # 緑文字（フレームトータル）の位置：元の位置から7.2mm左へずらす調整
+        tot_offset_px = (pitch_per_throw_px * 0.8) - (7.2 * mm_to_px)
         
-        match_x_offset_px = int(145.0 * mm_to_px)  # （ラウワン）⑥ マッチの文字：10フレ3投目の少し右
+        # 一致・不一致の文字：元の145mmから10mm左へずらして135mmの位置へ
+        match_x_offset_px = int(135.0 * mm_to_px)
         
         # （ラウワン）縦位置の指定
         y_offset_score = int(11.0 * mm_to_px)      # （ラウワン）1投目と赤文字は下辺から11mm上
@@ -1807,7 +1808,7 @@ def analyze_round1(img, ai_meta_data):
         # （ラウワン）▼ 画像への描画処理 ▼
         # （ラウワン）----------------------------------------------------
         for f in range(9):
-            # （ラウワン）均等割りピッチに基づくX座標計算（枠線にかぶらないようマージンを追加）
+            # （ラウワン）均等割りピッチに基づくX座標計算（マージンを追加）
             f_start_x = int(base_x + (f * 2 * pitch_per_throw_px) + text_margin_px)
             x2_pos = int(base_x + ((f * 2 + 1) * pitch_per_throw_px) + text_margin_px)
             tot_start_x = int(base_x + (f * 2 * pitch_per_throw_px) + tot_offset_px)
