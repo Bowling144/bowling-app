@@ -1557,8 +1557,13 @@ def analyze_round1(img, ai_meta_data):
         game_pin_data = {}
 
         for f in range(12):
-            # （ラウワン）④ 2フレーム目〜10フレーム目の3投目は、すべて等間隔（13.67mm）で右に移動
-            f_offset_px = f * frame_pitch_px
+            # （ラウワン）④ 投球ごとの均等割りピッチから、各フレームのピン判定枠の位置（X軸オフセット）を算出
+            if f < 10:
+                f_offset_px = f * 2 * pitch_per_throw_px   # 1〜10フレーム目の1投目
+            elif f == 10:
+                f_offset_px = 19 * pitch_per_throw_px      # 10フレーム目の2投目
+            else:
+                f_offset_px = 20 * pitch_per_throw_px      # 10フレーム目の3投目
                 
             gx_local = int(base_x + (pin7_x_offset_mm * mm_to_px) + f_offset_px)
             gy_local = int(base_y + (pin7_y_offset_mm * mm_to_px))
