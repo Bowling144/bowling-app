@@ -6927,16 +6927,16 @@ status_text = st.empty()
 # =========================================================
 # 📍 【AIプロンプトの定義】
 # =========================================================
-# 変更後
 prompt_metadata = """
 画像はボウリングのスコアシートの全体写真です。
 この画像から「ボウリング場名」「日付」「最初のゲーム数」「全体の開始時刻」「全体の終了時刻」「レーン番号」「プレイヤーネーム」および「各ゲームの開始・終了時刻」を探し出し、以下のJSON形式で出力してください。
 
 【ルール】
 1. ボウリング場名: 画像内のロゴやヘッダー文字からボウリング場名を "bowling_alley" に出力してください。
-   - 例: 「相模原パークレーンズ」のロゴや文字があれば "相模原パークレーンズ" とする。
-   - 例: ボウリング場名の記載がなくても、左上に「[ヨーロピアン] 一般G」、右上に「日付：YYYY年 MM月 DD日」、右端に「HDCP込トータル / スクラッチトータル」というレイアウトと印字がある場合は "永山コパボウル" とする。
-   - 上記の特徴に当てはまらず、判別できない場合はデフォルトで "イーグルボウル" とする。
+- 例: 「相模原パークレーンズ」のロゴや文字があれば "相模原パークレーンズ" とする。
+- 例: ボウリング場名の記載がなくても、左上に「[ヨーロピアン] 一般G」、右上に「日付：YYYY年 MM月 DD日」、右端に「HDCP込トータル / スクラッチトータル」というレイアウトと印字がある場合は "永山コパボウル" とする。
+- 例: 画像内に「ラウンドワン」や「ROUND1」などの記載がある場合は "ラウンドワン" とする。
+- 上記の特徴に当てはまらず、判別できない場合はデフォルトで "イーグルボウル" とする。
 2. 日付: 中央上部等にある日付。「YY/MM/DD」の形式で "date" に出力。
 3. 最初のゲーム数: 一番上のゲームのスコア欄付近の数字。「1」などの数値のみを "start_game_num" に出力。
 4. 全体の開始時刻: "HH:MM" 形式で "start_time" に出力。見つからなければ "時刻不明" にする。
@@ -7191,42 +7191,52 @@ if st.session_state.analyzed_results is None:
                 break
                 
         detected_alley = ai_meta_data.get("bowling_alley", "イーグルボウル")
-        
-        user_role = st.session_state.get("user_role", "")
-        if detected_alley != "イーグルボウル" and user_role != "開発者":
-            st.error(f"【権限エラー】{detected_alley} のスコア登録は開発者権限でのみ許可されています。")
-            continue
-
-        if detected_alley == "相模原パークレーンズ":
-            all_games_export_data, output_img = analyze_park_lanes(img, ai_meta_data)
-            analyzed_results.append({
-                "file_name": file_name,
-                "file_id": file_id,
-                "output_img": output_img,
-                "all_games_export_data": all_games_export_data,
-                "meta_data": ai_meta_data
-            })
-            status_text.empty()
-            continue
-        elif detected_alley == "永山コパボウル":
-            all_games_export_data, output_img = analyze_copa_bowl(img, ai_meta_data)
-            if not all_games_export_data:
-                st.warning("永山コパボウルの解析ロジックは現在開発中（ダミー状態）です。")
+            user_role = st.session_state.get("user_role", "")
+            if detected_alley != "イーグルボウル" and user_role != "開発者":
+                st.error(f"【権限エラー】{detected_alley} のスコア登録は開発者権限でのみ許可されています。")
                 continue
-            
-            analyzed_results.append({
-                "file_name": file_name,
-                "file_id": file_id,
-                "output_img": output_img,
-                "all_games_export_data": all_games_export_data,
-                "meta_data": ai_meta_data
-            })
-            status_text.empty()
-            continue
-        elif detected_alley != "イーグルボウル":
-            st.warning(f"{detected_alley} の解析ロジックは未実装です。イーグルボウルのロジックで試行します。")
-            detected_alley = "イーグルボウル"
-        # ▲ 追加（共通）ここまで ▲
+
+            if detected_alley == "相模原パークレーンズ":
+                all_games_export_data, output_img = analyze_park_lanes(img, ai_meta_data)
+                analyzed_results.append({
+                    "file_name": file_name,
+                    "file_id": file_id,
+                    "output_img": output_img,
+                    "all_games_export_data": all_games_export_data,
+                    "meta_data": ai_meta_data
+                })
+                status_text.empty()
+                continue
+            elif detected_alley == "永山コパボウル":
+                all_games_export_data, output_img = analyze_copa_bowl(img, ai_meta_data)
+                if not all_games_export_data:
+                    st.warning("永山コパボウルの解析ロジックは現在開発中（ダミー状態）です。")
+                    continue
+                analyzed_results.append({
+                    "file_name": file_name,
+                    "file_id": file_id,
+                    "output_img": output_img,
+                    "all_games_export_data": all_games_export_data,
+                    "meta_data": ai_meta_data
+                })
+                status_text.empty()
+                continue
+            elif detected_alley == "ラウンドワン":
+                all_games_export_data, output_img = analyze_round1(img, ai_meta_data)
+                analyzed_results.append({
+                    "file_name": file_name,
+                    "file_id": file_id,
+                    "output_img": output_img,
+                    "all_games_export_data": all_games_export_data,
+                    "meta_data": ai_meta_data
+                })
+                status_text.empty()
+                continue
+            elif detected_alley != "イーグルボウル":
+                st.warning(f"{detected_alley} の解析ロジックは未実装です。イーグルボウルのロジックで試行します。")
+                detected_alley = "イーグルボウル"
+
+            # ▲ 追加（共通）ここまで ▲
 
         all_games_export_data = []
         blue_lines = []
