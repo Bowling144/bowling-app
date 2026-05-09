@@ -9088,7 +9088,7 @@ if st.session_state.analyzed_results:
                     formatted_row.append(c2_val) # 57番目 (BE)
                     formatted_row.append(c3_val) # 58番目 (BF)
 
-                    # （ラウワン）BG列(59) ボウリング場情報の追加（修正：AI判定ではなく画面で確定された値を使用）
+                    # （ラウワン）BG列(59) ボウリング場情報の追加
                     formatted_row.append(selected_alley) 
                     
                     match_found = False
