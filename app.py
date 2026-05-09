@@ -8692,7 +8692,7 @@ if st.session_state.analyzed_results:
             default_alley_index = 0
         
         # （ラウワン）ボウリング場選択セレクトボックスの表示
-        cfor img_idx, items in games_by_img.items():
+        for img_idx, items in games_by_img.items():
         st.markdown(f"**画像 {img_idx+1} の設定**")
         
         import unicodedata
