@@ -6336,12 +6336,10 @@ prompt_metadata = """
    - 例: ボウリング場名の記載がなくても、左上に「[ヨーロピアン] 一般G」、右上に「日付：YYYY年 MM月 DD日」、右端に「HDCP込トータル / スクラッチトータル」というレイアウトと印字がある場合は "永山コパボウル" とする。
    - 上記の特徴に当てはまらず、判別できない場合はデフォルトで "イーグルボウル" とする。
 2. 日付: 中央上部等にある日付。「YY/MM/DD」の形式で "date" に出力。
-3. 最初のゲーム数: 一番上のゲームのスコア欄の上か左の数字で「1G」や「ゲーム1」や「GAME1」と記載されている。「1」などの数値のみを "start_game_num" に出力。
-　【重要な自己検証ステップ】
-   a. 1日のゲーム数が多い場合、スコアシートに「ページ：2/2」などと複数枚目であることを示す記載があるため、その場合は一番上のゲームがゲーム1ではないため、再度最初のゲーム数を確認すること。
+3. 最初のゲーム数: 一番上のゲームのスコア欄付近の数字。「1」などの数値のみを "start_game_num" に出力。
 4. 全体の開始時刻: "HH:MM" 形式で "start_time" に出力。見つからなければ "時刻不明" にする。
 5. 全体の終了時刻: "HH:MM" 形式で "end_time" に出力。見つからなければ "時刻不明" にする。
-6. レーン番号: 一番上のゲームのスコア欄付近に「L:1」や「レーン1」や「使用レーン：1」と記載されている。レーン番号（「1」などの数値のみ）を "lane" に出力。見つからなければ空文字にする。
+6. レーン番号: レーン番号を "lane" に出力。見つからなければ空文字にする。
 7. プレイヤーネーム: プレイヤー名を "player_name" に出力。見つからなければ空文字にする。
 8. 各ゲームの時刻: 各ゲームごとの開始時刻と終了時刻を読み取り、配列 "games_time" に出力してください。
    【重要な自己検証ステップ】
@@ -8022,24 +8020,7 @@ if st.session_state.analyzed_results:
     for img_idx, items in games_by_img.items():
         st.markdown(f"**画像 {img_idx+1} の設定**")
         
-        import unicodedata
-        import re
-        
-        raw_lane = str(items[0]["export_row"][3]).strip()
-        # 全角英数字を半角に変換（例：「７」→「7」）
-        norm_lane = unicodedata.normalize('NFKC', raw_lane)
-        # 余計な文字や空白を取り除き、数字とハイフンだけを抽出（例：「L7 」→「7」）
-        match = re.search(r'[\d\-]+', norm_lane)
-        ai_lane = match.group(0) if match else norm_lane
-
-        # ▼ 追加：「07」などの先頭のゼロを取り除いて「7」にする処理 ▼
-        if ai_lane.isdigit():
-            ai_lane = str(int(ai_lane))
-            
-        # 選択肢に見つからなければ強制的に追加する安全装置
-        if ai_lane and ai_lane not in LANE_OPTIONS:
-            LANE_OPTIONS.append(ai_lane)
-            
+        ai_lane = items[0]["export_row"][3]
         default_lane_index = LANE_OPTIONS.index(ai_lane) if ai_lane in LANE_OPTIONS else 0
         
         c_lane, c_len, c_vol = st.columns([1.5, 1, 1])
