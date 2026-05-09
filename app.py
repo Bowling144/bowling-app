@@ -1522,7 +1522,7 @@ def analyze_round1(img, ai_meta_data):
         
         # （ラウワン）縦位置の指定
         y_offset_score = int(11.0 * mm_to_px)      # （ラウワン）1投目と赤文字は下辺から11mm上
-        y_offset_match = int(12.0 * mm_to_px)      # （ラウワン）マッチの文字は下辺から12mm上
+        y_offset_match = int(19.0 * mm_to_px)      # （ラウワン）マッチの文字は下辺から19mm上（7mm上へ移動）
         
         text_y_score = int(base_y - y_offset_score)
         text_y_match = int(base_y - y_offset_match)
