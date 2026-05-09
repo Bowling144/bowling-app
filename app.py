@@ -1298,15 +1298,24 @@ def analyze_round1(img, ai_meta_data):
     contours, _ = cv2.findContours(h_dilate, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
     h_lines_info = []
+    max_w = 0
     for cnt in contours:
         x, y, w, h = cv2.boundingRect(cnt)
         if w > target_width * 0.4:
             y_center = y + h / 2.0
             h_lines_info.append({'y': y_center, 'w': w, 'x': x})
+            if w > max_w:
+                max_w = w
+                
+    # （ラウワン）▼ 追加：画像上部のヘッダー領域（約45mm）の横線を除外する ▼
+    # 検出された最大の横線の幅(max_w)をスコア表全体の幅(約160mm)とみなし、45mm相当のピクセル数を算出
+    ignore_y_px = 45.0 * (max_w / 160.0) if max_w > 0 else 0
+    
+    # 画像の上端から ignore_y_px以内の位置にある横線は、ゲーム枠ではないと判定して削除
+    h_lines_info = [line for line in h_lines_info if line['y'] > ignore_y_px]
             
     # （ラウワン）変更後
     h_lines_info.sort(key=lambda item: item['y'])
-
     blocks = []
     if h_lines_info:
         current_block = [h_lines_info[0]]
