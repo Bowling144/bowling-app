@@ -1506,11 +1506,14 @@ def analyze_round1(img, ai_meta_data):
         mm_to_px = distance_ab_px / 159.4
         
         # （ラウワン）指定の距離（均等割り計算）
-        # 1フレ1投目(0mm)から10フレ3投目(142.6mm)までの20間隔分（投球数は21）を均等割り
-        pitch_per_throw_mm = 142.6 / 20.0
+        # 1フレ1投目の左端(0mm)から10フレ3投目の右端(142.6mm)の全体幅を「21投分」で均等割り
+        pitch_per_throw_mm = 142.6 / 21.0
         pitch_per_throw_px = pitch_per_throw_mm * mm_to_px
         
-        # 緑文字（フレームトータル）の位置：1フレ1投目と2投目の中間より少し右あたりに仮置き
+        # 文字の左側余白（枠の左線に文字がかぶらないようにするため少し右にズラす）
+        text_margin_px = pitch_per_throw_px * 0.2
+        
+        # 緑文字（フレームトータル）の位置：フレームの真ん中付近
         tot_offset_px = pitch_per_throw_px * 0.8
         
         match_x_offset_px = int(145.0 * mm_to_px)  # （ラウワン）⑥ マッチの文字：10フレ3投目の少し右
@@ -1804,9 +1807,9 @@ def analyze_round1(img, ai_meta_data):
         # （ラウワン）▼ 画像への描画処理 ▼
         # （ラウワン）----------------------------------------------------
         for f in range(9):
-            # （ラウワン）均等割りピッチに基づくX座標計算
-            f_start_x = int(base_x + (f * 2 * pitch_per_throw_px))
-            x2_pos = int(base_x + ((f * 2 + 1) * pitch_per_throw_px))
+            # （ラウワン）均等割りピッチに基づくX座標計算（枠線にかぶらないようマージンを追加）
+            f_start_x = int(base_x + (f * 2 * pitch_per_throw_px) + text_margin_px)
+            x2_pos = int(base_x + ((f * 2 + 1) * pitch_per_throw_px) + text_margin_px)
             tot_start_x = int(base_x + (f * 2 * pitch_per_throw_px) + tot_offset_px)
             
             # （ラウワン）累計トータルスコアの描画
@@ -1825,9 +1828,9 @@ def analyze_round1(img, ai_meta_data):
                 cv2.putText(output_img, t2, (x2_pos, text_y_score), font, font_scale, throw_colors[f*2+1], thickness, cv2.LINE_AA)
             
         # （ラウワン）10フレームの描画
-        f10_1_x = int(base_x + (18 * pitch_per_throw_px))
-        f10_2_x = int(base_x + (19 * pitch_per_throw_px))
-        f10_3_x = int(base_x + (20 * pitch_per_throw_px))
+        f10_1_x = int(base_x + (18 * pitch_per_throw_px) + text_margin_px)
+        f10_2_x = int(base_x + (19 * pitch_per_throw_px) + text_margin_px)
+        f10_3_x = int(base_x + (20 * pitch_per_throw_px) + text_margin_px)
         tot10_start_x = int(base_x + (18 * pitch_per_throw_px) + tot_offset_px)
         
         ai_tot_val_10 = str(ai_frame_totals[9])
