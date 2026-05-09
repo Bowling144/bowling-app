@@ -1546,14 +1546,14 @@ def analyze_round1(img, ai_meta_data):
         pin1_x_offset_mm = 6.8   # （ラウワン）基準点Aから右に6.8mm
         pin_pitch_x_mm = (pin1_x_offset_mm - pin7_x_offset_mm) / 1.5  
         
-        pin7_y_offset_mm = 2.4   # （ラウワン）基準点Aから下に2.4mm（0.5mm下へ移動）
-        pin1_y_offset_mm = 13.3  # （ラウワン）基準点Aから下に13.3mm（0.5mm下へ移動）
+        pin7_y_offset_mm = 2.6   # （ラウワン）基準点Aから下に2.6mm（さらに0.2mm下へ移動）
+        pin1_y_offset_mm = 13.5  # （ラウワン）基準点Aから下に13.5mm（さらに0.2mm下へ移動）
         pin_pitch_y_mm = (pin1_y_offset_mm - pin7_y_offset_mm) / 3.0
         
-        axes_x_px = int((2.0 / 2) * mm_to_px)      # （ラウワン）判定枠の楕円X軸半径（横幅2.0mmの半分）
-        axes_y_px = int((3.2 / 2) * mm_to_px)      # （ラウワン）判定枠の楕円Y軸半径（縦高さ3.2mmの半分に変更）
-        yw = int(2.0 * mm_to_px)                   # （ラウワン）閾値判定用のクロップ幅（2.0mm）
-        yh = int(3.2 * mm_to_px)                   # （ラウワン）閾値判定用のクロップ高さ（3.2mmに変更）
+        axes_x_px = int((1.6 / 2) * mm_to_px)      # （ラウワン）判定枠の楕円X軸半径（横幅1.6mmの半分に変更）
+        axes_y_px = int((3.2 / 2) * mm_to_px)      # （ラウワン）判定枠の楕円Y軸半径（縦高さ3.2mmの半分）
+        yw = int(1.6 * mm_to_px)                   # （ラウワン）閾値判定用のクロップ幅（1.6mmに変更）
+        yh = int(3.2 * mm_to_px)                   # （ラウワン）閾値判定用のクロップ高さ（3.2mm）
 
         # （ラウワン）----------------------------------------------------
         # （ラウワン）ピンpct収集とヒストグラムによる動的閾値算出（全体分布基準を強制適用）
