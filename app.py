@@ -1764,9 +1764,9 @@ def analyze_round1(img, ai_meta_data):
                     throw_colors[f*2+1] = color_ai
 
         # （ラウワン）10フレーム目の計算
-        # ラウンドワンでは10フレの残ピン画像は1投目分（1セット）しかないため、2投目・3投目はダミー（空）を使用
+        # ラウンドワンでは10フレの残ピン画像は1投目分（1セット）しかないため、トータルスコアからの逆算で2投目・3投目を決定する
         p9 = all_frame_pins[9]
-        p10, p11 = [], []
+        p10, p11 = [], [] # ダミー
         
         v1_10 = 10 - len(p9)
         str1_10 = 'X' if v1_10 == 10 else ('-' if v1_10 == 0 else str(v1_10))
@@ -1777,24 +1777,43 @@ def analyze_round1(img, ai_meta_data):
         diff_10 = curr_total_10 - prev_total_10
 
         if str1_10 == 'X':
-            v2_10 = 10 - len(p10)
-            str2_10 = 'X' if v2_10 == 10 else ('-' if v2_10 == 0 else str(v2_10))
-            final_throws[19] = str2_10
-            
-            if str2_10 == 'X':
-                v3_10 = 10 - len(p11)
-                str3_10 = 'X' if v3_10 == 10 else ('-' if v3_10 == 0 else str(v3_10))
-                final_throws[20] = str3_10
-            else:
-                if (diff_10 - 10) >= 10:
-                    final_throws[20] = "R:/"
-                    throw_colors[20] = color_ai
+            # 1投目がストライクの場合、残り2投の合計は diff_10 - 10
+            rem = diff_10 - 10
+            if rem >= 10:
+                final_throws[19] = "R:X"
+                throw_colors[19] = color_ai
+                v3_10 = rem - 10
+                if v3_10 == 10:
+                    final_throws[20] = "R:X"
                 else:
-                    v3_10 = diff_10 - 10 - v2_10
-                    if v3_10 < 0: v3_10 = 0
-                    if v3_10 + v2_10 > 9: v3_10 = 9 - v2_10
                     final_throws[20] = "R:-" if v3_10 == 0 else f"R:{v3_10}"
-                    throw_colors[20] = color_ai
+                throw_colors[20] = color_ai
+            else:
+                # 2投目と3投目で合計10ピン未満の場合（便宜上、2投目にすべて倒したとして扱う）
+                rem = max(0, rem)
+                final_throws[19] = "R:-" if rem == 0 else f"R:{rem}"
+                throw_colors[19] = color_ai
+                final_throws[20] = "R:-"
+                throw_colors[20] = color_ai
+        else:
+            # 1投目がストライクではない場合
+            if diff_10 >= 10:
+                # スペアー確定
+                final_throws[19] = "R:/"
+                throw_colors[19] = color_ai
+                v3_10 = diff_10 - 10
+                if v3_10 == 10:
+                    final_throws[20] = "R:X"
+                else:
+                    final_throws[20] = "R:-" if v3_10 == 0 else f"R:{v3_10}"
+                throw_colors[20] = color_ai
+            else:
+                # オープンフレーム
+                v2_10 = diff_10 - v1_10
+                v2_10 = max(0, min(9 - v1_10, v2_10))
+                final_throws[19] = "R:-" if v2_10 == 0 else f"R:{v2_10}"
+                throw_colors[19] = color_ai
+                final_throws[20] = ""
         else:
             if diff_10 >= 10:
                 final_throws[19] = "R:/"
