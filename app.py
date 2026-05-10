@@ -3720,12 +3720,20 @@ if app_mode == "プレイヤー分析":
 
             # 変更後
             if selected_player:
-                # ▼ 追加（共通）: 分析対象のボウリング場フィルター ▼
+                # ▼ 追加（共通）: ボウリング場・個別条件フィルターの選択肢取得 ▼
                 player_alleys = set()
+                cond1_set = set()
+                cond2_set = set()
+                cond3_set = set()
+
                 for row in master_data[1:]:
                     if len(row) >= 53 and row[1] == selected_player:
                         alley = row[58].strip() if len(row) > 58 and row[58].strip() else "イーグルボウル"
                         player_alleys.add(alley)
+                        # SPSのBD列(55), BE列(56), BF列(57) から個別条件を取得
+                        if len(row) > 55 and row[55].strip(): cond1_set.add(row[55].strip())
+                        if len(row) > 56 and row[56].strip(): cond2_set.add(row[56].strip())
+                        if len(row) > 57 and row[57].strip(): cond3_set.add(row[57].strip())
                 
                 alley_filter_options = ["すべて"] + sorted(list(player_alleys))
                 selected_alley_filter = st.selectbox("🎳 分析対象のボウリング場", alley_filter_options, index=0)
@@ -3744,17 +3752,16 @@ if app_mode == "プレイヤー分析":
                         selected_period = st.date_input("📅 期間指定", value=[], help="開始日と終了日を選択してください")
                     
                     with col_cond1:
-                        # 選択肢は仮設定です。実際のデータに合わせて変更してください。
-                        cond1_options = ["大会A", "大会B", "大会C"]
+                        cond1_options = sorted(list(cond1_set))
                         selected_cond1 = st.multiselect("🔍 個別条件１ (例: 大会名)", options=cond1_options)
 
                     col_cond2, col_cond3 = st.columns(2)
                     with col_cond2:
-                        cond2_options = ["パターンA", "パターンB", "パターンC"]
+                        cond2_options = sorted(list(cond2_set))
                         selected_cond2 = st.multiselect("🔍 個別条件２ (例: オイル)", options=cond2_options)
                     
                     with col_cond3:
-                        cond3_options = ["ボールA", "ボールB", "ボールC"]
+                        cond3_options = sorted(list(cond3_set))
                         selected_cond3 = st.multiselect("🔍 個別条件３ (例: ボール)", options=cond3_options)
                     st.markdown("---")
                 # ▲ 追加ここまで ▲
