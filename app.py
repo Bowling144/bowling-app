@@ -3766,17 +3766,50 @@ if app_mode == "プレイヤー分析":
                     st.markdown("---")
                 # ▲ 追加ここまで ▲
 
-                # 1. マスターシートから選択されたプレイヤーの「直近50ゲーム」と「7-10G」を抽出
+                # 1. マスターシートから選択されたプレイヤーのデータを抽出（各種フィルター適用）
+                import datetime
+
+                # カレンダーの選択期間を解析
+                start_date = None
+                end_date = None
+                if selected_period:
+                    if len(selected_period) == 1:
+                        start_date = end_date = selected_period[0]
+                    elif len(selected_period) == 2:
+                        start_date, end_date = selected_period
+
                 player_games = []
-                player_710_rows = [] 
+                player_710_rows = []
                 for row in master_data[1:]:
                     if len(row) >= 53 and row[1] == selected_player:
-                        # ▼ 追加（共通）：ボウリング場でフィルタリング ▼
+                        # ▼ フィルター適用 ▼
+                        # ① ボウリング場フィルター
                         row_alley = row[58].strip() if len(row) > 58 and row[58].strip() else "イーグルボウル"
                         if selected_alley_filter != "すべて" and row_alley != selected_alley_filter:
                             continue
-                        # ▲ 追加（共通）ここまで ▲
-
+                            
+                        # ② 期間フィルター (row[2] の YY/MM/DD を判定)
+                        if start_date and end_date:
+                            try:
+                                date_str = row[2].strip()
+                                if len(date_str.split('/')[0]) == 2:
+                                    date_str = "20" + date_str # 26/05/10 を 2026/05/10 に補正
+                                row_date = datetime.datetime.strptime(date_str, "%Y/%m/%d").date()
+                                if not (start_date <= row_date <= end_date):
+                                    continue
+                            except Exception:
+                                continue # 日付形式が不正なデータは期間指定時は除外
+                                
+                        # ③ 個別条件フィルター (BD列:55, BE列:56, BF列:57)
+                        val_cond1 = row[55].strip() if len(row) > 55 else ""
+                        val_cond2 = row[56].strip() if len(row) > 56 else ""
+                        val_cond3 = row[57].strip() if len(row) > 57 else ""
+                        
+                        if selected_cond1 and val_cond1 not in selected_cond1: continue
+                        if selected_cond2 and val_cond2 not in selected_cond2: continue
+                        if selected_cond3 and val_cond3 not in selected_cond3: continue
+                        # ▲ フィルター適用ここまで ▲
+                        
                         is_710_game = (len(row) > 54 and str(row[54]).strip().upper() == "TRUE")
                         if is_710_game:
                             player_710_rows.append(row)
