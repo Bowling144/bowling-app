@@ -3731,6 +3731,34 @@ if app_mode == "プレイヤー分析":
                 selected_alley_filter = st.selectbox("🎳 分析対象のボウリング場", alley_filter_options, index=0)
                 # ▲ 追加（共通）ここまで ▲
 
+                # ▼ 追加：管理者・開発者向け 詳細フィルター（一般ユーザには非表示） ▼
+                selected_period = []
+                selected_cond1 = []
+                selected_cond2 = []
+                selected_cond3 = []
+                
+                if st.session_state.get("user_role") in ["管理者", "開発者"]:
+                    st.markdown("---")
+                    col_date, col_cond1 = st.columns([1, 1])
+                    with col_date:
+                        selected_period = st.date_input("📅 期間指定", value=[], help="開始日と終了日を選択してください")
+                    
+                    with col_cond1:
+                        # 選択肢は仮設定です。実際のデータに合わせて変更してください。
+                        cond1_options = ["大会A", "大会B", "大会C"]
+                        selected_cond1 = st.multiselect("🔍 個別条件１ (例: 大会名)", options=cond1_options)
+
+                    col_cond2, col_cond3 = st.columns(2)
+                    with col_cond2:
+                        cond2_options = ["パターンA", "パターンB", "パターンC"]
+                        selected_cond2 = st.multiselect("🔍 個別条件２ (例: オイル)", options=cond2_options)
+                    
+                    with col_cond3:
+                        cond3_options = ["ボールA", "ボールB", "ボールC"]
+                        selected_cond3 = st.multiselect("🔍 個別条件３ (例: ボール)", options=cond3_options)
+                    st.markdown("---")
+                # ▲ 追加ここまで ▲
+
                 # 1. マスターシートから選択されたプレイヤーの「直近50ゲーム」と「7-10G」を抽出
                 player_games = []
                 player_710_rows = [] 
