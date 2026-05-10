@@ -3753,16 +3753,16 @@ if app_mode == "プレイヤー分析":
                     
                     with col_cond1:
                         cond1_options = sorted(list(cond1_set))
-                        selected_cond1 = st.multiselect("🔍 個別条件１ (例: 大会名)", options=cond1_options)
+                        selected_cond1 = st.multiselect("🔍 個別条件１", options=cond1_options)
 
                     col_cond2, col_cond3 = st.columns(2)
                     with col_cond2:
                         cond2_options = sorted(list(cond2_set))
-                        selected_cond2 = st.multiselect("🔍 個別条件２ (例: オイル)", options=cond2_options)
+                        selected_cond2 = st.multiselect("🔍 個別条件２", options=cond2_options)
                     
                     with col_cond3:
                         cond3_options = sorted(list(cond3_set))
-                        selected_cond3 = st.multiselect("🔍 個別条件３ (例: ボール)", options=cond3_options)
+                        selected_cond3 = st.multiselect("🔍 個別条件３", options=cond3_options)
                     st.markdown("---")
                 # ▲ 追加ここまで ▲
 
