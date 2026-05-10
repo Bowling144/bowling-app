@@ -1814,23 +1814,6 @@ def analyze_round1(img, ai_meta_data):
                 final_throws[19] = "R:-" if v2_10 == 0 else f"R:{v2_10}"
                 throw_colors[19] = color_ai
                 final_throws[20] = ""
-        else:
-            if diff_10 >= 10:
-                final_throws[19] = "R:/"
-                throw_colors[19] = color_ai
-                v3_10 = diff_10 - 10
-                if v3_10 < 0: v3_10 = 0
-                if v3_10 > 10: v3_10 = 10
-                str3_10 = 'X' if v3_10 == 10 else ('-' if v3_10 == 0 else str(v3_10))
-                final_throws[20] = f"R:{str3_10}" if str3_10 != 'X' else "R:X"
-                throw_colors[20] = color_ai
-            else:
-                v2_10 = diff_10 - v1_10
-                if v2_10 < 0: v2_10 = 0
-                if v2_10 + v1_10 > 9: v2_10 = 9 - v1_10
-                final_throws[19] = "R:-" if v2_10 == 0 else f"R:{v2_10}"
-                throw_colors[19] = color_ai
-                final_throws[20] = ""
 
         # （ラウワン）----------------------------------------------------
         # （ラウワン）データエクスポート用の row_data を構築
