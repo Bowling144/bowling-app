@@ -3615,23 +3615,10 @@ if app_mode == "プレイヤー分析":
                                     if files:
                                         file_id = files[0]['id']
                                         
-                                        # ▼ 修正：PDFの実データをサービスアカウント経由で裏側ダウンロードし、ログイン不要で表示する
-                                        import io
-                                        import base64
-                                        from googleapiclient.http import MediaIoBaseDownload
-                                        
-                                        fh = io.BytesIO()
-                                        downloader = MediaIoBaseDownload(fh, drive_service.files().get_media(fileId=file_id))
-                                        done = False
-                                        while not done:
-                                            _, done = downloader.next_chunk()
-                                            
-                                        pdf_bytes = fh.getvalue()
-                                        base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
-                                        
-                                        # base64エンコードしたPDFデータを直接ブラウザに流し込む（認証の壁を完全にスルー）
-                                        pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="800" style="border:none;" type="application/pdf"></iframe>'
-                                        st.markdown(pdf_display, unsafe_allow_html=True)
+                                        # Google Driveの公式プレビューを直接埋め込む（Chromeのブロックを回避）
+                                        preview_url = f"https://drive.google.com/file/d/{file_id}/preview"
+                                        iframe_html = f'<iframe src="{preview_url}" width="100%" height="800" style="border:none;" allow="autoplay"></iframe>'
+                                        st.markdown(iframe_html, unsafe_allow_html=True)
                                     else:
                                         st.info("今月のスケジュールPDFが見つかりません。")
                                 else:
