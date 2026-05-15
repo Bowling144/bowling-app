@@ -3402,7 +3402,19 @@ if app_mode == "プレイヤー分析":
     def calc_rating_flight(recent_scores):
         if not recent_scores: return 0.0, "UNRATED", 0.0
         
-        a = sum(recent_scores) / len(recent_scores)
+        # ▼ 変更：直近90Gの加重平均によるレーティング基準値(a)の算出 ▼
+        fallback_avg = sum(recent_scores) / len(recent_scores)
+        
+        g1_30 = recent_scores[0:30]
+        g31_60 = recent_scores[30:60]
+        g61_90 = recent_scores[60:90]
+        
+        avg1 = sum(g1_30) / len(g1_30) if g1_30 else fallback_avg
+        avg2 = sum(g31_60) / len(g31_60) if g31_60 else fallback_avg
+        avg3 = sum(g61_90) / len(g61_90) if g61_90 else fallback_avg
+        
+        a = (avg1 * 3 + avg2 * 2 + avg3 * 1) / 6
+        # ▲ 変更 ここまで ▲
         
         if a >= 230: rt = 18 + (a - 230) * (3 / 20)
         elif a >= 210: rt = 15 + (a - 210) * (3 / 20)
@@ -3422,7 +3434,11 @@ if app_mode == "プレイヤー分析":
         elif rt >= 4: flight = "CC ROLLER"
         else: flight = "C ROLLER"
         
-        return rt, flight, round(a, 1)
+        # ▼ 変更：表示用のアベレージ値は「直近50Gの単純平均」のままで返す ▼
+        ave_50_scores = recent_scores[:50]
+        ave_50 = sum(ave_50_scores) / len(ave_50_scores) if ave_50_scores else 0.0
+        
+        return rt, flight, round(ave_50, 1)
 
     # SPSからデータを取得（スピナー表示）
     with st.spinner("SPSから最新の分析データを取得中..."):
@@ -3499,8 +3515,9 @@ if app_mode == "プレイヤー分析":
                             except ValueError:
                                 pass
                 p_games.sort(key=lambda x: (x["date"], x["time"]), reverse=True)
-                tmp_recent_50 = [g["score"] for g in p_games[:50]]
-                rt_val, _, _ = calc_rating_flight(tmp_recent_50)
+                # ▼ 変更：50Gから90Gに拡張
+                tmp_recent_90 = [g["score"] for g in p_games[:90]]
+                rt_val, _, _ = calc_rating_flight(tmp_recent_90)
                 
                 # ドロップダウン用の表示名を作成（レーティング数値を付与）
                 rt_str = f"{rt_val:.2f}" if rt_val > 0 else "---"
@@ -3823,9 +3840,12 @@ if app_mode == "プレイヤー分析":
                             
                 # 日付・時間で降順ソートし、直近50件を抽出
                 player_games.sort(key=lambda x: (x["date"], x["time"]), reverse=True)
-                recent_50 = [g["score"] for g in player_games[:50]]
+                recent_50 = [g["score"] for g in player_games[:50]] # 既存ロジック・表示用に50Gはそのまま保持
+                
                 # 2. レーティング計算
-                rt, flight, ave = calc_rating_flight(recent_50)
+                # ▼ 変更：レーティング計算用には直近90Gを抽出して渡す
+                recent_90 = [g["score"] for g in player_games[:90]]
+                rt, flight, ave = calc_rating_flight(recent_90)
 
                 # 3. 統計データの取得とタブの作成
                 try:
