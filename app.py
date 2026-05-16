@@ -51,17 +51,14 @@ def compress_image_for_ai(pil_img, max_size=1024):
         img = img.convert('RGB')
     return img
 
-# 変更後
 # --- ページ設定 ---
 st.set_page_config(page_title="ボウリング解析", page_icon="🎳", layout="wide")
 
 # ▼ 追加：スマホのホーム画面追加用アイコン（Apple Touch Icon）を強制的に上書きする設定 ▼
 import streamlit.components.v1 as components
 
-# ホーム画面に表示させたいアプリアイコンの画像URL
-# ※ボウリング場のオリジナルロゴ画像（正方形が推奨）をWeb上またはGoogleドライブにアップロードし、その直リンクURLに書き換えてください。
-# ※現在は仮としてボウリングの絵文字画像をデフォルトで自動設定しています。
-app_icon_url = "https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/1f3b3.png"
+# ご指定のGoogleドライブ画像をアプリ内に直接読み込める形式（直リンクURL）に変換して設定しています
+app_icon_url = "https://lh3.googleusercontent.com/d/1W_EyTarLvHJnWJYCFegnr2XsRfOGzp4A"
 
 components.html(
     f"""
