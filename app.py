@@ -55,6 +55,39 @@ def compress_image_for_ai(pil_img, max_size=1024):
 # --- ページ設定 ---
 st.set_page_config(page_title="ボウリング解析", page_icon="🎳", layout="wide")
 
+# ▼ 追加：スマホのホーム画面追加用アイコン（Apple Touch Icon）を強制的に上書きする設定 ▼
+import streamlit.components.v1 as components
+
+# ホーム画面に表示させたいアプリアイコンの画像URL
+# ※ボウリング場のオリジナルロゴ画像（正方形が推奨）をWeb上またはGoogleドライブにアップロードし、その直リンクURLに書き換えてください。
+# ※現在は仮としてボウリングの絵文字画像をデフォルトで自動設定しています。
+app_icon_url = "https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/1f3b3.png"
+
+components.html(
+    f"""
+    <script>
+        const doc = window.parent.document;
+        
+        // Android / 一般ブラウザ用のアイコンを上書き
+        const links = doc.querySelectorAll("link[rel*='icon']");
+        links.forEach(link => {{
+            link.href = "{app_icon_url}";
+        }});
+        
+        // iOS（iPhone）のホーム画面用アイコン（apple-touch-icon）を追加・上書き
+        let appleIcon = doc.querySelector("link[rel='apple-touch-icon']");
+        if (!appleIcon) {{
+            appleIcon = doc.createElement('link');
+            appleIcon.rel = 'apple-touch-icon';
+            doc.head.appendChild(appleIcon);
+        }}
+        appleIcon.href = "{app_icon_url}";
+    </script>
+    """,
+    height=0,
+    width=0,
+)
+
 # =========================================================
 # ▼ 追加：全ボウリング場共通の画像前処理（回転と傾き補正） ▼
 # =========================================================
