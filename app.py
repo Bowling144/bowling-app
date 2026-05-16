@@ -57,8 +57,8 @@ st.set_page_config(page_title="ボウリング解析", page_icon="🎳", layout=
 # ▼ 追加：スマホのホーム画面追加用アイコン（Apple Touch Icon）を強制的に上書きする設定 ▼
 import streamlit.components.v1 as components
 
-# ご指定のGoogleドライブ画像をアプリ内に直接読み込める形式（直リンクURL）に変換して設定しています
-app_icon_url = "https://lh3.googleusercontent.com/d/1W_EyTarLvHJnWJYCFegnr2XsRfOGzp4A"
+# 修正：ご指定のGoogleドライブ画像（1W_EyTarLvHJnWJYCFegnr2XsRfOGzp4A）の正しい直リンクURLを設定
+app_icon_url = "https://drive.google.com/uc?export=view&id=1W_EyTarLvHJnWJYCFegnr2XsRfOGzp4A"
 
 components.html(
     f"""
