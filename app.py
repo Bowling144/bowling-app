@@ -52,19 +52,11 @@ def compress_image_for_ai(pil_img, max_size=1024):
     return img
 
 # --- ページ設定 ---
-# ▼ 修正：GoogleドライブのURLはスマホにブロックされるため、配置した画像ファイルを直接読み込む
-from PIL import Image
-import os
+# ▼ 修正：スマホのホーム画面アイコンとして認識させるため、GitHub上の画像の「直接リンク」を指定する
+# ※ "YOUR_RAW_URL_HERE" の部分を、コピーした「https://raw.githubusercontent.com/...」のURLに書き換えてください。
+app_icon_url = "https://github.com/Bowling144/bowling-app/blob/1a81d71b1630289bf6d7c8707e2de56edd91e7e8/icon2.png"
 
-# アップロードしたファイル名に合わせて拡張子（.jpg または .png）を変更してください
-icon_path = "icon2.png"
-
-if os.path.exists(icon_path):
-    app_icon_img = Image.open(icon_path)
-else:
-    app_icon_img = "🎳" # 画像が見つからない場合の予備
-
-st.set_page_config(page_title="ボウリング解析", page_icon=app_icon_img, layout="wide")
+st.set_page_config(page_title="ボウリング解析", page_icon=app_icon_url, layout="wide")
 
 # =========================================================
 # ▼ 追加：全ボウリング場共通の画像前処理（回転と傾き補正） ▼
