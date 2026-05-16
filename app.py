@@ -52,38 +52,9 @@ def compress_image_for_ai(pil_img, max_size=1024):
     return img
 
 # --- ページ設定 ---
-st.set_page_config(page_title="ボウリング解析", page_icon="🎳", layout="wide")
-
-# ▼ 追加：スマホのホーム画面追加用アイコン（Apple Touch Icon）を強制的に上書きする設定 ▼
-import streamlit.components.v1 as components
-
-# 修正：ご指定のGoogleドライブ画像（1W_EyTarLvHJnWJYCFegnr2XsRfOGzp4A）の正しい直リンクURLを設定
+# ▼ 修正：Streamlit標準の機能で最初からアイコンを読み込ませる（JSの裏技を撤廃）
 app_icon_url = "https://drive.google.com/uc?export=view&id=1W_EyTarLvHJnWJYCFegnr2XsRfOGzp4A"
-
-components.html(
-    f"""
-    <script>
-        const doc = window.parent.document;
-        
-        // Android / 一般ブラウザ用のアイコンを上書き
-        const links = doc.querySelectorAll("link[rel*='icon']");
-        links.forEach(link => {{
-            link.href = "{app_icon_url}";
-        }});
-        
-        // iOS（iPhone）のホーム画面用アイコン（apple-touch-icon）を追加・上書き
-        let appleIcon = doc.querySelector("link[rel='apple-touch-icon']");
-        if (!appleIcon) {{
-            appleIcon = doc.createElement('link');
-            appleIcon.rel = 'apple-touch-icon';
-            doc.head.appendChild(appleIcon);
-        }}
-        appleIcon.href = "{app_icon_url}";
-    </script>
-    """,
-    height=0,
-    width=0,
-)
+st.set_page_config(page_title="ボウリング解析", page_icon=app_icon_url, layout="wide")
 
 # =========================================================
 # ▼ 追加：全ボウリング場共通の画像前処理（回転と傾き補正） ▼
