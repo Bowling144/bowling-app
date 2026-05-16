@@ -54,6 +54,25 @@ def compress_image_for_ai(pil_img, max_size=1024):
 # --- ページ設定 ---
 st.set_page_config(page_title="ボウリング解析", page_icon="🎳", layout="wide")
 
+# ▼ 追加：埋め込み時に勝手に出現する右下のボタン（もとのURLへ飛ぶ罠）を強制非表示にする ▼
+st.markdown(
+    """
+    <style>
+    /* 右下のフルスクリーンボタン（Streamlit特有のバッジ）を消す */
+    div[class^="viewerBadge_container"], 
+    a[title="View fullscreen"], 
+    a[title="View app in fullscreen"] {
+        display: none !important;
+    }
+    /* 念のためフッター（Made with Streamlit等）も完全に隠す */
+    footer {
+        visibility: hidden !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 # =========================================================
 # ▼ 追加：全ボウリング場共通の画像前処理（回転と傾き補正） ▼
 # =========================================================
