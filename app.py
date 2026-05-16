@@ -60,9 +60,9 @@ import os
 icon_path = "icon2.png"
 
 if os.path.exists(icon_path):
-    app_icon_img = Image.open(icon_path)
+    app_icon_img = Image.open(icon_path)
 else:
-    app_icon_img = "🎳" # 画像が見つからない場合の予備
+    app_icon_img = "🎳" # 画像が見つからない場合の予備
 
 st.set_page_config(page_title="ボウリング解析", page_icon=app_icon_img, layout="wide")
 
