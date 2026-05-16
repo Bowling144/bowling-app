@@ -52,9 +52,8 @@ def compress_image_for_ai(pil_img, max_size=1024):
     return img
 
 # --- ページ設定 ---
-# ▼ 修正：スマホのホーム画面アイコンとして認識させるため、GitHub上の画像の「直接リンク」を指定する
-# ※ "YOUR_RAW_URL_HERE" の部分を、コピーした「https://raw.githubusercontent.com/...」のURLに書き換えてください。
-app_icon_url = "https://github.com/Bowling144/bowling-app/blob/1a81d71b1630289bf6d7c8707e2de56edd91e7e8/icon2.png"
+# ▼ 修正：スマホのホーム画面アイコンとして認識させるため、GitHub上の画像の「直接リンク（Raw URL）」を指定する
+app_icon_url = "https://raw.githubusercontent.com/Bowling144/bowling-app/1a81d71b1630289bf6d7c8707e2de56edd91e7e8/icon2.png"
 
 st.set_page_config(page_title="ボウリング解析", page_icon=app_icon_url, layout="wide")
 
